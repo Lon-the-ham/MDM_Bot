@@ -4,12 +4,12 @@ import asyncpraw
 import discord
 from discord.ext import commands
 import asyncio
-import asyncprawcore
+#import asyncprawcore
 import re
 import time
 import random
 import sqlite3
-import subprocess
+#import subprocess
 from emoji import UNICODE_EMOJI
 import functools
 import itertools
