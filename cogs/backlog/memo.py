@@ -99,10 +99,10 @@ class Memo(commands.Cog):
         curbg = conbg.cursor()
         curbg.execute('''CREATE TABLE IF NOT EXISTS memobacklog (bgid text, userid text, username text, backlog text, details text)''')
         
-        user = ctx.message.author
-        user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? ORDER BY bgid", (str(user.id),)).fetchall()]
+        bl_user = ctx.message.author
+        user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? ORDER BY bgid", (str(bl_user.id),)).fetchall()]
         try:
-            hexcolor = user.color 
+            hexcolor = bl_user.color 
         except:
             hexcolor = 0xffffff
 
@@ -117,14 +117,14 @@ class Memo(commands.Cog):
                     print(pum_id)
                     try:
                         #get user with said id
-                        user = await ctx.guild.fetch_member(pum_id)
+                        bl_user = await ctx.guild.fetch_member(pum_id)
                         user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? ORDER BY bgid", (pum_id,)).fetchall()]
-                        print(f'bl command: different user mention: {pum_id}')
+                        print(f'bl command: different user mention: {pum_id}, {bl_user.display_name}')
                     except:
                         await ctx.send("Error with user mention. :(")     
 
                     try:
-                        hexcolor = user.color 
+                        hexcolor = bl_user.color 
                     except:
                         hexcolor = 0x000000                   
 
@@ -152,7 +152,7 @@ class Memo(commands.Cog):
         pages = len(contents)
         
 
-        header = "**Backlog/Memo of %s** (%s):\n" % (str(user.display_name), str(len(user_bg_list)))
+        header = "**Backlog/Memo of %s** (%s):\n" % (str(bl_user.display_name), str(len(user_bg_list)))
         embed=discord.Embed(title=header, description=(f"{contents[cur_page-1]}"), color=hexcolor)
         #embed.set_author(name=ctx.author.display_name,icon_url=ctx.author.avatar_url)
         embed.set_footer(text=f"Page {cur_page}/{pages}")
@@ -179,7 +179,7 @@ class Memo(commands.Cog):
                     # waiting for a reaction to be added - times out after x seconds, 60 in this
                     # example
 
-                    header = "**Backlog/Memo of %s** (%s):\n" % (str(user.display_name), str(len(user_bg_list)))
+                    header = "**Backlog/Memo of %s** (%s):\n" % (str(bl_user.display_name), str(len(user_bg_list)))
 
                     if str(reaction.emoji) == "▶️" and cur_page != pages:
                         cur_page += 1
