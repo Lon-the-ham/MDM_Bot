@@ -18,6 +18,9 @@ import sys
 import traceback
 
 
+default_perms = ['create_instant_invite', 'add_reactions', 'stream', 'read_messages', 'send_messages', 'send_tts_messages', 'embed_links', 'attach_files', 'read_message_history', 'external_emojis', 'connect', 'speak', 'use_voice_activation', 'change_nickname', 'use_slash_commands', 'request_to_speak', 'use_application_commands', 'create_public_threads', 'create_private_threads', 'external_stickers', 'send_messages_in_threads', 'use_embedded_activities']  
+
+
 class Roles(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -312,7 +315,7 @@ class Roles(commands.Cog):
     async def _userperms(self, ctx, *args):
         """*Perms of user"""
         guild = self.bot.get_guild('413011798552477716')
-        default_perms = ['create_instant_invite', 'add_reactions', 'stream', 'read_messages', 'send_messages', 'send_tts_messages', 'embed_links', 'attach_files', 'read_message_history', 'external_emojis', 'connect', 'speak', 'use_voice_activation', 'change_nickname', 'use_slash_commands', 'request_to_speak', 'use_application_commands']    
+        #default_perms = ['create_instant_invite', 'add_reactions', 'stream', 'read_messages', 'send_messages', 'send_tts_messages', 'embed_links', 'attach_files', 'read_message_history', 'external_emojis', 'connect', 'speak', 'use_voice_activation', 'change_nickname', 'use_slash_commands', 'request_to_speak', 'use_application_commands', 'create_public_threads', 'create_private_threads', 'external_stickers', 'send_messages_in_threads', 'use_embedded_activities']    
         user_name = ' '.join(args)
         userlist = ctx.guild.members
 
@@ -427,7 +430,7 @@ class Roles(commands.Cog):
         """*Permissions of a role
 
         Only for server managers."""
-        default_perms = ['create_instant_invite', 'add_reactions', 'stream', 'read_messages', 'send_messages', 'send_tts_messages', 'embed_links', 'attach_files', 'read_message_history', 'external_emojis', 'connect', 'speak', 'use_voice_activation', 'change_nickname', 'use_slash_commands', 'request_to_speak', 'use_application_commands']    
+        #default_perms = ['create_instant_invite', 'add_reactions', 'stream', 'read_messages', 'send_messages', 'send_tts_messages', 'embed_links', 'attach_files', 'read_message_history', 'external_emojis', 'connect', 'speak', 'use_voice_activation', 'change_nickname', 'use_slash_commands', 'request_to_speak', 'use_application_commands']    
         the_role = ' '.join(args)
         guild = self.bot.get_guild('413011798552477716')
         all_roles = [[str(r.id),str(r.name),r.permissions] for r in ctx.guild.roles]
@@ -518,7 +521,7 @@ class Roles(commands.Cog):
                 r_id = rp[0]
                 r_col = rp[2]
                 r_perm_list = [perm[0] for perm in rp[1] if perm[1]]
-                default_perms = ['create_instant_invite', 'add_reactions', 'stream', 'read_messages', 'send_messages', 'send_tts_messages', 'embed_links', 'attach_files', 'read_message_history', 'external_emojis', 'connect', 'speak', 'use_voice_activation', 'change_nickname', 'use_slash_commands', 'request_to_speak', 'use_application_commands']            
+                #default_perms = ['create_instant_invite', 'add_reactions', 'stream', 'read_messages', 'send_messages', 'send_tts_messages', 'embed_links', 'attach_files', 'read_message_history', 'external_emojis', 'connect', 'speak', 'use_voice_activation', 'change_nickname', 'use_slash_commands', 'request_to_speak', 'use_application_commands']            
                 r_perm_list_wodef = []
                 for perm in r_perm_list:
                     if perm in default_perms:
@@ -759,7 +762,7 @@ class Roles(commands.Cog):
         """*Deletes role"""
         role_to_delete = ' '.join(args)
         guild = self.bot.get_guild('413011798552477716')
-        default_perms = ['create_instant_invite', 'add_reactions', 'stream', 'read_messages', 'send_messages', 'send_tts_messages', 'embed_links', 'attach_files', 'read_message_history', 'external_emojis', 'connect', 'speak', 'use_voice_activation', 'change_nickname', 'use_slash_commands', 'request_to_speak', 'use_application_commands']                            
+        #default_perms = ['create_instant_invite', 'add_reactions', 'stream', 'read_messages', 'send_messages', 'send_tts_messages', 'embed_links', 'attach_files', 'read_message_history', 'external_emojis', 'connect', 'speak', 'use_voice_activation', 'change_nickname', 'use_slash_commands', 'request_to_speak', 'use_application_commands']                            
         all_roles = [r for r in ctx.guild.roles]
 
         role_found = False
