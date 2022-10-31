@@ -990,7 +990,7 @@ class Memo(commands.Cog):
         else:
             headercat = category
 
-        header = "**Backlog [%s] of %s** (%s/%s):\n" % (headercat, str(bl_user.display_name), str(len(bl_user_bg_list_indexed)), str(len(bl_user_bg_list)))
+        header = "**Backlog [%s] of %s** (%s/%s):\n" % (headercat, str(bl_user.display_name), str(len(user_bg_list_indexed)), str(len(user_bg_list)))
         embed=discord.Embed(title=header, description=(f"{contents[cur_page-1]}"), color=hexcolor)
         #embed.set_author(name=ctx.author.display_name,icon_url=ctx.author.avatar_url)
         embed.set_footer(text=f"Page {cur_page}/{pages}")
