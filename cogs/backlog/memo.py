@@ -914,11 +914,11 @@ class Memo(commands.Cog):
         curbg = conbg.cursor()
         curbg.execute('''CREATE TABLE IF NOT EXISTS memobacklog (bgid text, userid text, username text, backlog text, details text)''')
         
-        user = ctx.message.author
-        user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? ORDER BY bgid", (str(user.id),)).fetchall()]
+        bl_user = ctx.message.author
+        user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? ORDER BY bgid", (str(bl_user.id),)).fetchall()]
 
         try:
-            hexcolor = user.color 
+            hexcolor = bl_user.color 
         except:
             hexcolor = 0xffffff
 
@@ -947,7 +947,7 @@ class Memo(commands.Cog):
                             category = ""
                     try:
                         #get user with said id
-                        user = await ctx.guild.fetch_member(pum_id)
+                        bl_user = await ctx.guild.fetch_member(pum_id)
                         user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? ORDER BY bgid", (pum_id,)).fetchall()]
                         print(f'bl command: different user mention: {pum_id}')
                     except:
@@ -990,7 +990,7 @@ class Memo(commands.Cog):
         else:
             headercat = category
 
-        header = "**Backlog [%s] of %s** (%s/%s):\n" % (headercat, str(user.display_name), str(len(user_bg_list_indexed)), str(len(user_bg_list)))
+        header = "**Backlog [%s] of %s** (%s/%s):\n" % (headercat, str(bl_user.display_name), str(len(bl_user_bg_list_indexed)), str(len(bl_user_bg_list)))
         embed=discord.Embed(title=header, description=(f"{contents[cur_page-1]}"), color=hexcolor)
         #embed.set_author(name=ctx.author.display_name,icon_url=ctx.author.avatar_url)
         embed.set_footer(text=f"Page {cur_page}/{pages}")
@@ -1013,7 +1013,7 @@ class Memo(commands.Cog):
 
             while True:
                 try:
-                    reaction, user = await bot.wait_for("reaction_add", timeout=60, check=check)
+                    reaction, user = await self.bot.wait_for("reaction_add", timeout=60, check=check)
                     # waiting for a reaction to be added - times out after x seconds, 60 in this
                     # example
 
