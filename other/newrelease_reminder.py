@@ -35,7 +35,7 @@ async def send_msg(string, d_client):
 
 	MA_url = "https://www.metal-archives.com/search/advanced/searching/albums?bandName=&releaseTitle=&releaseYearFrom=" + year_from + "&releaseMonthFrom=" + month_from + "&releaseYearTo=" + year_to + "&releaseMonthTo=" + month_to + "&country=&location=&releaseLabelName=&releaseCatalogNumber=&releaseIdentifiers=&releaseRecordingInfo=&releaseDescription=&releaseNotes=&genre=Melodic+death+metal&releaseType%5B%5D=1&releaseType%5B%5D=5#albums"
 	#MA_url = "https://www.metal-archives.com/search/advanced/searching/albums?bandName=&releaseTitle=&releaseYearFrom=%s&releaseMonthFrom=%s&releaseYearTo=%s&releaseMonthTo=%s&country=&location=&releaseLabelName=&releaseCatalogNumber=&releaseIdentifiers=&releaseRecordingInfo=&releaseDescription=&releaseNotes=&genre=Melodic+death+metal&releaseType%5B%5D=1&releaseType%5B%5D=5#albums" % (year_from, month_from, year_to, month_to)
-	embed=discord.Embed(title="Metal Archives list", url=MA_url, description="It's Thursday my dude. Time for some new releases!", color=0xFF5733)
+	embed=discord.Embed(title="Metal Archives list", url=MA_url, description="It's Wednesday my dude. 🐸 Time for some new releases!", color=0xFF5733)
 	embed.set_thumbnail(url="https://i.imgur.com/NS5cFH6.png")
 	await channel.send(embed=embed)
 	print('sent embed')
