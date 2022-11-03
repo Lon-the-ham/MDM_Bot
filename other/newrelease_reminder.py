@@ -12,9 +12,6 @@ async def send_msg(string, d_client):
 	await channel.send(string)
 	print('sent ping')
 
-	#async def send_embed(d_client):
-	#await d_client.login("OTU4MTA1Mjg0NzU5NDAwNTU5.YkIfFA.tvC4JB8oiuTR-AmKHOmGvIDWVJ8")
-	#channel = await d_client.fetch_channel(416384984597790750)
 	year_now = date.today().year
 	month_now = date.today().month
 	day_now = date.today().day
