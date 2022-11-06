@@ -31,7 +31,7 @@ class ServerModeration(commands.Cog):
             immunity_list = ["586358910148018189", "958105284759400559"]
 
             if user_id in immunity_list:
-                await ctx.send('I- I really do not want to ban this user. <:shyplead:1012381867795816448>')
+                await ctx.send('I- I really do not want to ban this user. <:hampleading:1017443036843753553>')
             else:
                 try:
                     user = await self.bot.fetch_user(user_id)
@@ -66,7 +66,7 @@ class ServerModeration(commands.Cog):
             immunity_list = ["586358910148018189", "958105284759400559"]
 
             if user_id in immunity_list:
-                await ctx.send('I- I really do not want to kick this user. <:shyplead:1012381867795816448>')
+                await ctx.send('I- I really do not want to kick this user. <:hampleading:1017443036843753553>')
             else:
                 try:
                     user = await self.bot.fetch_user(user_id)
@@ -183,7 +183,7 @@ class ServerModeration(commands.Cog):
                 proceed = False
                 immunity_list = ["586358910148018189", "958105284759400559"]
                 if user_id in immunity_list:
-                    await ctx.send('I- I really do not want to mute this user. <:shyplead:1012381867795816448>')
+                    await ctx.send('I- I really do not want to mute this user. <:hampleading:1017443036843753553>')
                 else:
                     proceed = True
                     try:
