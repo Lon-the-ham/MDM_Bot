@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 
 class ServerModeration(commands.Cog):
-    def __init__(self, bot: commands.Bot) -> None:
+    def __init__(self, bot: commands.bot) -> None:
         self.bot = bot
         
 
@@ -34,7 +34,7 @@ class ServerModeration(commands.Cog):
                 await ctx.send('I- I really do not want to ban this user. <:shyplead:1012381867795816448>')
             else:
                 try:
-                    user = await bot.fetch_user(user_id)
+                    user = await self.bot.fetch_user(user_id)
                     await ctx.guild.ban(user, reason=reason, delete_message_days=0)
                 except:
                     await ctx.send('Error in user argument')
@@ -69,7 +69,7 @@ class ServerModeration(commands.Cog):
                 await ctx.send('I- I really do not want to kick this user. <:shyplead:1012381867795816448>')
             else:
                 try:
-                    user = await bot.fetch_user(user_id)
+                    user = await self.bot.fetch_user(user_id)
                     await ctx.guild.kick(user, reason=reason)
                 except:
                     await ctx.send('Error in user argument')
@@ -99,7 +99,7 @@ class ServerModeration(commands.Cog):
             print(f"unbanning user: {user_arg} \nfor reason: {reason}")
 
             try:
-                user = await bot.fetch_user(user_id)
+                user = await self.bot.fetch_user(user_id)
                 await ctx.guild.unban(user)
             except:
                 await ctx.send('Error in user argument')
@@ -336,7 +336,7 @@ class ServerModeration(commands.Cog):
                 unsuccessful.append(user_id)
             else:
                 try:
-                    user = await bot.fetch_user(user_id)
+                    user = await self.bot.fetch_user(user_id)
                     await ctx.guild.ban(user, reason=reason, delete_message_days=0)
                     successful_bans.append(user_id)
                     print("ban successful!!!")
@@ -354,7 +354,7 @@ class ServerModeration(commands.Cog):
 
 
 
-async def setup(bot: commands.Bot) -> None:
+async def setup(bot: commands.bot) -> None:
     await bot.add_cog(
         ServerModeration(bot),
         guilds = [discord.Object(id = 413011798552477716)])
