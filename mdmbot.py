@@ -34,6 +34,7 @@ class YataBot(commands.Bot):
         self.initial_extensions = [
             "cogs.admin.servermod",
             "cogs.utility.utility",
+            "cogs.utility.shenanigans",
             "cogs.backlog.memo",
             "cogs.pingterest.pingterest",
             "cogs.roles.roles",
