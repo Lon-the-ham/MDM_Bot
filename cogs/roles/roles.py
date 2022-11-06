@@ -43,16 +43,27 @@ class Roles(commands.Cog):
 
 
 
-    @commands.command(name='color', aliases=['colour'])
+    @commands.command(name='color', aliases=['colour', 'colorrole', 'colourrole'])
     @commands.check(is_valid_server)
     #@commands.has_permissions(manage_guild=True)
     async def _color(self, ctx: commands.Context, *args):
         """Choose name color
 
-        Choose your displayed user name color by using -color #<HEX code> or -color <color name>."""
+        Choose your displayed user name color by using -color <color name>."""
 
-        color_dictionary= {}
+        # get roles from database and server
+        guild = self.bot.get_guild('413011798552477716')
+        all_roles = [r for r in ctx.guild.roles]
+        con = sqlite3.connect('cogs/roles/roles.db')
+        cur = con.cursor()
+        cur.execute('''CREATE TABLE IF NOT EXISTS roles (id text, name text, assignable text, category text, permissions text, color text, details text)''')
+        assignable_colors = [item[0] for item in cur.execute("SELECT name FROM roles WHERE category = ? AND permissions = ?", ('color','')).fetchall()]
+        
+        the_color = ' '.join(args)
+
+        # check permissions (only mods can assign roles/colours to other people)
         user = ctx.message.author
+        print(f"checking permissions of {user.name}")
         user_perms_full = [p for p in user.guild_permissions]
         user_perms = []
         for p in user_perms_full:
@@ -62,27 +73,90 @@ class Roles(commands.Cog):
         if 'manage_guild' in user_perms:
             mod_perms = True 
             assign_different_user = False
-            the_color = 'FFFFFF'
+            print(f"-> is Staff")
             if len(args) >= 2:
                 for member in ctx.guild.members:
                     mention = '<@%s>' % member.id
                     if args[0] == mention:
                         user = member
-                        the_role = ' '.join(args[1:])
+                        the_color = ' '.join(args[1:])
                         assign_different_user = True
+                        print(f"--> mentioned user {user.name}")
                         break
-            await ctx.send(f'Command under construction <:attention:961365426091229234>')
         else:
             mod_perms = False
             assign_different_user = False
-            the_color = 'FFFFFF'
-            await ctx.send(f'Command under construction <:attention:961365426091229234>')
+            print(f"-> is NOT Staff")
+
+        # assign the color role
+        if len(assignable_colors) == 0:
+            print(f"Error: role database has no colors")
+            await ctx.send(f'There seem to be no available color roles.. <:stones_weep:961183294010056724>')
+        else:
+            #get role id
+            color_found = False
+            for color in assignable_colors:
+                if the_color.lower() == color.lower():
+                    color_found = True
+                    color_id_list = cur.execute("SELECT id FROM roles WHERE permissions = ? AND name = ? COLLATE NOCASE", ('', the_color.lower())).fetchall()
+                    color_id = color_id_list[0][0]
+                    break
+            #assign/unassign
+            if color_found:
+                print(f"found color in database: {the_color}")
+                for color in all_roles:
+                    if color_id == str(color.id):
+                        #THIS IS THE COLOR
+                        print("found the mathing color role on the server")
+                        if color in user.roles:
+                            print("user already has this role")
+                            print("attempting to remove color")
+                            await user.remove_roles(color)
+                            if assign_different_user == False:
+                                msg = 'Removed color `%s` from you! <:attention:961365426091229234>' % color.name
+                            else:
+                                msg = 'Removed color `%s` from %s! <:no:953795036426956841>' % (color.name, user.display_name)
+                            await ctx.send(msg)
+                            print("done.")
+                        else:
+                            print("user does not have this role")
+
+                            # remove other color roles
+                            print("attempting to remove all other color roles")
+                            color_ids_dblist = [item[0] for item in cur.execute("SELECT id FROM roles WHERE permissions = ? AND category = ? COLLATE NOCASE", ('', 'color')).fetchall()]
+                            print(color_ids_dblist)
+                            for role in user.roles:
+                                role_id = str(role.id)
+                                print(f"checking {role.name}, id: {role_id}")
+                                if role_id in color_ids_dblist:
+                                    await user.remove_roles(role)
+                                    print(f"removed role {role.name}")
+                                else:
+                                    print(f"{role.name} is not a color")
+                            print("done.")
+
+                            # add new color
+                            print("attempting to assign new color role")
+                            await user.add_roles(color)
+                            if assign_different_user == False:
+                                msg = 'Assigned color `%s` to you! <:wizard:1019019110572625952>' % color.name
+                            else:
+                                msg = 'Assigned color `%s` to %s! <:pvmpkin:953790640444031026>' % (color.name,user.display_name)
+                            await ctx.send(msg)
+                            print("done.")
+                            
+            else:
+                if (mod_perms == False and assign_different_user == False and the_color.startswith('<@')):
+                    await ctx.send('Seems like you do not have permission to do something like that... :/')
+                else:
+                    print(f"color {the_color} not found")
+                    await ctx.send('This color does not exist :(')
     @_color.error
     async def color_error(self, ctx, error):
         if isinstance(error, commands.CheckFailure):
             await ctx.channel.send(f'Error: This is a melodeathcord specific command.')
         else:
-            await ctx.channel.send(f'An error ocurred.')
+            await ctx.channel.send(f'An error ocurred.\n`{error}`')
 
     
     @commands.command(name='roles', aliases=['ranks'])
@@ -201,7 +275,7 @@ class Roles(commands.Cog):
                 if (mod_perms == False and assign_different_user == False and the_role.startswith('<@')):
                     await ctx.send('Seems like you do not have permission to do something like that... :/')
                 else:
-                    await ctx.send('This role is either not assignable or does not exist :(')
+                    await ctx.send('This role is either not assignable or does not exist :(\n(to assign colour roles either visit the <#966276028630728744> channel or use the `-color` command)')
     @_role.error
     async def role_error(self, ctx, error):
         if isinstance(error, commands.CheckFailure):
