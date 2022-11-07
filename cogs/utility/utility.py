@@ -40,6 +40,7 @@ class Utility(commands.Cog):
         #subprocess.call(['sh', '/home/pi/bots/mdm/scylla/other/restart_multi_discord.sh'])
         await ctx.send('..in construction.. <:attention:961365426091229234>')
 
+
     @commands.command(name='status', aliases = ['setstat', 'setstatus'])
     @commands.has_permissions(manage_guild=True)
     async def _restart(self, ctx: commands.Context, *args):
@@ -53,26 +54,45 @@ class Utility(commands.Cog):
 
         n (none)
         """
-        stat_type = args[0].lower()
-        stat_name = ' '.join(args)
+        if len(args) >= 1:
+            stat_type = args[0].lower()
 
-        if stat_type in ['p', 'playing']:
-            # Setting `Playing ` status
-            await self.bot.change_presence(activity=discord.Game(name=stat_name))
-        elif stat_type in ['s', 'streaming']:
-            # Setting `Streaming ` status
-            my_twitch_url = ""
-            await self.bot.change_presence(activity=discord.Streaming(name=stat_name, url=my_twitch_url))
-        elif stat_type in ['l', 'listening']:
-            # Setting `Listening ` status
-            await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=stat_name))
-        elif stat_type in ['w', 'watching']:
-            # Setting `Watching ` status
-            await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=stat_name))
-        elif stat_type in ['n', 'none']:
-            await self.bot.change_presence(activity=None)
+            if len(args) >= 2:
+                stat_name = ' '.join(args[1:])
+            else:
+                stat_name = ""
+
+            if stat_type in ['p', 'playing']:
+                # Setting `Playing ` status
+                await self.bot.change_presence(activity=discord.Game(name=stat_name))
+            elif stat_type in ['s', 'streaming']:
+                # Setting `Streaming ` status
+                my_twitch_url = ""
+                await self.bot.change_presence(activity=discord.Streaming(name=stat_name, url=my_twitch_url))
+            elif stat_type in ['l', 'listening']:
+                # Setting `Listening ` status
+                await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=stat_name))
+            elif stat_type in ['w', 'watching']:
+                # Setting `Watching ` status
+                await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=stat_name))
+            elif stat_type in ['n', 'none']:
+                await self.bot.change_presence(activity=None)
+            else:
+                await ctx.send('did not recognise status type')
         else:
-            await ctx.send('did not recognise status type')
+            ctx.send('no arguments given')
+    @_status.error
+    async def say_error(ctx, error, *args):
+        if isinstance(error, commands.MissingPermissions):
+            #print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+            await ctx.send(f'Sorry, you do not have permissions to do this!')
+        elif isinstance(error, commands.BadArgument):
+            #print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+            await ctx.send('Something went wrong... something something bad argument <:seenoslowpoke:975062347871842324>')
+        else:
+            #print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+            await ctx.send(f'Something seems to be wrong with your input <:pikathink:956603401028911124>')
+
 
     @commands.command(name='cd', aliases = ['countdown'])
     async def _cd(self, ctx, *args):
