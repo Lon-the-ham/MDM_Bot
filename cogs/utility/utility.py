@@ -62,25 +62,25 @@ class Utility(commands.Cog):
             else:
                 stat_name = ""
 
-            if stat_type in ['p', 'playing']:
+            if stat_type in ['p', 'playing', 'play']:
                 # Setting `Playing ` status
                 await self.bot.change_presence(activity=discord.Game(name=stat_name))
-            elif stat_type in ['s', 'streaming']:
+            elif stat_type in ['s', 'streaming', 'stream']:
                 # Setting `Streaming ` status
                 my_twitch_url = ""
                 await self.bot.change_presence(activity=discord.Streaming(name=stat_name, url=my_twitch_url))
-            elif stat_type in ['l', 'listening']:
+            elif stat_type in ['l', 'listening', 'listen']:
                 # Setting `Listening ` status
                 await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=stat_name))
-            elif stat_type in ['w', 'watching']:
+            elif stat_type in ['w', 'watching', 'watch']:
                 # Setting `Watching ` status
                 await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=stat_name))
-            elif stat_type in ['n', 'none']:
+            elif stat_type in ['n', 'none', 'reset']:
                 await self.bot.change_presence(activity=None)
             else:
                 await ctx.send('did not recognise status type')
         else:
-            ctx.send('no arguments given')
+            ctx.send('no arguments given :(')
     @_status.error
     async def say_error(ctx, error, *args):
         if isinstance(error, commands.MissingPermissions):
