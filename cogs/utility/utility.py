@@ -75,7 +75,7 @@ class Utility(commands.Cog):
             elif stat_type in ['w', 'watching', 'watch']:
                 # Setting `Watching ` status
                 await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=stat_name))
-            elif stat_type in ['n', 'none', 'reset']:
+            elif stat_type in ['n', 'none', 'reset', 'delete', 'remove']:
                 await self.bot.change_presence(activity=None)
             else:
                 await ctx.send('did not recognise status type')
