@@ -40,6 +40,39 @@ class Utility(commands.Cog):
         #subprocess.call(['sh', '/home/pi/bots/mdm/scylla/other/restart_multi_discord.sh'])
         await ctx.send('..in construction.. <:attention:961365426091229234>')
 
+    @commands.command(name='status', aliases = ['setstat', 'setstatus'])
+    @commands.has_permissions(manage_guild=True)
+    async def _restart(self, ctx: commands.Context, *args):
+        """*Sets status
+
+        first argument needs to be either:
+        p (playing)
+        s (streaming)
+        w (watching)
+        l (listening)
+
+        n (none)
+        """
+        stat_type = args[0].lower()
+        stat_name = ' '.join(args)
+
+        if stat_type in ['p', 'playing']:
+            # Setting `Playing ` status
+            await self.bot.change_presence(activity=discord.Game(name=stat_name))
+        elif stat_type in ['s', 'streaming']:
+            # Setting `Streaming ` status
+            my_twitch_url = ""
+            await self.bot.change_presence(activity=discord.Streaming(name=stat_name, url=my_twitch_url))
+        elif stat_type in ['l', 'listening']:
+            # Setting `Listening ` status
+            await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=stat_name))
+        elif stat_type in ['w', 'watching']:
+            # Setting `Watching ` status
+            await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=stat_name))
+        elif stat_type in ['n', 'none']:
+            await self.bot.change_presence(activity=None)
+        else:
+            await ctx.send('did not recognise status type')
 
     @commands.command(name='cd', aliases = ['countdown'])
     async def _cd(self, ctx, *args):
