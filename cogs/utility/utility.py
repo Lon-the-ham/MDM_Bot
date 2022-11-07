@@ -43,7 +43,7 @@ class Utility(commands.Cog):
 
     @commands.command(name='status', aliases = ['setstat', 'setstatus'])
     @commands.has_permissions(manage_guild=True)
-    async def _restart(self, ctx: commands.Context, *args):
+    async def _status(self, ctx: commands.Context, *args):
         """*Sets status
 
         first argument needs to be either:
@@ -82,7 +82,7 @@ class Utility(commands.Cog):
         else:
             ctx.send('no arguments given :(')
     @_status.error
-    async def say_error(ctx, error, *args):
+    async def status_error(ctx, error, *args):
         if isinstance(error, commands.MissingPermissions):
             #print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
             await ctx.send(f'Sorry, you do not have permissions to do this!')
