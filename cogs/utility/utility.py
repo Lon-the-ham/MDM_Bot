@@ -67,7 +67,7 @@ class Utility(commands.Cog):
                 await self.bot.change_presence(activity=discord.Game(name=stat_name))
             elif stat_type in ['s', 'streaming', 'stream']:
                 # Setting `Streaming ` status
-                my_twitch_url = ""
+                my_twitch_url = "https://www.youtube.com/channel/UC_lxQpL5NwG3Ofv0eA7ZwNw"
                 await self.bot.change_presence(activity=discord.Streaming(name=stat_name, url=my_twitch_url))
             elif stat_type in ['l', 'listening', 'listen']:
                 # Setting `Listening ` status
