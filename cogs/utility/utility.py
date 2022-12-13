@@ -69,14 +69,14 @@ class Utility(commands.Cog):
 
             elif stat_type in ['s', 'streaming', 'stream']:                
                 # Setting `Streaming ` status
-                my_twitch_url = "https://www.twitch.tv/"
+                my_twitch_url = "https://www.twitch.tv/mdmbot/home"
                 await self.bot.change_presence(activity=discord.Streaming(name=stat_name, url=my_twitch_url))
                 await ctx.send(f'Changed status to:\nstreaming {stat_name}')
 
             elif stat_type in ['l', 'listening', 'listen']:
                 # Setting `Listening ` status
                 await self.bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=stat_name))
-                await ctx.send(f'Changed status to:\nlistening {stat_name}')
+                await ctx.send(f'Changed status to:\nlistening to {stat_name}')
 
             elif stat_type in ['w', 'watching', 'watch']:
                 # Setting `Watching ` status
