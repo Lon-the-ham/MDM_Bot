@@ -1220,6 +1220,27 @@ class Memo(commands.Cog):
         message = await ctx.send(embed=embed)
 
 
+    @commands.command(name='catrename', aliases = ["categoryrename", "catre"])
+    async def _categoryrename(self, ctx, *args):
+        """Rename category
+
+        first argument: old category name
+        second argument: new category name
+
+        """ 
+        await ctx.send("under construction")
+
+
+    @commands.command(name='batchrec', aliases = ["batchsuggest"])
+    async def _batchsuggest(self, ctx, *args):
+        """Recommendation
+
+        under construction
+
+        """ 
+        await ctx.send("under construction")
+
+
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(
         Memo(bot),
