@@ -19,9 +19,26 @@ class Pingable_Interests(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    async def is_valid_server(ctx):
+        server = ctx.message.guild
+        if server is None:
+            raise commands.CheckFailure(f'Command does not work in DMs.')
+            return False
+        else:
+            valid_servers = [413011798552477716]
+            guild_id = server.id
+            print(guild_id)
+            if guild_id in valid_servers:
+                return True
+            else:
+                raise commands.CheckFailure(f'Command does only work on specific servers.')
+                return False
+
+
 
     @commands.command(name='pingterest', aliases=['pingableinterest', 'createpi', 'newpi', 'pi'])
     @commands.has_permissions(manage_guild=True, manage_roles=True)
+    @commands.check(is_valid_server)
     async def _pingterest(self, ctx, *args):
         """*(New) PI + message
 
@@ -167,6 +184,7 @@ class Pingable_Interests(commands.Cog):
 
     @commands.command(name='clearpi', aliases=['clearpingterest'])
     @commands.has_permissions(manage_guild=True, manage_roles=True)
+    @commands.check(is_valid_server)
     async def _clearpi(self, ctx, *args):
         """*removes PI
 
@@ -187,6 +205,7 @@ class Pingable_Interests(commands.Cog):
 
     @commands.command(name='clearallpi', aliases=['clearallpis', 'clearallpingterest', 'clearallpingterests'])
     @commands.has_permissions(manage_guild=True, manage_roles=True)
+    @commands.check(is_valid_server)
     async def _clearallpi(self, ctx, *args):
         """*removes all PIs
 
@@ -204,6 +223,7 @@ class Pingable_Interests(commands.Cog):
 
 
     @commands.command(name='ping', aliases=['pingall'])
+    @commands.check(is_valid_server)
     #@commands.has_permissions(manage_guild=True, manage_roles=True)
     async def _ping(self, ctx, *args):
         """*Pings members of PI

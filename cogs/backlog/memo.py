@@ -24,6 +24,21 @@ class Memo(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    async def is_valid_server(ctx):
+        server = ctx.message.guild
+        if server is None:
+            raise commands.CheckFailure(f'Command does not work in DMs.')
+            return False
+        else:
+            valid_servers = [413011798552477716]
+            guild_id = server.id
+            print(guild_id)
+            if guild_id in valid_servers:
+                return True
+            else:
+                raise commands.CheckFailure(f'Command does only work on specific servers.')
+                return False
+
 
     #backlog
     @commands.command(name='backlogfull', aliases = ["blf", "memo", "blfull"])
@@ -558,6 +573,7 @@ class Memo(commands.Cog):
 
     #suggest
     @commands.command(name='suggest', aliases = ['sug', 'rec', 'recommend'])
+    @commands.check(is_valid_server)
     async def _suggest(self, ctx, *args):
         """Recommend
 
@@ -1232,6 +1248,7 @@ class Memo(commands.Cog):
 
 
     @commands.command(name='batchrec', aliases = ["batchsuggest"])
+    @commands.check(is_valid_server)
     async def _batchsuggest(self, ctx, *args):
         """Recommendation
 

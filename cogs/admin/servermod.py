@@ -4,10 +4,26 @@ from discord.ext import commands
 class ServerModeration(commands.Cog):
     def __init__(self, bot: commands.bot) -> None:
         self.bot = bot
+
+    async def is_valid_server(ctx):
+        server = ctx.message.guild
+        if server is None:
+            raise commands.CheckFailure(f'Command does not work in DMs.')
+            return False
+        else:
+            valid_servers = [413011798552477716]
+            guild_id = server.id
+            print(guild_id)
+            if guild_id in valid_servers:
+                return True
+            else:
+                raise commands.CheckFailure(f'Command does only work on specific servers.')
+                return False
         
 
     @commands.command(name='ban', aliases = ['userban'])
     @commands.has_permissions(manage_guild=True)
+    @commands.check(is_valid_server)
     async def _ban(self, ctx: commands.Context, *args):
         """*Bans user
 
@@ -44,6 +60,7 @@ class ServerModeration(commands.Cog):
 
     @commands.command(name='kick', aliases = ['userkick'])
     @commands.has_permissions(manage_guild=True)
+    @commands.check(is_valid_server)
     async def _kick(self, ctx: commands.Context, *args):
         """*Kicks user
 
@@ -79,6 +96,7 @@ class ServerModeration(commands.Cog):
 
     @commands.command(name='unban', aliases = ['userunban'])
     @commands.has_permissions(manage_guild=True)
+    @commands.check(is_valid_server)
     async def _unban(self, ctx: commands.Context, *args):
         """*Unbans user
 
@@ -109,6 +127,7 @@ class ServerModeration(commands.Cog):
 
     @commands.command(name='mute', aliases = ['usermute','silence'])
     @commands.has_permissions(manage_guild=True)
+    @commands.check(is_valid_server)
     async def _mute(self, ctx: commands.Context, *args):
         """*Mutes user
 
@@ -267,6 +286,7 @@ class ServerModeration(commands.Cog):
 
     @commands.command(name='unmute', aliases = ['unusermute','unsilence'])
     @commands.has_permissions(manage_guild=True)
+    @commands.check(is_valid_server)
     async def _unmute(self, ctx: commands.Context, *args):
         """*Unmutes user
 
@@ -305,6 +325,7 @@ class ServerModeration(commands.Cog):
 
     @commands.command(name='batchban', aliases = ['userbatchban'])
     @commands.has_permissions(manage_guild=True)
+    @commands.check(is_valid_server)
     async def _batchban(self, ctx, *args):
         """*Bans users
         
