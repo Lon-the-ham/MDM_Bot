@@ -20,6 +20,21 @@ class Utility(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    async def is_valid_server(ctx):
+        server = ctx.message.guild
+        if server is None:
+            raise commands.CheckFailure(f'Command does not work in DMs.')
+            return False
+        else:
+            valid_servers = [413011798552477716]
+            guild_id = server.id
+            print(guild_id)
+            if guild_id in valid_servers:
+                return True
+            else:
+                raise commands.CheckFailure(f'Command does only work on specific servers.')
+                return False
+
     #commands
     @commands.command(name='test')
     async def _test(self, ctx):
@@ -32,6 +47,7 @@ class Utility(commands.Cog):
 
     @commands.command(name='restart', aliases = ['reboot'])
     @commands.has_permissions(manage_guild=True)
+    @commands.check(is_valid_server)
     async def _restart(self, ctx: commands.Context, *args):
         """*Restarts bot
         """
@@ -43,6 +59,7 @@ class Utility(commands.Cog):
 
     @commands.command(name='status', aliases = ['setstat', 'setstatus'])
     @commands.has_permissions(manage_guild=True)
+    @commands.check(is_valid_server)
     async def _status(self, ctx: commands.Context, *args):
         """*Sets status
 
@@ -139,6 +156,7 @@ class Utility(commands.Cog):
 
     @commands.command(name='say', aliases = ['msg'])
     @commands.has_permissions(manage_guild=True)
+    @commands.check(is_valid_server)
     async def _say(self, ctx: commands.Context, *args):
         """*Messages given text
 
@@ -191,6 +209,7 @@ class Utility(commands.Cog):
 
     @commands.command(name='react', aliases = ['reaction', 'reactions'])
     @commands.has_permissions(manage_guild=True)
+    @commands.check(is_valid_server)
     async def _react(self, ctx: commands.Context, *args):
         """*Add reactions
 
