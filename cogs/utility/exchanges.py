@@ -97,6 +97,42 @@ class Exchanges(commands.Cog):
         return permutated_list
 
 
+    def pair_mutation(self, original_list):
+        n = len(original_list)
+        copy = original_list
+
+        tuple_list = []
+        if n % 2 == 0:
+            while len(copy) > 1:
+                partner_A = copy[0]
+                i = random.randint(2,len(copy))
+                partner_B = copy[i-1]
+                tuple_list.append([partner_A, partner_B])
+
+                copy.remove(partner_A)
+                copy.remove(partner_B)
+
+            return tuple_list
+
+        else:
+            partner_A = copy[0]
+            i = random.randint(2,len(copy))
+            partner_B = copy[i-1]
+            tuple_list.append([partner_A, partner_B])
+            copy.remove(partner_B)
+
+            while len(copy) > 1:
+                partner_A = copy[0]
+                i = random.randint(2,len(copy))
+                partner_B = copy[i-1]
+                tuple_list.append([partner_A, partner_B])
+
+                copy.remove(partner_A)
+                copy.remove(partner_B)
+
+            return tuple_list
+
+
 
     async def is_valid_server(ctx):
         server = ctx.message.guild
@@ -125,17 +161,18 @@ class Exchanges(commands.Cog):
         
         Arguments should be either an integer n (then you'll get a permutation of [1,2,...,n]),
         or give a list of semicolon seperated items (and you'll get a permutation of that).
-        """
+        """ 
+        argstring = ' '.join(args)
         if len(args) == 0:
             await ctx.send("Error, this command needs arguments. <:tigerpensive:1017483390326415410>")
-        elif len(args) == 1:
+        elif len(args) == 1 and ";" not in argstring:
             try:
                 n = int(args[0])
                 is_integer = True
             except:
                 n = 0
                 is_integer = False
-                await ctx.send("Error, in case you only give 1 argument it must be an integer. <:thonkin:1017478779293147157>")
+                await ctx.send("Error, in case you only give 1 argument it must be an integer.\nOtherwise arguments need to be delimited by semicolons <:thonkin:1017478779293147157>")
 
             if is_integer:
                 if n <= 1:
@@ -152,7 +189,19 @@ class Exchanges(commands.Cog):
 
         else:
             original_list = ' '.join(args).split(";")
+            while "" in original_list:
+                original_list.remove("")
             n = len(original_list)
+
+            try:
+                duplicatecheck = len(list(dict.fromkeys(original_list)))
+                if duplicatecheck == n:
+                    #no duplicates
+                    pass 
+                else:
+                    await ctx.send("Warning: There are duplicates in your list! <a:meowhmm:1017801054143905928>")
+            except:
+                pass 
 
             if n <= 1:
                 ctx.send("I need at least 2 arguments to properly cycle something at all. <:thonkin:1017478779293147157>\nTo separate arguments use a semicolon ; ")
@@ -166,7 +215,7 @@ class Exchanges(commands.Cog):
 
                 await ctx.send(message)
     
-    @commands.command(name='derange', aliases = ['rearrange', "derangement"])
+    @commands.command(name='permute', aliases = ["rearrange", "derange", "derangement", "permutate", "permutation"])
     async def _derange(self, ctx: commands.Context, *args):
         """no fixpoint permute
 
@@ -176,9 +225,10 @@ class Exchanges(commands.Cog):
         Arguments should be either an integer n (then you'll get a derangement of [1,2,...,n]),
         or give a list of semicolon seperated items (and you'll get a derangement of that).
         """
+        argstring = ' '.join(args)
         if len(args) == 0:
             await ctx.send("Error, this command needs arguments. <:tigerpensive:1017483390326415410>")
-        elif len(args) == 1:
+        elif len(args) == 1 and ";" not in argstring:
             try:
                 n = int(args[0])
                 is_integer = True
@@ -202,7 +252,19 @@ class Exchanges(commands.Cog):
 
         else:
             original_list = ' '.join(args).split(";")
+            while "" in original_list:
+                original_list.remove("")
             n = len(original_list)
+
+            try:
+                duplicatecheck = len(list(dict.fromkeys(original_list)))
+                if duplicatecheck == n:
+                    #no duplicates
+                    pass 
+                else:
+                    await ctx.send("Warning: There are duplicates in your list! <a:meowhmm:1017801054143905928>")
+            except:
+                pass
 
             if n <= 1:
                 ctx.send("I need at least 2 arguments to derange something at all. <:thonkin:1017478779293147157>\nTo separate arguments use a semicolon ; ")
@@ -214,6 +276,61 @@ class Exchanges(commands.Cog):
                     message = message + f" {original_list[i-1].strip()} → {permutated_list[i-1].strip()} \n"
 
                 await ctx.send(message)
+
+
+    @commands.command(name='pairs', aliases = ['pair', "pairing", "pairings"])
+    async def _pairs(self, ctx: commands.Context, *args):
+        """pairings
+
+        Gives out a random random pairing. In case of an odd number, the first entry is paired twice.
+        
+        Arguments should be either an integer n (then you'll get a permutation of [1,2,...,n]),
+        or give a list of semicolon seperated items (and you'll get a permutation of that).
+        """ 
+        argstring = ' '.join(args)
+        if len(args) == 0:
+            await ctx.send("Error, this command needs arguments. <:tigerpensive:1017483390326415410>")
+        elif len(args) == 1 and ";" not in argstring:
+            try:
+                n = int(args[0])
+                is_integer = True
+            except:
+                n = 0
+                is_integer = False
+                await ctx.send("Error, in case you only give 1 argument it must be an integer.\nOtherwise arguments need to be delimited by semicolons <:thonkin:1017478779293147157>")
+
+            if is_integer:
+                if n <= 1:
+                    await ctx.send("Preferably an integer greater than 1 please.. <:thonkin:1017478779293147157>")
+                else:
+                    pairs_list = self.pair_mutation(list(range(1,n+1)))
+
+                    message = "The pairing I came up with is:\n"
+                    for i in range(1,len(pairs_list)+1):
+                        message = message + f" {pairs_list[i-1][0]} ↔ {pairs_list[i-1][1]} \n"
+
+                    await ctx.send(message)
+
+        else:
+            original_list = ' '.join(args).split(";")
+            while "" in original_list:
+                original_list.remove("")
+            n = len(original_list)
+
+            if n <= 1:
+                ctx.send("I need at least 2 arguments to properly cycle something at all. <:thonkin:1017478779293147157>\nTo separate arguments use a semicolon ; ")
+            else:
+                duplicatecheck = len(list(dict.fromkeys(original_list)))
+                if duplicatecheck == n:
+                    #no duplicates
+                    pairs_list = self.pair_mutation(original_list)
+                    message = "The pairing I came up with is:\n"
+                    for i in range(1,len(pairs_list)+1):
+                        message = message + f" {pairs_list[i-1][0]} ↔ {pairs_list[i-1][1]} \n"
+                    await ctx.send(message)
+                else:
+                    await ctx.send("Error: There are duplicates in your list! <a:meowhmm:1017801054143905928>\nIn case you have an uneven number of members, put the one you want to pair twice at the beginning!")
+
 
 
 
