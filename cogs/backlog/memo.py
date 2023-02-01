@@ -902,16 +902,6 @@ class Memo(commands.Cog):
         await ctx.send(f'Some error ocurred <:seenoslowpoke:975062347871842324>\nCheck whether you do not use quotation marks or other characters that break discord... <:woozybread:976283266413908049>') 
 
 
-    #settings
-    @commands.command(name='set', aliases = ['settings'])
-    async def _verbosity(self, ctx, *args):
-        """Settings
-
-        Set:
-        verbosity on or off
-        """
-        await ctx.send(f'under construction <:attention:961365426091229234>')
-
 
     #
     #backlog with categories
