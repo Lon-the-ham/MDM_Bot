@@ -902,7 +902,6 @@ class Memo(commands.Cog):
         await ctx.send(f'Some error ocurred <:seenoslowpoke:975062347871842324>\nCheck whether you do not use quotation marks or other characters that break discord... <:woozybread:976283266413908049>') 
 
 
-
     #
     #backlog with categories
     @commands.command(name='backlogcat', aliases = ["blc", "backlogcategory"])
