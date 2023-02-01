@@ -54,9 +54,11 @@ class Settings(commands.Cog):
                     else:
                         print(f"Error with settings in: {s}")
 
+                setting_found = False
                 for pv in parvals:
                     p = pv[0]
                     if p == parameter:
+                        setting_found = True
                         v = pv[1]
                         oldline = p + ":" + v
                         newline = parameter + ": " + value
@@ -76,6 +78,8 @@ class Settings(commands.Cog):
                         except Exception as e:
                             print(e)
                             await ctx.send(f'Error occurred while rewriting file <:jakeslam:1014849819409383455>')
+                if not setting_found:
+                    await ctx.send(f'Did not find a setting parameter called {parameter} <:tigerpensive:1017483390326415410>')
             else:
                 await ctx.send(f'This command needs also a value argument <:hmmm:975581998410252318>')
         else: 
