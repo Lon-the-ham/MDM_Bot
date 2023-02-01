@@ -332,6 +332,42 @@ class Exchanges(commands.Cog):
                     await ctx.send("Error: There are duplicates in your list! <a:meowhmm:1017801054143905928>\nIn case you have an uneven number of members, put the one you want to pair twice at the beginning!")
 
 
+    ####################################################################################
+
+    @commands.command(name='cd', aliases = ['countdown'])
+    async def _cd(self, ctx, *args):
+        """Starts countdown
+
+        You can specify an integer from 1 to 10 from which the bot will count downwards.
+        Commands without an argument start from 5.
+        """
+        if len(args) > 0:
+            arg1 = args[0]
+        else:
+            arg1 = ''
+
+        if str(arg1).isnumeric():
+            try:
+                cdtime = int(arg1)
+            except:
+                cdtime = 5
+            if cdtime > 10:
+                cdtime = 10
+            if cdtime <= 0:
+                cdtime = 3
+        else:
+            cdtime = 5
+
+        await ctx.send('Starting countdown:')
+        time.sleep(1)
+        for i in range(cdtime,-1,-1):
+            time.sleep(1.2)
+            if (i > 0):
+                await ctx.send('`' + str(i) + '`')
+            else:
+                await ctx.send('`0` :tada:')   
+
+
 
 
 async def setup(bot: commands.Bot) -> None:
