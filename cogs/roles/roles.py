@@ -165,7 +165,7 @@ class Roles(commands.Cog):
     async def _roles(self, ctx: commands.Context):
         """Prints assignable roles
 
-        Only roles without extra-permissions and of categories album, pronoun or other are assignable."""
+        Only roles without extra-permissions and of categories album, pronoun, music or other are assignable."""
         header = 'assignable roles:'
         descriptions = []
 
@@ -189,7 +189,10 @@ class Roles(commands.Cog):
             embed=discord.Embed(title=header, color=0xFFA500)
             for i in range(0,min(25, len(categories))): 
                 cat = categories[i]
-                embed.add_field(name=str(cat)+'s:', value=descriptions[i], inline=False)
+                if cat.lower() in ['music', 'other']:
+                    embed.add_field(name=str(cat)+':', value=descriptions[i], inline=False)
+                else:
+                    embed.add_field(name=str(cat)+'s:', value=descriptions[i], inline=False)
             await ctx.send(embed=embed)
         #await ctx.message.add_reaction('<:wizard:1019019110572625952>')
     @_roles.error
@@ -205,7 +208,7 @@ class Roles(commands.Cog):
     async def _role(self, ctx: commands.Context, *args):
         """Assign/unassign role
 
-        Use the role name (ids or role mentions currently do not work). Only roles without extra-permissions and of categories 'album', 'pronoun' or 'other' are assignable.
+        Use the role name (ids or role mentions currently do not work). Only roles without extra-permissions and of categories 'album', 'pronoun', 'music' or 'other' are assignable.
 
         Moderators can assign all roles without extra-permissions. To assign roles to other users use -role <@user mention> <role name>."""
         user = ctx.message.author
@@ -645,10 +648,12 @@ class Roles(commands.Cog):
                 category = 'pronoun'
             if category == 'albums':
                 category = 'album'
+            if category == 'musics':
+                category = 'music'
             if category == 'others':
                 category = 'other'
                 
-            assignable_categories = ['album', 'pronoun', 'other']
+            assignable_categories = ['album', 'pronoun', 'music', 'other']
 
             con = sqlite3.connect('cogs/roles/roles.db')
             cur = con.cursor()
@@ -774,7 +779,7 @@ class Roles(commands.Cog):
                 HEX_code = args[0]
                 default_hex = False
                 role_name = ' '.join(args[1:])
-                if args[1].lower() in ['album', 'albums', 'pronoun', 'pronouns', 'other', 'others', 'none', 'nones','color', 'colour', 'colors', 'colours']:
+                if args[1].lower() in ['album', 'albums', 'pronoun', 'pronouns', 'other', 'others', 'music', 'musics', 'none', 'nones','color', 'colour', 'colors', 'colours']:
                     category = args[1].lower()
                     default_cat = False
                     if category[-1] == 's': category = category[:-1]
@@ -782,7 +787,7 @@ class Roles(commands.Cog):
                     if len(args) >=3:
                         role_name = ' '.join(args[2:])
             match_1 = re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', args[1])
-            if args[0].lower() in ['album', 'albums', 'pronoun', 'pronouns', 'other', 'others', 'none', 'nones','color', 'colour', 'colors', 'colours']:
+            if args[0].lower() in ['album', 'albums', 'pronoun', 'pronouns', 'other', 'others', 'music', 'musics', 'none', 'nones','color', 'colour', 'colors', 'colours']:
                 category = args[0].lower()
                 default_cat = False
                 role_name = ' '.join(args[1:])
@@ -976,7 +981,7 @@ class Roles(commands.Cog):
         cur = con.cursor()
         color_roles = [[item[0], item[1], item[2]] for item in cur.execute("SELECT id,name, details FROM roles WHERE category = ?", ("color",)).fetchall()]
         pronoun_roles = [[item[0], item[1], item[2]] for item in cur.execute("SELECT id,name, details FROM roles WHERE category = ?", ("pronoun",)).fetchall()]
-        other_roles = [[item[0], item[1], item[2]] for item in cur.execute("SELECT id,name, details FROM roles WHERE category = ?", ("other",)).fetchall()]
+        music_roles = [[item[0], item[1], item[2]] for item in cur.execute("SELECT id,name, details FROM roles WHERE category = ?", ("music",)).fetchall()]
 
         for channel in ctx.guild.text_channels:
                 if str(channel.name).lower() == "roles":
@@ -986,7 +991,7 @@ class Roles(commands.Cog):
         print("fetching roles...")
         existing_color_roles = []
         existing_pronoun_roles = []
-        existing_other_roles = []
+        existing_music_roles = []
         for role_id in existing_roles:
             # get all color roles
             for c_role in color_roles:
@@ -996,10 +1001,10 @@ class Roles(commands.Cog):
             for p_role in pronoun_roles:
                 if role_id == p_role[0]:
                     existing_pronoun_roles.append(p_role)
-            # get all other roles
-            for o_role in other_roles:
+            # get all music roles
+            for o_role in music_roles:
                 if role_id == o_role[0]:
-                    existing_other_roles.append(o_role)
+                    existing_music_roles.append(o_role)
 
 
         # delete all messages in #roles
@@ -1053,18 +1058,18 @@ class Roles(commands.Cog):
         #    await ctx.send(error_message)
 
 
-        # make new message with all other roles
-        print("preparing other role message")
-        other_role_string = ""
-        for o_role in reversed(existing_other_roles):
+        # make new message with all music roles
+        print("preparing music role message")
+        music_role_string = ""
+        for o_role in reversed(existing_music_roles):
             mention = "<@&%s>" % o_role[0]
-            other_role_string = other_role_string + o_role[2] + " " + mention + "\n"
+            music_role_string = music_role_string + o_role[2] + " " + mention + "\n"
         msg3 = "If you want to get pinged whenever there will be an album exchange or a listening party, or if you want to be indentified as e.g. musician, go grab some of these roles here!\n\n" + other_role_string
         embed3 = discord.Embed(title="React to choose some extra roles!", description=msg3, color=0x990000)
         embed3.set_footer(text = "To get other roles like album roles go to #bot-commands and use -role <role name> to assign/unassign a role.\nUse -roles to get a list of all assignable roles.")
         message3 = await the_channel.send(embed=embed3)
         # add reactions to them
-        for o_role in reversed(existing_other_roles):
+        for o_role in reversed(existing_music_roles):
             try:
                 await message3.add_reaction(o_role[2])
             except:
