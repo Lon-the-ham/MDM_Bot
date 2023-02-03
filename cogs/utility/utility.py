@@ -281,6 +281,156 @@ class Utility(commands.Cog):
 
 
 
+    @commands.command(name='roll', aliases = ['rng', 'die', 'random', 'dice', 'choose'])
+    async def _dice(self, ctx: commands.Context, *args):
+        """random number
+
+        argument must be either one integer n > 1 (gives out random integer between 1 and n)
+        or
+        argument must be a set of options to choose from separated by semicolons
+        or
+        argument must be bl (optionally with category name behind (no spaces))
+
+        (when no argument is given, the command gives out a random number between 1 and 6)
+        """
+        if len(args) > 0:
+            ctext = ' '.join(args)
+            if ';' in ctext or ',' in ctext:
+                #ctext = ' '.join(args)
+                if ';' in ctext:
+                    options = ctext.split(';')
+                    while "" in options:
+                        options.remove("")
+                    n = len(options)
+                    if n > 1:
+                        r = random.randint(1, n)
+                        await ctx.send(f'🎲 {n}-die roll: {options[r-1]}')
+                    else:
+                        await ctx.send(f'Error: There are not enough options to choose from <:piplupdisappointed:975461498702921778>')
+                elif ',' in ctext:
+                    options = ctext.split(',')
+                    while "" in options:
+                        options.remove("")
+                    n = len(options)
+                    if n > 1:
+                        r = random.randint(1, n)
+                        await ctx.send(f'🎲 {n}-die roll: {options[r-1]}')
+                    else:
+                        await ctx.send(f'Error: There are not enough options to choose from <:piplupdisappointed:975461498702921778>')
+                else:
+                    # this should never trigger
+                    await ctx.send(f'Error <:mildpanictiger:1066005100591579176> \noi <@586358910148018189> have a look at this mess')
+            else:
+                if len(args) == 1:
+                    try:
+                        n = int(args[0])
+                        arg_is_integer = True
+                    except:
+                        n = 0 
+                        arg_is_integer = False
+
+                    if arg_is_integer:
+                        if n > 1:
+                            r = random.randint(1, n)
+                            await ctx.send(f'🎲 {n}-die roll: {r}')
+                        else:
+                            await ctx.send(f'Error: Argument must be an integer > 1.')
+
+                    elif args[0].lower() in ['bl','backlog','memo']:
+                        try:
+                            conbg = sqlite3.connect('cogs/backlog/memobacklog.db')
+                            curbg = conbg.cursor()
+                            curbg.execute('''CREATE TABLE IF NOT EXISTS memobacklog (bgid text, userid text, username text, backlog text, details text)''')
+                            
+                            user = ctx.message.author
+                            user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? ORDER BY bgid", (str(user.id),)).fetchall()]
+                        
+                            n = len(user_bg_list)
+                            if n > 0:
+                                r = random.randint(1, n)
+                                rand_item = user_bg_list[r-1]
+                                rand_bg_entry = rand_item[3]
+                                await ctx.send(f'🎲 {n}-bl roll says listen to: `{rand_bg_entry[:300]}`\n(index: {r})')
+                            else:
+                                await ctx.send(f'Seems like there is nothing in your backlog <:pikathink:956603401028911124>')
+                        except Exception as e:
+                            print(e)
+                            await ctx.send(f'Some error ocurred <:mildpanictiger:1066005100591579176> \noi <@586358910148018189> have a look at this mess:```{e}```')
+                    
+                    elif args[0].lower() in ['blc','backlogcat','backlogcategory']:
+                        try:
+                            conbg = sqlite3.connect('cogs/backlog/memobacklog.db')
+                            curbg = conbg.cursor()
+                            curbg.execute('''CREATE TABLE IF NOT EXISTS memobacklog (bgid text, userid text, username text, backlog text, details text)''')
+                            
+                            user = ctx.message.author
+                            user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? AND (LOWER(details) = ? OR details = ?) ORDER BY bgid", (str(user.id), 'default', '')).fetchall()]
+                        
+                            n = len(user_bg_list)
+                            if n > 0:
+                                r = random.randint(1, n)
+                                rand_item = user_bg_list[r-1]
+                                rand_bg_entry = rand_item[3]
+
+                                full_bl_list = [item[3] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? ORDER BY bgid", (str(user.id),)).fetchall()]
+                                if rand_bg_entry in full_bl_list:
+                                    index = str(full_bl_list.index(rand_bg_entry) + 1)
+                                else:
+                                    index = 'ERROR'
+                                await ctx.send(f'🎲 {n}-bl roll says listen to: `{rand_bg_entry[:300]}`\n(index: {index})')
+                            else:
+                                await ctx.send(f'Seems like there is nothing with category "default" in your backlog <:pikathink:956603401028911124>')
+                        except Exception as e:
+                            print(e)
+                            await ctx.send(f'Some error ocurred <:mildpanictiger:1066005100591579176> \noi <@586358910148018189> have a look at this mess:```{e}```')
+                    else:
+                        await ctx.send(f'Error: If you only give one argument, it must be an integer.')
+                
+                elif len(args) == 2 and args[0].lower() in ['bl','backlog','memo','blc','backlogcat','backlogcategory']:
+                    cat = args[1]
+                    L = len(cat)
+                    print(f'cat input: {cat}')
+                    if L > 2:
+                        if cat[0] == '[' and cat[L-1] == ']':
+                            cat = cat[1:L-1]
+                            print(f'reduced cat to: {cat}')
+                    try:
+                        conbg = sqlite3.connect('cogs/backlog/memobacklog.db')
+                        curbg = conbg.cursor()
+                        curbg.execute('''CREATE TABLE IF NOT EXISTS memobacklog (bgid text, userid text, username text, backlog text, details text)''')
+                        
+                        user = ctx.message.author
+                        user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? AND LOWER(details) = LOWER(?) ORDER BY bgid", (str(user.id),cat)).fetchall()]
+                    
+                        n = len(user_bg_list)
+                        if n > 0:
+                            r = random.randint(1, n)
+                            rand_item = user_bg_list[r-1]
+                            rand_bg_entry = rand_item[3]
+
+                            full_bl_list = [item[3] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? ORDER BY bgid", (str(user.id),)).fetchall()]
+                            if rand_bg_entry in full_bl_list:
+                                index = str(full_bl_list.index(rand_bg_entry) + 1)
+                            else:
+                                index = 'ERROR'
+
+                            await ctx.send(f'🎲 {n}-bl roll says listen to: `{rand_bg_entry[:300]}`\n(index: {index})')
+                        else:
+                            await ctx.send(f'Seems like there is nothing with category "{cat}" in your backlog <:pikathink:956603401028911124>')
+                    except Exception as e:
+                        print(e)
+                        await ctx.send(f'Some error ocurred <:mildpanictiger:1066005100591579176> \noi <@586358910148018189> have a look at this mess:```{e}```')
+                else:
+                    await ctx.send(f'Error: If multiple arguments are given, please delimit different entries with a semicolon.')               
+        else:
+            r = random.randint(1, 6)
+            await ctx.send(f'🎲 die roll: {r}')
+    @_dice.error
+    async def dice_error(self, ctx, error, *args):
+        await ctx.send(f'Some error ocurred <:seenoslowpoke:975062347871842324>\nCheck whether you do not use quotation marks or other characters that break discord... <:woozybread:976283266413908049>')         
+
+
+
     @commands.command(name='convert', aliases = ['con','conv'])
     async def _convert(self, ctx, *args):
         """Converts units
