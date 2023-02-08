@@ -304,7 +304,7 @@ class Utility(commands.Cog):
                     n = len(options)
                     if n > 1:
                         r = random.randint(1, n)
-                        await ctx.send(f'🎲 {n}-die roll: {options[r-1]}')
+                        await ctx.send(f'🎲 D{n} roll: {options[r-1]}')
                     else:
                         await ctx.send(f'Error: There are not enough options to choose from <:piplupdisappointed:975461498702921778>')
                 elif ',' in ctext:
@@ -314,7 +314,7 @@ class Utility(commands.Cog):
                     n = len(options)
                     if n > 1:
                         r = random.randint(1, n)
-                        await ctx.send(f'🎲 {n}-die roll: {options[r-1]}')
+                        await ctx.send(f'🎲 D{n} roll: {options[r-1]}')
                     else:
                         await ctx.send(f'Error: There are not enough options to choose from <:piplupdisappointed:975461498702921778>')
                 else:
@@ -332,7 +332,7 @@ class Utility(commands.Cog):
                     if arg_is_integer:
                         if n > 1:
                             r = random.randint(1, n)
-                            await ctx.send(f'🎲 {n}-die roll: {r}')
+                            await ctx.send(f'🎲 D{n} roll: {r}')
                         else:
                             await ctx.send(f'Error: Argument should be an integer > 1.')
 
@@ -350,7 +350,7 @@ class Utility(commands.Cog):
                                 r = random.randint(1, n)
                                 rand_item = user_bg_list[r-1]
                                 rand_bg_entry = rand_item[3]
-                                await ctx.send(f'🎲 {n}-bl roll says listen to: `{rand_bg_entry[:300]}`\n(index: {r})')
+                                await ctx.send(f'🎲 D{n}-bl roll says listen to: `{rand_bg_entry[:300]}`\n(index: {r})')
                             else:
                                 await ctx.send(f'Seems like there is nothing in your backlog <:pikathink:956603401028911124>')
                         except Exception as e:
@@ -377,7 +377,7 @@ class Utility(commands.Cog):
                                     index = str(full_bl_list.index(rand_bg_entry) + 1)
                                 else:
                                     index = 'ERROR'
-                                await ctx.send(f'🎲 {n}-bl roll says listen to: `{rand_bg_entry[:300]}`\n(index: {index})')
+                                await ctx.send(f'🎲 D{n}-bl roll says listen to: `{rand_bg_entry[:300]}`\n(index: {index})')
                             else:
                                 await ctx.send(f'Seems like there is nothing with category "default" in your backlog <:pikathink:956603401028911124>')
                         except Exception as e:
@@ -450,7 +450,7 @@ class Utility(commands.Cog):
                             else:
                                 index = 'ERROR'
 
-                            await ctx.send(f'🎲 {n}-bl roll says listen to: `{rand_bg_entry[:300]}`\n(index: {index})')
+                            await ctx.send(f'🎲 D{n}-bl roll says listen to: `{rand_bg_entry[:300]}`\n(index: {index})')
                         else:
                             await ctx.send(f'Seems like there is nothing with category "{cat}" in your backlog <:pikathink:956603401028911124>')
                     except Exception as e:
@@ -460,7 +460,7 @@ class Utility(commands.Cog):
                     await ctx.send(f'Argument must be either an integer > 1, a list of options separated by semicolons, `bl` or `blc categoryname`. <:gengarfeels:752263420820062224>')               
         else:
             r = random.randint(1, 6)
-            await ctx.send(f'🎲 die roll: {r}')
+            await ctx.send(f'🎲 D6 roll: {r}')
     @_dice.error
     async def dice_error(self, ctx, error, *args):
         await ctx.send(f'Some error ocurred <:seenoslowpoke:975062347871842324>\nCheck whether you do not use quotation marks or other characters that break discord... <:woozybread:976283266413908049>')         
