@@ -102,35 +102,24 @@ class Exchanges(commands.Cog):
         copy = original_list
 
         tuple_list = []
-        if n % 2 == 0:
-            while len(copy) > 1:
-                partner_A = copy[0]
-                i = random.randint(2,len(copy))
-                partner_B = copy[i-1]
-                tuple_list.append([partner_A, partner_B])
-
-                copy.remove(partner_A)
-                copy.remove(partner_B)
-
-            return tuple_list
-
-        else:
+        if n % 2 == 1:
             partner_A = copy[0]
             i = random.randint(2,len(copy))
             partner_B = copy[i-1]
             tuple_list.append([partner_A, partner_B])
             copy.remove(partner_B)
 
-            while len(copy) > 1:
-                partner_A = copy[0]
-                i = random.randint(2,len(copy))
-                partner_B = copy[i-1]
-                tuple_list.append([partner_A, partner_B])
+        while len(copy) > 1:
+            partner_A = copy[0]
+            i = random.randint(2,len(copy))
+            partner_B = copy[i-1]
+            tuple_list.append([partner_A, partner_B])
 
-                copy.remove(partner_A)
-                copy.remove(partner_B)
+            copy.remove(partner_A)
+            copy.remove(partner_B)
 
-            return tuple_list
+        return tuple_list
+
 
 
 
