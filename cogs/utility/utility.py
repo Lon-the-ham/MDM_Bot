@@ -334,7 +334,7 @@ class Utility(commands.Cog):
                             r = random.randint(1, n)
                             await ctx.send(f'🎲 {n}-die roll: {r}')
                         else:
-                            await ctx.send(f'Error: Argument must be an integer > 1.')
+                            await ctx.send(f'Error: Argument should be an integer > 1.')
 
                     elif args[0].lower() in ['bl','backlog','memo']:
                         try:
@@ -384,7 +384,40 @@ class Utility(commands.Cog):
                             print(e)
                             await ctx.send(f'Some error ocurred <:mildpanictiger:1066005100591579176> \noi <@586358910148018189> have a look at this mess:```{e}```')
                     else:
-                        await ctx.send(f'Error: If you only give one argument, it must be an integer.')
+                        multidicecommand = False 
+
+                        dice = args[0].lower()
+                        if "d" in dice:
+                            number_and_sides = dice.split("d",1)
+                            try:
+                                num_of_dice = int(number_and_sides[0])
+                                dice_size = int(number_and_sides[1])
+                                multidicecommand = True
+                            except:
+                                ctx.send(f'Error: If you want to use a multiple dice command with `n`-many `x`-sided dice, then use -roll `n`d`x`.\nFor example -roll 6d20')
+
+                        if multidicecommand:
+                            if num_of_dice < 1:
+                                await ctx.send(f'Error: Number of dice must be at least 1.')
+                            elif dice_size < 2:
+                                await ctx.send(f'Error: Dice/coins must be at least 2-sided.')
+                            elif dice_size > 256:
+                                await ctx.send(f'Error: Lmao how large do you want your dice to be. <:hamUmm:1017442919428395098>\nI can offer a D256 at most...')
+                            elif num_of_dice > 24:
+                                await ctx.send(f"Error: I'm sorry, but I only have 24 of these dice <a:catcrying:1017801138415874158>")
+                            else:
+                                n = num_of_dice
+                                dice_rolls = []
+                                while n >= 1:
+                                    r = random.randint(1, dice_size)
+                                    dice_rolls.append(r)
+                                    n = n - 1
+                                total = sum(dice_rolls)
+
+                                await ctx.send(f"🎲 {num_of_dice}x D{dice_size} roll: {total} ({str(dice_rolls)[1:len(str(dice_rolls))-1]})")
+
+                        else:
+                            await ctx.send(f'Error: Argument must be either an integer > 1, a list of options separated by semicolons, `bl` or `blc categoryname`.')
                 
                 elif len(args) == 2 and args[0].lower() in ['bl','backlog','memo','blc','backlogcat','backlogcategory']:
                     cat = args[1]
@@ -400,7 +433,10 @@ class Utility(commands.Cog):
                         curbg.execute('''CREATE TABLE IF NOT EXISTS memobacklog (bgid text, userid text, username text, backlog text, details text)''')
                         
                         user = ctx.message.author
-                        user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? AND LOWER(details) = LOWER(?) ORDER BY bgid", (str(user.id),cat)).fetchall()]
+                        if cat.lower() in ["", "default"]:
+                            user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? AND (LOWER(details) = ? OR details = ?) ORDER BY bgid", (str(user.id), 'default', '')).fetchall()]
+                        else:
+                            user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? AND LOWER(details) = LOWER(?) ORDER BY bgid", (str(user.id),cat)).fetchall()]
                     
                         n = len(user_bg_list)
                         if n > 0:
@@ -421,7 +457,7 @@ class Utility(commands.Cog):
                         print(e)
                         await ctx.send(f'Some error ocurred <:mildpanictiger:1066005100591579176> \noi <@586358910148018189> have a look at this mess:```{e}```')
                 else:
-                    await ctx.send(f'Error: If multiple arguments are given, please delimit different entries with a semicolon.')               
+                    await ctx.send(f'Argument must be either an integer > 1, a list of options separated by semicolons, `bl` or `blc categoryname`. <:gengarfeels:752263420820062224>')               
         else:
             r = random.randint(1, 6)
             await ctx.send(f'🎲 die roll: {r}')
