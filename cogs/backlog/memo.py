@@ -1080,6 +1080,7 @@ class Memo(commands.Cog):
         """Edit categories
 
         write -cat <n1> <n2> .... <nk> <categoryname>
+        you can also use -cat <n1> to <n2> <categoryname>
         """    
         conbg = sqlite3.connect('cogs/backlog/memobacklog.db')
         curbg = conbg.cursor()
@@ -1089,7 +1090,7 @@ class Memo(commands.Cog):
         user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? ORDER BY bgid", (str(user.id),)).fetchall()]
         
         if len(args) > 1:
-            category = args[-1]
+            category = args[-1].replace("[","").replace("]","")
 
             if "to" == args[1]:
                 arguments_valid = False
@@ -1204,7 +1205,7 @@ class Memo(commands.Cog):
 
         cat_dict = {}
         for entry in user_bg_list:
-            cat = entry[4]
+            cat = entry[4].lower()
             if cat in cat_dict.keys():
                 prev = cat_dict[cat]
                 cat_dict[cat] = str(int(prev)+1)
@@ -1233,7 +1234,7 @@ class Memo(commands.Cog):
         second argument: new category name
 
         """ 
-        await ctx.send("under construction")
+        await ctx.send("under construction <a:mabeltyping:976601600476991509>")
 
 
     @commands.command(name='batchrec', aliases = ["batchsuggest"])
@@ -1244,7 +1245,7 @@ class Memo(commands.Cog):
         under construction
 
         """ 
-        await ctx.send("under construction")
+        await ctx.send("under construction <a:mabeltyping:976601600476991509>")
 
 
 async def setup(bot: commands.Bot) -> None:
