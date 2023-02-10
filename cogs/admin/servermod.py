@@ -43,6 +43,10 @@ class ServerModeration(commands.Cog):
                     user_id = user_arg.replace("<@", "").replace(">","")
 
             print(f"banning user: {user_id} \nfor reason: {reason}")
+            if reason == "":
+                reason_string = ""
+            else:
+                reason_string = "\nReason: " + reason 
 
             immunity_list = ["586358910148018189", "958105284759400559"]
 
@@ -52,10 +56,19 @@ class ServerModeration(commands.Cog):
                 try:
                     user = await self.bot.fetch_user(user_id)
                     await ctx.guild.ban(user, reason=reason, delete_message_days=0)
+                    await ctx.send(f'Banned <@{user_id}>. <:banbun:1019019376495710288>{reason_string}')
                 except:
                     await ctx.send('Error in user argument')
         else:
             await ctx.send('Error: missing arguments')
+    @_ban.error
+    async def ban_error(self, ctx, error):
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.send(f'Sorry, you do not have permissions to do this!')
+        elif isinstance(error, commands.CheckFailure):
+            await ctx.channel.send(f'Error: This is a melodeathcord specific command.')
+        else:
+            await ctx.channel.send(f'An error ocurred.')
 
 
     @commands.command(name='kick', aliases = ['userkick'])
@@ -79,6 +92,10 @@ class ServerModeration(commands.Cog):
                     user_id = user_arg.replace("<@", "").replace(">","")
 
             print(f"banning user: {user_id} \nfor reason: {reason}")
+            if reason == "":
+                reason_string = ""
+            else:
+                reason_string = "\nReason: " + reason 
 
             immunity_list = ["586358910148018189", "958105284759400559"]
 
@@ -88,10 +105,19 @@ class ServerModeration(commands.Cog):
                 try:
                     user = await self.bot.fetch_user(user_id)
                     await ctx.guild.kick(user, reason=reason)
+                    await ctx.send(f'Kicked <@{user_id}>. <:jacegun:1035530576494604409>{reason_string}')
                 except:
                     await ctx.send('Error in user argument')
         else:
             await ctx.send('Error: missing arguments')
+    @_kick.error
+    async def kick_error(self, ctx, error):
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.send(f'Sorry, you do not have permissions to do this!')
+        elif isinstance(error, commands.CheckFailure):
+            await ctx.channel.send(f'Error: This is a melodeathcord specific command.')
+        else:
+            await ctx.channel.send(f'An error ocurred.')
 
 
     @commands.command(name='unban', aliases = ['userunban'])
@@ -119,10 +145,21 @@ class ServerModeration(commands.Cog):
             try:
                 user = await self.bot.fetch_user(user_id)
                 await ctx.guild.unban(user)
+                await ctx.send(f'Unbanned <@{user_id}>. <:celebrate:1017439343746482206>')
             except:
                 await ctx.send('Error in user argument')
         else:
             await ctx.send('Error: missing arguments')
+    @_unban.error
+    async def unban_error(self, ctx, error):
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.send(f'Sorry, you do not have permissions to do this!')
+        elif isinstance(error, commands.CheckFailure):
+            await ctx.channel.send(f'Error: This is a melodeathcord specific command.')
+        else:
+            await ctx.channel.send(f'An error ocurred.')
+
+
 
 
     @commands.command(name='mute', aliases = ['usermute','silence'])
@@ -282,6 +319,15 @@ class ServerModeration(commands.Cog):
                 await ctx.send('Error: user id ')
         else:
             await ctx.send('Error: missing arguments')
+    @_mute.error
+    async def mute_error(self, ctx, error):
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.send(f'Sorry, you do not have permissions to do this!')
+        elif isinstance(error, commands.CheckFailure):
+            await ctx.channel.send(f'Error: This is a melodeathcord specific command.')
+        else:
+            await ctx.channel.send(f'An error ocurred.')
+
 
 
     @commands.command(name='unmute', aliases = ['unusermute','unsilence'])
@@ -315,11 +361,19 @@ class ServerModeration(commands.Cog):
                 print(str(user))
                 #await user.edit(mute = False)
                 await user.remove_roles(mute_role)
-                await ctx.send(f'User {user.display_name} unmuted')
+                await ctx.send(f'User {user.display_name} unmuted <a:elmoburnbutcute:1039866486346493958>')
             except:
                 await ctx.send('Error in user argument')
         else:
             await ctx.send('Error: missing arguments')
+    @_unmute.error
+    async def unmute_error(self, ctx, error):
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.send(f'Sorry, you do not have permissions to do this!')
+        elif isinstance(error, commands.CheckFailure):
+            await ctx.channel.send(f'Error: This is a melodeathcord specific command.')
+        else:
+            await ctx.channel.send(f'An error ocurred.')
 
 
 
@@ -369,7 +423,94 @@ class ServerModeration(commands.Cog):
         successful_bans = list(dict.fromkeys(successful_bans))
         await ctx.send(f"Batch ban finished.\nSuccessfully banned: {len(successful_bans)}\nUnsuccsessful attempts: {len(unsuccessful)}")
         print(unsuccessful)
+    @_batchban.error
+    async def batchban_error(self, ctx, error):
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.send(f'Sorry, you do not have permissions to do this!')
+        elif isinstance(error, commands.CheckFailure):
+            await ctx.channel.send(f'Error: This is a melodeathcord specific command.')
+        else:
+            await ctx.channel.send(f'An error ocurred.')
 
+
+
+    @commands.command(name='verify', aliases = ['verif','verified','verifying'])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(is_valid_server)
+    async def _verify(self, ctx: commands.Context, *args):
+        """*Verifies user
+        
+        use "-verify <user_id or @mention>" to remove gate-role, add verified-role and put a welcome message in #general.
+        you can put as addition argument "nomsg" to leave out the last step and verify them without a welcome message.
+        """
+        if len(args) >= 1:
+            user_arg = args[0]
+            if len(args) >= 2:
+                specification = ' '.join(args[1:])
+            else:
+                specification = ""
+
+            print("parsing...")
+            user_id = user_arg
+            if len(user_arg) > 3:
+                if user_arg[0] == "<" and user_arg[1] == "@" and user_arg[-1] == ">":
+                    user_id = user_arg.replace("<@", "").replace(">","")
+
+            proceed = True
+            try:
+                guild = ctx.guild
+                user = ctx.guild.get_member(int(user_id))
+            except:
+                await ctx.channel.send(f'Error while trying to fetch user.')
+                proceed = False
+            try:
+                #verified_role_id = 1073291335097913435
+                #wintersgate_role_id = 1073293423232172072
+                verified_role = discord.utils.get(guild.roles, id = 1073291335097913435)
+                wintersgate_role = discord.utils.get(guild.roles, id = 1073293423232172072)
+            except:
+                await ctx.channel.send(f'Error while trying to fetch roles.')
+                proceed = False
+
+            if proceed:
+                botspam_channel = self.bot.get_channel(416384984597790750)
+
+                if wintersgate_role in user.roles:
+                    await user.remove_roles(wintersgate_role)
+                else:
+                    print("User did not have the Winter's Gate role.")
+                    await botspam_channel.send(f"{user.display_name} did not have `Winter's Gate` role. <:shrugknight:976571063351787590>")
+
+                if verified_role in user.roles:
+                    newly_verified = False
+                    print("User already has verified role.")
+                    await botspam_channel.send(f"{user.display_name} did already have the `Verified` role. <:thonkin:1017478779293147157>")
+                else:
+                    newly_verified = True
+                    await user.add_roles(verified_role)
+
+
+                if specification.lower() in ["nomsg", "no msg", "nomessage", "no message", "nom"]:
+                    #botspam_channel = self.bot.get_channel(416384984597790750)
+                    await botspam_channel.send(f'Verified <@{user_id}> without welcome message.')
+                else:
+                    if newly_verified:
+                        general_channel = self.bot.get_channel(413027360783204363)
+                        await general_channel.send(f'Welcome <@{user_id}>! You made it <:wizard:1019019110572625952>')
+                        await general_channel.send(f'What are your favourite bands? <a:excitedcat:968929424365981817>')
+                    else:
+                        await ctx.channel.send(f'{user.display_name} was already verified. Uh... welcome anyway? <:charmanderpy:1014855943177113673>')
+        else:
+            await ctx.send('Error: missing arguments <:gengarpout:752263422141530242>')
+
+    @_verify.error
+    async def verify_error(self, ctx, error):
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.send(f'Sorry, you do not have permissions to do this!')
+        elif isinstance(error, commands.CheckFailure):
+            await ctx.channel.send(f'Error: This is a melodeathcord specific command.')
+        else:
+            await ctx.channel.send(f'An error ocurred.')
 
 
 
