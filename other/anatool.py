@@ -74,16 +74,69 @@ class AnatoolBot(commands.Bot):
             adminrights = await has_manageperms(ctx)
             if validserver and adminrights:
                 await ctx.channel.send(f'I am ready!')
+                #async for msg in ctx.channel.history(limit=100):
+                #    for r in msg.reactions:
+                #        print(f'>>> EMOJI: {r} with count: {r.count}')
+                #        async for u in r.users():
+                #            print(f'> {u.id}')
+
             else:
                 await ctx.channel.send(f'An error ocurred.')
 
 
         @self.command(name='emojirank')
-        async def test_command(ctx):
+        async def test_command(ctx, *args):
+
+            # parameters
+            L = 100000 #maximum of L messages checked per channel
+            threshold = 10
+
+            now = ctx.message.created_at.timestamp()
+
+            # ARG PARSE
+            if len(args) >= 1:
+                try:
+                    d = int(args[0])
+                except:
+                    d = 100
+                if d < 1:
+                    d = 100
+            else:
+                d = 100
+            
+            arguments = ''.join(args).lower()
+            if "nolon" in arguments:
+                nolon = True
+            else:
+                nolon = False
+
+            if "nomod" in arguments:
+                nomod = True
+            else:
+                nomod = False
+
+            if "onlymdm" in arguments or "mdmonly" in arguments or "melodeathcord" in arguments:
+                mdmonly = True
+            else:
+                mdmonly = False
+
+            if nomod:
+                ignored_authors = ["289925809878335489", "193001294548566016", "352626134195765248", "243762933987803146", "586358910148018189"]
+            elif nolon:
+                ignored_authors = ["586358910148018189"]
+            else:
+                ignored_authors = []
+
+            server_emoji_ids = []
+            for emoji in ctx.guild.emojis:
+                server_emoji_ids.append(str(emoji.id))
+
+            # checks
             validserver = await is_valid_server(ctx)
             adminrights = await has_manageperms(ctx)
             if validserver and adminrights:
                 print(">>> emojirank")
+                await ctx.channel.send(f'>> <a:catloading:970311103630417971> Checking channels:')
 
                 text_channel_list = []
                 thread_list = []
@@ -97,6 +150,7 @@ class AnatoolBot(commands.Bot):
 
                 public_channels = []
                 restricted_channels = []
+                public_threads = []
                 for channel in text_channel_list:
                     roles = []
                     for role in channel.changed_roles:
@@ -104,48 +158,195 @@ class AnatoolBot(commands.Bot):
 
                     if "1073291335097913435" in roles:
                         public_channels.append(channel)
+                        for thread in channel.threads:
+                            public_threads.append(thread)
+                            #print(f'>>> {thread.name}')
                     else:
                         restricted_channels.append(channel)
 
-                #print(f'+++ public channels +++')
-                #for channel in public_channels:
-                #    print(channel.name)
-                #print("---")
-                #print(f'+++ restricted channels +++')
-                #for channel in restricted_channels:
-                #    print(channel.name)
-                emoji_found = {}
-                reactions_found = {}
-                default_emojis = emojis.db.get_emoji_aliases()
-                print(default_emojis)
-
-                for channel in public_channels:
-                    print(f'+++ {channel.name} +++')
-                    async for msg in channel.history(limit=100):
-                        custom_emojis = re.findall(r'<a?:\w*:\d*>', msg.content)
-                        #custom_emojis = [int(e.split(':')[1].replace('>', '')) for e in custom_emojis]
-                        #custom_emojis = [discord.utils.get(client.get_all_emojis(), id=e) for e in custom_emojis]
-                        print(f'{msg.author}: {custom_emojis}')
-
-
-                    #for entry in user_bg_list:
-                    #    emoji = 
-                    #    if emoji in emoji_dict.keys():
-                    #        prev = emoji_dict[emoji]
-                    #        emoji_dict[emoji] = str(int(prev)+1)
-                    #    else:
-                    #        emoji_dict[emoji] = "1"
                 
+                c_emoji_found = []
+                d_emoji_found = []
+                c_reactions_found = []
+                d_reactions_found = []
+                default_emojis = emojis.db.get_emoji_aliases().keys()
+                #print(default_emojis)
+                
+                public_ct = public_channels + public_threads
 
-                    
+                for channel in public_ct:
+                    message_counter = 0
+                    print(f'+++ {channel.name} +++')
+                    async for msg in channel.history(limit=L):
+                        dayage = round((int(now) - int(msg.created_at.timestamp()))/(60*60*24),2)
+
+                        if dayage > d:
+                            break
+                        else:
+                            message_counter += 1
+                            print(message_counter)
+                            author_id = str(msg.author.id)
+
+                            # HANDLE EMOJIS WITHIN MESSAGES
+                            if author_id in ignored_authors:
+                                pass
+                            else:
+                                custom_emojis = list(set(re.findall(r'<a?:\w*:\d*>', msg.content)))
+
+                                #handle custom emojis
+                                for cusmoji in custom_emojis:
+                                    cusmoji_id = cusmoji.split(":")[2].replace(">","")
+                                    if mdmonly:
+                                        if cusmoji_id in server_emoji_ids:
+                                            c_emoji_found.append([cusmoji, msg.author, msg.created_at, msg.id, channel.name])
+                                        else:
+                                            #print("no external emoji checks")
+                                            pass
+                                    else:
+                                        c_emoji_found.append([cusmoji, msg.author, msg.created_at, msg.id, channel.name])
+
+                                if mdmonly:
+                                    #print("no default emoji checks")
+                                    pass
+                                else:
+                                    #handle default emojis
+                                    for defmoji in default_emojis:
+                                        if defmoji in msg.content:
+                                            d_emoji_found.append([defmoji, msg.author, msg.created_at, msg.id, channel.name])
+
+                            # HANDLE REACTIONS
+                            reactions = msg.reactions
+                            for r in msg.reactions:
+                                if "<" in str(r) and ":" in str(r):
+                                    emoji = str(r) 
+                                    is_default_emoji = False
+
+                                    cusmoji_id = emoji.split(":")[2].replace(">","")
+                                    if cusmoji_id in server_emoji_ids:
+                                        is_external = False
+                                    else:
+                                        is_external = True
+                                else:
+                                    emoji = emojis.decode(str(r))
+                                    is_default_emoji = True
+                                    is_external = False
+
+                                proceed = True
+                                if mdmonly:
+                                    if is_external or is_default_emoji:
+                                        proceed = False
+                                    else:
+                                        proceed = True
+
+                                if proceed:
+                                    #count = r.count
+                                    user_ids = []
+                                    async for u in r.users():
+                                        user_ids.append(str(u.id))
+
+                                    ignore = True
+                                    for uid in user_ids:
+                                        if uid not in ignored_authors:
+                                            ignore = False
+
+                                    if ignore == False:
+                                        if is_default_emoji:
+                                            d_reactions_found.append([emoji, msg.author, msg.created_at, msg.id, channel.name])
+                                        else:
+                                            c_reactions_found.append([emoji, msg.author, msg.created_at, msg.id, channel.name])
 
 
+                    await ctx.channel.send(f'Checked #{channel.name}')
 
 
-                            
+                all_emoji_found = c_emoji_found + d_emoji_found
+                emoji_dict = {}
+                for item in all_emoji_found:
+                    e = item[0]
+                    if e in emoji_dict.keys():
+                        prevnum = emoji_dict[e]
+                        emoji_dict[e] = int(emoji_dict[e])+1
+                    else:
+                        emoji_dict[e] = 1
+
+                all_reactions_found = c_reactions_found + d_reactions_found
+                reaction_dict = {}
+                for item in all_reactions_found:
+                    react = item[0]
+                    if react in reaction_dict.keys():
+                        prevnum = reaction_dict[react]
+                        reaction_dict[react] = int(reaction_dict[react])+1
+                    else:
+                        reaction_dict[react] = 1
+
+                totalmoji = all_emoji_found + all_reactions_found
+                total_dict = {}
+                for item in totalmoji:
+                    e = item[0]
+                    if e in total_dict.keys():
+                        prevnum = total_dict[e]
+                        total_dict[e] = int(total_dict[e])+1
+                    else:
+                        total_dict[e] = 1
 
 
-            
+                sorted_emoji = sorted(total_dict.items(), key=lambda x:x[1], reverse=True)
+
+
+                # COMPOSING MESSAGES
+                messages = [""]
+                i = 0
+                k = 0
+                msgfull = False
+                for item in sorted_emoji:
+                    if msgfull:
+                        k = k+1
+                        messages.append("")
+                        msgfull = False
+                    i += 1
+                    emoji = item[0]
+                    q = item[1]
+                    if q < threshold:
+                        break
+                    else:
+                        try:
+                            ecount = emoji_dict[emoji]
+                        except:
+                            ecount = 0
+                        try:
+                            rcount = reaction_dict[emoji]
+                        except:
+                            rcount = 0
+
+                        messages[k] += f"`{i}.` {emoji} - `{str(q)}  ({ecount}, {rcount})`\n"
+                    if len(messages[k]) > 4020:
+                        msgfull = True
+
+                m = len(messages)
+                j = 1
+                for msg in messages:
+                    embed=discord.Embed(title=f"Emoji Usage - Ranking ({j}/{m})", description=msg, color=0xFFBF00)
+                    if j == 1:
+                        embed.set_thumbnail(url="https://i.imgur.com/5LrvMd4.png")
+                    if j == m:
+                        footy = ""
+                        if nomod:
+                            footy += "Ignored mod messages"
+                        elif nolon:
+                            footy += "Ignored Lon messages"
+                        else:
+                            footy += "All messages considered"
+
+                        if mdmonly:
+                            footy += ", but only emojis on this server"
+                        else:
+                            pass
+
+                        footy += ". Threshold of {threshold} and messages of the past {d} day(s)."
+                        embed.set_footer(text=footy)
+                    await ctx.send(embed=embed)
+                    j += 1
+
 
 
             else:
