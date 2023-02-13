@@ -88,8 +88,7 @@ class AnatoolBot(commands.Bot):
         async def test_command(ctx, *args):
 
             # parameters
-            L = 100000 #maximum of L messages checked per channel
-            threshold = 10
+            L = 150000 #maximum of L messages checked per channel
 
             now = ctx.message.created_at.timestamp()
 
@@ -101,6 +100,16 @@ class AnatoolBot(commands.Bot):
                     d = 100
                 if d < 1:
                     d = 100
+
+                if len(args) >= 2:
+                    try:
+                        threshold = int(args[1])
+                    except:
+                        threshold = 10
+                    if threshold < 1:
+                        threshold = 10
+                else:
+                    threshold = 10
             else:
                 d = 100
             
@@ -126,6 +135,9 @@ class AnatoolBot(commands.Bot):
                 ignored_authors = ["586358910148018189"]
             else:
                 ignored_authors = []
+
+            #ignore bots always:
+            ignored_authors += ["356268235697553409", "537353774205894676", "155149108183695360", "720135602669879386", "411916947773587456", "958105284759400559", "655390915325591629", "85614143951892480", "585271178180952064", "929348258910859325", "1074621494568689664"]
 
             server_emoji_ids = []
             for emoji in ctx.guild.emojis:
@@ -184,7 +196,7 @@ class AnatoolBot(commands.Bot):
                             break
                         else:
                             message_counter += 1
-                            print(message_counter)
+                            print(f'{message_counter}.: by {msg.author}, about {dayage} days ago')
                             author_id = str(msg.author.id)
 
                             # HANDLE EMOJIS WITHIN MESSAGES
@@ -335,18 +347,63 @@ class AnatoolBot(commands.Bot):
                         elif nolon:
                             footy += "Ignored Lon messages"
                         else:
-                            footy += "All messages considered"
+                            footy += "Messages of all users"
 
                         if mdmonly:
-                            footy += ", but only emojis on this server"
+                            footy += ", but only emojis from this server"
                         else:
                             pass
 
-                        footy += ". Threshold of {threshold} and messages of the past {d} day(s)."
+                        footy += f". Threshold of {threshold} and messages of the past {d} day(s), however max {L} messages."
                         embed.set_footer(text=footy)
                     await ctx.send(embed=embed)
                     j += 1
 
+                if mdmonly:
+                    await ctx.send(f'Now the unused emoji <:sheepfeels:1019019495806861332>')
+
+                    messages = [""]
+                    k = 0
+                    msgfull = False
+                    for emoji in ctx.guild.emojis:
+                        if msgfull:
+                            k = k+1
+                            messages.append("")
+                            msgfull = False 
+                        emojicode = "<"
+                        if emoji.animated:
+                            emojicode += "a"
+                        emojicode += f"{emoji.name}:{emoji.id}>"
+
+                        if emojicode in total_dict:
+                            #print(f"{emojicode} was used")
+                            pass
+                        else:
+                            messages[k] += f"{emojicode} `:{emoji.name}:`\n"
+
+                        if len(messages[k]) > 4020:
+                            msgfull = True
+                    
+                    j = 0
+                    m = len(messages)
+                    for msg in messages:
+                        j += 1
+                        embed=discord.Embed(title=f"Unused emoji ({j}/{m})", description=msg, color=0xFFBF00)
+                        
+                        if j == m:
+                            footy = ""
+                            if nomod:
+                                footy += "Ignored mod messages"
+                            elif nolon:
+                                footy += "Ignored Lon messages"
+                            else:
+                                footy += "Messages of all users"
+
+                            footy += ", but only emojis from this server"
+
+
+                            footy += f". Threshold of {threshold} and messages of the past {d} day(s), however max {L} messages."
+                            embed.set_footer(text=footy)
 
 
             else:
