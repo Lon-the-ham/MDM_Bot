@@ -10,12 +10,14 @@ import time
 import random
 import sqlite3
 #import subprocess
-from emoji import UNICODE_EMOJI
+#from emoji import UNICODE_EMOJI
 import functools
 import itertools
 import math
 from async_timeout import timeout
 import requests
+#
+import emojis
 
 import config.config as config
 
@@ -93,11 +95,49 @@ class AnatoolBot(commands.Bot):
                         thread_list.append(thread)
                         #print(f'>>> {thread.name}')
 
-
+                public_channels = []
+                restricted_channels = []
                 for channel in text_channel_list:
-                    print(f'>>> {channel.name}')
-                    print(channel.members)
-                    print('---')
+                    roles = []
+                    for role in channel.changed_roles:
+                        roles.append(str(role.id))
+
+                    if "1073291335097913435" in roles:
+                        public_channels.append(channel)
+                    else:
+                        restricted_channels.append(channel)
+
+                #print(f'+++ public channels +++')
+                #for channel in public_channels:
+                #    print(channel.name)
+                #print("---")
+                #print(f'+++ restricted channels +++')
+                #for channel in restricted_channels:
+                #    print(channel.name)
+                emoji_found = {}
+                reactions_found = {}
+                default_emojis = emojis.db.get_emoji_aliases()
+                print(default_emojis)
+
+                for channel in public_channels:
+                    print(f'+++ {channel.name} +++')
+                    async for msg in channel.history(limit=100):
+                        custom_emojis = re.findall(r'<a?:\w*:\d*>', msg.content)
+                        #custom_emojis = [int(e.split(':')[1].replace('>', '')) for e in custom_emojis]
+                        #custom_emojis = [discord.utils.get(client.get_all_emojis(), id=e) for e in custom_emojis]
+                        print(f'{msg.author}: {custom_emojis}')
+
+
+                    #for entry in user_bg_list:
+                    #    emoji = 
+                    #    if emoji in emoji_dict.keys():
+                    #        prev = emoji_dict[emoji]
+                    #        emoji_dict[emoji] = str(int(prev)+1)
+                    #    else:
+                    #        emoji_dict[emoji] = "1"
+                
+
+                    
 
 
 
