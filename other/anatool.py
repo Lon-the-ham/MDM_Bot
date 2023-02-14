@@ -95,23 +95,23 @@ class AnatoolBot(commands.Bot):
             # ARG PARSE
             if len(args) >= 1:
                 try:
-                    d = int(args[0])
+                    days = int(args[0])
                 except:
-                    d = 100
-                if d < 1:
-                    d = 100
+                    days = 7
+                if days < 1:
+                    days = 7
 
                 if len(args) >= 2:
                     try:
                         threshold = int(args[1])
                     except:
-                        threshold = 10
+                        threshold = 1
                     if threshold < 1:
-                        threshold = 10
+                        threshold = 1
                 else:
-                    threshold = 10
+                    threshold = 1
             else:
-                d = 100
+                days = 7
             
             arguments = ''.join(args).lower()
             if "nolon" in arguments:
@@ -192,7 +192,7 @@ class AnatoolBot(commands.Bot):
                     async for msg in channel.history(limit=L):
                         dayage = round((int(now) - int(msg.created_at.timestamp()))/(60*60*24),2)
 
-                        if dayage > d:
+                        if dayage > days:
                             break
                         else:
                             message_counter += 1
@@ -343,18 +343,18 @@ class AnatoolBot(commands.Bot):
                     if j == m:
                         footy = ""
                         if nomod:
-                            footy += "Ignored mod messages"
+                            footy += "Emoji: no mods & bots. "
                         elif nolon:
-                            footy += "Ignored Lon messages"
+                            footy += "Emoji: no bots & Lon. "
                         else:
-                            footy += "Messages of all users"
+                            footy += "Emoji: no bots. "
 
                         if mdmonly:
-                            footy += ", but only emojis from this server"
+                            footy += "Only emojis from this server. "
                         else:
                             pass
 
-                        footy += f". Threshold of {threshold} and messages of the past {d} day(s), however max {L} messages."
+                        footy += f" Threshold: {threshold}. Went back {days} day(s), but max per channel: {L} messages."
                         embed.set_footer(text=footy)
                     await ctx.send(embed=embed)
                     j += 1
@@ -393,16 +393,16 @@ class AnatoolBot(commands.Bot):
                         if j == m:
                             footy = ""
                             if nomod:
-                                footy += "Ignored mod messages"
+                                footy += "Emoji: no mods & bots. "
                             elif nolon:
-                                footy += "Ignored Lon messages"
+                                footy += "Emoji: no bots & Lon. "
                             else:
-                                footy += "Messages of all users"
+                                footy += "Emoji: no bots. "
 
                             footy += ", but only emojis from this server"
 
 
-                            footy += f". Threshold of {threshold} and messages of the past {d} day(s), however max {L} messages."
+                            footy += f" Threshold: {threshold}. Went back {days} day(s), but max per channel: {L} messages."
                             embed.set_footer(text=footy)
 
                         await ctx.send(embed=embed)
