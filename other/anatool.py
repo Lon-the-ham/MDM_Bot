@@ -196,7 +196,7 @@ class AnatoolBot(commands.Bot):
                             break
                         else:
                             message_counter += 1
-                            print(f'{message_counter}.: by {msg.author}, about {dayage} days ago')
+                            #print(f'{message_counter}.: by {msg.author}, about {dayage} days ago')
                             author_id = str(msg.author.id)
 
                             # HANDLE EMOJIS WITHIN MESSAGES
@@ -373,7 +373,7 @@ class AnatoolBot(commands.Bot):
                         emojicode = "<"
                         if emoji.animated:
                             emojicode += "a"
-                        emojicode += f"{emoji.name}:{emoji.id}>"
+                        emojicode += f":{emoji.name}:{emoji.id}>"
 
                         if emojicode in total_dict:
                             #print(f"{emojicode} was used")
@@ -405,6 +405,7 @@ class AnatoolBot(commands.Bot):
                             footy += f". Threshold of {threshold} and messages of the past {d} day(s), however max {L} messages."
                             embed.set_footer(text=footy)
 
+                        await ctx.send(embed=embed)
 
             else:
                 await ctx.channel.send(f'An error ocurred.')
