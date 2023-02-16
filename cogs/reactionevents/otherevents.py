@@ -16,7 +16,7 @@ class OtherEvents(commands.Cog):
         #print(f"{user} is typing message in {channel} {when}")
         if user.id == 273219981465092096:
             # ddouble is typing
-            print(f"{user} is typing message in #{channel} {when}")
+            print(f"{user} is typing in #{channel} {when}")
             ddouble_thread = self.bot.get_channel(1074837328226435143)
             await ddouble_thread.send(f"{user} is typing message in #{channel} {when}")
 
