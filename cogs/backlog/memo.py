@@ -1130,6 +1130,8 @@ class Memo(commands.Cog):
 
         write -cat <n1> <n2> .... <nk> <categoryname>
         you can also use -cat <n1> to <n2> <categoryname>
+        or
+        -cat last (optional integer) <categoryname>
         """    
         conbg = sqlite3.connect('cogs/backlog/memobacklog.db')
         curbg = conbg.cursor()
@@ -1165,6 +1167,42 @@ class Memo(commands.Cog):
                 else:
                     await ctx.send(f'`Argument error. 🤖`')
                     args2 = []
+            elif args[0] == "last":
+                if len(args) in [2,3]:
+                    if len(args) == 2:
+                        num = 1
+                        arguments_valid = True
+                    else:
+                        # first check if 2nd arg is integer
+                        try:
+                            num = int(args[1])
+                            arguments_valid = True
+                        except:
+                            arguments_valid = False
+                            await ctx.send(f'Invalid integer argument for `-cat last (optional integer) category`') 
+                        
+                        # next check if integer is between 1 and bl-length
+                        bl_length = len(user_bg_list)
+                        if arguments_valid:
+                            if num < 1: 
+                                await ctx.send(f"Integer must be at least 1.")
+                                arguments_valid = False
+                            elif num >= bl_length:
+                                num = bl_length
+                                await ctx.send(f"This will change category of ENTIRE backlog, but ok...")
+                                arguments_valid = True
+                            else:
+                                arguments_valid = True
+
+                        # at last put together list with the last n indexes
+                        if arguments_valid:
+                            args2 = []
+                            for x in range(bl_length+1-num, bl_length+1):
+                                args2.append(x)
+
+                else:
+                    arguments_valid = False
+                    await ctx.send(f'Argument error.\nUse `-cat last (optional integer) category`') 
             else:
                 arguments_valid = True
                 args2 = []
