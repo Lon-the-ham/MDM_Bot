@@ -35,6 +35,7 @@ class YataBot(commands.Bot):
             "cogs.backlog.memo",
             "cogs.pingterest.pingterest",
             "cogs.reactionevents.reactionevents",
+            "cogs.reactionevents.otherevents",
             "cogs.roles.roles",
             "cogs.roles.reactionroles",
             "cogs.settings.settings",
