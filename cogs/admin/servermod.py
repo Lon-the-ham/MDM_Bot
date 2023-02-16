@@ -56,7 +56,7 @@ class ServerModeration(commands.Cog):
                 try:
                     user = await self.bot.fetch_user(user_id)
                     await ctx.guild.ban(user, reason=reason, delete_message_days=0)
-                    await ctx.send(f'Banned <@{user_id}>. <:banbun:1019019376495710288>{reason_string}')
+                    await ctx.send(f'Banned <@{user_id}>. <:banbun:1075093521553440799>{reason_string}')
                 except:
                     await ctx.send('Error in user argument')
         else:
