@@ -1172,6 +1172,7 @@ class Memo(commands.Cog):
                     if len(args) == 2:
                         num = 1
                         arguments_valid = True
+                        args2 = [num]
                     else:
                         # first check if 2nd arg is integer
                         try:
@@ -1185,7 +1186,7 @@ class Memo(commands.Cog):
                         bl_length = len(user_bg_list)
                         if arguments_valid:
                             if num < 1: 
-                                await ctx.send(f"Integer must be at least 1.")
+                                #await ctx.send(f"Integer must be at least 1.")
                                 arguments_valid = False
                             elif num >= bl_length:
                                 num = bl_length
