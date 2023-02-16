@@ -334,6 +334,13 @@ class Memo(commands.Cog):
         """Delete from backlog
 
         Deletes an item of your memo/backlog at a given index number.
+
+        You can do "-del 5" to delete the fifth entry of your backlog.
+        Also possible is "-del 1 4 17 8" to delete several entries at once,
+        or use "-del 5 to 9" to delete multiple entries in a row.
+
+        Another option is to use "-del last" to delete the last entry, 
+        or do "-del last 3" to delete the last 3 entries etc.
         """
         conbg = sqlite3.connect('cogs/backlog/memobacklog.db')
         curbg = conbg.cursor()
@@ -342,75 +349,117 @@ class Memo(commands.Cog):
         user = ctx.message.author
         user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? ORDER BY bgid", (str(user.id),)).fetchall()]
 
+        if len(args) > 0:
+            if args[0].lower() in ["last", "bottom"]:
+                backlog_length = len(user_bg_list)
 
-        #bulk delete
-        if len(args) > 1:
-            if "to" == args[1]:
-                if len(args) == 3:
+                deletion_number = 1
+                if len(args) > 1:
                     try:
-                        start = int(args[0])
-                        end = int(args[2])
-                        print(start)
-                        print(end)
+                        deletion_number = int(args[1])
                     except:
-                        start = 1
-                        end = 0
-                        print("found 'to' in delete command, but something went wrong")
-                    if start > end:
-                        await ctx.send(f'`Argument error.` <:thvnk:957075985721864263>') 
-                        args = ()
+                        deletion_number = 1 
+                        await ctx.send(f'`Argument error, must be integer. Only deleting last entry.` <:thvnk:957075985721864263>')
+                    if deletion_number < 1:
+                        deletion_number = 1 
+                        await ctx.send(f'`Argument error, cannot be lower than 1. Only deleting last entry.` <:thvnk:957075985721864263>')
+                
+                if deletion_number >= backlog_length:
+                    await ctx.send(f"<:shakingfrogeyes:975566875050262628> Are you sure you want to delete your entire backlog? <:attention:961365426091229234>\nI'm guessing this was unintentional... please use `-clearall` if it wasn't.")
+                else:
+                    count = 0
+                    for i in range(backlog_length+1-deletion_number,backlog_length+1):
+                        entry = user_bg_list[i-1]
+                        entry_id = entry[0] 
+
+                        curbg.execute("DELETE FROM memobacklog WHERE bgid = ?", (str(entry_id),))
+                        conbg.commit()
+                        print('deleted entry')
+                        count += 1
+
+                    if count == 0:
+                        #this should not happen
+                        await ctx.send(f'`something went wrong :(`')  
+                    elif count == 1:
+                        try:
+                            entry_name = str(entry[3])
+                        except:
+                            entry_name = "1 entry"
+
+                        await ctx.send(f'`deleted {entry_name} from your backlog!`') 
                     else:
-                        if end > len(user_bg_list):
-                            end = len(user_bg_list)
-                            await ctx.send(f'`End marker larger than backlog size. Corrected marker.`') 
-                        args = range(start, end+1, 1)
+                        await ctx.send(f'`deleted {count} entries from your backlog!`')
+
+            else:
+                #bulk delete
+                if len(args) > 1:
+                    if "to" == args[1]:
+                        if len(args) == 3:
+                            try:
+                                start = int(args[0])
+                                end = int(args[2])
+                                print(start)
+                                print(end)
+                            except:
+                                start = 1
+                                end = 0
+                                print("found 'to' in delete command, but something went wrong")
+                            if start > end:
+                                await ctx.send(f'`Argument error.` <:thvnk:957075985721864263>') 
+                                args = ()
+                            else:
+                                if end > len(user_bg_list):
+                                    end = len(user_bg_list)
+                                    await ctx.send(f'`End marker larger than backlog size. Corrected marker.`') 
+                                args = range(start, end+1, 1)
+                        else:
+                            await ctx.send(f'`Argument error. 🤖`')
+                            args = ()
+
+                ###
+                n = 0 #number of valid arguments
+                for arg in args:
+                    try:
+                        i = int(arg)
+                        if i == 0:
+                            #ctx.send(f'Argument must be a non-zero integer!')
+                            print('Argument must be a non-zero integer!')
+                    except:
+                        i = 0
+                        #await ctx.send(f'Argument must be an integer!')
+                        print('Argument must be an integer!')
+                        break
+
+                    if i > 0:
+                        if i <= len(user_bg_list):
+                            n = n+1
+                            entry = user_bg_list[i-1]
+                            entry_id = entry[0] 
+
+                            curbg.execute("DELETE FROM memobacklog WHERE bgid = ?", (str(entry_id),))
+                            conbg.commit()
+                            print('deleted entry')
+                        else:
+                            #await ctx.send(f'You do not have that many entries in your backlog.')
+                            print('You do not have that many entries in your backlog.')
+
+                    elif i < 0:
+                        #await ctx.send(f'I cannot deal with negative numbers. Yet. <:smug:955227749415550996>')
+                        print('I cannot deal with negative numbers.')
+
+                if n == 0:
+                    await ctx.send(f'`something went wrong :(`')  
+                elif n == 1:
+                    try:
+                        entry_name = str(entry[3])
+                    except:
+                        entry_name = "1 entry"
+
+                    await ctx.send(f'`deleted {entry_name} from your backlog!`') 
                 else:
-                    await ctx.send(f'`Argument error. 🤖`')
-                    args = ()
-
-        ###
-
-        n = 0 #number of valid arguments
-        for arg in args:
-            try:
-                i = int(arg)
-                if i == 0:
-                    #ctx.send(f'Argument must be a non-zero integer!')
-                    print('Argument must be a non-zero integer!')
-            except:
-                i = 0
-                #await ctx.send(f'Argument must be an integer!')
-                print('Argument must be an integer!')
-                break
-
-            if i > 0:
-                if i <= len(user_bg_list):
-                    n = n+1
-                    entry = user_bg_list[i-1]
-                    entry_id = entry[0] 
-
-                    curbg.execute("DELETE FROM memobacklog WHERE bgid = ?", (str(entry_id),))
-                    conbg.commit()
-                    print('deleted entry')
-                else:
-                    #await ctx.send(f'You do not have that many entries in your backlog.')
-                    print('You do not have that many entries in your backlog.')
-
-            elif i < 0:
-                #await ctx.send(f'I cannot deal with negative numbers. Yet. <:smug:955227749415550996>')
-                print('I cannot deal with negative numbers. Yet.')
-
-        if n == 0:
-            await ctx.send(f'`something went wrong :(`')  
-        elif n == 1:
-            try:
-                entry_name = str(entry[3])
-            except:
-                entry_name = "1 entry"
-
-            await ctx.send(f'`deleted {entry_name} from your backlog!`') 
+                    await ctx.send(f'`deleted {n} entries from your backlog!`')
         else:
-            await ctx.send(f'`deleted {n} entries from your backlog!`')
+            await ctx.send(f'`You need to specify the index number(s) of items you want to delete from your backlog!`')
 
 
     #edit backlog
