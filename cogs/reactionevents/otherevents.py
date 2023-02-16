@@ -18,7 +18,7 @@ class OtherEvents(commands.Cog):
             # ddouble is typing
             print(f"{user} is typing in #{channel} {when}")
             ddouble_thread = self.bot.get_channel(1074837328226435143)
-            await ddouble_thread.send(f"{user} is typing message in #{channel} {when}")
+            await ddouble_thread.send(f"{user} is typing message in #{channel}\n<:shakingfrogeyes:975566875050262628> {when}")
 
 
     @commands.Cog.listener()
