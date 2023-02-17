@@ -26,10 +26,30 @@ class OtherEvents(commands.Cog):
             if now <= last_ddouble_instance + 5*60:
                 pass
             else:
-                last_ddouble_instance = now
-                ddouble_thread = self.bot.get_channel(1074837328226435143)
-                await ddouble_thread.send(f"{user} is typing in #{channel}\n<:shakingfrogeyes:975566875050262628> {when}")
+                try:
+                    settings = []
+                    print('+++ settings: +++')
+                    with open('cogs/settings/default_settings.txt', 'r') as s:
+                        for line in s:
+                            print(line.strip())
+                            settings.append(line.strip())
+                    print('--- ---')
 
+                    for s in settings:
+                        if ":" in s:
+                            parameter = s.split(":",1)[0].strip().lower()
+                            value = s.split(":",1)[1].strip()
+                            #print(f"parameter: {parameter}; value: {value}")
+
+                            if parameter in ['tracking']:
+                                if value.lower() in ['on', 'yes']:
+                                    last_ddouble_instance = now
+                                    ddouble_thread = self.bot.get_channel(1074837328226435143)
+                                    await ddouble_thread.send(f"{user} is typing in #{channel}\n<:shakingfrogeyes:975566875050262628> {when}")
+                                else:
+                                    print("tracking off")
+                except Exception as e:
+                    print(e)
 
     @commands.Cog.listener()
     async def on_message(self, message):

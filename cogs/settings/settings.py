@@ -46,7 +46,8 @@ class Settings(commands.Cog):
                     await ctx.send(f'Could not open settings file <:jakeslam:1014849819409383455>')
 
                 parvals = []
-                for s in settings:
+                settings_strp = [line.strip() for line in settings if line.strip()]
+                for s in settings_strp:
                     if ":" in s:
                         p = s.split(":",1)[0].lower()
                         v = s.split(":",1)[1]

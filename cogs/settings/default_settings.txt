@@ -1,1 +1,2 @@
 status: w @jamal: -ping game stream
+tracking: on
