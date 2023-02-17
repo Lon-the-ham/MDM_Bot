@@ -36,12 +36,15 @@ class ReactionEvents(commands.Cog):
                                     curbg = conbg.cursor()
                                     curbg.execute('''CREATE TABLE IF NOT EXISTS memobacklog (bgid text, userid text, username text, backlog text, details text)''')
                                     
-                                    bl_entry = str(embed.description).split("\n")[0].replace("*", " ").strip()
                                     now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
-                                    mmid = str(now) + "_" + str(user.id) + "_0rec"
-                                    print("adding entry to backlog")
-                                    curbg.execute("INSERT INTO memobacklog VALUES (?, ?, ?, ?, ?)", (mmid, str(user.id), str(user.name), bl_entry, ""))
-                                    conbg.commit()
+                                    bl_entries = [x.strip() for x in (str(embed.description).split("▪️")[0].replace("*", " ").strip()).split(";") if x.strip()] #the x for x if x should remove all empty strings
+                                    i=1000
+                                    for bl_entry in bl_entries:
+                                        mmid = str(now) + "_" + str(user.id) + "_0rec" + str(i)
+                                        print(f"adding entry {i - 999} to backlog")
+                                        curbg.execute("INSERT INTO memobacklog VALUES (?, ?, ?, ?, ?)", (mmid, str(user.id), str(user.name), bl_entry, ""))
+                                        conbg.commit()
+                                        i += 1
 
                                     footer = str(embed.footer.text)
                                     newfooter = footer + "\n-added to " + str(user.display_name) + "'s backlog"

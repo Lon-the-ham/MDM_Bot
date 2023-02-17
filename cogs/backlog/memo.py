@@ -569,7 +569,7 @@ class Memo(commands.Cog):
 
         while True:
             try:
-                reaction, user = await bot.wait_for("reaction_add", timeout=60, check=check)
+                reaction, user = await self.bot.wait_for("reaction_add", timeout=60, check=check)
                 # waiting for a reaction to be added - times out after x seconds, 60 in this
                 # example
 
@@ -627,7 +627,8 @@ class Memo(commands.Cog):
         """Recommend
 
         Makes a recommendation message. Reacting with 📝 adds it to the reacting users backlog. 
-        Everything after a ; symbol will not get added to the backlog, so use it for extra info.
+        Seperate multiple entries via a semicolon ; 
+        Everything after a | symbol will not get added to the backlog, so use it for extra info.
         """
         the_channel = ctx.channel
         conbg = sqlite3.connect('cogs/backlog/memobacklog.db')
@@ -643,15 +644,24 @@ class Memo(commands.Cog):
             if is_mention:
                 print("@mention detected")
             else:
-                args2.append(arg)
+                args2.append(arg.replace("▪️"," "))
 
-        given_string = " ".join(args2).split(";")
-        bl_entry = given_string[0].strip()
-        msg = "**%s**" % bl_entry[:300]
+        given_string = " ".join(args2).split("|")
+        bl_entries = given_string[0].strip().replace(";"," ;\n")
+
+
+        msg = "**%s**" % bl_entries[:2000]
+        if len(bl_entries) > 2000:
+            msg += " [...]"
+
+        msg += "\n▪️"
 
         if len(given_string) >= 1:
-            additionalinfo = ";".join(given_string[1:]).strip()
-            msg = "**%s**\n%s" % (bl_entry[:300], additionalinfo[:1500])
+            additionalinfo = "|".join(given_string[1:]).strip()
+            msg += f"\n{additionalinfo[:1500]}"
+            if len(additionalinfo) > 1500:
+                msg += " [...]"
+
 
         embed = discord.Embed(title="Recommendation", description=msg, color=0x30D5C8)
         footer = "React with 📝 to add it to your backlog."
@@ -1325,15 +1335,6 @@ class Memo(commands.Cog):
         await ctx.send("under construction <a:mabeltyping:976601600476991509>")
 
 
-    @commands.command(name='batchrec', aliases = ["batchsuggest"])
-    @commands.check(is_valid_server)
-    async def _batchsuggest(self, ctx, *args):
-        """Recommendation
-
-        under construction
-
-        """ 
-        await ctx.send("under construction <a:mabeltyping:976601600476991509>")
 
 
 async def setup(bot: commands.Bot) -> None:
