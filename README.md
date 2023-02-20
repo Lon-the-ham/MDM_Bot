@@ -28,3 +28,5 @@ repository for the custom discord bot for r/melodicdeathmetal
   pip install emoji==1.7
   
   pip install emojis
+  
+  python -m pip install requests
