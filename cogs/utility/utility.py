@@ -877,10 +877,12 @@ class Utility(commands.Cog):
                                                     break
                                             print(convert_code)
                                             if convert_to in largenominalcurrencies:
-                                                n = 0
+                                                #n = 0
+                                                conversion = int(round(float(value_one)*float(convert_value)/float(currency_value),0))
                                             else:
-                                                n = 2
-                                            conversion = round(float(value_one)*float(convert_value)/float(currency_value),n)
+                                                #n = 2
+                                                conversion = round(float(value_one)*float(convert_value)/float(currency_value),2)
+                                            #conversion = round(float(value_one)*float(convert_value)/float(currency_value),n)
                                             print(conversion)
                                             message += f"    {conversion} {convert_code}\n"
                                     message += "```" + f"as per {last_updated}"
@@ -899,10 +901,12 @@ class Utility(commands.Cog):
                                                     break
                                             print(convert_code)
                                             if convert_to in largenominalcurrencies:
-                                                n = 0
+                                                #n = 0
+                                                conversion = int(round(float(value_one)*float(convert_value)/float(currency_value),0))
                                             else:
-                                                n = 2
-                                            conversion = round(float(value_one)*float(convert_value)/float(currency_value),n)
+                                                #n = 2
+                                                conversion = round(float(value_one)*float(convert_value)/float(currency_value),2)
+                                            #conversion = round(float(value_one)*float(convert_value)/float(currency_value),n)
                                             print(conversion)
                                             message += f"    {conversion} {convert_code}\n"
                                             valid_conversion_currency_found = True
