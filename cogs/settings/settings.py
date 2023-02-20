@@ -30,7 +30,7 @@ class Settings(commands.Cog):
         first argument has to specify the setting parameter, 
         i.e. status
         use e.g.: -set status w jamal doing ...things
-
+        
         """
         if len(args) > 0:
             parameter = args[0].lower()
@@ -63,7 +63,7 @@ class Settings(commands.Cog):
                         v = pv[1]
                         oldline = p + ":" + v
                         newline = parameter + ": " + value
-                        filedata = '\n'.join(settings)
+                        filedata = '\n'.join(settings_strp)
 
                         try:
                             newdata = filedata.replace(oldline, newline)
@@ -95,6 +95,47 @@ class Settings(commands.Cog):
             await ctx.send(f'Some error occurred <:penguinshy:1017439941074100344>')
 
 
+    @commands.command(name='showsettings', aliases = ['displaysettings'])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(is_valid_server)
+    async def _showsettings(self, ctx: commands.Context, *args):
+        """*display settings
+
+        no arguments
+        """
+        settings = []
+        try:
+            with open('cogs/settings/default_settings.txt', 'r') as s:
+                for line in s:
+                    settings.append(line.strip())
+            loading_complete = True
+        except:
+            await ctx.send(f'Could not open settings file <:jakeslam:1014849819409383455>')
+            loading_complete = False
+
+        if loading_complete:
+            msg = ""
+            settings_strp = [line.strip() for line in settings if line.strip()]
+            for s in settings_strp:
+                if ":" in s:
+                    parameter = s.split(":",1)[0].lower()
+                    value = s.split(":",1)[1]
+                    msg += f"**{parameter}:** {value}\n"
+
+            embed=discord.Embed(title=f"Settings of MDM Bot", description=msg, color=0x880808)
+            try:
+                embed.set_footer(text=f"The status here is the default status, that will be loaded upon reboot. To change the current status use -status command.")
+            except:
+                print("adding footer to embed failed")
+            await ctx.send(embed=embed)
+    @_settings.error
+    async def settings_error(ctx, error, *args):
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.send(f'Sorry, you do not have permissions to do this!')
+        elif isinstance(error, commands.BadArgument):
+            await ctx.send('Something went wrong... something something bad argument <:seenoslowpoke:975062347871842324>')
+        else:
+            await ctx.send(f'Some error occurred <:penguinshy:1017439941074100344>')
 
 
 async def setup(bot: commands.bot) -> None:
