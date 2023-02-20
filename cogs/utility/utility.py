@@ -473,6 +473,12 @@ class Utility(commands.Cog):
 
         -con <number>F: Fahrenheit to Celsius
         -con <number>C: Celsius to Fahrenheit
+
+        currently supported are temperature (C,F), length/distances (km,m,cm,mi,yd,ft,in also 5'11" notation), speed (kmh,mph), weight/mass (lbs,oz,kg,g), volume (gal,ukgal,fl oz,cup,l,cl,ml), area (acre,sqm)
+        and 
+        also currencies, for which you can use "to"
+        -con <number> USD to EUR CHF 
+        if you leave the "to" out it will give out USD, EUR, GPB, JPY
         """
         def is_number(s):
             try:
@@ -485,6 +491,10 @@ class Utility(commands.Cog):
             res = re.split('([-+]?\d+\.\d+)|([-+]?\d+)', s.strip())
             res_f = [r.strip() for r in res if r is not None and r.strip() != '']
             return res_f
+
+        def alphanumonly(s):
+            result = "".join(e for e in s if e.isalnum())
+            return result
 
         other_currency_symbols = ["€","円","¥","$","£","EURO","EUROS","DOLLAR","DOLLARS","USDOLLAR","USDOLLARS","YEN","YENS","POUND","POUNDS","QUID","QUIDS"]
         def currency_symbol_converter(s):
@@ -507,10 +517,7 @@ class Utility(commands.Cog):
             #l = len(arg)
             #unit_one = arg[l-1:]
             #value_one = arg[:l-1]
-
-            currencies = ['AED','AFN','ALL','AMD','ANG','AOA','ARS','AUD','AWG','AZN','BAM','BBD','BDT','BGN','BHD','BIF','BMD','BND','BOB','BRL','BSD','BTN','BWP','BYN','BZD','CAD','CDF','CHF','CLP','CNY','COP','CRC','CUP','CVE','CZK','DJF','DKK','DOP','DZD','EGP','ERN','ETB','EUR','FJD','FKP','FOK','GBP','GEL','GGP','GHS','GIP','GMD','GNF','GTQ','GYD','HKD','HNL','HRK','HTG','HUF','IDR','ILS','IMP','INR','IQD','IRR','ISK','JEP','JMD','JOD','JPY','KES','KGS','KHR','KID','KMF','KRW','KWD','KYD','KZT','LAK','LBP','LKR','LRD','LSL','LYD','MAD','MDL','MGA','MKD','MMK','MNT','MOP','MRU','MUR','MVR','MWK','MXN','MYR','MZN','NAD','NGN','NIO','NOK','NPR','NZD','OMR','PAB','PEN','PGK','PHP','PKR','PLN','PYG','QAR','RON','RSD','RUB','RWF','SAR','SBD','SCR','SDG','SEK','SGD','SHP','SLE','SOS','SRD','SSP','STN','SYP','SZL','THB','TJS','TMT','TND','TOP','TRY','TTD','TVD','TWD','TZS','UAH','UGX','USD','UYU','UZS','VES','VND','VUV','WST','XAF','XCD','XDR','XOF','XPF','YER','ZAR','ZMW','ZWL']
-            currencies += other_currency_symbols
-            crypto_currencies = ["BTC","BITCOIN"]
+   
 
             #divide in from_convert and to_convert
             from_arguments = []
@@ -531,6 +538,9 @@ class Utility(commands.Cog):
                 VaU = [x for x in VaU_unfiltered if x]
                 value_one = VaU[0]
                 unit_one = VaU[1]
+                if is_number(value_one) == False and is_number(unit_one) == True:
+                    value_one = VaU[1]
+                    unit_one = VaU[0]
                 parsing_worked = True
             except:
                 parsing_worked = False
@@ -769,94 +779,176 @@ class Utility(commands.Cog):
                     except:
                         await ctx.send(f'Error: Acres to square meters computation crashed. <:derpy:955227738690687048>')
 
-                # CURRENCY
-                elif unit_one.upper() in crypto_currencies:
-                    await ctx.send(f'Ugh crypto... <:hidethepainharold:976988848414404638>\nNot supported, sorry.')
-
-                elif unit_one.upper() in currencies:
-                    try:
-                        value_to_convert = float(value_one)
-                        currency_from = currency_symbol_converter(unit_one)
-                        con = sqlite3.connect('cogs/utility/currency/exchangerate.db')
-                        cur = con.cursor()
-                        cur.execute('''CREATE TABLE IF NOT EXISTS USDexchangerate (code text, value text, currency text, country text, last_updated text, time_stamp text)''')
-                        
-                        data = [[item[0],item[1],item[2],item[3],item[4]] for item in cur.execute("SELECT code, value, currency, country, last_updated FROM USDexchangerate").fetchall()]
-
-                        for currency in data:
-                            currency_code = currency[0]
-                            if currency_from == currency_code:
-                                currency_value = currency[1]
-                                currency_name = currency[2]
-                                currency_country = currency[3]
-                                last_updated = currency[4]
-                                break
-
-                        print(currency_code)
-                        print(currency_value)
-                        print(currency_name)
-                        print(currency_country)
-                        print(last_updated)
-                        message = f"{currency_name} currency conversion\n"
-                        message += "```\n"
-                        message += f"{value_one} {currency_code} are about...\n"
-
-                        if len(to_arguments) == 0:
-                            # just convert to USD, EUR, GBP and JPY
-                            for convert_to in ["USD", "EUR", "GBP", "JPY"]:
-                                if currency_code == convert_to:
-                                    pass
-                                else:
-                                    for currency in data:
-                                        convert_code = currency[0]
-                                        if convert_code == convert_to:
-                                            convert_value = currency[1]
-                                            break
-                                    print(convert_code)
-                                    conversion = round(float(value_one)*float(convert_value)/float(currency_value),2)
-                                    print(conversion)
-                                    message += f"    {conversion} {convert_code}\n"
-                            message += "```" + f"as per {last_updated}"
-                            await ctx.send(message)
-                        else:
-                            # convert multiple
-                            error = ""
-                            valid_conversion_currency_found = False
-                            for arg in to_arguments:
-                                if arg.upper() in currencies:
-                                    convert_to = currency_symbol_converter(arg)
-                                    for currency in data:
-                                        convert_code = currency[0]
-                                        if convert_code == convert_to:
-                                            convert_value = currency[1]
-                                            break
-                                    print(convert_code)
-                                    conversion = round(float(value_one)*float(convert_value)/float(currency_value),2)
-                                    print(conversion)
-                                    message += f"    {conversion} {convert_code}\n"
-                                    valid_conversion_currency_found = True
-                                elif arg.upper() in crypto_currencies:
-                                    error += f" ...{arg.upper()} is not supported <:batwelp:1019018908570746880>\n"
-                                else:
-                                    error += f" ...{arg.upper()} I do not know <:seenootter:1017786849084854393>\n"
-                            
-                            if valid_conversion_currency_found:
-                                message += "```" + f"as per {last_updated}\n\n" + error
-                            else:
-                                message = f"{currency_name} currency conversion\n"
-                                message += "none of the given exchange currencies were recognised... :("
-                            await ctx.send(message[:4096])
-                    except Exception as e:
-                        await ctx.send(f'Error: Currency conversion crashed. <:charmanderpy:1014855943177113673>\n{e}')
                 
-
+                # CURRENCY - ONE IF-THEN-ELSE LEVEL HIGHER (to not load DB if not needed)
                 else:
-                    await ctx.send(f'Error: Unsupported unit. <:pikathink:956603401028911124>')
+
+                    crypto_currencies = ["BTC","BITCOIN", "ETH", "ETHER", "ETHEREUM", "USDT", "TETHER", "BNB", "USDC", "USDCOIN", "XRP", "BUSD", "BINANCEUSD", "BINANCE", "ADA", "CARDANO"]
+                    
+                    # CRYPTO CURRENCY
+                    if unit_one.upper() in crypto_currencies:
+                        await ctx.send(f'Ugh crypto... <:hidethepainharold:976988848414404638>\nNot supported, sorry.')
+
+
+                    else:
+                        # ACTUAL CURRENCY
+                        try:
+                            con = sqlite3.connect('cogs/utility/currency/exchangerate.db')
+                            cur = con.cursor()
+                            cur.execute('''CREATE TABLE IF NOT EXISTS USDexchangerate (code text, value text, currency text, country text, last_updated text, time_stamp text)''')
+                            data = [[item[0],item[1],item[2],item[3],item[4]] for item in cur.execute("SELECT code, value, currency, country, last_updated FROM USDexchangerate").fetchall()]
+                            
+                            currency_codes = []
+                            currency_names = []
+                            for item in data:
+                                if item[0] != "":
+                                    currency_codes.append(item[0])
+                                if item[2] != "":
+                                    currency_names.append(alphanumonly(item[2]).upper())
+
+                            currencies = currency_codes + currency_names
+                            #loaded_database = True
+                        except:
+                            currency_codes = ['AED','AFN','ALL','AMD','ANG','AOA','ARS','AUD','AWG','AZN','BAM','BBD','BDT','BGN','BHD','BIF','BMD','BND','BOB','BRL','BSD','BTN','BWP','BYN','BZD','CAD','CDF','CHF','CLP','CNY','COP','CRC','CUP','CVE','CZK','DJF','DKK','DOP','DZD','EGP','ERN','ETB','EUR','FJD','FKP','FOK','GBP','GEL','GGP','GHS','GIP','GMD','GNF','GTQ','GYD','HKD','HNL','HRK','HTG','HUF','IDR','ILS','IMP','INR','IQD','IRR','ISK','JEP','JMD','JOD','JPY','KES','KGS','KHR','KID','KMF','KRW','KWD','KYD','KZT','LAK','LBP','LKR','LRD','LSL','LYD','MAD','MDL','MGA','MKD','MMK','MNT','MOP','MRU','MUR','MVR','MWK','MXN','MYR','MZN','NAD','NGN','NIO','NOK','NPR','NZD','OMR','PAB','PEN','PGK','PHP','PKR','PLN','PYG','QAR','RON','RSD','RUB','RWF','SAR','SBD','SCR','SDG','SEK','SGD','SHP','SLE','SOS','SRD','SSP','STN','SYP','SZL','THB','TJS','TMT','TND','TOP','TRY','TTD','TVD','TWD','TZS','UAH','UGX','USD','UYU','UZS','VES','VND','VUV','WST','XAF','XCD','XDR','XOF','XPF','YER','ZAR','ZMW','ZWL']
+                            currency_names = []
+                            currencies = currency_codes
+                            #loaded_database = False
+                            print("error: fetching data from currency DB failed")
+                            #await ctx.send(f'Error while loading currency exchange database. <:piplupdisappointed:975461498702921778>')
+
+                        currencies += other_currency_symbols #defined at the beginning
+                     
+                        
+                        # ACTUAL CURRENCY
+                        input_unit = unit_one.upper()
+                        if input_unit in currencies:
+                            # if the currency is spelled out in full convert it to code first
+                            try:
+                                input_unit_alphanum = alphanumonly(input_unit)
+                                if input_unit_alphanum in currency_names:
+                                    for item in data:
+                                        item_currency_name = alphanumonly(item[2]).upper()
+                                        if item_currency_name == input_unit_alphanum and item_currency_name != "":
+                                            unit_one = item[0]
+                                            break
+                            except:
+                                print("error in converting currency name to its code")
+
+                            # start conversion
+                            try:
+                                value_to_convert = float(value_one)
+                                currency_from = currency_symbol_converter(unit_one)
+                                #con = sqlite3.connect('cogs/utility/currency/exchangerate.db')
+                                #cur = con.cursor()
+                                #cur.execute('''CREATE TABLE IF NOT EXISTS USDexchangerate (code text, value text, currency text, country text, last_updated text, time_stamp text)''')
+                                #data = [[item[0],item[1],item[2],item[3],item[4]] for item in cur.execute("SELECT code, value, currency, country, last_updated FROM USDexchangerate").fetchall()]
+
+                                for currency in data:
+                                    currency_code = currency[0]
+                                    if currency_from == currency_code:
+                                        currency_value = currency[1]
+                                        currency_name = currency[2]
+                                        currency_country = currency[3]
+                                        last_updated = currency[4]
+                                        break
+
+                                print(currency_code)
+                                print(currency_value)
+                                print(currency_name)
+                                print(currency_country)
+                                print(last_updated)
+                                message = f"{currency_name} currency conversion\n"
+                                message += "```\n"
+                                message += f"{value_one} {currency_code} are about...\n"
+
+                                #these currencies do not get rounded to 1/100 but to 1
+                                largenominalcurrencies = ["JPY"] 
+
+                                if len(to_arguments) == 0:
+                                    # just convert to USD, EUR, GBP and JPY
+                                    for convert_to in ["USD", "EUR", "GBP", "JPY"]:
+                                        if currency_code == convert_to:
+                                            pass
+                                        else:
+                                            for currency in data:
+                                                convert_code = currency[0]
+                                                if convert_code == convert_to:
+                                                    convert_value = currency[1]
+                                                    break
+                                            print(convert_code)
+                                            if convert_to in largenominalcurrencies:
+                                                n = 0
+                                            else:
+                                                n = 2
+                                            conversion = round(float(value_one)*float(convert_value)/float(currency_value),n)
+                                            print(conversion)
+                                            message += f"    {conversion} {convert_code}\n"
+                                    message += "```" + f"as per {last_updated}"
+                                    await ctx.send(message)
+                                else:
+                                    # convert multiple
+                                    error = ""
+                                    valid_conversion_currency_found = False
+                                    for arg in to_arguments:
+                                        if arg.upper() in currencies:
+                                            convert_to = currency_symbol_converter(arg)
+                                            for currency in data:
+                                                convert_code = currency[0]
+                                                if convert_code == convert_to:
+                                                    convert_value = currency[1]
+                                                    break
+                                            print(convert_code)
+                                            if convert_to in largenominalcurrencies:
+                                                n = 0
+                                            else:
+                                                n = 2
+                                            conversion = round(float(value_one)*float(convert_value)/float(currency_value),n)
+                                            print(conversion)
+                                            message += f"    {conversion} {convert_code}\n"
+                                            valid_conversion_currency_found = True
+                                        elif arg.upper() in crypto_currencies:
+                                            error += f" ...{arg.upper()} is not supported <:batwelp:1019018908570746880>\n"
+                                        else:
+                                            error += f" ...{arg.upper()} I do not know <:seenootter:1017786849084854393>\n"
+                                    
+                                    if valid_conversion_currency_found:
+                                        message += "```" + f"as per {last_updated}\n\n" + error
+                                    else:
+                                        message = f"{currency_name} currency conversion\n"
+                                        message += "none of the given exchange currencies were recognised... :("
+                                    await ctx.send(message[:4096])
+                            except Exception as e:
+                                await ctx.send(f'Error: Currency conversion crashed. <:charmanderpy:1014855943177113673>\n{e}')
+                    
+                        else:
+                            await ctx.send(f'Error: Unsupported unit. <:pikathink:956603401028911124>')
         else:
             await ctx.send(f'Missing argument for conversion.')
     @_convert.error
     async def convert_error(self, ctx, error, *args):
         await ctx.send(f'Some error ocurred <:seenoslowpoke:975062347871842324>\nCheck whether you do not use quotation marks or other characters that break discord... <:woozybread:976283266413908049>') 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 async def setup(bot: commands.Bot) -> None:
