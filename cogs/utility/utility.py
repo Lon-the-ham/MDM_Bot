@@ -820,7 +820,7 @@ class Utility(commands.Cog):
                      
                         
                         # ACTUAL CURRENCY
-                        input_unit = unit_one.upper()
+                        input_unit = unit_one.upper()#.replace(" ","")
                         if input_unit in currencies:
                             # if the currency is spelled out in full convert it to code first
                             try:
@@ -837,7 +837,7 @@ class Utility(commands.Cog):
                             # start conversion
                             try:
                                 value_to_convert = float(value_one)
-                                currency_from = currency_symbol_converter(unit_one)
+                                currency_from = currency_symbol_converter(unit_one.upper())
                                 #con = sqlite3.connect('cogs/utility/currency/exchangerate.db')
                                 #cur = con.cursor()
                                 #cur.execute('''CREATE TABLE IF NOT EXISTS USDexchangerate (code text, value text, currency text, country text, last_updated text, time_stamp text)''')
