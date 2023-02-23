@@ -496,8 +496,7 @@ class ServerModeration(commands.Cog):
                 else:
                     if newly_verified:
                         general_channel = self.bot.get_channel(413027360783204363)
-                        await general_channel.send(f'Welcome <@{user_id}>! You made it <:wizard:1019019110572625952>')
-                        await general_channel.send(f'What are your favourite bands? <a:excitedcat:968929424365981817>')
+                        await general_channel.send(f'Welcome <@{user_id}>! You made it <:wizard:1019019110572625952>\nWhat are your favourite bands? <a:excitedcat:968929424365981817>')
                     else:
                         await ctx.channel.send(f'{user.display_name} was already verified. Uh... welcome anyway? <:charmanderpy:1014855943177113673>')
         else:
