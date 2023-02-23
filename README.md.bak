@@ -33,6 +33,8 @@ repository for the custom discord bot for r/melodicdeathmetal
   
 
 ### WebScraping packages
+
+  sudo apt-get install firefox
   
   pip install beautifulsoup4
   
