@@ -96,7 +96,7 @@ class Roles(commands.Cog):
             #get role id
             color_found = False
             for color in assignable_colors:
-                if the_color.lower() == color.lower():
+                if the_color.lower().replace(" ","") == color.lower().replace(" ",""):
                     color_found = True
                     color_id_list = cur.execute("SELECT id FROM roles WHERE permissions = ? AND name = ? COLLATE NOCASE", ('', the_color.lower())).fetchall()
                     color_id = color_id_list[0][0]
@@ -249,12 +249,23 @@ class Roles(commands.Cog):
         else:
             #get role id
             role_found = False
+            # first try check exact spelling
             for role in assignable_roles:
                 if the_role.lower() == role.lower():
                     role_found = True
                     role_id_list = cur.execute("SELECT id FROM roles WHERE permissions = ? AND name = ? COLLATE NOCASE", ('', the_role.lower())).fetchall()
                     role_id = role_id_list[0][0]
                     break
+            else:
+                # second try close spelling
+                for role in assignable_roles:
+                    role_name_abridged = ''.join(c for c in the_role if c.isalnum()).lower()
+                    currently_checking_role = ''.join(c for c in role if c.isalnum()).lower()
+                    if role_name_abridged == currently_checking_role:
+                        role_found = True
+                        role_id_list = cur.execute("SELECT id FROM roles WHERE permissions = ? AND name = ? COLLATE NOCASE", ('', role.lower())).fetchall()
+                        role_id = role_id_list[0][0]
+                        break
             #assign/unassign
             if role_found:
                 for role in all_roles:
@@ -469,14 +480,25 @@ class Roles(commands.Cog):
 
         role_name = (' '.join(args))
         role_id = server.roles[0]
+
+        # first try mentions, exact name or id
         for role in server.roles:
             mention = '<@&%s>' % role.id
             if role_name == mention or role_name == role.name or role_name == str(role.id):
                 role_id = role
                 break
         else:
-            await ctx.send("Role doesn't exist :(")
-            return
+            # second try close spelling
+            for role in server.roles:
+                role_name_abridged = ''.join(c for c in role_name if c.isalnum()).lower()
+                currently_checking_role = ''.join(c for c in role.name if c.isalnum()).lower()
+                if role_name_abridged == currently_checking_role:
+                    role_id = role
+                    role_name = role.name
+                    break
+            else:
+                await ctx.send("Role doesn't exist :(")
+                return
         
         memberlist = ctx.guild.members
         members_w_t_role = []
