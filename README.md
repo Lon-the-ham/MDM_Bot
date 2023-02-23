@@ -30,3 +30,12 @@ repository for the custom discord bot for r/melodicdeathmetal
   pip install emojis
   
   python -m pip install requests
+  
+
+### WebScraping packages
+
+  sudo apt-get install firefox
+  
+  pip install beautifulsoup4
+  
+  pip install selenium
