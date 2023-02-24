@@ -32,10 +32,3 @@ repository for the custom discord bot for r/melodicdeathmetal
   python -m pip install requests
   
 
-### WebScraping packages
-
-  sudo apt-get install firefox-esr
-  
-  pip install beautifulsoup4
-  
-  pip install selenium

@@ -34,7 +34,10 @@ repository for the custom discord bot for r/melodicdeathmetal
 
 ### WebScraping packages
 
-  sudo apt-get install firefox
+  https://firefox-source-docs.mozilla.org/testing/geckodriver/ARM.html
+  https://github.com/mozilla/geckodriver/issues/1628
+
+  pip install webdriver-manager
   
   pip install beautifulsoup4
   

@@ -41,7 +41,8 @@ class YataBot(commands.Bot):
             "cogs.settings.settings",
             "cogs.utility.exchanges",
             "cogs.utility.utility",
-            "cogs.utility.shenanigans"
+            "cogs.utility.shenanigans",
+            "cogs.webinfo.webinfo"
         ]
 
     async def setup_hook(self):
