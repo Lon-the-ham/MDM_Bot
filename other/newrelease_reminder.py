@@ -89,19 +89,19 @@ def time_entry_convert(time_settings):
 
 
 def weekday_to_int(weekday):
-    if weekday.lower() in ["mon", "monday"]
+    if weekday.lower() in ["mon", "monday"]:
         return 0 
-    elif weekday.lower() in ["tue", "tuesday"]
+    elif weekday.lower() in ["tue", "tuesday"]:
         return 1
-    elif weekday.lower() in ["wed", "wednesday"]
+    elif weekday.lower() in ["wed", "wednesday"]:
         return 2 
-    elif weekday.lower() in ["thu", "thursday"]
+    elif weekday.lower() in ["thu", "thursday"]:
         return 3
-    elif weekday.lower() in ["fri", "friday"]
+    elif weekday.lower() in ["fri", "friday"]:
         return 4 
-    elif weekday.lower() in ["sat", "saturday"]
+    elif weekday.lower() in ["sat", "saturday"]:
         return 5
-    elif weekday.lower() in ["sun", "sunday"]
+    elif weekday.lower() in ["sun", "sunday"]:
         return 6 
     else:
         return "error"
