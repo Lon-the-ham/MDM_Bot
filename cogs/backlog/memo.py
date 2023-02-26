@@ -1324,7 +1324,7 @@ class Memo(commands.Cog):
         message = await ctx.send(embed=embed)
 
 
-    @commands.command(name='catrename', aliases = ["categoryrename", "catre"])
+    @commands.command(name='catrename', aliases = ["categoryrename", "catre", "renamecat", "renamecategory"])
     async def _categoryrename(self, ctx, *args):
         """Rename category
 
@@ -1332,7 +1332,47 @@ class Memo(commands.Cog):
         second argument: new category name
 
         """ 
-        await ctx.send("under construction <a:mabeltyping:976601600476991509>")
+        conbg = sqlite3.connect('cogs/backlog/memobacklog.db')
+        curbg = conbg.cursor()
+        curbg.execute('''CREATE TABLE IF NOT EXISTS memobacklog (bgid text, userid text, username text, backlog text, details text)''')
+        
+        bl_user = ctx.message.author
+        user_bg_list = [[item[0], item[1], item[2], item[3], item[4]] for item in curbg.execute("SELECT bgid, userid, username, backlog, details FROM memobacklog WHERE userid = ? ORDER BY bgid", (str(bl_user.id),)).fetchall()]
+
+        try:
+            hexcolor = bl_user.color 
+        except:
+            hexcolor = 0xffffff
+
+        if len(args) != 2:
+            await ctx.send(f'`Error: This command needs exactly 2 arguments.`')
+        else:
+            category_pre = args[0]
+            category_post = args[1]
+
+            if category_pre.lower() == category_post.lower():
+                await ctx.send(f"Aren't those categories kinda the same...? <:hmmkaS:538024496666247185>")
+            else:
+
+                if category_pre.lower() == "default":
+                    category_pre = ""
+                    category_pre_list = ["", "default"]
+                else:
+                    category_pre_list = [category_pre.lower()]
+                if category_post.lower() == "default":
+                    category_post = ""
+
+                i = 0
+                for item in user_bg_list:
+                    if item[4].lower() in category_pre_list:
+                        curbg.execute("UPDATE memobacklog SET details = ? WHERE bgid = ?", (category_post, item[0]))
+                        conbg.commit()
+                        i += 1
+
+                if i == 0:
+                    await ctx.send(f'There is no item in your backlog with category {args[0].lower()} <:thvnk:957075985721864263>')
+                else:
+                    await ctx.send(f'Changed category {args[0].lower()} to {args[1].lower()} <a:bongogengar:752263419817754745>')
 
 
 
