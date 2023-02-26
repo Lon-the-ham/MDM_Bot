@@ -32,6 +32,7 @@ class YataBot(commands.Bot):
 
         self.initial_extensions = [
             "cogs.admin.servermod",
+            "cogs.admin.backup",
             "cogs.backlog.memo",
             "cogs.pingterest.pingterest",
             "cogs.reactionevents.reactionevents",
@@ -72,7 +73,9 @@ class YataBot(commands.Bot):
                         settings.append(line.strip())
                 print('--- ---')
 
+                i = 0
                 for s in settings:
+                    i += 1
                     if ":" in s:
                         parameter = s.split(":",1)[0].strip().lower()
                         value = s.split(":",1)[1].strip()
@@ -111,7 +114,7 @@ class YataBot(commands.Bot):
 
                         ### 
                     else:
-                        print(f'cannot parse parameter and value from: {s}')
+                        print(f'cannot parse parameter and value from line {i}.: {s}')
             except Exception as e:
                 print(e)
                 await channel.send(f'Error in loading default settings <:nervous:975219600272801802>')
