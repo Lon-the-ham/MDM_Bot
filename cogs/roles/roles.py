@@ -508,7 +508,11 @@ class Roles(commands.Cog):
         members_w_t_role.sort()
         header = "members with role %s are:" % role_name
 
-        embed = discord.Embed(title=header, description='\n'.join(members_w_t_role), color=0xFF8C00)
+        msg = '\n'.join(members_w_t_role)
+        if len(msg) > 4096:
+            msg = msg[:4092] + "\n..."
+
+        embed = discord.Embed(title=header, description=msg, color=0xFF8C00)
         await ctx.send(embed=embed)          
     #@_whohasrole.error
     #async def whohasrole_error(ctx, error, *args):
@@ -530,20 +534,40 @@ class Roles(commands.Cog):
 
         Only for server managers."""
         #default_perms = ['create_instant_invite', 'add_reactions', 'stream', 'read_messages', 'send_messages', 'send_tts_messages', 'embed_links', 'attach_files', 'read_message_history', 'external_emojis', 'connect', 'speak', 'use_voice_activation', 'change_nickname', 'use_slash_commands', 'request_to_speak', 'use_application_commands']    
-        the_role = ' '.join(args)
-        guild = self.bot.get_guild('413011798552477716')
-        all_roles = [[str(r.id),str(r.name),r.permissions] for r in ctx.guild.roles]
-        #print(all_roles)
+        try:
+            role_name = ' '.join(args)
+            #guild = self.bot.get_guild('413011798552477716')
+            server = ctx.guild
+            #all_roles = [[str(r.id),str(r.name),r.permissions] for r in server.roles]
+            #print(all_roles)
 
-        found_role = False
-        for role in all_roles:
-            mention = '<@&%s>' % role[0]
-            if the_role in [role[0], role[1], mention]:
-                found_role = True
+            found_role = False
+            # first try mentions, exact name or id
+            for role in server.roles:
+                mention = '<@&%s>' % role.id
+                if role_name == mention or role_name == role.name or role_name == str(role.id):
+                    #role_id = role.id
+                    found_role = True
+                    the_role = role
+                    break
+            else:
+                # second try close spelling
+                for role in server.roles:
+                    role_name_abridged = ''.join(c for c in role_name if c.isalnum()).lower()
+                    currently_checking_role = ''.join(c for c in role.name if c.isalnum()).lower()
+                    if role_name_abridged == currently_checking_role:
+                        #role_id = role.id
+                        #role_name = role.name
+                        found_role = True
+                        the_role = role
+                        break
+                else:
+                    await ctx.send("Role doesn't exist :(")
 
+            if found_role:
                 #await ctx.send(f'found role! permissions:')
                 try:
-                    perm_list = [perm[0] for perm in role[2] if perm[1]]
+                    perm_list = [perm[0] for perm in the_role.permissions if perm[1]]
                     perms_low = []
                     perms_high = []
                     for perm in perm_list:
@@ -567,10 +591,12 @@ class Roles(commands.Cog):
                     embed.add_field(name='higher permissions:', value=highperms_msg, inline=False)
                     await ctx.send(embed=embed)
                     #await ctx.send('default permissions: '+ lowperms_msg +'higher permissions: '+ highperms_msg)
-                except:
-                    await ctx.send('error with fetching permissions')
-        if found_role == False:
-            await ctx.send(f'did not find role :(')
+                except Exception as e:
+                    await ctx.send(f'error with fetching permissions:\n{e}')
+            else:
+                await ctx.send(f'did not find role :(')
+        except Exception as e:
+            await ctx.channel.send(f'Error: {e}')
     @_roleperms.error
     async def roleperms_error(self, ctx, error):
         if isinstance(error, commands.MissingPermissions):
