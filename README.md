@@ -31,3 +31,5 @@ repository for the custom discord bot for r/melodicdeathmetal
   
   python -m pip install requests
   
+
+  

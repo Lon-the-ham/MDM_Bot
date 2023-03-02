@@ -1,5 +1,4 @@
 status: w @jamal: -ping game stream
 tracking: on
-
-reminder mdm: Wednesday 21:00 CET
-reminder i&w: Wednesday 22:30 CET
+reminder_mdm: Wednesday 21:00 CET
+reminder_i&w: Wednesday 16:30 EST

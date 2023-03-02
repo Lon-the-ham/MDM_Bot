@@ -21,6 +21,17 @@ class Settings(commands.Cog):
                 return False
 
 
+    def get_tz(self):
+        # warning this list is duplicated in other/config/config.py
+        supported_timezones = [["UTC", 'UTC']]
+        supported_timezones += [["CET", 'Europe/Berlin'], ["GMT", 'Europe/London'], ["EET", 'Europe/Athens']]
+        supported_timezones += [["AKST", 'America/Anchorage'], ["EST", "America/New_York"], ["CST","America/Chicago"], ["MST","America/Denver"],["PST", "America/Los_Angeles"]]
+        supported_timezones += [["JST", 'Asia/Tokyo'], ["IST", 'Asia/Kolkata'], ["HKT", 'Asia/Hongkong']]
+        supported_timezones += [["AEST",'Australia/Sydney'], ["ACST","Australia/Adelaide"],["AWST","Australia/Perth"]]
+
+        return supported_timezones
+
+
     @commands.command(name='set', aliases = ['setting', 'settings'])
     @commands.has_permissions(manage_guild=True)
     @commands.check(is_valid_server)
@@ -75,10 +86,27 @@ class Settings(commands.Cog):
                             f = open('cogs/settings/default_settings.txt', 'w')
                             f.write(newdata)
                             f.close()
-                            await ctx.send(f'Set {parameter} to {value}')
+                            await ctx.send(f'Set {parameter} to `{value}`')
                         except Exception as e:
                             print(e)
                             await ctx.send(f'Error occurred while rewriting file <:jakeslam:1014849819409383455>')
+
+                        if "reminder" in parameter.lower():
+                            try:
+                                timezones = self.get_tz()
+                                value_list = (value.upper()).split(" ")
+
+                                for tz in timezones:
+                                    if tz[0].upper() in value_list:
+                                        if tz[0].upper() == "UTC":
+                                            await ctx.send(f'Note that the selected timezone is universal time')
+                                        else:
+                                            await ctx.send(f'Note that the selected timezone is {tz[0]}, i.e. the time in {tz[1]}')
+                                        break
+                                else:
+                                    await ctx.send(f'No timezone selected. Choosing UTC by default.')
+                            except:
+                                print("error while comparing timezones")
                 if not setting_found:
                     await ctx.send(f'Did not find a setting parameter called {parameter} <:tigerpensive:1017483390326415410>')
             else:
@@ -95,7 +123,7 @@ class Settings(commands.Cog):
             await ctx.send(f'Some error occurred <:penguinshy:1017439941074100344>')
 
 
-    @commands.command(name='showsettings', aliases = ['displaysettings'])
+    @commands.command(name='showsettings', aliases = ['displaysettings','showset'])
     @commands.has_permissions(manage_guild=True)
     @commands.check(is_valid_server)
     async def _showsettings(self, ctx: commands.Context, *args):
@@ -124,7 +152,7 @@ class Settings(commands.Cog):
 
             embed=discord.Embed(title=f"Settings of MDM Bot", description=msg, color=0x880808)
             try:
-                embed.set_footer(text=f"The status here is the default status, that will be loaded upon reboot. To change the current status use -status command.")
+                embed.set_footer(text=f"To change setting use -set command. The status here is the default status, that will be loaded upon reboot. To change the current status use -status command.")
             except:
                 print("adding footer to embed failed")
             await ctx.send(embed=embed)
@@ -136,6 +164,26 @@ class Settings(commands.Cog):
             await ctx.send('Something went wrong... something something bad argument <:seenoslowpoke:975062347871842324>')
         else:
             await ctx.send(f'Some error occurred <:penguinshy:1017439941074100344>')
+
+
+
+    @commands.command(name='showtimezones', aliases = ['supportedtimezones','settingstimezones'])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(is_valid_server)
+    async def _showsupportedtimezones(self, ctx: commands.Context, *args):
+        """*supported timezones
+
+        no arguments
+        """
+        timezones = self.get_tz()
+        msg = ""
+        for item in timezones:
+            if item[1].lower() == "utc":
+                msg += f"{item[0]}: universal\n"
+            else:
+                msg += f"{item[0]}: {item[1]}\n"
+
+        await ctx.send(f'```python\n{msg}\n```')
 
 
 async def setup(bot: commands.bot) -> None:

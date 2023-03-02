@@ -31,4 +31,9 @@ repository for the custom discord bot for r/melodicdeathmetal
   
   python -m pip install requests
   
-  pip install pytz
+  pip3 install pandas
+  
+### if pandas/numpy won't work
+
+  sudo apt-get install libatlas-base-dev
+  
