@@ -32,7 +32,7 @@ class RoleEvents(commands.Cog):
                 cur = con.cursor()
                 color_roles = [[item[0], item[1], item[2]] for item in cur.execute("SELECT id, name, details FROM roles WHERE category = ?", ("color",)).fetchall()]
                 pronoun_roles = [[item[0], item[1], item[2]] for item in cur.execute("SELECT id, name, details FROM roles WHERE category = ?", ("pronoun",)).fetchall()]
-                other_roles = [[item[0], item[1], item[2]] for item in cur.execute("SELECT id, name, details FROM roles WHERE category = ?", ("other",)).fetchall()]
+                other_roles = [[item[0], item[1], item[2]] for item in cur.execute("SELECT id, name, details FROM roles WHERE category = ?", ("music",)).fetchall()]
 
                 if message.embeds:   #check if list is not empty
                     embed = message.embeds[0]
@@ -226,7 +226,7 @@ class RoleEvents(commands.Cog):
                 cur = con.cursor()
                 color_roles = [[item[0], item[1], item[2]] for item in cur.execute("SELECT id, name, details FROM roles WHERE category = ?", ("color",)).fetchall()]
                 pronoun_roles = [[item[0], item[1], item[2]] for item in cur.execute("SELECT id, name, details FROM roles WHERE category = ?", ("pronoun",)).fetchall()]
-                other_roles = [[item[0], item[1], item[2]] for item in cur.execute("SELECT id, name, details FROM roles WHERE category = ?", ("other",)).fetchall()]
+                other_roles = [[item[0], item[1], item[2]] for item in cur.execute("SELECT id, name, details FROM roles WHERE category = ?", ("music",)).fetchall()]
 
                 accepted_reacts = True
                 valid_emojis_list = []
