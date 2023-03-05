@@ -549,6 +549,7 @@ class WebInfo(commands.Cog):
         """
         # search request
         input_string = ' '.join(args)
+        fetchingband = False
         async with ctx.typing():
             if ";" in input_string:
                 primaryinput = input_string.split(";",1)[0].strip()
