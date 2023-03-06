@@ -68,7 +68,7 @@ def get_exchangerates():
                             country = item[2]
                     cur.execute("INSERT INTO USDexchangerate VALUES (?, ?, ?, ?, ?, ?)", (currency, exchange, name, country, update_time, update_time_stamp))
                     con.commit()
-            message = f"Updated currency exchange rates.\nData from {update_time}."
+            message = f"Updated currency exchange rates <:kowalskinotes:975580577963057202>.\nData from {update_time}."
         except Exception as e:
             print("An error occured.:")
             print(e)
