@@ -185,7 +185,7 @@ class Memo(commands.Cog):
                 await message.add_reaction("⏭️")
 
             def check(reaction, user):
-                return user == ctx.author and str(reaction.emoji) in ["◀️", "▶️", "⏮️", "⏭️"]
+                return message.id == reaction.message.id and user == ctx.author and str(reaction.emoji) in ["◀️", "▶️", "⏮️", "⏭️"]
                 # This makes sure nobody except the command sender can interact with the "menu"
 
             while True:

@@ -33,6 +33,7 @@ class WebInfo(commands.Cog):
 
 
     def convert_urltype_string(self, primary_input):
+        # in case there is more to adjust
         search_term = primary_input.replace(" ","+")
         return search_term
 
@@ -47,6 +48,18 @@ class WebInfo(commands.Cog):
     def alphanum_filter(self, string_a):
         string_b = ''.join(ch for ch in string_a if ch.isalnum())
         return string_b
+
+    def theafilter(self, string_a):
+        string_b = ''.join(ch for ch in string_a if (ch.isalnum() or ch == " "))
+        words = string_b.lower().split()
+        
+        reducables = ["", "the", "a", "an", "le", "la", "un", "une", "der", "die", "das", "ein", "eine", "o", "as", "os", "of", "ov"]
+
+        for r in reducables:
+            while r in words:
+                words.remove(r)
+
+        return (' '.join(words)).strip()
 
     def country_abbr(self, cstr):
         countries = [['Afghanistan', '🇦🇫', 'AF'], ['Åland Islands', '🇦🇽', 'AX'], ['Albania', '🇦🇱', 'AL'], ['Algeria', '🇩🇿', 'DZ'], ['American Samoa', '🇦🇸', 'AS'], ['Andorra', '🇦🇩', 'AD'], ['Angola', '🇦🇴', 'AO'], ['Anguilla', '🇦🇮', 'AI'], ['Antarctica', '🇦🇶', 'AQ'], ['Antigua and Barbuda', '🇦🇬', 'AG'], ['Argentina', '🇦🇷', 'AR'], ['Armenia', '🇦🇲', 'AM'], ['Aruba', '🇦🇼', 'AW'], ['Australia', '🇦🇺', 'AU'], ['Austria', '🇦🇹', 'AT'], ['Azerbaijan', '🇦🇿', 'AZ'], ['Bahamas', '🇧🇸', 'BS'], ['Bahrain', '🇧🇭', 'BH'], ['Bangladesh', '🇧🇩', 'BD'], ['Barbados', '🇧🇧', 'BB'], ['Belarus', '🇧🇾', 'BY'], ['Belgium', '🇧🇪', 'BE'], ['Belize', '🇧🇿', 'BZ'], ['Benin', '🇧🇯', 'BJ'], ['Bermuda', '🇧🇲', 'BM'], ['Bhutan', '🇧🇹', 'BT'], ['Bolivia', '🇧🇴', 'BO'], ['Bonaire, Sint Eustatius and Saba', '🇧🇶', 'BQ'], ['Bosnia and Herzegovina', '🇧🇦', 'BA'], ['Botswana', '🇧🇼', 'BW'], ['Bouvet Island', '🇧🇻', 'BV'], ['Brazil', '🇧🇷', 'BR'], ['British Indian Ocean Territory', '🇮🇴', 'IO'], ['Brunei', '🇧🇳', 'BN'], ['Bulgaria', '🇧🇬', 'BG'], ['Burkina Faso', '🇧🇫', 'BF'], ['Burundi', '🇧🇮', 'BI'], ['Cambodia', '🇰🇭', 'KH'], ['Cameroon', '🇨🇲', 'CM'], ['Canada', '🇨🇦', 'CA'], ['Cape Verde', '🇨🇻', 'CV'], ['Cayman Islands', '🇰🇾', 'KY'], ['Central African Republic', '🇨🇫', 'CF'], ['Chad', '🇹🇩', 'TD'], ['Chile', '🇨🇱', 'CL'], ['China', '🇨🇳', 'CN'], ['Christmas Island', '🇨🇽', 'CX'], ['Cocos (Keeling) Islands', '🇨🇨', 'CC'], ['Colombia', '🇨🇴', 'CO'], ['Comoros', '🇰🇲', 'KM'], ['Congo, Democratic Republic of', '🇨🇩', 'CD'], ['Congo, Republic of', '🇨🇬', 'CG'], ['Cook Islands', '🇨🇰', 'CK'], ['Costa Rica', '🇨🇷', 'CR'], ["Côte d'Ivoire", '🇨🇮', 'CI'], ['Croatia', '🇭🇷', 'HR'], ['Cuba', '🇨🇺', 'CU'], ['Curaçao', '🇨🇼', 'CW'], ['Cyprus', '🇨🇾', 'CY'], ['Czechia', '🇨🇿', 'CZ'], ['Denmark', '🇩🇰', 'DK'], ['Djibouti', '🇩🇯', 'DJ'], ['Dominica', '🇩🇲', 'DM'], ['Dominican Republic', '🇩🇴', 'DO'], ['East Timor', '🇹🇱', 'TL'], ['Ecuador', '🇪🇨', 'EC'], ['Egypt', '🇪🇬', 'EG'], ['El Salvador', '🇸🇻', 'SV'], ['Equatorial Guinea', '🇬🇶', 'GQ'], ['Eritrea', '🇪🇷', 'ER'], ['Estonia', '🇪🇪', 'EE'], ['Eswatini', '🇸🇿', 'SZ'], ['Ethiopia', '🇪🇹', 'ET'], ['Falkland Islands', '🇫🇰', 'FK'], ['Faroe Islands', '🇫🇴', 'FO'], ['Fiji', '🇫🇯', 'FJ'], ['Finland', '🇫🇮', 'FI'], ['France', '🇫🇷', 'FR'], ['French Guiana', '🇬🇫', 'GF'], ['French Polynesia', '🇵🇫', 'PF'], ['French Southern Territories', '🇹🇫', 'TF'], ['Gabon', '🇬🇦', 'GA'], ['Gambia', '🇬🇲', 'GM'], ['Georgia', '🇬🇪', 'GE'], ['Germany', '🇩🇪', 'DE'], ['Ghana', '🇬🇭', 'GH'], ['Gibraltar', '🇬🇮', 'GI'], ['Greece', '🇬🇷', 'GR'], ['Greenland', '🇬🇱', 'GL'], ['Grenada', '🇬🇩', 'GD'], ['Guadeloupe', '🇬🇵', 'GP'], ['Guam', '🇬🇺', 'GU'], ['Guatemala', '🇬🇹', 'GT'], ['Guernsey', '🇬🇬', 'GG'], ['Guinea', '🇬🇳', 'GN'], ['Guinea-Bissau', '🇬🇼', 'GW'], ['Guyana', '🇬🇾', 'GY'], ['Haiti', '🇭🇹', 'HT'], ['Heard and McDonald Islands', '🇭🇲', 'HM'], ['Honduras', '🇭🇳', 'HN'], ['Hong Kong', '🇭🇰', 'HK'], ['Hungary', '🇭🇺', 'HU'], ['Iceland', '🇮🇸', 'IS'], ['India', '🇮🇳', 'IN'], ['Indonesia', '🇮🇩', 'ID'], ['International', '🇺🇳', 'i'], ['Iran', '🇮🇷', 'IR'], ['Iraq', '🇮🇶', 'IQ'], ['Ireland', '🇮🇪', 'IE'], ['Isle of Man', '🇮🇲', 'IM'], ['Israel', '🇮🇱', 'IL'], ['Italy', '🇮🇹', 'IT'], ['Jamaica', '🇯🇲', 'JM'], ['Japan', '🇯🇵', 'JP'], ['Jersey', '🇯🇪', 'JE'], ['Jordan', '🇯🇴', 'JO'], ['Kazakhstan', '🇰🇿', 'KZ'], ['Kenya', '🇰🇪', 'KE'], ['Kiribati', '🇰🇮', 'KI'], ['Korea, North', '🇰🇵', 'KP'], ['Korea, South', '🇰🇷', 'KR'], ['Kuwait', '🇰🇼', 'KW'], ['Kyrgyzstan', '🇰🇬', 'KG'], ['Laos', '🇱🇦', 'LA'], ['Latvia', '🇱🇻', 'LV'], ['Lebanon', '🇱🇧', 'LB'], ['Lesotho', '🇱🇸', 'LS'], ['Liberia', '🇱🇷', 'LR'], ['Libya', '🇱🇾', 'LY'], ['Liechtenstein', '🇱🇮', 'LI'], ['Lithuania', '🇱🇹', 'LT'], ['Luxembourg', '🇱🇺', 'LU'], ['Macau', '🇲🇴', 'MO'], ['Madagascar', '🇲🇬', 'MG'], ['Malawi', '🇲🇼', 'MW'], ['Malaysia', '🇲🇾', 'MY'], ['Maldives', '🇲🇻', 'MV'], ['Mali', '🇲🇱', 'ML'], ['Malta', '🇲🇹', 'MT'], ['Marshall Islands', '🇲🇭', 'MH'], ['Martinique', '🇲🇶', 'MQ'], ['Mauritania', '🇲🇷', 'MR'], ['Mauritius', '🇲🇺', 'MU'], ['Mayotte', '🇾🇹', 'YT'], ['Mexico', '🇲🇽', 'MX'], ['Micronesia, Federated States of', '🇫🇲', 'FM'], ['Moldova', '🇲🇩', 'MD'], ['Monaco', '🇲🇨', 'MC'], ['Mongolia', '🇲🇳', 'MN'], ['Montenegro', '🇲🇪', 'ME'], ['Montserrat', '🇲🇸', 'MS'], ['Morocco', '🇲🇦', 'MS'], ['Mozambique', '🇲🇿', 'MZ'], ['Myanmar', '🇲🇲', 'MM'], ['Namibia', '🇳🇦', 'NA'], ['Nauru', '🇳🇷', 'NR'], ['Nepal', '🇳🇵', 'NP'], ['Netherlands', '🇳🇱', 'NL'], ['New Caledonia', '🇳🇨', 'NC'], ['New Zealand', '🇳🇿', 'NZ'], ['Nicaragua', '🇳🇮', 'NI'], ['Niger', '🇳🇪', 'NE'], ['Nigeria', '🇳🇬', 'NG'], ['Niue', '🇳🇺', 'NU'], ['Norfolk Island', '🇳🇫', 'NF'], ['North Macedonia', '🇲🇰', 'MK'], ['Northern Mariana Islands', '🇲🇵', 'MP'], ['Norway', '🇳🇴', 'NO'], ['Oman', '🇴🇲', 'OM'], ['Pakistan', '🇵🇰', 'PK'], ['Palau', '🇵🇼', 'PW'], ['Palestine', '🇵🇸', 'PS'], ['Panama', '🇵🇦', 'PA'], ['Papua New Guinea', '🇵🇬', 'PG'], ['Paraguay', '🇵🇾', 'PY'], ['Peru', '🇵🇪', 'PE'], ['Philippines', '🇵🇭', 'PH'], ['Pitcairn Island', '🇵🇳', 'PN'], ['Poland', '🇵🇱', 'PL'], ['Portugal', '🇵🇹', 'PT'], ['Puerto Rico', '🇵🇷', 'PR'], ['Qatar', '🇶🇦', 'QA'], ['Reunion', '🇷🇪', 'RE'], ['Romania', '🇷🇴', 'RO'], ['Russia', '🇷🇺', 'RU'], ['Rwanda', '🇷🇼', 'RW'], ['Saint Barthélemy', '🇧🇱', 'BL'], ['Saint Kitts & Nevis', '🇰🇳', 'KN'], ['Saint Lucia', '🇱🇨', 'LC'], ['Saint Martin (French part)', '🇲🇫', 'MF'], ['Saint Pierre and Miquelon', '🇵🇲', 'PM'], ['Saint Vincent and The Grenadines', '🇻🇨', 'VC'], ['Samoa', '🇼🇸', 'WS'], ['San Marino', '🇸🇲', 'SM'], ['Sao Tome and Principe', '🇸🇹', 'ST'], ['Saudi Arabia', '🇸🇦', 'SA'], ['Senegal', '🇸🇳', 'SN'], ['Serbia', '🇷🇸', 'RS'], ['Seychelles', '🇸🇨', 'SC'], ['Sierra Leone', '🇸🇱', 'SL'], ['Singapore', '🇸🇬', 'SG'], ['Sint Maarten (Dutch part)', '🇸🇽', 'SX'], ['Slovakia', '🇸🇰', 'SK'], ['Slovenia', '🇸🇮', 'SI'], ['Solomon Islands', '🇸🇧', 'SB'], ['Somalia', '🇸🇴', 'SO'], ['South Africa', '🇿🇦', 'ZA'], ['South Georgia & South Sandwich Islands', '🇬🇸', 'GS'], ['South Sudan', '🇸🇸', 'SS'], ['Spain', '🇪🇸', 'ES'], ['Sri Lanka', '🇱🇰', 'LK'], ['St Helena, Ascension & Tristan da Cunha', '🇸🇭', 'SH'], ['Sudan', '🇸🇩', 'SD'], ['Suriname', '🇸🇷', 'SR'], ['Svalbard', '🇸🇯', 'SJ'], ['Sweden', '🇸🇪', 'SE'], ['Switzerland', '🇨🇭', 'CH'], ['Syria', '🇸🇾', 'SY'], ['Taiwan', '🇹🇼', 'TW'], ['Tajikistan', '🇹🇯', 'TJ'], ['Tanzania', '🇹🇿', 'TZ'], ['Thailand', '🇹🇭', 'TH'], ['Togo', '🇹🇬', 'TG'], ['Tokelau', '🇹🇰', 'TK'], ['Tonga', '🇹🇴', 'TO'], ['Trinidad and Tobago', '🇹🇹', 'TT'], ['Tunisia', '🇹🇳', 'TN'], ['Türkiye', '🇹🇷', 'TR'], ['Turkmenistan', '🇹🇲', 'TM'], ['Turks and Caicos Islands', '🇹🇨', 'TC'], ['Tuvalu', '🇹🇻', 'TV'], ['U.S. Minor Outlying Islands', '🇺🇲', 'UM'], ['Uganda', '🇺🇬', 'UG'], ['Ukraine', '🇺🇦', 'UA'], ['United Arab Emirates', '🇦🇪', 'AE'], ['United Kingdom', '🇬🇧', 'GB'], ['United States', '🇺🇸', 'US'], ['Unknown', '❓', '??'], ['Uruguay', '🇺🇾', 'UY'], ['Uzbekistan', '🇺🇿', 'UZ'], ['Vanuatu', '🇻🇺', 'VU'], ['Vatican City', '🇻🇦', 'VA'], ['Venezuela', '🇻🇪', 'VE'], ['Vietnam', '🇻🇳', 'VN'], ['Virgin Islands (British)', '🇻🇬', 'VG'], ['Virgin Islands (US)', '🇻🇮', 'VI'], ['Wallis and Futuna', '🇼🇫', 'WF'], ['Western Sahara', '🇪🇭', 'EH'], ['Yemen', '🇾🇪', 'YE'], ['Zambia', '🇿🇲', 'ZM'], ['Zimbabwe', '🇿🇼', 'ZW'], ['Kosovo', '🇽🇰', 'XK'], ['England', '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'GB-ENG'], ['Scotland', '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'GB-SCT'], ['Wales', '🏴󠁧󠁢󠁷󠁬󠁳󠁿', 'GB-CYM'], ['Northern Ireland', '🏴󠁧󠁢󠁮󠁩󠁲󠁿', 'GB-NIR'], ['Europe', '🇪🇺', 'EU']]
@@ -363,7 +376,7 @@ class WebInfo(commands.Cog):
                 similarartist_text = "**Similar Artists:**\n"
             for artist in similar_artists[:SALIMIT]:
                 cabr = self.country_abbr(artist[1])
-                similarartist_text += f"[{artist[0]}]({artist[4]}) - {cabr[1]} {cabr[0]}\n{artist[2]} `:{artist[3]}:`\n"
+                similarartist_text += f"[{artist[0]}]({artist[4]}) - {cabr[1]} {cabr[0]}\n{artist[2]} `({artist[3]})`\n"
         except:
             similarartist_text = "Error while trying to fetch similar artists."
             await ctx.send(f"Error while trying to fetch similar artists.\n{e}")
@@ -375,7 +388,7 @@ class WebInfo(commands.Cog):
         await message.add_reaction("♻️")
 
         def check(reaction, user):
-            return str(reaction.emoji) in ["ℹ️","💽","👥","♻️"]
+            return message.id == reaction.message.id and str(reaction.emoji) in ["ℹ️","💽","👥","♻️"] and user != mdmbot
 
         cur_page = 1
 
@@ -505,7 +518,7 @@ class WebInfo(commands.Cog):
                 break
 
 
-    async def send_bandlist(self, ctx, parsed_items, searchterm):
+    async def send_bandlist(self, ctx, parsed_items, searchterm, iTotalRecords):
         # MAKE A LIST OF ALL ENTRIES
         message_parts = [""]
         i = 0
@@ -525,7 +538,7 @@ class WebInfo(commands.Cog):
 
             cabr = self.country_abbr(country)
             msg = message_parts[k]
-            nextline = f"{i}. [{band_name}]({band_link}) {aka} `{genre}`  {cabr[1]} {cabr[0]}\n"
+            nextline = f"{i}. [{band_name}]({band_link}) {aka} {cabr[1]} {cabr[0]} `{genre}`\n"
 
             if len(msg)+len(nextline) > 4000:
                 k += 1
@@ -537,8 +550,13 @@ class WebInfo(commands.Cog):
         n = len(message_parts)
         for message in message_parts:
             j += 1
-            title = f"Search results: {searchterm} ({j}/{n})"
+            if n == 1:
+                title = f"Search results: {searchterm}"
+            else:
+                title = f"Search results: {searchterm} ({j}/{n})"
             embed=discord.Embed(title = title, description=message, color=0x1b0000)
+            if j == n:
+                embed.set_footer(text=f"{iTotalRecords} search results on MA")
             message = await ctx.send(embed=embed)
 
 
@@ -571,6 +589,10 @@ class WebInfo(commands.Cog):
                     response = session.get(burp0_url, headers=burp0_headers)
 
                     aa_items = json.loads(response.text)["aaData"]
+                    try:
+                        iTotalRecords = str(json.loads(response.text)["iTotalRecords"])
+                    except:
+                        iTotalRecords = ""
 
                     # parse band link, or disambiguation list
 
@@ -632,7 +654,7 @@ class WebInfo(commands.Cog):
                             band_name = item[1]
                             band_akass = item[2].split(",")
 
-                            sl = searchterm.lower()
+                            sl = primaryinput.lower()
                             slf = self.alphanum_filter(sl)
 
                             if band_name.lower() == sl:
@@ -657,30 +679,55 @@ class WebInfo(commands.Cog):
                             # requirements met to fetch band
                             fetchingband = True
                         else:
-                            if match_counter_aka == 1:
+                            if match_counter_exact == 0 and match_counter_aka == 1:
                                 band_link = list_match_aka[0][0]
                                 band_aka = list_match_aka[0][1]
                                 
                                 # requirements met to fetch band
                                 fetchingband = True
                             else:
-                                if match_counter_alphanum == 1:
+                                if match_counter_exact == 0 and match_counter_alphanum == 1:
                                     band_link = list_match_alphanum[0][0]
                                     band_aka = list_match_alphanum[0][1]
                                     
                                     # requirements met to fetch band
                                     fetchingband = True
                                 else:
-                                    if match_counter_aka_alphanum == 1:
+                                    if match_counter_exact == 0 and match_counter_aka == 0 and match_counter_alphanum == 0 and match_counter_aka_alphanum == 1:
                                         band_link = list_match_aka_alphanum[0][0]
                                         band_aka = list_match_aka_alphanum[0][1]
                                         
                                         # requirements met to fetch band
                                         fetchingband = True
                                     else:
+                                        ################################################################
+
+                                        # filter parsed list
+                                        if len(parsed_items) > 20:
+                                            parsed_items_f = []
+                                            sl = primaryinput.lower()
+                                            slf = self.alphanum_filter(sl)
+                                            slff = self.theafilter(sl)
+                                            for item in parseditems:
+                                                band_name = item[1].lower().strip()
+                                                band_akass = item[2].split(",")
+
+                                                bandaliases = [band_name, self.alphanum_filter(band_name).strip(), self.theafilter(band_name).strip()]
+                                                for band_aka in band_akass:
+                                                    ba = band_aka.lower().strip()
+                                                    bandaliases.append()
+                                                    bandaliases.append(self.alphanum_filter(ba).strip())
+                                                    bandaliases.append(self.alphanum_filter(ba).strip())
+                                                
+                                                if (sl in bandaliases) or (slf != "" and slf in bandaliases) or (slff != "" and slff in bandaliases):
+                                                    parsed_items_f.append(item)
+
+                                        if len(parsed_items_f) == 0:
+                                            parsed_items_f = parsed_items
+
                                         # do we have specification?
                                         if specification == "":
-                                            await self.send_bandlist(ctx, parsed_items, searchterm)
+                                            await self.send_bandlist(ctx, parsed_items_f, primaryinput, iTotalRecords)
                                         else:
                                             valid_specification = True
                                             try:
@@ -688,19 +735,19 @@ class WebInfo(commands.Cog):
                                             except:
                                                 index = -1
 
-                                            n = len(parsed_items)
+                                            n = len(parsed_items_f)
                                             if index < 1 or index > n:
                                                 valid_specification = False
 
                                             if valid_specification:
-                                                banditem = parsed_items[index-1]
+                                                banditem = parsed_items_f[index-1]
                                                 band_link = banditem[0]
                                                 band_aka = banditem[2]
                                                 
                                                 # requirements met to fetch band
                                                 fetchingband = True
                                             else:
-                                                await self.send_bandlist(ctx, parsed_items, searchterm)
+                                                await self.send_bandlist(ctx, parsed_items_f, primaryinput, iTotalRecords)
                                                 
                 except Exception as e:
                     await ctx.channel.send(f'Error while fetching search term:\n{e}')
@@ -716,7 +763,6 @@ class WebInfo(commands.Cog):
             await ctx.channel.send(f'Error: This is a melodeathcord specific command.')
         else:
             await ctx.channel.send(f'An error ocurred.')
-
 
 
 

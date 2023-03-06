@@ -84,7 +84,6 @@ def get_exchangerates():
 
 
 
-
 # vvv run code vvv
 
 discord_token = config.discord_token
