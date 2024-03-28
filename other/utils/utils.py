@@ -86,6 +86,10 @@ class Utils():
                 if ctx.guild == None:
                     # IF IT'S DM
                     await ctx.send("This bot instance is inactive. Check which application is actually the currently active one.")
+        elif isinstance(error, commands.InvalidEndOfQuotedStringError):
+            await ctx.channel.send(f'Bad Argument Error:```{str(error)}```Better try to avoid quotation marks within commands.')
+        elif isinstance(error, commands.UnexpectedQuoteError):
+            await ctx.channel.send(f'Bad Argument Error:```{str(error)}```Better try to avoid quotation marks within commands.')
         else:
             await ctx.channel.send(f'An error ocurred.')
             print("ERROR HANDLER: ", str(error))
@@ -352,7 +356,7 @@ class Utils():
             print(f"Notice: Emoji with name '{name}' returned an empty string.")
 
         return emote
-        
+
 
 
     def get_version():
