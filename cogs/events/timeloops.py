@@ -21,6 +21,24 @@ class TimeLoops(commands.Cog):
 
 
 
+    def reminders_enabled():
+        conB = sqlite3.connect(f'databases/botsettings.db')
+        curB = conB.cursor()
+        custom_reminders_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("reminder functionality",)).fetchall()]
+        if len(custom_reminders_list) == 0:
+            curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("reminder functionality", "on", "", ""))
+            conB.commit()
+            enabled = "on"
+        else:
+            enabled = custom_reminders_list[0].lower().strip()
+
+        if enabled == "on":
+            return True
+        else:
+            return False
+
+
+
     async def timeloop_error(self, error, *function):
         if function is None or function == "":
             functiontext = ""
@@ -359,7 +377,7 @@ class TimeLoops(commands.Cog):
                 elif emoji_string in [str(x) for x in self.bot.emojis]:
                     emoji = emoji_string
                 else:
-                    emoji = await util.emoji(emoji_string)
+                    emoji = util.emoji(emoji_string)
             except Exception as e:
                 print("Error in Link&Emoji parse section in recurring reminder:", e)
                 content = f"Error with parsing link and text:```{e}```This recurring reminder will be blocked from future execution."
@@ -369,7 +387,7 @@ class TimeLoops(commands.Cog):
 
             # SEND FIRST MESSAGE
 
-            if len(ping_list) > 0:
+            if len(ping_list) > 0 and reminders_enabled():
                 try:
                     firstmessage = "Reminder!"
                     for userid in ping_list:
@@ -536,7 +554,7 @@ class TimeLoops(commands.Cog):
                 continue
 
             if timeout_role not in the_member.roles:
-                emoji = await util.emoji("think")
+                emoji = util.emoji("think")
                 await self.timeloop_notification("Auto-Unmute", f"User <@{user_id}> was already unmuted. {emoji}\nNo futher action required ig.", False)
                 await self.remove_from_timeout_db(user_id)
                 continue
@@ -578,7 +596,7 @@ class TimeLoops(commands.Cog):
                             except:
                                 print(f"Error with: {r}, {r.id}")
                                 
-            emoji = await util.emoji("unleashed_mild")
+            emoji = util.emoji("unleashed_mild")
             await asyncio.sleep(0.5)
             await self.timeloop_notification("Auto-Unmute: Timeout ended", f"Unmuted <@{user_id}>. {emoji}", True)
             await self.remove_from_timeout_db(user_id)
@@ -744,7 +762,7 @@ class TimeLoops(commands.Cog):
                     con.commit()
             await util.changetimeupdate()
 
-            emoji = await util.emoji("note")
+            emoji = util.emoji("note")
             message = f"Updated currency exchange rates {emoji}.\nData from {update_time}."
             success = True
             return message, success 
