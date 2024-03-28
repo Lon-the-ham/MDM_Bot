@@ -257,9 +257,9 @@ class Administration_of_Bot_Instance(commands.Cog):
         else:
             instance = app_list[0]
             if this_instances_activity == "active":
-                emoji = await util.emoji("awoken")
+                emoji = util.emoji("awoken")
             else:
-                emoji = await util.emoji("sleep")
+                emoji = util.emoji("sleep")
             await ctx.send(f"This instance ({instance}) is set `{this_instances_activity}` {emoji}.\nMDM Bot {version}")
     @_botstatus.error
     async def botstatus_error(self, ctx, error):
@@ -279,7 +279,7 @@ class Administration_of_Bot_Instance(commands.Cog):
         Optional: add argument "nosync" to prevent synchronisation with last active database set.
         """    
         def check(m): # checking if it's the same user and channel
-            return m.author == ctx.author and m.channel == ctx.channel
+            return ((m.author == ctx.author) and (m.channel == ctx.channel))
 
 
         if len(args) == 0:
@@ -392,14 +392,14 @@ class Administration_of_Bot_Instance(commands.Cog):
                                 curA.execute("UPDATE activity SET value = ? WHERE name = ?", ("active", "activity"))
                                 conA.commit()
 
-                                emoji = await util.emoji("awoken")
+                                emoji = util.emoji("awoken")
                                 try:
                                     await self.botrole_assignment(ctx,"assign")
                                 except Exception as e:
                                     print(e)
                             else:
                                 # keep inactive
-                                emoji = await util.emoji("sleep")
+                                emoji = util.emoji("sleep")
                                 try:
                                     await self.botrole_assignment(ctx,"unassign")
                                 except Exception as e:

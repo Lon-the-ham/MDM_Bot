@@ -178,7 +178,7 @@ class Music_Info(commands.Cog):
             message = await ctx.send(embed=embed)
 
         try:
-            loading_emoji = await util.emoji("load")
+            loading_emoji = util.emoji("load")
             await message.add_reaction(loading_emoji)
         except Exception as e:
             print(e)
@@ -665,7 +665,7 @@ class Music_Info(commands.Cog):
                 input_string, primaryinput, specification = await self.input_from_nowplaying(ctx)
 
             if input_string == "":
-                emoji = await util.emoji("load")
+                emoji = util.emoji("load")
                 await ctx.channel.send(f'Need a proper searchterm to look up on Metal Archives. {emoji}')
                 return
             
@@ -692,7 +692,7 @@ class Music_Info(commands.Cog):
                 # parse band link, or disambiguation list
 
                 if len(aa_items) == 0:
-                    emoji = await util.emoji("shy")
+                    emoji = util.emoji("shy")
                     await ctx.channel.send(f'Could not find band with such a name on the Metal Archives. {emoji}')
 
                 elif len(aa_items) == 1:
@@ -835,7 +835,7 @@ class Music_Info(commands.Cog):
                                             n = len(parsed_items_f)
                                             if index < 1 or index > n:
                                                 # INVALID INTEGER
-                                                await util.emoji("derpy_playful")
+                                                util.emoji("derpy_playful")
                                                 await ctx.send(f"Invalid integer, giving out list. {emoji}")
                                                 await self.send_bandlist(ctx, parsed_items_f, primaryinput, iTotalRecords)
                                             else:
@@ -853,8 +853,8 @@ class Music_Info(commands.Cog):
                                             # assume spec to be country
                                             target_cntry = self.alphanum_filter(specification.lower().strip())
                                             if target_cntry == "":
-                                                emoji1 = await util.emoji("think_sceptic")
-                                                emoji2 = await util.emoji("derpy")
+                                                emoji1 = util.emoji("think_sceptic")
+                                                emoji2 = util.emoji("derpy")
                                                 await ctx.send(f"Is that a country specification..? {emoji1}\nMe no recognise... {derpy}")
                                                 await self.send_bandlist(ctx, parsed_items_f, primaryinput, iTotalRecords)
                                             else:
@@ -869,7 +869,7 @@ class Music_Info(commands.Cog):
                                                         target_item = item 
 
                                                 if cntry_counter == 0:
-                                                    emoji = await util.emoji("cover_eyes2")
+                                                    emoji = util.emoji("cover_eyes2")
                                                     await ctx.send(f"Either I did not recognise that country, or a band with this name originating from that country is not on the Metal Archives... {emoji}")
                                                 elif cntry_counter == 1:
                                                     band_link = target_item[0]
@@ -913,7 +913,7 @@ class Music_Info(commands.Cog):
                                                         band_aka = target_item[2]
                                                         fetchingband = True
                                                     else:
-                                                        emoji = await util.emoji("think")
+                                                        emoji = util.emoji("think")
                                                         await ctx.send(f"Searchterm + country not unique.. {emoji}")
                                                         await self.send_bandlist(ctx, parsed_items_f, primaryinput, iTotalRecords)
                                             
@@ -944,8 +944,8 @@ class Music_Info(commands.Cog):
         
         under construction
         """
-        emoji1 = await util.emoji("attention")
-        emoji2 = await util.emoji("upset")
+        emoji1 = util.emoji("attention")
+        emoji2 = util.emoji("upset")
         await ctx.channel.send(f'{emoji1} Waiting for rateyourmusic.com to stop being such killjoys {emoji2}')
     @_rym.error
     async def rym_error(self, ctx, error):

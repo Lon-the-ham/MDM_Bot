@@ -64,7 +64,7 @@ class YataBot(commands.Bot):
 
         try:
             channel = bot.get_channel(bot_channel_id)
-            emoji = await util.emoji("smug")
+            emoji = util.emoji("smug")
             await channel.send(f'`I haveth logged in` {emoji}')
 
             # ACTIVITY

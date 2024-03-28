@@ -163,11 +163,11 @@ class Administration_of_Settings(commands.Cog):
                 if modtype.lower() == "mod":
                     modtype_icon = ""
                 elif modtype.lower() == "dev":
-                    modtype_icon = await util.emoji("computer")
+                    modtype_icon = util.emoji("computer")
                 elif modtype.lower() == "owner":
-                    modtype_icon = await util.emoji("crown")
+                    modtype_icon = util.emoji("crown")
                 elif modtype.lower().startswith("custom"):
-                    modtype_icon = await util.emoji(modtype.lower())
+                    modtype_icon = util.emoji(modtype.lower())
                     modtype = "mod"
                 else:
                     print(f"Warning: modtype of mod with id {moderatorid} is not correct.")
@@ -201,7 +201,7 @@ class Administration_of_Settings(commands.Cog):
 
         if len(moderation_bot_list) > 0:
             desctext_mods.append(f"\n**Moderatoration Bots:**")
-            emoji = await util.emoji("bot")
+            emoji = util.emoji("bot")
             for bot in [m for m in sorted(moderation_bot_list, key=lambda m: m.display_name)]:
                 desctext_mods.append(f"<@{str(bot.id)}> {emoji}")
 
@@ -1382,7 +1382,7 @@ class Administration_of_Settings(commands.Cog):
                 for role_id in roles_with_higher_perms:
                     roles_perms_message += f"<@&{role_id}> "
 
-                emoji = await util.emoji("attention")
+                emoji = util.emoji("attention")
                 header = f"{emoji} Warning"
 
                 embed=discord.Embed(title=header, description=roles_perms_message[:4096], color=0xFFF200)
@@ -2496,7 +2496,7 @@ class Administration_of_Settings(commands.Cog):
 
             reactions = message.reactions
             if len(reactions) == 0:
-                turingmsg_emoji = await util.emoji("pensive") 
+                turingmsg_emoji = util.emoji("pensive") 
                 await message.add_reaction(turingmsg_emoji)
             else:
                 turingmsg_emoji = str(reactions[0])
@@ -2522,7 +2522,7 @@ class Administration_of_Settings(commands.Cog):
 
             reactions = message.reactions
             if len(reactions) == 0:
-                turingmsg_emoji = await util.emoji("pensive") 
+                turingmsg_emoji = util.emoji("pensive") 
                 await message.add_reaction(turingmsg_emoji)
             else:
                 turingmsg_emoji = str(reactions[0])
@@ -2698,7 +2698,9 @@ class Administration_of_Settings(commands.Cog):
 
         1st arg needs to be `on` or `off`.
 
-        If this feature is enabled all users can create reminders via `-remind`. If not, then only mods can do that. Already existing reminders will still trigger even if this feature is disabled.
+        If this feature is enabled all users can create reminders via `-remind`. If not, then only mods can do that. 
+        Already existing reminders will still trigger even if this feature is disabled.
+        Existing recurring reminders will trigger without pinging as long as this feature is disabled.
         """
         await self.database_on_off_switch(ctx, args, "reminder functionality")
     @_set_reminders.error
@@ -3021,12 +3023,12 @@ class Administration_of_Settings(commands.Cog):
 
         # EDIT IN DATABASE
         if accesswall != "on":
-            yayemoji = await util.emoji("yay")
+            yayemoji = util.emoji("yay")
             default_text = f'Welcome <@{user_id}>! {yayemoji}'
             cur.execute("UPDATE serversettings SET details = ? WHERE name = ?", (text, "welcome message"))
         else:
-            yayemoji = await util.emoji("yay")
-            excitedemoji = await util.emoji("excited_alot")
+            yayemoji = util.emoji("yay")
+            excitedemoji = util.emoji("excited_alot")
             default_text = f'Welcome <@{user_id}>! {yayemoji}\nYou made it {excitedemoji}'
             cur.execute("UPDATE serversettings SET etc = ? WHERE name = ?", (text, "welcome message"))
         con.commit()  

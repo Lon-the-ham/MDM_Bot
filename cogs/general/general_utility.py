@@ -227,7 +227,7 @@ class General_Utility(commands.Cog):
 
         optionstext = ""
         if len(listings) > 20:
-            emoji = await util.emoji("sob")
+            emoji = util.emoji("sob")
             await ctx.send(f'Error: Too many options. I can only do 20... {emoji}')
             return
 
@@ -286,7 +286,7 @@ class General_Utility(commands.Cog):
                     r = random.randint(1, n)
                     await ctx.send(f'🎲 D{n} roll: {options[r-1]}')
                 else:
-                    emoji = await util.emoji("disappointed")
+                    emoji = util.emoji("disappointed")
                     await ctx.send(f'Error: There are not enough options to choose from {emoji}')
                 return
             
@@ -299,7 +299,7 @@ class General_Utility(commands.Cog):
                     r = random.randint(1, n)
                     await ctx.send(f'🎲 D{n} roll: {options[r-1]}')
                 else:
-                    emoji = await util.emoji("disappointed")
+                    emoji = util.emoji("disappointed")
                     await ctx.send(f'Error: There are not enough options to choose from {emoji}')
                 return
 
@@ -361,11 +361,11 @@ class General_Utility(commands.Cog):
                     await ctx.send(f'Error: Dice/coins must be at least 2-sided.')
                     return
                 if dice_size > 999:
-                    emoji = await util.emoji("umm")
+                    emoji = util.emoji("umm")
                     await ctx.send(f'Error: Lmao how large do you want your dice to be. {emoji}\nI can offer a D999 at most...')
                     return
                 if num_of_dice > 100:
-                    emoji = await util.emoji("cry2")
+                    emoji = util.emoji("cry2")
                     await ctx.send(f"Error: I'm sorry, but I only have 100 of these dice {emoji}")
                     return
 
@@ -617,7 +617,7 @@ class General_Utility(commands.Cog):
                 return
 
             if len(args) == 1:
-                emoji = await util.emoji("think")
+                emoji = util.emoji("think")
                 await ctx.send(f'{emoji}')
                 return
 
@@ -717,8 +717,8 @@ class General_Utility(commands.Cog):
 
         #parse from_convert
         argument_string = ''.join(from_arguments).replace(",","")
-        derpy = await util.emoji("derpy")
-        think = await util.emoji("think")
+        derpy = util.emoji("derpy")
+        think = util.emoji("think")
         try:
             VaU_unfiltered = separate_number_chars(argument_string) # Value & Unit
             VaU = [x for x in VaU_unfiltered if x]
@@ -969,7 +969,7 @@ class General_Utility(commands.Cog):
             
             # CRYPTO CURRENCY
             if unit_one.upper() in crypto_currencies:
-                emoji = await util.emoji("pain")
+                emoji = util.emoji("pain")
                 await ctx.send(f'Ugh crypto... {emoji}\nNot supported, sorry.')
 
             else:
@@ -1080,10 +1080,10 @@ class General_Utility(commands.Cog):
                                     message += f"    {conversion} {convert_code}\n"
                                     valid_conversion_currency_found = True
                                 elif arg2 in crypto_currencies:
-                                    emoji = await util.emoji("welp")
+                                    emoji = util.emoji("welp")
                                     error += f" ...{arg2.upper()} is not supported {emoji}\n"
                                 else:
-                                    emoji = await util.emoji("cover_eyes2")
+                                    emoji = util.emoji("cover_eyes2")
                                     error += f" ...{arg2.upper()} I do not know {emoji}\n"
                             
                             if valid_conversion_currency_found:
@@ -1093,7 +1093,7 @@ class General_Utility(commands.Cog):
                                 message += "none of the given exchange currencies were recognised... :("
                             await ctx.send(message[:4096])
                     except Exception as e:
-                        emoji = await util.emoji("derpy_playful")
+                        emoji = util.emoji("derpy_playful")
                         await ctx.send(f'Error: Currency conversion crashed. {emoji}\n{e}')
             
                 else:
@@ -1543,7 +1543,7 @@ class General_Utility(commands.Cog):
             #if argument[8] in self.bot.emojis or argument[8] in UNICODE_EMOJI['en']:
             #    emoji = argument[8]
             #else:
-            #    emoji = await util.emoji(argument[8])
+            #    emoji = util.emoji(argument[8])
         except Exception as e:
             await ctx.send(f"Error with provided arguments (arg {i}):```{e}```")
             return
@@ -1900,7 +1900,7 @@ class General_Utility(commands.Cog):
             return
 
         if timeseconds == "infinity":
-            emoji = await util.emoji("cover_eyes")
+            emoji = util.emoji("cover_eyes")
             await ctx.send(f"Could not properly parse time. {emoji}")
             return
         else:
@@ -1944,7 +1944,7 @@ class General_Utility(commands.Cog):
         username = str(the_member.name)
 
         if timeout_role.id in member_role_ids: # check if user already has timeout role
-            emoji = await util.emoji("think")
+            emoji = util.emoji("think")
             await ctx.send(f"User already muted. {emoji}")
             return
 
@@ -1976,7 +1976,7 @@ class General_Utility(commands.Cog):
                 print(e)
                 await ctx.send(f"Error while trying to change roles.")
                 return
-        muteemoji = await util.emoji("mute")
+        muteemoji = util.emoji("mute")
 
         # RESPONSE
 

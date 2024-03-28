@@ -900,7 +900,7 @@ class Music_NowPlaying(commands.Cog):
 
 
     async def error_embed(self, ctx, text, footer):
-        emoji = await util.emoji("attention")
+        emoji = util.emoji("attention")
         text = emoji + " " + text
         embed = discord.Embed(description=text[:4096], color = 0xd30000)
         if footer.strip() != "":
@@ -1044,7 +1044,7 @@ class Music_NowPlaying(commands.Cog):
                     try:
                         message = await self.lastfm_apifetch(ctx, the_member, tags, called_services)
                     except:
-                        emoji = await util.emoji("disappointed")
+                        emoji = util.emoji("disappointed")
                         text = f"No played music found {emoji}"
                         if the_member.id == ctx.message.author.id:
                             footer = "Make sure to check that your music streaming service (Spotify/MusicBee/AppleMusic) is properly connected to Discord, and that your status is not set to 'invisible'."
@@ -1343,7 +1343,7 @@ class Music_NowPlaying(commands.Cog):
                         applemusic_list.append([member.display_name, member.id, "", "", "", ""])
 
         if len(spotify_list + musicbee_list + applemusic_list) == 0:
-            emoji = await util.emoji("pensive2")
+            emoji = util.emoji("pensive2")
             await ctx.send(f"No one is listening to music right now.. {emoji}\n(or they just too shy to show this on discord)")
             return
 
@@ -1656,7 +1656,7 @@ class Music_NowPlaying(commands.Cog):
                                     invalid_emojis.append(emoji_to_add)
 
             if len(valid_emojis) == 0:
-                emoji = await util.emoji("disappointed")
+                emoji = util.emoji("disappointed")
                 await ctx.send(f"None of the given emojis are valid. {emoji}\nAre you sure I am on the server these emojis are on?")
                 return
 

@@ -124,7 +124,7 @@ class Shenanigans(commands.Cog):
 
         r = random.randint(0,len(possible_outcomes)-1)
         url = possible_outcomes[r]
-        emoji = await util.emoji("giggle")
+        emoji = util.emoji("giggle")
         await ctx.send(f'I think you will enjoy this! {emoji}\n{url}')  
 
 

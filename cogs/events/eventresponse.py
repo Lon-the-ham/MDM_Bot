@@ -202,7 +202,7 @@ class Event_Response(commands.Cog):
                         welcometext_list.remove("")
                     if len(welcometext_list) == 0 or welcometext_list[0].strip() == "":
                         #default
-                        yayemoji = await util.emoji("yay")
+                        yayemoji = util.emoji("yay")
                         welcometext = f'Welcome <@{user_id}>! {yayemoji}'
                     else:
                         welcometext_preparse = welcometext_list[0]
@@ -373,7 +373,7 @@ class Event_Response(commands.Cog):
         # NOTIFY
 
         title = "Member banned"
-        emoji = await util.emoji("ban")
+        emoji = util.emoji("ban")
         text = f"<@{user.id}> {emoji}"
         footer = f"NAME: {user.name}, ID: {user.id}"   
         image = user.avatar_url
@@ -400,7 +400,7 @@ class Event_Response(commands.Cog):
             return
 
         title = "Member unbanned"
-        emoji = await util.emoji("ban")
+        emoji = util.emoji("ban")
         text = f"<@{user.id}> {emoji}"
         footer = f"NAME: {user.name}, ID: {user.id}"   
         image = user.avatar_url
@@ -1287,7 +1287,7 @@ class Event_Response(commands.Cog):
                                 # confirmation
                                 try:
                                     title = "Failed Turing Test"
-                                    emoji = await util.emoji("ban")
+                                    emoji = util.emoji("ban")
                                     text = f"Banned <@{user.id}> {emoji}"
                                     footer = f"NAME: {user.name}, ID: {user.id}"
                                     image = str(user.avatar.url)
@@ -1301,7 +1301,7 @@ class Event_Response(commands.Cog):
                                 accesswallchannelid_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("access wall channel id",)).fetchall()]
                                 accesswallchannelid = int(accesswallchannelid_list[0])
                                 wintersgate_channel = self.bot.get_channel(accesswallchannelid)
-                                emoji = await util.emoji("bye")
+                                emoji = util.emoji("bye")
                                 await wintersgate_channel.send(f'Bye <@{user.id}>! {emoji}')
                                 
 

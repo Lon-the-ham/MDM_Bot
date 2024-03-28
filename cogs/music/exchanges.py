@@ -131,7 +131,7 @@ class Music_Exchange(commands.Cog):
         """ 
         argstring = ' '.join(args)
         if len(args) == 0:
-            emoji = await util.emoji("pensive2")
+            emoji = util.emoji("pensive2")
             await ctx.send(f"Error, this command needs arguments. {emoji}")
             return
 
@@ -143,7 +143,7 @@ class Music_Exchange(commands.Cog):
                 return
 
             if n <= 1:
-                emoji = await util.emoji("think_smug")
+                emoji = util.emoji("think_smug")
                 await ctx.send(f"Preferably an integer greater than 1 please.. {emoji}")
                 return
             permutated_list = self.permutate(list(range(1,n+1)))
@@ -164,12 +164,12 @@ class Music_Exchange(commands.Cog):
                     #no duplicates
                     pass 
                 else:
-                    emoji = await util.emoji("hmm2")
+                    emoji = util.emoji("hmm2")
                     await ctx.send(f"Warning: There are duplicates in your list! {emoji}")
             except:
                 pass 
             if n <= 1:
-                emoji = await util.emoji("think_smug")
+                emoji = util.emoji("think_smug")
                 ctx.send(f"I need at least 2 arguments to properly cycle something at all. {emoji}\nTo separate arguments use a semicolon ; ")
                 return
 
@@ -198,7 +198,7 @@ class Music_Exchange(commands.Cog):
         """
         argstring = ' '.join(args)
         if len(args) == 0:
-            emoji = await util.emoji("pensive2")
+            emoji = util.emoji("pensive2")
             await ctx.send(f"Error, this command needs arguments. {emoji}")
             return
 
@@ -206,12 +206,12 @@ class Music_Exchange(commands.Cog):
             try:
                 n = int(args[0])
             except:
-                emoji = await util.emoji("think_smug")
+                emoji = util.emoji("think_smug")
                 await ctx.send(f"Error, in case you only give 1 argument it must be an integer. {emoji}")
                 return
 
             if n <= 1:
-                emoji = await util.emoji("think_smug")
+                emoji = util.emoji("think_smug")
                 await ctx.send(f"Preferably an integer greater than 1 please.. {emoji}")
                 return
 
@@ -234,13 +234,13 @@ class Music_Exchange(commands.Cog):
                     #no duplicates
                     pass 
                 else:
-                    emoji = await util.emoji("hmm2")
+                    emoji = util.emoji("hmm2")
                     await ctx.send(f"Warning: There are duplicates in your list! {emoji}")
             except:
                 pass
 
             if n <= 1:
-                emoji = await util.emoji("think_smug")
+                emoji = util.emoji("think_smug")
                 await ctx.send(f"I need at least 2 arguments to derange something at all. {emoji}\nTo separate arguments use a semicolon ; ")
                 return
 
@@ -267,7 +267,7 @@ class Music_Exchange(commands.Cog):
         """ 
         argstring = ' '.join(args)
         if len(args) == 0:
-            emoji = await util.emoji("pensive2")
+            emoji = util.emoji("pensive2")
             await ctx.send(f"Error, this command needs arguments. {emoji}")
             return
 
@@ -279,7 +279,7 @@ class Music_Exchange(commands.Cog):
                 return
             
             if n <= 1:
-                emoji = await util.emoji("think_smug")
+                emoji = util.emoji("think_smug")
                 await ctx.send(f"Preferably an integer greater than 1 please.. {emoji}")
                 return
             
@@ -296,12 +296,12 @@ class Music_Exchange(commands.Cog):
             n = len(original_list)
 
             if n <= 1:
-                emoji = await util.emoji("think_smug")
+                emoji = util.emoji("think_smug")
                 await ctx.send(f"I need at least 2 arguments to properly cycle something at all. {emoji}\nTo separate arguments use a semicolon ; ")
                 return
             duplicatecheck = len(list(dict.fromkeys(original_list)))
             if duplicatecheck != n:
-                emoji = await util.emoji("hmm2")
+                emoji = util.emoji("hmm2")
                 await ctx.send(f"Error: There are duplicates in your list! {emoji}\nIn case you have an uneven number of members, put the one you want to pair twice at the beginning!")
                 return
 

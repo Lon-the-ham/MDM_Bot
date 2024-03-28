@@ -168,14 +168,14 @@ class Administration_of_Server(commands.Cog):
         immunity_list = await self.get_immunitylist(ctx)
 
         if user_id in immunity_list:
-            pleademoji = await util.emoji("pleading")
+            pleademoji = util.emoji("pleading")
             await ctx.send(f'I- I really do not want to ban this user. {pleademoji}')
         else:
             try:
                 user = await self.bot.fetch_user(user_id)
                 await ctx.guild.ban(user, reason=reason, delete_message_days=0)
 
-                banemoji = await util.emoji("ban")
+                banemoji = util.emoji("ban")
                 header = f"Permanent ban"
                 description = f'Banned <@{user_id}>. {banemoji}{reason_string}'
                 embed=discord.Embed(title=header, description=description, color=0xB80F0A)
@@ -237,14 +237,14 @@ class Administration_of_Server(commands.Cog):
         immunity_list = await self.get_immunitylist(ctx)
 
         if user_id in immunity_list:
-            pleademoji = await util.emoji("pleading")
+            pleademoji = util.emoji("pleading")
             await ctx.send(f'I- I really do not want to kick this user. {pleademoji}')
         else:
             try:
                 user = await self.bot.fetch_user(user_id)
                 await ctx.guild.kick(user, reason=reason)
 
-                gunemoji = await util.emoji("gun")
+                gunemoji = util.emoji("gun")
                 header = f"Server kick"
                 description = f'Kicked <@{user_id}>. {gunemoji}{reason_string}'
                 embed=discord.Embed(title=header, description=description, color=0xB80F0A)
@@ -300,7 +300,7 @@ class Administration_of_Server(commands.Cog):
             user = await self.bot.fetch_user(user_id)
             await ctx.guild.unban(user)
 
-            emoji = await util.emoji("celebrate")
+            emoji = util.emoji("celebrate")
             header = f"Account unban"
             description = f'Unbanned <@{user_id}>. {emoji}'
             embed=discord.Embed(title=header, description=description, color=0x4CBB17)
@@ -369,7 +369,7 @@ class Administration_of_Server(commands.Cog):
         immunity_list = await self.get_immunitylist(ctx)
 
         if user_id in immunity_list:
-            pleademoji = await util.emoji("pleading")
+            pleademoji = util.emoji("pleading")
             await ctx.send(f'I- I really do not want to mute this user. {pleademoji}')
             return
         else:
@@ -428,7 +428,7 @@ class Administration_of_Server(commands.Cog):
         username = str(the_member.name)
 
         if timeout_role.id in member_role_ids: # check if user already has timeout role
-            emoji = await util.emoji("think")
+            emoji = util.emoji("think")
             await ctx.send(f"User already muted. {emoji}")
             return
 
@@ -467,7 +467,7 @@ class Administration_of_Server(commands.Cog):
                 await ctx.send(f"Error while trying to change roles.")
                 return
 
-        muteemoji = await util.emoji("mute")
+        muteemoji = util.emoji("mute")
 
         # RESPONSE
 
@@ -626,7 +626,7 @@ class Administration_of_Server(commands.Cog):
                         print(f"Error: role has faulty id: {role_id}")
 
             if timeout_role not in the_member.roles:
-                emoji = await util.emoji("think")
+                emoji = util.emoji("think")
                 await ctx.send(f"User was not muted. {emoji}")
                 return
 
@@ -644,7 +644,7 @@ class Administration_of_Server(commands.Cog):
                             except:
                                 print(f"Error with: {r}, {r.id}")
 
-            emoji = await util.emoji("unleashed_mild")
+            emoji = util.emoji("unleashed_mild")
             description = f"Unmuted <@{user_id}>. {emoji}"
             header = "Timeout ended"
             embed=discord.Embed(title=header, description=description, color=0x4CBB17)
@@ -717,7 +717,7 @@ class Administration_of_Server(commands.Cog):
         You can put as additional argument "nomsg" to leave out the last step and verify them without a welcome message.
         """
         if len(args) < 1:
-            emoji = await util.emoji("pout")
+            emoji = util.emoji("pout")
             await ctx.send(f"Error: Missing arguments. {emoji}")
             return
 
@@ -793,7 +793,7 @@ class Administration_of_Server(commands.Cog):
             await user.remove_roles(wintersgate_role)
         else:
             print("User did not have the Winter's Gate role.")
-            emoji = await util.emoji("shrug")
+            emoji = util.emoji("shrug")
             await botspam_channel.send(f"{user.display_name} did not have `Winter's Gate` role. {emoji}")
 
         # SWAP ROLES
@@ -801,7 +801,7 @@ class Administration_of_Server(commands.Cog):
         if verified_role in user.roles:
             newly_verified = False
             print("User already has verified role.")
-            emoji = await util.emoji("think_smug")
+            emoji = util.emoji("think_smug")
             await botspam_channel.send(f"{user.display_name} did already have the `Verified` role. {emoji}")
         else:
             newly_verified = True
@@ -840,8 +840,8 @@ class Administration_of_Server(commands.Cog):
                         welcometext_list.remove("")
                     if len(welcometext_list) == 0 or welcometext_list[0].strip() == "":
                         #default
-                        yayemoji = await util.emoji("yay")
-                        excitedemoji = await util.emoji("excited_alot")
+                        yayemoji = util.emoji("yay")
+                        excitedemoji = util.emoji("excited_alot")
                         welcometext = f'Welcome <@{user_id}>! {yayemoji}\nYou made it {excitedemoji}'
                     else:
                         welcometext_preparse = welcometext_list[0]
@@ -850,7 +850,7 @@ class Administration_of_Server(commands.Cog):
                 else:
                     print("welcome message turned off")
             else:
-                emoji = await util.emoji("derpy_playful")
+                emoji = util.emoji("derpy_playful")
                 await ctx.channel.send(f'{user.display_name} was already verified. Uh... welcome anyway? {emoji}')
 
             if additional_notes != "":
@@ -1022,16 +1022,16 @@ class Administration_of_Server(commands.Cog):
                 user_id = member.id
 
                 if user_id in immunity_list:
-                    pleademoji = await util.emoji("pleading")
+                    pleademoji = util.emoji("pleading")
                     await ctx.send(f'I- I really do not want to yeet <@{user_id}>. {pleademoji}')
                 else:
                     try:
                         await ctx.guild.kick(member, reason=reason)
-                        gunemoji = await util.emoji("gun")
+                        gunemoji = util.emoji("gun")
                         await ctx.send(f'Yeeted <@{user_id}> (for {reason}) {gunemoji}')
                         print(f"yeeted {str(member)}")
                     except:
-                        emoji = await util.emoji("hold_head")
+                        emoji = util.emoji("hold_head")
                         await ctx.send(f'Error while trying to yeet {member.display_name} ({str(member)}) {emoji}')
             
             # NOTIFY ABOUT NOT KICKED USER

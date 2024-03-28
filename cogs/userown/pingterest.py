@@ -308,14 +308,14 @@ class Pingable_Interests(commands.Cog):
         pi_entries = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ?", (pi_name,)).fetchall()]
         
         if len(pi_entries) == 0:
-            emoji = await util.emoji("hmm")
+            emoji = util.emoji("hmm")
             await ctx.send(f"Such a pingterest does not exist. {emoji}")
             return 
 
         curP.execute("DELETE FROM pingterests WHERE pingterest = ?", (pi_name,))
         conP.commit()
         await util.changetimeupdate()
-        emoji = await util.emoji("smug")
+        emoji = util.emoji("smug")
         await ctx.send(f"Successfully deleted this pingterest! {emoji}")
     @_clearpi.error
     async def clearpi_error(self, ctx, error):
@@ -335,7 +335,7 @@ class Pingable_Interests(commands.Cog):
         curP.execute('''CREATE TABLE IF NOT EXISTS pingterests (pingterest text, userid text, username text, details text)''')
         curP.execute("DELETE FROM pingterests")
         conP.commit()
-        emoji = await util.emoji("unleashed")
+        emoji = util.emoji("unleashed")
         await ctx.send(f"Successfully cleared the entire pingterest database! {emoji}")
     @_clearallpi.error
     async def clearallpi_error(self, ctx, error):
@@ -366,7 +366,7 @@ class Pingable_Interests(commands.Cog):
         all_pis = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND details = ?", (pi_name,"")).fetchall()]
         
         if len(all_pis) == 0:
-            emoji = await util.emoji("cry")
+            emoji = util.emoji("cry")
             await ctx.send(f"No one has said pingterest {emoji}")
             return
         
