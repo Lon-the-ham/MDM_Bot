@@ -83,7 +83,7 @@ class Roles(commands.Cog):
                         errors_roles_general.append(term.strip())
 
         if len(role_list) == 0:
-            emoji = await util.emoji("pensive")
+            emoji = util.emoji("pensive")
             await ctx.send(f"Error: No valid role. {emoji}")
             return
 
@@ -133,7 +133,7 @@ class Roles(commands.Cog):
                 errors_roles_assignability.append(role.mention)
 
         if len(roles_to_assign) == 0:
-            emoji = await util.emoji("pensive")
+            emoji = util.emoji("pensive")
             await ctx.send(f"No assignable role provided. {emoji}")
             return
 
@@ -207,10 +207,10 @@ class Roles(commands.Cog):
 
         if len(errors_roles_general) + len(errors_users) + len(errors_roles_assignability) + len(errors_unique_assigning) == 0:
             if assign:
-                emoji = await util.emoji("yay")
+                emoji = util.emoji("yay")
                 await ctx.send(f"Successfully assigned role{s}! {emoji}")
             else:
-                emoji = await util.emoji("thumbs_up")
+                emoji = util.emoji("thumbs_up")
                 await ctx.send(f"Successfully unassigned role{s}! {emoji}")
         else:
             if assign:
@@ -231,7 +231,7 @@ class Roles(commands.Cog):
             text_list = []
             if len(all_successful_users) == 0:
                 color = 0xa91b0d
-                emoji = await util.emoji("cry")
+                emoji = util.emoji("cry")
                 text_list.append(f"Command failed {emoji}")
             else:
                 color = 0xffd700
@@ -740,8 +740,15 @@ class Roles(commands.Cog):
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
     async def _roleupdate(self, ctx):
-        """🔒Update role database"""
+        """🔒Update role database
+        
+        does 3 things:
+        > adds missing roles to db 
+        > removes non-existing roles from db
+        > updates names, permissions and colors
+        """
         await util.update_role_database(ctx)
+        await ctx.send("Updated role database.")
     @_roleupdate.error
     async def roleupdate_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -793,7 +800,7 @@ class Roles(commands.Cog):
             try:
                 the_role = await util.fetch_role_by_name(ctx, rolename)
             except:
-                emoji = await util.emoji("pensive")
+                emoji = util.emoji("pensive")
                 await ctx.send(f"Error: No valid role argument. {emoji}")
                 return
 
@@ -872,7 +879,7 @@ class Roles(commands.Cog):
                     await ctx.send(msg_confirmation)
                     try: # waiting for message
                         async with ctx.typing():
-                            response = await self.bot.wait_for('message', check=check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
+                            response = await self.bot.wait_for('message', check=util.confirmation_check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
                     except asyncio.TimeoutError: # returning after timeout
                         await ctx.send("action timed out")
                         return
@@ -888,7 +895,7 @@ class Roles(commands.Cog):
 
         all_roles = [str(r.name).lower() for r in ctx.guild.roles]
         if role_name.lower() in all_roles:
-            emoji = await util.emoji("surprised")
+            emoji = util.emoji("surprised")
             await ctx.send(f'Role with this name already exists! {emoji}')
         else:
 
@@ -969,14 +976,14 @@ class Roles(commands.Cog):
                 perms_high.append(perm)
 
         if len(perms_high) > 0:
-            emoji = await util.emoji("attention")
+            emoji = util.emoji("attention")
             header = f"{emoji} Warning"
             permissionstring = ', '.join(perms_high)
             msg = f"The role <@&{the_role.id}> has higher permissions.```{permissionstring}```Write `yes` to delete anyway."
             embed = discord.Embed(title=header, description=msg, color=hex_color)
             await ctx.send(embed=embed)
             try: # waiting for message
-                response = await self.bot.wait_for('message', check=check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
+                response = await self.bot.wait_for('message', check=util.confirmation_check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
             except asyncio.TimeoutError: # returning after timeout
                 await ctx.send("action timed out")
                 return
@@ -993,10 +1000,10 @@ class Roles(commands.Cog):
             cur.execute("DELETE FROM roles WHERE id = ?", (str(the_role.id),))
             con.commit()
             await util.changetimeupdate()
-            emoji = await util.emoji("unleashed")
+            emoji = util.emoji("unleashed")
             await ctx.send(f"The role `{the_role.name}` haveth been deleted! {emoji}")
         except:
-            emoji = await util.emoji("cry")
+            emoji = util.emoji("cry")
             await ctx.send(f"Error occured while trying to delete role! {emoji}")
 
     @_removerole.error
@@ -1101,11 +1108,11 @@ class Roles(commands.Cog):
         # MESSAGE COMPOSITION
 
         if len(invalid_rolemoji_list) + len(nonrelevant_invalid_rolemoji_list) + len(role_id_missing_emoji) + len(relevant_dupe_list) + len(nonrelevant_dupe_list) == 0:
-            emoji = await util.emoji("thumb_up")
+            emoji = util.emoji("thumb_up")
             await ctx.channel.send(f'All good. {emoji}')
         else:
             if len(invalid_rolemoji_list) == 0 and len(role_id_missing_emoji) == 0 and len(relevant_dupe_list) == 0:
-                emoji = await util.emoji("thumbs_up")
+                emoji = util.emoji("thumbs_up")
                 await ctx.channel.send(f"All currently used reaction roles are fine. {emoji}\nI found however other role emoji that have issues:")
                 description = ""
 
@@ -1137,7 +1144,7 @@ class Roles(commands.Cog):
                     for role in nonrelevant_invalid_rolemoji_list:
                         description += f"<@&{role[0]}> with rolemoji: {role[2]}\n"
 
-                    emoji = await util.emoji("note")
+                    emoji = util.emoji("note")
                     embed = discord.Embed(title = f"{emoji} Note", description=description[:4096], color=0xFEE12B)
                     embed.set_footer(text = f"{len(nonrelevant_invalid_rolemoji_list)} cases detected")
                     await ctx.send(embed=embed)
@@ -1163,7 +1170,7 @@ class Roles(commands.Cog):
                     await ctx.send(embed=embed)
 
                 if len(nonrelevant_dupe_list) > 0:
-                    emoji = await util.emoji("note")
+                    emoji = util.emoji("note")
                     title = f"{emoji} Note"
                     description = f"Found the following duplicate emojis among roles not currently used as reaction roles:\n"
                     for role in nonrelevant_dupe_list:
@@ -1270,6 +1277,8 @@ class Roles(commands.Cog):
         You can also provide category arguments. In this case no message will be deleted and only embeds of provided categories will be sent.
         However, a previously existing embed of that category will lose functionality in favour of the new embed.
         """
+        def check(m): # checking if it's the same user and channel
+            return ((m.author == ctx.author) and (m.channel == ctx.channel))
 
         await util.update_role_database(ctx)
 
@@ -1288,11 +1297,11 @@ class Roles(commands.Cog):
         turn = sorting_list[0][0]
         sorting = sorting_list[0][1]
 
-        if turn.lower() != "off":
+        if turn.lower() != "on":
             await ctx.send(f"Reaction role feature is turned off. Enable it?\nRespond with `yes` to turn on and continue.")
             try: # waiting for message
                 async with ctx.typing():
-                    response = await self.bot.wait_for('message', check=check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
+                    response = await self.bot.wait_for('message', check=util.confirmation_check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
             except asyncio.TimeoutError: # returning after timeout
                 await ctx.send("Action timed out.")
                 return
@@ -1472,6 +1481,8 @@ class Roles(commands.Cog):
             for cat in reaction_cats:
                 await self.rolechannel_embed(cat, sorting, db_react_roles, role_channel)
 
+        await ctx.send("Done.")
+
     @_rcupdate.error
     async def rcupdate_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -1504,7 +1515,7 @@ class Roles(commands.Cog):
             try:
                 the_role = await util.fetch_role_by_name(ctx, role_arg)
             except:
-                emoji = await util.emoji("pensive")
+                emoji = util.emoji("pensive")
                 await ctx.send(f"Error: No valid role argument. {emoji}")
                 return
 
@@ -1519,7 +1530,7 @@ class Roles(commands.Cog):
                     higher_perms.append(perm[0])
 
         if 'manage_guild' in higher_perms:
-            emoji = await util.emoji("no")
+            emoji = util.emoji("no")
             await ctx.send(f"Error: I shall not remove a mod role. {emoji}")
             return
 
@@ -1530,7 +1541,7 @@ class Roles(commands.Cog):
             await ctx.send(f"Are you sure you want to assign the {the_role.name} role to all current members? Respond with `yes` to confirm.")
 
             try: # waiting for message
-                response = await self.bot.wait_for('message', check=check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
+                response = await self.bot.wait_for('message', check=util.confirmation_check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
             except asyncio.TimeoutError: # returning after timeout
                 await ctx.send("action timed out")
                 return
@@ -1569,6 +1580,7 @@ class Roles(commands.Cog):
     async def _removeicons(self, ctx: commands.Context):
         """🔒 Assign role to all members on the server
         """
+
         if len(args) == 0:
             await ctx.send("Error: command needs role argument")
             return 
@@ -1586,7 +1598,7 @@ class Roles(commands.Cog):
             try:
                 the_role = await util.fetch_role_by_name(ctx, role_arg)
             except:
-                emoji = await util.emoji("pensive")
+                emoji = util.emoji("pensive")
                 await ctx.send(f"Error: No valid role argument. {emoji}")
                 return
 
@@ -1601,11 +1613,11 @@ class Roles(commands.Cog):
                     higher_perms.append(perm[0])
 
         if 'manage_guild' in higher_perms:
-            emoji = await util.emoji("unleashed")
+            emoji = util.emoji("unleashed")
             await ctx.send(f"Error: I shall not make everyone to basically mods. Do you want chaos or something? {emoji}")
             return
         elif len(higher_perms) > 0:
-            emoji = await util.emoji("attention")
+            emoji = util.emoji("attention")
             permstring = ' '.join(higher_perms)
             await ctx.send(f"{emoji} Warning: The role you are about to assign to everyone has higher permissions.```{permstring}```"[:2000])
 
@@ -1617,7 +1629,7 @@ class Roles(commands.Cog):
             await ctx.send(f"Are you sure you want to assign the {the_role.name} role to all current members? Respond with `yes` to confirm.")
 
             try: # waiting for message
-                response = await self.bot.wait_for('message', check=check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
+                response = await self.bot.wait_for('message', check=util.confirmation_check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
             except asyncio.TimeoutError: # returning after timeout
                 await ctx.send("action timed out")
                 return

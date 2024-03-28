@@ -270,6 +270,11 @@ class Utils():
 
 
 
+    def confirmation_check(m): # checking if it's the same user and channel
+            return ((m.author == ctx.author) and (m.channel == ctx.channel))
+
+
+
     def cleantext(s):
         ctxt = str(s).replace("`","'").replace('"',"'").replace("´","'").replace("‘","'").replace("’","'").replace("“","'").replace("”","'")
         return ctxt
@@ -307,6 +312,47 @@ class Utils():
 
         return string.strip()
 
+
+
+    def emoji(name):
+        con = sqlite3.connect(f'databases/botsettings.db')
+        cur = con.cursor()
+        emoji_list = [[item[0],item[1],item[2]] for item in cur.execute("SELECT purpose, call, extra FROM emojis").fetchall()]
+
+        term = name.lower().strip()
+        for item in emoji_list:
+            if term == item[0]:
+                if item[1].strip() == "":
+                    emote = item[2]
+                else:
+                    emote = item[1]
+                break
+        else:
+            term = ''.join(e for e in name.strip().lower().replace(" ","_") if e.isalnum() or e == "_")
+            for item in emoji_list:
+                if term == item[0]:
+                    if item[1].strip() == "":
+                        emote = item[2]
+                    else:
+                        emote = item[1]
+                    break
+                else:
+                    term = ''.join(e for e in name.strip().lower() if e.isalnum())
+                    for item in emoji_list:
+                        if term == item[0]:
+                            if item[1].strip() == "":
+                                emote = item[2]
+                            else:
+                                emote = item[1]
+                            break
+                        else:
+                            emote = ""
+
+        if emote == "":
+            print(f"Notice: Emoji with name '{name}' returned an empty string.")
+
+        return emote
+        
 
 
     def get_version():
@@ -954,7 +1000,7 @@ class Utils():
 
         n = len(filtered_list)
         if n == 0:
-            emoji = await Utils.emoji("disappointed")
+            emoji = Utils.emoji("disappointed")
             await ctx.send(f"Nothing to roll from... {emoji}")
             return
 
@@ -1128,16 +1174,16 @@ class Utils():
     async def cooldown_exception(ctx, exception, service):
         print(exception)
         if exception == "rate limited":
-            emoji = await Utils.emoji("shy")
+            emoji = Utils.emoji("shy")
             await ctx.send(f"We are being rate limited ({service}). {emoji}")
         elif exception == "request abuse":
-            emoji = await Utils.emoji("ban")
+            emoji = Utils.emoji("ban")
             try:
                 await ctx.message.reply(f"Request abuse: You are temporarily banned from using 3rd party requests. {emoji}")
             except:
                 await ctx.send(f"Request abuse: You are temporarily banned from using 3rd party requests. {emoji}")
         else:
-            emoji = await Utils.emoji("panic")
+            emoji = Utils.emoji("panic")
             await ctx.send(f"Error with 3rd party service request: unforeseen exception. {emoji}")
 
 
@@ -1165,19 +1211,19 @@ class Utils():
                     new_word = ''.join([x for x in word.replace("@user", f"<@{userid}>") if not x.isalpha()])
                 elif word.startswith("emoji:") and len(word) > 6:
                     emoji = word.split(":")[1]
-                    new_word = await Utils.emoji(emoji)
+                    new_word = Utils.emoji(emoji)
                     # welcome emoji is a random emoji from a list
                     if new_word.strip() == "" and emoji.strip().lower() == "welcome":
                         try:
                             welcome_word_list = ["awoken", "aww", "aww2", "aww3", "bongo", "bouncy", "celebrate", "cheer", "cozy", "dance", "excited", "excited_face", "hello", "hello2", "hello3", "lurk", "lurk2", "lurk3", "metal", "morning", "yay", "yay2"]
                             welcome_emojis = []
                             for word in welcome_word_list:
-                                emoji = await Utils.emoji(word)
+                                emoji = Utils.emoji(word)
                                 if emoji not in welcome_emojis and emoji.strip() != "":
                                     welcome_emojis.append(emoji)
                             welcome_emoji = random.choice(welcome_emojis)
                         except:
-                            welcome_emoji = await Utils.emoji("hello")
+                            welcome_emoji = Utils.emoji("hello")
                         new_word = welcome_emoji
                 else:
                     new_word = word
@@ -1289,47 +1335,6 @@ class Utils():
                     await message.remove_reaction("⏮️", mdmbot)
                     break
                     # ending 
-
-
-
-    async def emoji(name):
-        con = sqlite3.connect(f'databases/botsettings.db')
-        cur = con.cursor()
-        emoji_list = [[item[0],item[1],item[2]] for item in cur.execute("SELECT purpose, call, extra FROM emojis").fetchall()]
-
-        term = name.lower().strip()
-        for item in emoji_list:
-            if term == item[0]:
-                if item[1].strip() == "":
-                    emote = item[2]
-                else:
-                    emote = item[1]
-                break
-        else:
-            term = ''.join(e for e in name.strip().lower().replace(" ","_") if e.isalnum() or e == "_")
-            for item in emoji_list:
-                if term == item[0]:
-                    if item[1].strip() == "":
-                        emote = item[2]
-                    else:
-                        emote = item[1]
-                    break
-                else:
-                    term = ''.join(e for e in name.strip().lower() if e.isalnum())
-                    for item in emoji_list:
-                        if term == item[0]:
-                            if item[1].strip() == "":
-                                emote = item[2]
-                            else:
-                                emote = item[1]
-                            break
-                        else:
-                            emote = ""
-
-        if emote == "":
-            print(f"Notice: Emoji with name '{name}' returned an empty string.")
-
-        return emote
 
 
 
