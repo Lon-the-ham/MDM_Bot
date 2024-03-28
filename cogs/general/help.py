@@ -53,15 +53,40 @@ class Help(commands.Cog):
 
 
 
+    def get_subcommands(self, ctx, command):
+        """
+        with argument: gives list of subcommand objects
+        """
+        subcommands_list = []
+
+        if command is None:
+            return subcommands_list
+
+        try:
+            if isinstance(command, commands.Group):
+                for subcommand in command.walk_commands():  # iterate through all of the command's parents/subcommands
+                    if subcommand.parents[0] == command:  # check if the latest parent of the subcommand is the command itself
+                        subcommands_list.append(subcommand)
+
+                return subcommands_list
+            else:
+                #print("command was not a group")
+                return []
+        except Exception as e:
+            print("Error while trying to fetch subcommands:", e)
+            return []
+
+
+
     @commands.command(name='help', aliases = ['halp'])
     @commands.check(util.is_active)
-    async def _help(self, ctx, args=None):
+    async def _help(self, ctx, *args):
         """shows command info
         
         Use without arguments to get an overview of all commands.
         Use with command name our cog name to get info on that command or cog."""
         async with ctx.typing():
-            if not args:
+            if len(args) == 0:
                 # If there are no arguments, just list the commands:
                 commands_dict = await self.get_cogs_and_commands_dictionary(ctx, False)
                 title = "Commands"
@@ -87,7 +112,7 @@ class Help(commands.Cog):
                     for y in x.aliases:
                         command_names_list.append(str(y).lower())
 
-                argument = str('_'.join(args)).lower()
+                argument = ' '.join(args).lower()
 
                 if argument in command_names_list:
                     # If the argument is a command, get the help text from that command:
@@ -102,23 +127,55 @@ class Help(commands.Cog):
                     description += command.help
 
                 else:
-                    # if the argument is a cog, get the cog commands
-                    commands_dict = await self.get_cogs_and_commands_dictionary(ctx, True)
+                    # If argument is a subcommand, get the help text from that subcommand:
+                    if len(args) > 1 and args[0].lower() in command_names_list and args[1] != "cog":
 
-                    if argument.replace("cog", "").replace("_","") in commands_dict:
-                        title = "Command Cog/Category"
-                        description = ""
+                        parent_command = self.bot.get_command(args[0].lower())
+                        subcommands = self.get_subcommands(ctx, parent_command)
+                        for arg in args[1:]:
+                            found = False
+                            for command in subcommands:
+                                if arg.lower() == command.name or arg.lower() in command.aliases:
+                                    found = True
+                                    break
 
-                        for command in commands_dict[argument.replace("cog", "").replace("_","")]:
-                            description += f"{self.prefix}{command} : "
-                            description += self.bot.get_command(command).help.split("\n")[0]
-                            description += "\n"
+                            if found:
+                                parent_command = command
+                                subcommands = self.get_subcommands(ctx, parent_command)
+                            else:
+                                emoji = util.emoji("think")
+                                title = f"Error {emoji}"
+                                description = "Don't think I got that subcommand, chief!"
+                                break
+
+                        else:
+                            title = f""
+                            description = f"**{command.name}**"
+                            if command.aliases:
+                                description += f"   [aliases: " + ', '.join(command.aliases) + "]\n"
+                            else:
+                                description += "\n"
+                            description += f"subcommand of " + ' '.join(args[:-1]) + "\n\n"
+                            description += command.help
 
                     else:
-                        # If someone is just trolling:
-                        emoji = util.emoji("think")
-                        title = f"Error {emoji}"
-                        description = "Don't think I got that command, chief!"
+                        # if the argument is a cog, get the cog commands
+                        commands_dict = await self.get_cogs_and_commands_dictionary(ctx, True)
+
+                        if argument.replace("cog", "").replace(" ","") in commands_dict:
+                            title = "Command Cog/Category"
+                            description = ""
+
+                            for command in commands_dict[argument.replace("cog", "").replace(" ","")]:
+                                description += f"{self.prefix}{command} : "
+                                description += self.bot.get_command(command).help.split("\n")[0]
+                                description += "\n"
+
+                        else:
+                            # If someone is just trolling:
+                            emoji = util.emoji("think")
+                            title = f"Error {emoji}"
+                            description = "Don't think I got that command, chief!"
 
             help_embed = discord.Embed(title=title, description=description)
             await ctx.send(embed=help_embed)
