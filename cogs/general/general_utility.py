@@ -183,7 +183,7 @@ class General_Utility(commands.Cog):
 
         channel = ctx.channel
         otherchannel = False
-        is_main_server = await util.is_main_server(ctx)
+        is_main_server = util.is_main_server(ctx)
         if is_main_server:
             try:
                 member_id = ctx.message.author.id
