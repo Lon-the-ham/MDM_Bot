@@ -1,0 +1,17 @@
+admin: feature classes only for mods and devs
+(e.g. instance_management, servermoderation, settings)
+
+events: features that trigger on events other than commands
+(e.g. eventresponse, timeloop)
+
+general: very broad utility features
+(e.g. general_utility, help, shenanigans, textedit)
+
+music: music server specific features
+(e.g. exchanges, fm, info, scrobble_data)
+
+roles: role related features
+(e.g. roles, reactionroles)
+
+userown: feature classes server members can edit freely for themselves
+(e.g. memo, pingterests)
