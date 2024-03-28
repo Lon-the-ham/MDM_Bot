@@ -186,7 +186,7 @@ class Memo(commands.Cog):
 
         await util.changetimeupdate()
         
-        emoji = await util.emoji("yay")
+        emoji = util.emoji("yay")
         if len(item_list) == 0:
             msg = f"Error: No item added to backlog."
         elif len(item_list) == 1:
@@ -221,7 +221,7 @@ class Memo(commands.Cog):
 
             deletion_number = 1
             if len(args) > 1:
-                emoji = await util.emoji("think_sceptic")
+                emoji = util.emoji("think_sceptic")
                 try:
                     deletion_number = int(args[1])
                 except:
@@ -232,8 +232,8 @@ class Memo(commands.Cog):
                     await ctx.send(f'Argument error, cannot be lower than 1. Only deleting last entry. {emoji}')
             
             if deletion_number >= backlog_length:
-                emoji1 = await util.emoji("shaking") 
-                emoji2 = await util.emoji("attention")
+                emoji1 = util.emoji("shaking") 
+                emoji2 = util.emoji("attention")
                 await ctx.send(f"{emoji1} Are you sure you want to delete your entire backlog? {emoji2}\nI'm guessing this was unintentional... please use `-clearall` if it wasn't.")
                 return 
 
@@ -274,7 +274,7 @@ class Memo(commands.Cog):
                             end = 0
                             print("found 'to' in delete command, but something went wrong")
                         if start > end:
-                            emoji = await util.emoji("think_sceptic")
+                            emoji = util.emoji("think_sceptic")
                             await ctx.send(f'Argument error. {emoji}') 
                             args = ()
                         else:
@@ -283,7 +283,7 @@ class Memo(commands.Cog):
                                 await ctx.send(f'End marker larger than backlog size. Corrected marker.') 
                             args = range(start, end+1, 1)
                     else:
-                        emoji = await util.emoji("bot")
+                        emoji = util.emoji("bot")
                         await ctx.send(f'Argument error. {emoji}\nDelete command with `to` arg needs exactly 3 arguments, e.g. `{self.prefix}del 4 to 9`.')
                         args = ()
 
@@ -381,7 +381,7 @@ class Memo(commands.Cog):
         cur.execute("UPDATE memobacklog SET backlog = ? WHERE bgid = ?", (newbacklog, entry_id))
         con.commit()
         await util.changetimeupdate()
-        emoji = await util.emoji("note")
+        emoji = util.emoji("note")
         await ctx.send(f'Updated `{oldbacklog}` ➡️ `{newbacklog}` {emoji}!')
 
 
@@ -395,7 +395,7 @@ class Memo(commands.Cog):
         name = util.cleantext2(user.display_name)
 
         header = f"**Complete deletion of Backlog/Memo of {name}** ({len(user_bl_list)})"
-        emoji = await util.emoji("attention")
+        emoji = util.emoji("attention")
         text = f"Are you sure you want to clear all entries from your backlog/memo? {emoji}\n{str(len(user_bl_list))} items in total\n\n ✅ Yes, delete everything.\n ⛔ No, stop. Don't delete my backlog."
 
         response = await util.are_you_sure_embed(ctx, self.bot, header, text, color)
@@ -407,7 +407,7 @@ class Memo(commands.Cog):
         cur.execute("DELETE FROM memobacklog WHERE userid = ?", (str(user.id),))
         con.commit()
         await util.changetimeupdate()
-        emoji = await util.emoji("unleashed")
+        emoji = util.emoji("unleashed")
         await ctx.send(f'Cleared entire backlog. {emoji}')
 
 
@@ -754,7 +754,7 @@ class Memo(commands.Cog):
         if len(index_args) > 1 and index_args[1].lower() == "to":
             arguments_valid = False
             if len(index_args) != 3:
-                emoji = await util.emoji("bot")
+                emoji = util.emoji("bot")
                 await ctx.send(f'Argument error {emoji}.')
                 return
             try:
@@ -865,7 +865,7 @@ class Memo(commands.Cog):
             category_post = '_'.join(args[1:])[:30]
 
         if category_pre.lower() == category_post.lower():
-            emoji = await util.emoji("hmm")
+            emoji = util.emoji("hmm")
             await ctx.send(f"Aren't those categories kinda the same...? {emoji}")
             return
 
@@ -885,10 +885,10 @@ class Memo(commands.Cog):
                 i += 1
 
         if i == 0:
-            emoji = await util.emoji("think_sceptic")
+            emoji = util.emoji("think_sceptic")
             await ctx.send(f'There is no item in your backlog with category {args[0].lower()[:100]} {emoji}')
         else:
-            emoji = await util.emoji("nice")
+            emoji = util.emoji("nice")
             await ctx.send(f'Changed category {args[0].lower()} to {args[1].lower()[:30]} {emoji}')
 
 
@@ -915,7 +915,7 @@ class Memo(commands.Cog):
                 items_to_delete.append(item)
 
         header = f"**Deletion of categories {','.join(cats_to_delete)} from {name}'s memo** ({len(items_to_delete)}/{len(user_bl_list)})"[:256]
-        emoji = await util.emoji("attention")
+        emoji = util.emoji("attention")
         text = f"Are you sure you want to clear these entries from your backlog/memo? {emoji}\n{str(len(items_to_delete))} items in total\n\n ✅ Yes, delete these.\n ⛔ No, stop. Don't delete that."
 
         response = await util.are_you_sure_embed(ctx, self.bot, header, text, color)
@@ -929,7 +929,7 @@ class Memo(commands.Cog):
             cur.execute("DELETE FROM memobacklog WHERE userid = ? AND bgid = ?", (str(user.id),item_id))
         con.commit()
         await util.changetimeupdate()
-        emoji = await util.emoji("unleashed")
+        emoji = util.emoji("unleashed")
         cats_string = ', '.join(cats_to_delete)
         await ctx.send(f'Cleared categories {cats_string}. {emoji}\n({len(items_to_delete)} items)')
 
@@ -1211,6 +1211,28 @@ class Memo(commands.Cog):
             lines.append(msgpart)
 
         await util.multi_embed_message(ctx, header, text_list, color, "", None)
+
+
+
+
+
+
+    # import/export functions
+
+    async def backlog_import(self, ctx):
+        # under construction
+        return
+
+
+
+
+    async def backlog_export(self, ctx):
+        # under construction
+        return
+
+
+
+
 
 
 
@@ -1903,13 +1925,55 @@ class Memo(commands.Cog):
 
 
 
-    # IMPORT/EXPORT COMMANDS (with .txt files)
-
-    # under construction
+    # IMPORT/EXPORT COMMANDS (with .txt/.csv files)
 
 
 
+    @commands.command(name='blimport', aliases = ["memoimport", "blfileimport", "memofileimport"])
+    @commands.check(MemoCheck.backlog_enabled)
+    @commands.check(util.is_active)
+    async def _backlogimport(self, ctx, *args):
+        """Imports backlog from .csv file"""
+        await self.backlog_import(ctx)
+    @_backlogimport.error
+    async def backlogimport_error(self, ctx, error):
+        await util.error_handling(ctx, error)
 
+
+
+    @_backlog.command(name='import', aliases = ["fileimport"], pass_context=True)
+    @commands.check(MemoCheck.backlog_enabled)
+    @commands.check(util.is_active)
+    async def _backlog_backlogimport(self, ctx, *args):
+        """Imports backlog from .csv file"""
+        await self.backlog_import(ctx)
+    @_backlog_backlogimport.error
+    async def backlog_backlogimport_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='blexport', aliases = ["memoexport", "blfileexport", "memofileexport"])
+    @commands.check(MemoCheck.backlog_enabled)
+    @commands.check(util.is_active)
+    async def _backlogexport(self, ctx, *args):
+        """Exports backlog as .csv file"""
+        await self.backlog_export(ctx)
+    @_backlogexport.error
+    async def backlogexport_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_backlog.command(name='export', aliases = ["fileexport"], pass_context=True)
+    @commands.check(MemoCheck.backlog_enabled)
+    @commands.check(util.is_active)
+    async def _backlog_backlogexport(self, ctx, *args):
+        """Exports backlog as .csv file"""
+        await self.backlog_export(ctx)
+    @_backlog_backlogexport.error
+    async def backlog_backlogexport_error(self, ctx, error):
+        await util.error_handling(ctx, error)
 
 
 
