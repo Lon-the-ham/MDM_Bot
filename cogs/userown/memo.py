@@ -1245,7 +1245,7 @@ class Memo(commands.Cog):
 
 
 
-    async def backlog_import(self, ctx, delimiter=";"):
+    async def backlog_import(self, ctx, naive=True):
         user_id = str(ctx.author.id)
         user_name = str(ctx.author.name)
         the_message = ctx.message
@@ -1265,16 +1265,37 @@ class Memo(commands.Cog):
         counter = 0
 
         with open(f"temp/memo_import_{user_id}.csv", newline='') as csvfile:
-            reader = csv.reader(csvfile, delimiter=delimiter, quotechar='|')
+            reader = csv.reader(csvfile, delimiter=";", quotechar='|')
             for row in reader:
                 i += 1
                 try:
-                    if len(row) > 1:
-                        cat = row[0].strip().lower()
-                        item = row[1].strip()
+                    if naive:
+                        if len(row) > 1:
+                            cat = row[0].strip().lower()
+                            item = row[1].strip()
+                        else:
+                            cat = ""
+                            item = row[0].strip()
+
                     else:
-                        cat = ""
-                        item = row[0]
+                        if len(row) > 3:
+                            extrainfo = f" ({row[3].strip()})"
+                        else:
+                            extrainfo = ""
+
+                        if len(row) > 2:
+                            second = f" - {row[2].strip()}"
+                        else:
+                            second = ""
+
+                        if len(row) > 1:
+                            first = row[1].strip()
+                            cat = row[0].strip().lower()
+                        else:
+                            cat = ""
+                            first = row[0].strip()
+
+                        item = f"{first}{second}{extrainfo}"
 
                     if cat == "default":
                         cat = ""
@@ -1292,7 +1313,7 @@ class Memo(commands.Cog):
 
 
 
-    async def backlog_export(self, ctx):
+    async def backlog_export(self, ctx, naive=False):
         # under construction
         user_id = str(ctx.author.id)
         con = sqlite3.connect('databases/memobacklog.db')
@@ -1304,7 +1325,34 @@ class Memo(commands.Cog):
         with open(f"temp/memo_import_{user_id}.csv", 'w', newline='') as csvfile:
             writer = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
             for item in bl_item_list:
-                writer.writerow(item)
+                if naive:
+                    writer.writerow(item)
+                else:
+                    if " - " in item[1]:
+                        first = item[1].split(" - ",1)[0]
+                        second = item[1].split(" - ",1)[1]
+                        rest_can_be_found = 1
+                    else:
+                        first = item[1]
+                        second = ""
+                        rest_can_be_found = 0
+
+                    parsed_item = [first,second]
+
+                    if " (" in parsed_item[rest_can_be_found] and parsed_item[rest_can_be_found].endswith(")"):
+                        rest = parsed_item[rest_can_be_found]
+                        parsed_item[rest_can_be_found] = rest.split(" (",1)[0].strip()
+                        parsed_item += [rest.split(" (",1)[1][:-1].strip()]
+
+                    elif " [" in parsed_item[rest_can_be_found] and parsed_item[rest_can_be_found].endswith("]"):
+                        rest = parsed_item[rest_can_be_found]
+                        parsed_item[rest_can_be_found] = rest.split(" [",1)[0].strip()
+                        parsed_item += [rest.split(" [",1)[1][:-1].strip()]
+
+                    else:
+                        parsed_item += [""]
+
+                    writer.writerow([item[0]] + parsed_item)
 
         emoji = util.emoji("excited")
         textmessage = f"Here is your memo/backlog export! {emoji}"
@@ -2011,7 +2059,11 @@ class Memo(commands.Cog):
     @commands.check(util.is_active)
     async def _backlogimport(self, ctx, *args):
         """Imports backlog from .csv file"""
-        await self.backlog_import(ctx)
+        if len(args) > 0 and args[0].lower() in ["simple", "naive"]:
+            naive = True
+        else:
+            naive = False
+        await self.backlog_import(ctx, naive)
     @_backlogimport.error
     async def backlogimport_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -2023,7 +2075,11 @@ class Memo(commands.Cog):
     @commands.check(util.is_active)
     async def _backlog_backlogimport(self, ctx, *args):
         """Imports backlog from .csv file"""
-        await self.backlog_import(ctx)
+        if len(args) > 0 and args[0].lower() in ["simple", "naive"]:
+            naive = True
+        else:
+            naive = False
+        await self.backlog_import(ctx, naive)
     @_backlog_backlogimport.error
     async def backlog_backlogimport_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -2035,7 +2091,11 @@ class Memo(commands.Cog):
     @commands.check(util.is_active)
     async def _backlogexport(self, ctx, *args):
         """Exports backlog as .csv file"""
-        await self.backlog_export(ctx)
+        if len(args) > 0 and args[0].lower() in ["simple", "naive"]:
+            naive = True
+        else:
+            naive = False
+        await self.backlog_export(ctx, naive)
     @_backlogexport.error
     async def backlogexport_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -2047,7 +2107,11 @@ class Memo(commands.Cog):
     @commands.check(util.is_active)
     async def _backlog_backlogexport(self, ctx, *args):
         """Exports backlog as .csv file"""
-        await self.backlog_export(ctx)
+        if len(args) > 0 and args[0].lower() in ["simple", "naive"]:
+            naive = True
+        else:
+            naive = False
+        await self.backlog_export(ctx, naive)
     @_backlog_backlogexport.error
     async def backlog_backlogexport_error(self, ctx, error):
         await util.error_handling(ctx, error)
