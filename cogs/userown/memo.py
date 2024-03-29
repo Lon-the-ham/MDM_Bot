@@ -1,4 +1,5 @@
 import os
+import sys
 import datetime
 import asyncpraw
 import discord
@@ -6,6 +7,7 @@ from discord.ext import commands
 import asyncio
 import asyncprawcore
 import re
+import csv
 import time
 import random
 import sqlite3
@@ -1219,20 +1221,95 @@ class Memo(commands.Cog):
 
     # import/export functions
 
-    async def backlog_import(self, ctx):
-        # under construction
-        return
+    async def add_element_to_backlog(self, user_id, user_name, newcat, newitem, i):
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+        con = sqlite3.connect('databases/memobacklog.db')
+        cur = con.cursor()
 
+        compactitem_list = [util.alphanum(item[0],"lower") for item in cur.execute("SELECT backlog FROM memobacklog WHERE userid = ? ORDER BY bgid", (user_id,)).fetchall()]
+
+        if util.alphanum(newitem,"lower") in compactitem_list:
+            return False
+
+        mmid = str(now) + "_" + user_id + "_" + str(i).zfill(4) + "_CSVimport"
+        # sanity check: if the exact backlog id already exists add an "x"
+        bl_id_list = [item[0] for item in cur.execute("SELECT bgid FROM memobacklog WHERE userid = ? ORDER BY bgid", (user_id,)).fetchall()]
+        while mmid in bl_id_list:
+            mmid = mmid + "x"
+
+        cur.execute("INSERT INTO memobacklog VALUES (?, ?, ?, ?, ?)", (mmid, user_id, user_name, newitem, newcat))
+        con.commit()
+
+        await util.changetimeupdate()
+        return True
+
+
+
+    async def backlog_import(self, ctx, delimiter=";"):
+        user_id = str(ctx.author.id)
+        user_name = str(ctx.author.name)
+        the_message = ctx.message
+        if not the_message.attachments:
+            await ctx.send("No attachment found.")
+            return
+
+        split_v1 = str(the_message.attachments).split("filename='")[1]
+        filename = str(split_v1).split("' ")[0]
+        if not filename.endswith(".csv"): # Checks if it is a .csv file
+            await ctx.send("Attachment must be a `.csv` file.")
+            return
+
+        # READ CSV FILE
+        await the_message.attachments[0].save(fp=f"temp/memo_import_{user_id}.csv")
+        i = 0
+        counter = 0
+
+        with open(f"temp/memo_import_{user_id}.csv", newline='') as csvfile:
+            reader = csv.reader(csvfile, delimiter=delimiter, quotechar='|')
+            for row in reader:
+                i += 1
+                try:
+                    if len(row) > 1:
+                        cat = row[0].strip().lower()
+                        item = row[1].strip()
+                    else:
+                        cat = ""
+                        item = row[0]
+
+                    if cat == "default":
+                        cat = ""
+
+                    did_add = await self.add_element_to_backlog(user_id, user_name, cat, item, i)
+                    if did_add:
+                        counter += 1
+
+                except Exception as e:
+                    print("Error with row in CSV file.", e)
+
+        os.remove(f"{sys.path[0]}/temp/memo_import_{user_id}.csv")
+
+        await ctx.send(f"Added {counter} items to your backlog.")
 
 
 
     async def backlog_export(self, ctx):
         # under construction
-        return
+        user_id = str(ctx.author.id)
+        con = sqlite3.connect('databases/memobacklog.db')
+        cur = con.cursor()
+        bl_item_list = [[item[0].replace(";",","),item[1].replace(";",",")] for item in cur.execute("SELECT details, backlog FROM memobacklog WHERE userid = ? ORDER BY bgid", (user_id,)).fetchall()]
+        bl_item_list.sort(key=lambda x: x[0])
 
 
+        with open(f"temp/memo_import_{user_id}.csv", 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+            for item in bl_item_list:
+                writer.writerow(item)
 
-
+        emoji = util.emoji("excited")
+        textmessage = f"Here is your memo/backlog export! {emoji}"
+        await ctx.send(textmessage, file=discord.File(rf"temp/memo_import_{user_id}.csv"))
+        os.remove(f"{sys.path[0]}/temp/memo_import_{user_id}.csv")
 
 
 
