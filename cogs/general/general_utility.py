@@ -8,6 +8,7 @@ import random
 from googletrans import Translator
 import re
 import sqlite3
+import math
 
 
 class General_Utility(commands.Cog):
@@ -775,9 +776,9 @@ class General_Utility(commands.Cog):
                     if is_number(value_two):
                         converted_value2 = round((100 * converted_value + (float(value_two) * 2.54))/100,2)
                         if value_to_convert == math.floor(value_to_convert) and float(value_two) == math.floor(float(value_two)):
-                            await ctx.send(f'Feet to Meters\n```{"{:,}".format(math.floor(value_to_convert))}ft {math.floor(float(value_two))}inch is about {"{:,}".format(converted_value)}m.```')
+                            await ctx.send(f'Feet to Meters\n```{"{:,}".format(math.floor(value_to_convert))}ft {math.floor(float(value_two))}inch is about {"{:,}".format(converted_value2)}m.```')
                         else:
-                            await ctx.send(f'Feet to Meters\n```{"{:,}".format(value_to_convert)}ft {float(value_two)}inch is about {"{:,}".format(converted_value)}m.```')
+                            await ctx.send(f'Feet to Meters\n```{"{:,}".format(value_to_convert)}ft {float(value_two)}inch is about {"{:,}".format(converted_value2)}m.```')
                     else:
                         await ctx.send(f'Error: Second value is faulty. {think}')
                         await ctx.send(f'Feet to Meters\n```{"{:,}".format(value_to_convert)}ft is about {"{:,}".format(converted_value)}m.```')
