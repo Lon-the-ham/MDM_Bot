@@ -850,12 +850,13 @@ class Utils():
         forbidden_memocategory_names = [
             "to",
             "last",
+            "category",
+            "all"
             ]
 
         forbidden_chars = [
             "`",
             "´",
-            "'",
             '"',
             "‘",
             "’",
@@ -970,6 +971,27 @@ class Utils():
                 #await message.remove_reaction("⛔", mdmbot)
                 print("timeout")
                 return "Timed_Out" 
+
+
+
+    async def are_you_sure_msg(ctx, bot, text):
+        def check(m): # checking if it's the same user and channel
+            return ((m.author == ctx.author) and (m.channel == ctx.channel))
+
+        await ctx.send(f"{text}\nRespond with `yes` to confirm.")
+
+        try: # waiting for message
+            async with ctx.typing():
+                response = await bot.wait_for('message', check=check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
+        except asyncio.TimeoutError: # returning after timeout
+            await ctx.send("action timed out")
+            return False
+
+        if response.content.lower() in ["yes", "y", "-y", "-yes"]:
+            return True
+        else:
+            await ctx.send("cancelled action")
+            return False
 
 
 

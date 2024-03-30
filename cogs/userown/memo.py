@@ -903,18 +903,23 @@ class Memo(commands.Cog):
         color = user.color 
         name = util.cleantext2(user.display_name)
 
-        cats_to_delete = []
-        for arg in args:
-            arg2 = util.cleantext2(arg.lower())
-            if arg2 != "":
-                cats_to_delete.append(arg2)
-            if arg2 == "default":
-                cats_to_delete.append("")
+        if ' '.join(args).lower() == "all":
+            cats_to_delete = ["ALL"]
+            items_to_delete = user_bl_list
 
-        items_to_delete = []
-        for item in user_bl_list:
-            if item[4].lower() in cats_to_delete:
-                items_to_delete.append(item)
+        else:
+            cats_to_delete = []
+            for arg in args:
+                arg2 = util.cleantext2(arg.lower())
+                if arg2 != "":
+                    cats_to_delete.append(arg2)
+                if arg2 == "default":
+                    cats_to_delete.append("")
+
+            items_to_delete = []
+            for item in user_bl_list:
+                if item[4].lower() in cats_to_delete:
+                    items_to_delete.append(item)
 
         header = f"**Deletion of categories {','.join(cats_to_delete)} from {name}'s memo** ({len(items_to_delete)}/{len(user_bl_list)})"[:256]
         emoji = util.emoji("attention")
@@ -1245,7 +1250,7 @@ class Memo(commands.Cog):
 
 
 
-    async def backlog_import(self, ctx, naive=True):
+    async def backlog_import(self, ctx, naive=True, overwrite=False, confirmation_skip=False):
         user_id = str(ctx.author.id)
         user_name = str(ctx.author.name)
         the_message = ctx.message
@@ -1255,109 +1260,309 @@ class Memo(commands.Cog):
 
         split_v1 = str(the_message.attachments).split("filename='")[1]
         filename = str(split_v1).split("' ")[0]
-        if not filename.endswith(".csv"): # Checks if it is a .csv file
-            await ctx.send("Attachment must be a `.csv` file.")
-            return
 
-        # READ CSV FILE
-        await the_message.attachments[0].save(fp=f"temp/memo_import_{user_id}.csv")
-        i = 0
-        counter = 0
 
-        with open(f"temp/memo_import_{user_id}.csv", newline='') as csvfile:
-            reader = csv.reader(csvfile, delimiter=";", quotechar='|')
-            for row in reader:
-                i += 1
-                try:
-                    if naive:
-                        if len(row) > 1:
-                            cat = row[0].strip().lower()
-                            item = row[1].strip()
-                        else:
-                            cat = ""
-                            item = row[0].strip()
+        if filename.endswith(".csv"): # Checks if it is a .csv file
+            # SAVE CSV FILE
+            await the_message.attachments[0].save(fp=f"temp/memo_import_{user_id}.csv")
+            i = 0
+            counter = 0
+            continuing = True
+
+            # OPEN FILE
+            with open(f"temp/memo_import_{user_id}.csv", newline='') as csvfile:
+                reader = csv.reader(csvfile, delimiter=";", quotechar='|')
+
+                row_count = sum(1 for row in reader)
+                if row_count > 2000:
+                    await ctx.send("Error: File is too large for the backlog functionality.")
+                    continuing = False
+
+            with open(f"temp/memo_import_{user_id}.csv", newline='') as csvfile:
+                reader = csv.reader(csvfile, delimiter=";", quotechar='|')
+                # OVERWRITE?
+                if overwrite and continuing:
+                    if confirmation_skip:
+                        response = True
+                    else:
+                        text = "Are you sure you want to overwrite your backlog?"
+                        response = await util.are_you_sure_msg(ctx, self.bot, text)
+
+                    if response == False:
+                        continuing = False
 
                     else:
-                        if len(row) > 3:
-                            extrainfo = f" ({row[3].strip()})"
+                        con = sqlite3.connect('databases/memobacklog.db')
+                        cur = con.cursor()
+                        cur.execute("DELETE FROM memobacklog WHERE userid = ?", (user_id,))
+                        con.commit()
+                        await ctx.send("cleared old backlog...")
+                        await util.changetimeupdate()
+
+                # WRITE INTO BACKLOG
+                if continuing:
+                    for row in reader:
+                        if i == 0 and len(row) >= 2 and row[0] == "CATEGORY" and row[1] in ["ITEM", "A"]:
+                            pass
+
                         else:
-                            extrainfo = ""
+                            row_clean = []
+                            for cell in row:
+                                row_clean.append(util.cleantext2(cell.strip()))
 
-                        if len(row) > 2:
-                            second = f" - {row[2].strip()}"
+                            i += 1
+                            try:
+                                if naive:
+                                    if len(row_clean) > 1:
+                                        cat = row_clean[0].strip().lower()[:30]
+                                        item = row_clean[1].strip()
+                                    else:
+                                        cat = ""
+                                        item = row_clean[0].strip()
+
+                                else:
+                                    if len(row_clean) > 3 and util.alphanum(row_clean[3]) != "":
+                                        extrainfo = f" ({row_clean[3].strip()})"
+                                    else:
+                                        extrainfo = ""
+
+                                    if len(row_clean) > 2 and util.alphanum(row_clean[2]) != "":
+                                        second = f" - {row_clean[2].strip()}"
+                                    else:
+                                        second = ""
+
+                                    if len(row_clean) > 1:
+                                        first = row_clean[1].strip()
+                                        cat = row_clean[0].strip().lower().replace(" ", "_")[:30]
+                                    else:
+                                        cat = ""
+                                        first = row_clean[0].strip()
+
+                                    item = f"{first}{second}{extrainfo}"
+
+                                if cat == "default":
+                                    cat = ""
+
+                                if not util.valid_memo_category(cat):
+                                    print("Import Error: invalid category name, set to default")
+                                    cat = ""
+
+                                did_add = await self.add_element_to_backlog(user_id, user_name, cat, item, i)
+                                if did_add:
+                                    counter += 1
+
+                            except Exception as e:
+                                print("Error with row in CSV file.", e)
+
+                    await ctx.send(f"Added {counter} items to your backlog.")
+
+            os.remove(f"{sys.path[0]}/temp/memo_import_{user_id}.csv")
+
+        # TEXT FILE
+        elif filename.endswith(".txt"):
+
+            await the_message.attachments[0].save(fp=f"temp/memo_import_{user_id}.txt")
+            i = 0
+            counter = 0
+            continuing = True
+
+            # OPEN TXT FILE
+            with open(f'{sys.path[0]}/temp/memo_import_{user_id}.txt', 'r') as txtfile:
+                row_count = sum(1 for line in txtfile)
+                if row_count > 2000:
+                    await ctx.send("Error: File is too large for the backlog functionality.")
+                    continuing = False
+
+            with open(f'{sys.path[0]}/temp/memo_import_{user_id}.txt', 'r') as txtfile:
+                # OVERWRITE BL?
+                if overwrite and continuing:
+                    if confirmation_skip:
+                        response = True
+                    else:
+                        text = "Are you sure you want to overwrite your backlog?"
+                        response = await util.are_you_sure_msg(ctx, self.bot, text)
+
+                    if response == False:
+                        continuing = False
+
+                    else:
+                        con = sqlite3.connect('databases/memobacklog.db')
+                        cur = con.cursor()
+                        cur.execute("DELETE FROM memobacklog WHERE userid = ?", (user_id,))
+                        con.commit()
+                        await ctx.send("cleared old backlog...")
+                        await util.changetimeupdate()
+
+                # WRITE INTO BACKLOG
+                if continuing:
+                    for line in txtfile:
+                        LL = line.split("\t")
+
+                        if i == 0 and len(LL) >= 2 and LL[0] == "CATEGORY" and LL[1] in ["ITEM", "A"]:
+                            pass
+
                         else:
-                            second = ""
+                            i += 1
 
-                        if len(row) > 1:
-                            first = row[1].strip()
-                            cat = row[0].strip().lower()
-                        else:
-                            cat = ""
-                            first = row[0].strip()
+                            if naive:
+                                if len(LL) > 1:
+                                    cat = util.cleantext2(LL[0]).strip().lower()[:30]
+                                    item = util.cleantext2(LL[1]).strip().lower()
+                                else:
+                                    cat = ""
+                                    item = util.cleantext2(LL[0]).strip().lower()
 
-                        item = f"{first}{second}{extrainfo}"
+                            else:
+                                if len(LL) > 3 and util.alphanum(LL[3]) != "":
+                                    extrainfo = f" ({util.cleantext2(LL[3]).strip()})"
+                                else:
+                                    extrainfo = ""
 
-                    if cat == "default":
-                        cat = ""
+                                if len(LL) > 2 and util.alphanum(LL[2]) != "":
+                                    second = f" - {util.cleantext2(LL[2]).strip()}"
+                                else:
+                                    second = ""
 
-                    did_add = await self.add_element_to_backlog(user_id, user_name, cat, item, i)
-                    if did_add:
-                        counter += 1
+                                if len(LL) > 1:
+                                    first = util.cleantext2(LL[1]).strip()
+                                    cat = util.cleantext2(LL[0]).strip().lower().replace(" ", "_")[:30]
+                                else:
+                                    cat = ""
+                                    first = util.cleantext2(LL[0]).strip()
 
-                except Exception as e:
-                    print("Error with row in CSV file.", e)
+                                item = f"{first}{second}{extrainfo}"
 
-        os.remove(f"{sys.path[0]}/temp/memo_import_{user_id}.csv")
+                            if cat == "default":
+                                cat = ""
 
-        await ctx.send(f"Added {counter} items to your backlog.")
+                            did_add = await self.add_element_to_backlog(user_id, user_name, cat, item, i)
+                            if did_add:
+                                counter += 1
+
+                    await ctx.send(f"Added {counter} items to your backlog.")
+
+            os.remove(f"{sys.path[0]}/temp/memo_import_{user_id}.txt")
+        else:
+            await ctx.send("Attachment must be a `.txt` or `.csv` file.\n(Make sure that your .txt file is TAB delimited or your .csv file is semicolon delimited.)")
 
 
 
-    async def backlog_export(self, ctx, naive=False):
-        # under construction
+    async def backlog_export(self, ctx, naive=False, sorting=True, header=True, fileformat="txt"):
         user_id = str(ctx.author.id)
         con = sqlite3.connect('databases/memobacklog.db')
         cur = con.cursor()
-        bl_item_list = [[item[0].replace(";",","),item[1].replace(";",",")] for item in cur.execute("SELECT details, backlog FROM memobacklog WHERE userid = ? ORDER BY bgid", (user_id,)).fetchall()]
-        bl_item_list.sort(key=lambda x: x[0])
+        bl_item_list = [[item[0].replace(";",",").lower().strip(),item[1].replace(";",",").strip()] for item in cur.execute("SELECT details, backlog FROM memobacklog WHERE userid = ? ORDER BY bgid", (user_id,)).fetchall()]
+        
+        if sorting:
+            bl_item_list.sort(key=lambda x: x[1])
+            bl_item_list.sort(key=lambda x: x[0])
 
+        if fileformat == "csv":
+            with open(f"temp/memo_import_{user_id}.csv", 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
 
-        with open(f"temp/memo_import_{user_id}.csv", 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
-            for item in bl_item_list:
-                if naive:
-                    writer.writerow(item)
-                else:
-                    if " - " in item[1]:
-                        first = item[1].split(" - ",1)[0]
-                        second = item[1].split(" - ",1)[1]
-                        rest_can_be_found = 1
+                if header:
+                    if naive:
+                        writer.writerow(["CATEGORY", "ITEM"])
                     else:
-                        first = item[1]
-                        second = ""
-                        rest_can_be_found = 0
+                        writer.writerow(["CATEGORY", "A", "B", "X"])
 
-                    parsed_item = [first,second]
-
-                    if " (" in parsed_item[rest_can_be_found] and parsed_item[rest_can_be_found].endswith(")"):
-                        rest = parsed_item[rest_can_be_found]
-                        parsed_item[rest_can_be_found] = rest.split(" (",1)[0].strip()
-                        parsed_item += [rest.split(" (",1)[1][:-1].strip()]
-
-                    elif " [" in parsed_item[rest_can_be_found] and parsed_item[rest_can_be_found].endswith("]"):
-                        rest = parsed_item[rest_can_be_found]
-                        parsed_item[rest_can_be_found] = rest.split(" [",1)[0].strip()
-                        parsed_item += [rest.split(" [",1)[1][:-1].strip()]
-
+                for item in bl_item_list:
+                    if naive:
+                        cat = item[0].replace(";","")
+                        entry = item[1].replace(";",",")
+                        if cat == "":
+                            cat = "default"
+                        writer.writerow([cat,entry])
                     else:
-                        parsed_item += [""]
+                        if " - " in item[1]:
+                            first = item[1].split(" - ",1)[0]
+                            second = item[1].split(" - ",1)[1]
+                            rest_can_be_found = 1
+                        else:
+                            first = item[1]
+                            second = ""
+                            rest_can_be_found = 0
 
-                    writer.writerow([item[0]] + parsed_item)
+                        parsed_item = [first,second]
 
-        emoji = util.emoji("excited")
-        textmessage = f"Here is your memo/backlog export! {emoji}"
-        await ctx.send(textmessage, file=discord.File(rf"temp/memo_import_{user_id}.csv"))
-        os.remove(f"{sys.path[0]}/temp/memo_import_{user_id}.csv")
+                        if " (" in parsed_item[rest_can_be_found] and parsed_item[rest_can_be_found].endswith(")"):
+                            rest = parsed_item[rest_can_be_found]
+                            parsed_item[rest_can_be_found] = rest.split(" (",1)[0].strip()
+                            parsed_item += [rest.split(" (",1)[1][:-1].strip()]
+
+                        elif " [" in parsed_item[rest_can_be_found] and parsed_item[rest_can_be_found].endswith("]"):
+                            rest = parsed_item[rest_can_be_found]
+                            parsed_item[rest_can_be_found] = rest.split(" [",1)[0].strip()
+                            parsed_item += [rest.split(" [",1)[1][:-1].strip()]
+
+                        else:
+                            parsed_item += [""]
+
+                        cat = item[0]
+                        if cat == "":
+                            cat = "default"
+
+                        writer.writerow([cat] + parsed_item)
+
+            emoji = util.emoji("excited")
+            textmessage = f"Here is your memo/backlog export as `;`-delimited `.csv`-file! {emoji}"
+            await ctx.send(textmessage, file=discord.File(rf"temp/memo_import_{user_id}.csv"))
+            os.remove(f"{sys.path[0]}/temp/memo_import_{user_id}.csv")
+
+
+        elif fileformat == "txt":
+            with open(f"temp/memo_import_{user_id}.txt", 'w') as f:
+
+                if header:
+                    if naive:
+                        f.write(f"CATEGORY\tITEM\n")
+                    else:
+                        f.write(f"CATEGORY\tA\tB\tX\n")
+                
+                for item in bl_item_list:
+                    if naive:
+                        cat = item[0].replace("\t","_")
+                        entry = item[1].replace("\t"," ")
+                        f.write(f"{cat}\t{entry}")
+                    else:
+                        if " - " in item[1]:
+                            first = item[1].split(" - ",1)[0]
+                            second = item[1].split(" - ",1)[1]
+                            rest_can_be_found = 1
+                        else:
+                            first = item[1]
+                            second = ""
+                            rest_can_be_found = 0
+
+                        parsed_item = [first,second]
+
+                        if " (" in parsed_item[rest_can_be_found] and parsed_item[rest_can_be_found].endswith(")"):
+                            rest = parsed_item[rest_can_be_found]
+                            parsed_item[rest_can_be_found] = rest.split(" (",1)[0].strip()
+                            parsed_item += [rest.split(" (",1)[1][:-1].strip()]
+
+                        elif " [" in parsed_item[rest_can_be_found] and parsed_item[rest_can_be_found].endswith("]"):
+                            rest = parsed_item[rest_can_be_found]
+                            parsed_item[rest_can_be_found] = rest.split(" [",1)[0].strip()
+                            parsed_item += [rest.split(" [",1)[1][:-1].strip()]
+
+                        else:
+                            parsed_item += [""]
+
+                        cat = item[0]
+                        if cat == "":
+                            cat = "default"
+
+                        f.write(f"{cat}\t{parsed_item[0]}\t{parsed_item[1]}\t{parsed_item[2]}\n")
+
+            emoji = util.emoji("excited")
+            textmessage = f"Here is your memo/backlog export as `tab`-delimited `.txt`-file! {emoji}"
+            await ctx.send(textmessage, file=discord.File(rf"temp/memo_import_{user_id}.txt"))
+            os.remove(f"{sys.path[0]}/temp/memo_import_{user_id}.txt")
+
+        else:
+            await ctx.send("Error: Unknown fileformat.")
 
 
 
@@ -2054,16 +2259,61 @@ class Memo(commands.Cog):
 
 
 
-    @commands.command(name='blimport', aliases = ["memoimport", "blfileimport", "memofileimport"])
+    def parse_import(self, args):
+        naive = False
+        sorting = True
+        header = True
+        overwrite = False
+        confirmation_skip = False
+        fileformat = "txt"
+
+        if len(args) > 0:
+            simple_list = ["simple", "naive"]
+            overwrite_list = ["overwrite", "override", "overrule"]
+            confirmation_skip_list = ["-y", "auto", "automatic", "-yes"]
+            unsorting_list = ["unsorted", "raw", "unsort", "unsorting", "nonsort", "nosort"]
+            noheader_list = ["noheader", "notitle", "headerless", "titleless"]
+
+            for arg in args:
+                if arg.lower() in simple_list:
+                    naive = True
+                if arg.lower() in unsorting_list:
+                    sorting = False
+                if arg.lower() in noheader_list:
+                    header = False
+                if arg.lower() in overwrite_list:
+                    overwrite = True
+                if arg.lower() in confirmation_skip_list:
+                    confirmation_skip = True
+
+                if arg.lower() == "txt":
+                    fileformat = "txt"
+                elif arg.lower() == "csv":
+                    fileformat = "csv"
+
+        return naive, sorting, header, overwrite, confirmation_skip, fileformat
+
+
+
+    @commands.command(name='blim', aliases = ["blimport", "memoimport", "blfileimport", "memofileimport"])
     @commands.check(MemoCheck.backlog_enabled)
     @commands.check(util.is_active)
     async def _backlogimport(self, ctx, *args):
-        """Imports backlog from .csv file"""
-        if len(args) > 0 and args[0].lower() in ["simple", "naive"]:
-            naive = True
-        else:
-            naive = False
-        await self.backlog_import(ctx, naive)
+        """Imports backlog from .txt or .csv file
+
+        Column 1 has to be the category while column 2 should be the backlog item.
+        You can divide the backlog item into 3 parts, and it will be displayed as
+        `column1 entry - column2 entry (column3 entry)`
+
+        You can specify argument `override` to clear your existing backlog and replace it with the uploaded information.
+        Use `override -y` to skip the confirmation.
+
+        Note: .txt files need to be TAB delimited, while .csv files need to be semicolon delimited.
+        """
+
+        naive, sorting, header, overwrite, confirmation_skip, fileformat = self.parse_import(args)
+        await self.backlog_import(ctx, naive, overwrite, confirmation_skip)
+
     @_backlogimport.error
     async def backlogimport_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -2074,28 +2324,47 @@ class Memo(commands.Cog):
     @commands.check(MemoCheck.backlog_enabled)
     @commands.check(util.is_active)
     async def _backlog_backlogimport(self, ctx, *args):
-        """Imports backlog from .csv file"""
-        if len(args) > 0 and args[0].lower() in ["simple", "naive"]:
-            naive = True
-        else:
-            naive = False
-        await self.backlog_import(ctx, naive)
+        """Imports backlog from .csv file
+
+        Column 1 has to be the category while column 2 should be the backlog item.
+        You can divide the backlog item into 3 parts, and it will be displayed as
+        `column1 entry - column2 entry (column3 entry)`
+
+        You can specify argument `override` to clear your existing backlog and replace it with the uploaded information.
+        Use `override -y` to skip the confirmation.
+
+        Note: .txt files need to be TAB delimited, while .csv files need to be semicolon delimited.
+        """
+
+        naive, sorting, header, overwrite, confirmation_skip, fileformat = self.parse_import(args)
+        await self.backlog_import(ctx, naive, overwrite, confirmation_skip)
+
     @_backlog_backlogimport.error
     async def backlog_backlogimport_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
 
-    @commands.command(name='blexport', aliases = ["memoexport", "blfileexport", "memofileexport"])
+    @commands.command(name='blex', aliases = ["blexport", "memoexport", "blfileexport", "memofileexport"])
     @commands.check(MemoCheck.backlog_enabled)
     @commands.check(util.is_active)
     async def _backlogexport(self, ctx, *args):
-        """Exports backlog as .csv file"""
-        if len(args) > 0 and args[0].lower() in ["simple", "naive"]:
-            naive = True
-        else:
-            naive = False
-        await self.backlog_export(ctx, naive)
+        """Exports backlog as .txt or .csv file
+
+        Use with arg `simple` to put backlog category in column 1 and backlog item as a whole in column 2.
+        Use without to backlog category in column 1 and the backlog item will be parsed into column 2 (artist), 3 (album) and 4 (other info) by utilising ` - ` as separation of text that goes into column 2 and 3, and column 4 gets text parts that are wrapped in parenthese or brackets at the end. 
+        i.e. `artist name - album name (other info)`
+
+        Other arguments:
+        `headerless`: gives export without a header row
+        `unsorted`: does not sort data
+
+        Per default the export will be a TAB-delimited .txt file, by specifying `csv` in the arguments you can get a semicolon delimited .csv file as well.
+        """
+
+        naive, sorting, header, overwrite, confirmation_skip, fileformat = self.parse_import(args)
+        await self.backlog_export(ctx, naive, sorting, header, fileformat)
+
     @_backlogexport.error
     async def backlogexport_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -2106,12 +2375,22 @@ class Memo(commands.Cog):
     @commands.check(MemoCheck.backlog_enabled)
     @commands.check(util.is_active)
     async def _backlog_backlogexport(self, ctx, *args):
-        """Exports backlog as .csv file"""
-        if len(args) > 0 and args[0].lower() in ["simple", "naive"]:
-            naive = True
-        else:
-            naive = False
-        await self.backlog_export(ctx, naive)
+        """Exports backlog as .csv file
+
+        Use with arg `simple` to put backlog category in column 1 and backlog item as a whole in column 2.
+        Use without to backlog category in column 1 and the backlog item will be parsed into column 2 (artist), 3 (album) and 4 (other info) by utilising ` - ` as separation of text that goes into column 2 and 3, and column 4 gets text parts that are wrapped in parenthese or brackets at the end. 
+        i.e. `artist name - album name (other info)`
+
+        Other arguments:
+        `headerless`: gives export without a header row
+        `unsorted`: does not sort data
+
+        Per default the export will be a TAB-delimited .txt file, by specifying `csv` in the arguments you can get a semicolon delimited .csv file as well.
+        """
+
+        naive, sorting, header, overwrite, confirmation_skip, fileformat = self.parse_import(args)
+        await self.backlog_export(ctx, naive, sorting, header, fileformat)
+
     @_backlog_backlogexport.error
     async def backlog_backlogexport_error(self, ctx, error):
         await util.error_handling(ctx, error)
