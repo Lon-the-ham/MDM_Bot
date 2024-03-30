@@ -1437,6 +1437,10 @@ class Memo(commands.Cog):
                             if cat == "default":
                                 cat = ""
 
+                            if not util.valid_memo_category(cat):
+                                    print("Import Error: invalid category name, set to default")
+                                    cat = ""
+
                             did_add = await self.add_element_to_backlog(user_id, user_name, cat, item, i)
                             if did_add:
                                 counter += 1
