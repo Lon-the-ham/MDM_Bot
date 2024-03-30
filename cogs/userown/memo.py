@@ -1269,7 +1269,7 @@ class Memo(commands.Cog):
             counter = 0
             continuing = True
 
-            # OPEN FILE
+            # OPEN FILE AND CHECK SIZE
             with open(f"temp/memo_import_{user_id}.csv", newline='') as csvfile:
                 reader = csv.reader(csvfile, delimiter=";", quotechar='|')
 
@@ -1278,6 +1278,7 @@ class Memo(commands.Cog):
                     await ctx.send("Error: File is too large for the backlog functionality.")
                     continuing = False
 
+            # OPEN FILE AND ADD ITEMS
             with open(f"temp/memo_import_{user_id}.csv", newline='') as csvfile:
                 reader = csv.reader(csvfile, delimiter=";", quotechar='|')
                 # OVERWRITE?
@@ -1299,7 +1300,7 @@ class Memo(commands.Cog):
                         await ctx.send("cleared old backlog...")
                         await util.changetimeupdate()
 
-                # WRITE INTO BACKLOG
+                # PARSE AND WRITE INTO BACKLOG
                 if continuing:
                     for row in reader:
                         if i == 0 and len(row) >= 2 and row[0] == "CATEGORY" and row[1] in ["ITEM", "A"]:
@@ -1366,13 +1367,14 @@ class Memo(commands.Cog):
             counter = 0
             continuing = True
 
-            # OPEN TXT FILE
+            # OPEN FILE AND CHECK SIZE
             with open(f'{sys.path[0]}/temp/memo_import_{user_id}.txt', 'r') as txtfile:
                 row_count = sum(1 for line in txtfile)
                 if row_count > 2000:
                     await ctx.send("Error: File is too large for the backlog functionality.")
                     continuing = False
 
+            # OPEN FILE AND ADD ITEMS
             with open(f'{sys.path[0]}/temp/memo_import_{user_id}.txt', 'r') as txtfile:
                 # OVERWRITE BL?
                 if overwrite and continuing:
@@ -1393,7 +1395,7 @@ class Memo(commands.Cog):
                         await ctx.send("cleared old backlog...")
                         await util.changetimeupdate()
 
-                # WRITE INTO BACKLOG
+                # PARSE AND WRITE INTO BACKLOG
                 if continuing:
                     for line in txtfile:
                         LL = line.split("\t")
@@ -1457,6 +1459,7 @@ class Memo(commands.Cog):
             bl_item_list.sort(key=lambda x: x[1])
             bl_item_list.sort(key=lambda x: x[0])
 
+        # IN CASE OF A CSV FILE
         if fileformat == "csv":
             with open(f"temp/memo_import_{user_id}.csv", 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
@@ -1510,7 +1513,7 @@ class Memo(commands.Cog):
             await ctx.send(textmessage, file=discord.File(rf"temp/memo_import_{user_id}.csv"))
             os.remove(f"{sys.path[0]}/temp/memo_import_{user_id}.csv")
 
-
+        # IN CASE OF A TXT FILE
         elif fileformat == "txt":
             with open(f"temp/memo_import_{user_id}.txt", 'w') as f:
 
@@ -1562,7 +1565,7 @@ class Memo(commands.Cog):
             os.remove(f"{sys.path[0]}/temp/memo_import_{user_id}.txt")
 
         else:
-            await ctx.send("Error: Unknown fileformat.")
+            await ctx.send("Error: Unknown file format.")
 
 
 
