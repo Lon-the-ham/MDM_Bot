@@ -249,6 +249,8 @@ class Pingable_Interests(commands.Cog):
             else:
                 pisubsstring = "*no subscribers*"
                 footer = "however multiple empty entries"
+        else:
+            footer = ""
 
         title = f"Subscribers of {pi_name} ({k})"
         embed = discord.Embed(title=title, description=pisubsstring, color=0xFBCEB1)
