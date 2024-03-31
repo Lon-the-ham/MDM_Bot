@@ -336,11 +336,77 @@ class Roles(commands.Cog):
 
         Use `-designate <@user mention> <role name>`.
         """     
-        await ctx.send("under construction")
-
         if len(args) < 2:
             await ctx.send("Error: Command needs a user and role argument.")
             return
+
+        # PARSE ARGUMENTS
+
+        try:
+            role_id, remainder_args_string = await util.fetch_id_from_args("role", "all", args)
+            user_id, rest = await util.fetch_id_from_args("user", "multiple", remainder_args_string.split())
+        except Exception as e:
+            print("Error:", e)
+            await ctx.send("Error while trying to parse user and role.")
+            return
+        try:
+            the_role = discord.utils.get(ctx.guild.roles, id = int(role_id))
+        except Exception as e:
+            print("Error:", e)
+            await ctx.send("Error while trying to fetch role.")
+            return
+        try:
+            member = ctx.guild.get_member(int(user_id))
+        except Exception as e:
+            print("Error:", e)
+            await ctx.send("Error while trying to fetch member.")
+            return
+
+        # INQUIRE CONFIRMATION
+
+        try:
+            default_perms = await util.get_defaultperms(ctx)
+            role_perms_higher = [perm[0] for perm in the_role.permissions if perm[1] and perm[0] not in default_perms]
+        except Exception as e:
+            print("Error:", e)
+            await ctx.send("Error while trying fetch role permissions.")
+            return
+
+        if len(role_perms_higher) > 0:
+            try:
+                higherperms_string = ', '.join(role_perms_higher)
+                text = f"`Confirmation required:` This role has higher permissions such as {higherperms_string}."
+                response = await util.are_you_sure_msg(ctx, self.bot, text)
+                if response == False:
+                    return
+
+            except Exception as e:
+                print("Error:", e)
+                await ctx.send("Error while trying to handle confirmation inquiry.")
+                return
+
+        # DO THE ASSIGNING/UNASSIGNING
+
+        emoji = util.emoji("yay")
+        if the_role in member.roles:
+            try:
+                await member.remove_roles(the_role)
+            except Exception as e:
+                print("Error:", e)
+                await ctx.send(f"Error while trying to unassign `{the_role.name}` from `{member.name}`.")
+                return
+
+            await ctx.send(f"Successfully removed `{the_role.name}` from `{member.name}`! {emoji}")
+        else:
+            try:
+                await member.add_roles(the_role)
+            except Exception as e:
+                print("Error:", e)
+                await ctx.send(f"Error while trying to assign `{the_role.name}` to `{member.name}`.")
+                return
+
+            await ctx.send(f"Successfully assigned `{the_role.name}` to `{member.name}`! {emoji}")
+
     @_designate.error
     async def designate_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -879,7 +945,7 @@ class Roles(commands.Cog):
                     await ctx.send(msg_confirmation)
                     try: # waiting for message
                         async with ctx.typing():
-                            response = await self.bot.wait_for('message', check=util.confirmation_check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
+                            response = await self.bot.wait_for('message', check=lambda message: util.confirmation_check(ctx, message), timeout=30.0) # timeout - how long bot waits for message (in seconds)
                     except asyncio.TimeoutError: # returning after timeout
                         await ctx.send("action timed out")
                         return
@@ -965,7 +1031,7 @@ class Roles(commands.Cog):
             await ctx.send(f'This role seems to not exist... :O')
             return
 
-        default_perms = await util.get_defaultperms()
+        default_perms = await util.get_defaultperms(ctx)
         perm_list = [perm[0] for perm in the_role.permissions if perm[1]]
         perms_low = []
         perms_high = []
@@ -979,11 +1045,12 @@ class Roles(commands.Cog):
             emoji = util.emoji("attention")
             header = f"{emoji} Warning"
             permissionstring = ', '.join(perms_high)
-            msg = f"The role <@&{the_role.id}> has higher permissions.```{permissionstring}```Write `yes` to delete anyway."
+            msg = f"The role <@&{the_role.id}> has higher permissions.```{permissionstring}```\nRespond with `yes` to delete anyway."
+            hex_color = 0xa91b0d
             embed = discord.Embed(title=header, description=msg, color=hex_color)
             await ctx.send(embed=embed)
             try: # waiting for message
-                response = await self.bot.wait_for('message', check=util.confirmation_check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
+                response = await self.bot.wait_for('message', check=lambda message: util.confirmation_check(ctx, message), timeout=30.0) # timeout - how long bot waits for message (in seconds)
             except asyncio.TimeoutError: # returning after timeout
                 await ctx.send("action timed out")
                 return
@@ -1301,7 +1368,7 @@ class Roles(commands.Cog):
             await ctx.send(f"Reaction role feature is turned off. Enable it?\nRespond with `yes` to turn on and continue.")
             try: # waiting for message
                 async with ctx.typing():
-                    response = await self.bot.wait_for('message', check=util.confirmation_check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
+                    response = await self.bot.wait_for('message', check=lambda message: util.confirmation_check(ctx, message), timeout=30.0) # timeout - how long bot waits for message (in seconds)
             except asyncio.TimeoutError: # returning after timeout
                 await ctx.send("Action timed out.")
                 return
@@ -1541,7 +1608,7 @@ class Roles(commands.Cog):
             await ctx.send(f"Are you sure you want to assign the {the_role.name} role to all current members? Respond with `yes` to confirm.")
 
             try: # waiting for message
-                response = await self.bot.wait_for('message', check=util.confirmation_check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
+                response = await self.bot.wait_for('message', check=lambda message: util.confirmation_check(ctx, message), timeout=30.0) # timeout - how long bot waits for message (in seconds)
             except asyncio.TimeoutError: # returning after timeout
                 await ctx.send("action timed out")
                 return
@@ -1629,7 +1696,7 @@ class Roles(commands.Cog):
             await ctx.send(f"Are you sure you want to assign the {the_role.name} role to all current members? Respond with `yes` to confirm.")
 
             try: # waiting for message
-                response = await self.bot.wait_for('message', check=util.confirmation_check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
+                response = await self.bot.wait_for('message', check=lambda message: util.confirmation_check(ctx, message), timeout=30.0) # timeout - how long bot waits for message (in seconds)
             except asyncio.TimeoutError: # returning after timeout
                 await ctx.send("action timed out")
                 return
