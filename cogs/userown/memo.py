@@ -1236,7 +1236,7 @@ class Memo(commands.Cog):
         if util.alphanum(newitem,"lower") in compactitem_list:
             return False
 
-        mmid = str(now) + "_" + user_id + "_" + str(i).zfill(4) + "_CSVimport"
+        mmid = str(now) + "_" + user_id + "_" + str(i).zfill(4) + "_import"
         # sanity check: if the exact backlog id already exists add an "x"
         bl_id_list = [item[0] for item in cur.execute("SELECT bgid FROM memobacklog WHERE userid = ? ORDER BY bgid", (user_id,)).fetchall()]
         while mmid in bl_id_list:
