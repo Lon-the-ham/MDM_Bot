@@ -107,7 +107,6 @@ class TimeLoops(commands.Cog):
     @minutely_check.before_loop
     async def before_minutely_check(self):
         await self.bot.wait_until_ready()
-        print("before loop")
         con = sqlite3.connect(f'databases/timetables.db')
         cur = con.cursor()
         cur.execute('''CREATE TABLE IF NOT EXISTS reminders (reminder_id text, username text, userid text, utc_timestamp text, remindertext text, channel text, channel_name text, og_message text, og_time text)''')
