@@ -1043,6 +1043,7 @@ class Administration_of_Settings(commands.Cog):
         await util.error_handling(ctx, error)
 
 
+
     @_set.command(name="activity", aliases = ["status"], pass_context=True)
     @commands.check(util.is_active)
     @commands.has_permissions(manage_guild=True)
@@ -3708,7 +3709,7 @@ class Administration_of_Settings(commands.Cog):
             curC.execute('''CREATE TABLE IF NOT EXISTS cooldowns (service text, last_used text, limit_seconds text, limit_type text, long_limit_seconds text, long_limit_amount text)''') # soft limit type: delay, hard limit type: stop request
 
             cooldown_db_list = [item[0] for item in curC.execute("SELECT service FROM cooldowns").fetchall()]
-            cooldowns = ["spotify", "lastfm", "musicbrainz", "metallum"]
+            cooldowns = ["lastfm", "metallum", "musicbrainz", "openweathermap", "spotify"]
             cooldowns_crit = ["rym"]
             for cd in cooldowns:
                 if cd not in cooldown_db_list:
@@ -3736,9 +3737,16 @@ class Administration_of_Settings(commands.Cog):
 
             conSH = sqlite3.connect('databases/shenanigans.db')
             curSH = conSH.cursor()
-            curSH.execute('''CREATE TABLE IF NOT EXISTS sudo (command text, response1 text, response2 text)''')
-            curSH.execute('''CREATE TABLE IF NOT EXISTS inspire (quote text, author text, link text)''')
-            curSH.execute('''CREATE TABLE IF NOT EXISTS mrec (subcommand text, alias text, link text)''')
+            curSH.execute('''CREATE TABLE IF NOT EXISTS sudo (sudo_id text, command text, response1 text, response2 text)''')
+            curSH.execute('''CREATE TABLE IF NOT EXISTS inspire (quote_id text, quote text, author text, link text)''')
+            curSH.execute('''CREATE TABLE IF NOT EXISTS mrec (mrec_id text, subcommand text, alias text, link text)''')
+
+            # USER DATA
+
+            conU = sqlite3.connect('databases/userdata.db')
+            curU = conU.cursor()
+            curU.execute('''CREATE TABLE IF NOT EXISTS location (user_id text, username text, city text, state text, country text, longitude text, latitude text)''')
+
 
             # search for other mdm bot instances and add them to app list in botsettings.db
             # under construction

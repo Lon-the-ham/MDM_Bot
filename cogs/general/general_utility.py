@@ -7,8 +7,10 @@ import os
 import random
 from googletrans import Translator
 import re
+from collections import OrderedDict
 import sqlite3
 import math
+import requests
 
 
 class General_Utility(commands.Cog):
@@ -419,58 +421,8 @@ class General_Utility(commands.Cog):
 
 
 
-    @commands.command(name='translate', aliases = ['tr','trans', 'googletranslate', 'googletrans', 'translation'])
-    @commands.check(util.is_active)
-    async def _translate(self, ctx, *args):
-        """translate
-
-        Translates a word or sentence, first argument must be the destination language code.
-        Use `-tr languages` to see which languages are supported.
-        """
-        async with ctx.typing():
-            languagedict = {
-                        "🇮🇳": 'hi',
-                        "🇦🇷": 'es',
-                        "🇦🇺": 'en',
-                        "🇧🇩": 'bn',
-                        "🇧🇷": 'pt',
-                        "🇨🇦": 'en',
-                        "🇨🇳": 'zh-cn',
-                        "🇨🇿": 'cs',
-                        "🇭🇷": 'hr',
-                        "🇵🇱": 'pl',
-                        "🇷🇴": 'ro',
-                        "🇷🇺": 'ru',
-                        "🇸🇰": 'sk',
-                        "🇹🇷": 'tr',
-                        "🇬🇧": 'en',
-                        "🇺🇸": 'en',
-                        "🇫🇷": 'fr',
-                        "🇩🇪": 'de',
-                        "🇪🇸": 'es',
-                        "🇳🇱": 'nl',
-                        "🇮🇹": 'it',
-                        "🇬🇦": 'ga',
-                        "🇵🇹": 'pt',
-                        "🇳🇵": 'ne',
-                        "🇸🇷": 'sr',
-                        "🇺🇦": 'uk',
-                        "🇻🇳": 'vi',
-                        "🇮🇩": 'id',
-                        "🇵🇭": 'tl',
-                        "🇯🇵": 'ja',
-                        "🇭🇺": 'hu',
-                        "🇮🇸": 'is',
-                        "🇫🇮": 'fi',
-                        "🇧🇼": 'et',
-                        "🇧🇬": 'bg',
-                        "🇮🇱": 'he',
-                        "🇰🇷": 'ko',
-                        "🇱🇻": 'lv',
-                        "🇱🇧": 'lb',
-                        "🇺🇿": 'uz',
-                        "🇸🇦": 'ar',
-                        "🇿🇦": 'af',
+    def get_languagedict(self, scope):
+        languages_name_dict = {
                     "afrikaans": 'af',
                     "albanian": 'sq',
                     "amharic": 'am',
@@ -582,10 +534,77 @@ class General_Utility(commands.Cog):
                     'yiddish': 'yi',
                     'yoruba': 'yo',
                     'zulu': 'zu',
+                    }
+
+        languages_flag_dict = {
+                        "🇮🇳": 'hi',
+                        "🇦🇷": 'es',
+                        "🇦🇺": 'en',
+                        "🇧🇩": 'bn',
+                        "🇧🇷": 'pt',
+                        "🇨🇦": 'en',
+                        "🇨🇳": 'zh-cn',
+                        "🇨🇿": 'cs',
+                        "🇭🇷": 'hr',
+                        "🇵🇱": 'pl',
+                        "🇷🇴": 'ro',
+                        "🇷🇺": 'ru',
+                        "🇸🇰": 'sk',
+                        "🇹🇷": 'tr',
+                        "🇬🇧": 'en',
+                        "🇺🇸": 'en',
+                        "🇫🇷": 'fr',
+                        "🇩🇪": 'de',
+                        "🇪🇸": 'es',
+                        "🇳🇱": 'nl',
+                        "🇮🇹": 'it',
+                        "🇬🇦": 'ga',
+                        "🇵🇹": 'pt',
+                        "🇳🇵": 'ne',
+                        "🇸🇷": 'sr',
+                        "🇺🇦": 'uk',
+                        "🇻🇳": 'vi',
+                        "🇮🇩": 'id',
+                        "🇵🇭": 'tl',
+                        "🇯🇵": 'ja',
+                        "🇭🇺": 'hu',
+                        "🇮🇸": 'is',
+                        "🇫🇮": 'fi',
+                        "🇧🇼": 'et',
+                        "🇧🇬": 'bg',
+                        "🇮🇱": 'he',
+                        "🇰🇷": 'ko',
+                        "🇱🇻": 'lv',
+                        "🇱🇧": 'lb',
+                        "🇺🇿": 'uz',
+                        "🇸🇦": 'ar',
+                        "🇿🇦": 'af'
+                        }
+
+        languages_extra_dict = {
                         "ch": 'zh-cn',
                         "zh": 'zh-cn',
                         "jp": 'ja'
-                        }
+                        }           
+
+        languagedict = {}   
+
+        if scope in ["name", "names", "all"]:
+            languagedict.update(languages_name_dict)
+
+        if scope in ["flag", "flags", "all"]:
+            languagedict.update(languages_flag_dict)
+
+        if scope in ["all"]:
+            languagedict.update(languages_extra_dict)
+
+        return languagedict
+
+
+
+    async def google_translate(self, ctx, args, extra_info):
+        async with ctx.typing():
+            languagedict = self.get_languagedict("all")
             if len(args) == 0:
                 await ctx.send(f'No arguments provided. First argument needs to be language code, everything after will be translated.')
                 return
@@ -628,15 +647,96 @@ class General_Utility(commands.Cog):
                 GTranslator = Translator()
                 detection = GTranslator.detect(msgToTranslate)
                 msgTranslated = GTranslator.translate(msgToTranslate, dest=targetLanguage).text
-                await ctx.send(f'`[Lang.: {detection.lang}, Conf.={detection.confidence}]`\n`Translation result:` {msgTranslated}\n'[:2000])
+
+                responsetext = ""
+                if extra_info:
+                    responsetext += f"`[Lang.: {detection.lang}, Conf.={detection.confidence}]`\n"
+                responsetext += f'`Translation result:` {msgTranslated}'
+
+                await ctx.send(responsetext[:2000])
             except Exception as e:
                 await ctx.send(f'`An error ocurred:` {e}')
+
+
+
+    @commands.command(name='translate', aliases = ['tr'])
+    @commands.check(util.is_active)
+    async def _translate(self, ctx, *args):
+        """translate
+
+        Translates a word or sentence, first argument must be the destination language code.
+        Use `-languages` to see which languages are supported.
+        """
+        if len(args) < 2:
+            await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
+            return
+        extra_info = False
+        await self.google_translate(ctx, args, extra_info)
+        
     @_translate.error
     async def translate_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
-    # under construction: add -languages command
+
+    @commands.command(name='trx', aliases = ['translatex'])
+    @commands.check(util.is_active)
+    async def _translate_x(self, ctx, *args):
+        """translate (with detection info)
+
+        Translates a word or sentence, first argument must be the destination language code.
+        Use `-languages` to see which languages are supported.
+        """
+        if len(args) < 2:
+            await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
+            return
+        extra_info = True
+        await self.google_translate(ctx, args, extra_info)
+        
+    @_translate.error
+    async def translate_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+    
+    @commands.command(name='languages', aliases = ['language'])
+    @commands.check(util.is_active)
+    async def _translate_languages(self, ctx, *args):
+        """list of supported translation languages
+
+        Use with arg `detailed` to get language names alongside language abbreviations."""
+
+        short = True
+        for arg in args:
+            if arg.lower() in ["detail", "details", "detailed"]:
+                short = False
+
+        languagedict = self.get_languagedict("all")
+        languagesList = languagedict.values()
+        filteredList = sorted(list(dict.fromkeys(languagesList)))
+
+        if short:
+            languagestring = ', '.join(filteredList)
+            await ctx.send(f'`Supported languages:` {languagestring}')
+            return
+
+        language_names_dict = self.get_languagedict("name")
+        language_reverse_dict = {v: k for k, v in language_names_dict.items()}
+
+        response_text = "**Supported languages:** "
+
+        for lang in filteredList:
+            if lang in language_reverse_dict:
+                response_text += f"`{lang}`: {language_reverse_dict[lang]}, "
+            else:
+                response_text += f"`{lang}`: ?, "
+
+        if response_text.endswith(", "):
+            response_text = response_text[:-2]
+
+        await ctx.send(response_text[:2000])
+
+
 
 
 
@@ -2132,33 +2232,518 @@ class General_Utility(commands.Cog):
         await util.error_handling(ctx, error)
 
 
+
     ############################# GEODATA #######################################################################################
 
 
 
-    @commands.command(name="time", aliases = ["t"])
+    async def get_geodata(self, ctx, args):
+        # INITIALISE API DATA
+        try:
+            API_KEY = os.getenv("openweathermap_key")
+        except:
+            emoji = util.emoji("disappointed")
+            raise ValueError(f"No API key provided. {emoji}\n||(Ask mods to create a free OpenWeatherMap account and get an API key.)||")
+            return
+
+        try: # cooldown to not trigger actual rate limits or IP blocks
+            await util.cooldown(ctx, "openweathermap")
+        except Exception as e:
+            await util.cooldown_exception(ctx, e, "openweathermap")
+            return
+
+        try:
+            version = Utils.get_version().replace("version","v").replace(" ","").strip()
+        except:
+            version = "v_X"
+        USER_AGENT = f'MDM_Bot_{version}'
+        headers = {'user-agent': USER_AGENT}
+
+        # PARSE ARGUMENTS
+
+        if len(args) == 0:
+            conU = sqlite3.connect('databases/userdata.db')
+            curU = conU.cursor()
+            loc_list = [[item[0],item[1]] for item in curU.execute("SELECT longitude, latitude FROM location WHERE user_id = ?", (str(ctx.author.id),)).fetchall()]
+            if len(loc_list) == 0:
+                raise ValueError(f"No location was set.\nUse `{self.prefix}w set <city>, <country>` to set location.")
+                return
+
+            longitude = loc_list[0][0]
+            latitude = loc_list[0][1]
+
+        else:
+            # GET WEATHER DIRECTLY VIA ZIP CODE
+            pre_parse = re.split(r",| |;", ' '.join(args))
+            if util.represents_integer(pre_parse[0]):
+                zip_code = str(int(pre_parse[0]))
+                arguments = re.split(r",|;", ' '.join(args))
+                try:
+                    country = util.isocode(arguments[1].strip())
+                except:
+                    country = "US"
+
+                location = f"{zip_code.strip()},{country.lower().strip()}"
+                print(f"ZIP: {zip_code}\ncountry: {country}")
+                payload = {
+                    'zip': location,
+                    'appid': API_KEY,
+                    'format': 'json'
+                }
+                # GET WEATHER DATA
+                url = 'https://api.openweathermap.org/data/2.5/weather'
+                response = requests.get(url, headers=headers, params=payload)
+                rjson = response.json()
+                print(rjson)
+                return rjson
+
+            else:
+                # GET COORDINATES FIRST BY CITY/COUNTRY NAME
+                arguments = re.split(r",|;", ' '.join(args))
+                if len(arguments) >= 3:
+                    city = arguments[0].strip()
+                    country = util.isocode(arguments[2])
+                    if country == "US":
+                        state = util.us_state_code(arguments[1].strip())
+                    else:
+                        state = arguments[1].strip()
+                    location = f"{city},{state},{country}"
+
+                elif len(arguments) == 2:
+                    city = arguments[0].strip()
+                    country = util.isocode(arguments[1])
+                    state = ""
+                    location = f"{city},{country}"
+
+                    if len(country) > 4:
+                        state = util.us_state_code(arguments[1].strip())
+                        if len(state) == 2:
+                            country = "US"
+                            location = f"{city},{state},{country}"
+
+                else:
+                    city = arguments[0].strip()
+                    country = ""
+                    state = ""
+                    location = city
+                #print(f"country: {country}\nstate: {state}\ncity: {city}")
+
+                # GET GEO COORDINATES
+                url = 'http://api.openweathermap.org/geo/1.0/direct'
+                payload = {
+                        'q': location,
+                        'limit': '10',
+                        'appid': API_KEY,
+                        'format': 'json'
+                    }
+                response = requests.get(url, headers=headers, params=payload)
+                rjson = response.json()
+
+                if len(rjson) == 0:
+                    emoji = util.emoji("disappointed")
+                    raise ValueError(f"No such location found. {emoji}")
+                    return
+
+                city_check = {}
+
+                # CALCULATE SOME SORT OF PLAUSIBILITY
+                i = 0
+                for r in rjson:
+                    city_check[i] = 0
+
+                    local_names = []
+                    try:
+                        for x in r['local_names']:
+                            local_names.append(r['local_names'][x].lower().replace(" ","").replace("-",""))
+                    except:
+                        pass
+
+                    try:
+                        if city.lower().replace(" ","").replace("-","") == r['name'].replace(" ","").replace("-",""):
+                            city_check[i] += 24
+                        elif city.lower().replace(" ","").replace("-","") in local_names:
+                            city_check[i] += 20
+                        elif util.alphanum(city,"lower") in util.alphanum(r['name'],"lower"):
+                            city_check[i] += 16
+                        else:
+                            for ln in local_names:
+                                if util.alphanum(city,"lower") in util.alphanum(ln,"lower"):
+                                    city_check[i] += 8
+                                    break
+                    except:
+                        pass
+                    try:
+                        if country.lower().replace(" ","").replace("-","") == r['country'].replace(" ","").replace("-",""):
+                            city_check[i] += 10
+                        elif util.alphanum(country,"lower") in util.alphanum(r['country'],"lower"):
+                            city_check[i] += 6
+                    except:
+                        pass
+                    try:
+                        if state.lower().replace(" ","").replace("-","") == r['state'].replace(" ","").replace("-",""):
+                            city_check[i] += 5
+                        elif util.alphanum(state,"lower") in util.alphanum(r['state'],"lower"):
+                            city_check[i] += 3
+                    except:
+                        pass
+                    i += 1
+
+                index_with_highest_plausibility = 0
+                for j in city_check:
+                    if city_check[j] > city_check[index_with_highest_plausibility]:
+                        index_with_highest_plausibility = j
+
+                latitude = rjson[index_with_highest_plausibility]['lat']
+                longitude = rjson[index_with_highest_plausibility]['lon']
+
+        # GET WEATHER DATA
+        url = 'https://api.openweathermap.org/data/2.5/weather'
+        payload = {
+                'lat': latitude,
+                'lon': longitude,
+                'appid': API_KEY,
+            }
+        payload['format'] = 'json'
+        response = requests.get(url, headers=headers, params=payload)
+        rjson = response.json()
+        try:
+            error_code = rjson['cod']
+            msg = rjson['message']
+            if error_code == '404' or msg == 'city not found':
+                raise ValueError("Place not found.")
+        except:
+            pass
+        return rjson
+
+
+
+    @commands.group(name="time", aliases = ["t","tz","timezone"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _timezone_by_location(self, ctx, *args):
         """Show time of given location
+        
+        Give argument `<city>, <country>` or to be more precise `<city>, <state>, <country>`.
+        You can also use `<zip code>, <country>`
+
+        You can also set your location with `-t set <location>` and remove it with `-t remove`.
         """
-        await ctx.send("⚠️ under construction")
+
+        try:
+            rjson = await self.get_geodata(ctx, args)
+        except:
+            await ctx.send(f"Error: {e}")
+            return
+
+        try:
+            country = rjson['sys']['country']
+            name = rjson['name']
+        except Exception as e1:
+            try:
+                conU = sqlite3.connect('databases/userdata.db')
+                curU = conU.cursor()
+                loc_list = [[item[0],item[1]] for item in curU.execute("SELECT city, country FROM location WHERE user_id = ?", (str(ctx.author.id),)).fetchall()]
+                country = loc_list[0][1]
+                name = loc_list[0][0]
+            except Exception as e2:
+                print(f"Error while trying to fetch country and city:\n>{e1}\n>{e2}")
+                await ctx.send("Error: Place not found.")
+
+        offset_sec = int(rjson['timezone'])
+        offset_hrs = abs(int(offset_sec/3600))
+        offset_xmin = int(round(abs(offset_sec) - 3600*abs(offset_hrs),0)/60)
+        offset_string = f"{offset_hrs}:{str(offset_xmin).zfill(2)}"
+
+        if offset_sec >= 0: 
+            pm = "+"
+        else:
+            pm = "-"
+
+        utc_now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+        datetime_text = datetime.datetime.utcfromtimestamp(utc_now+offset_sec).strftime('%Y-%m-%d %H:%M:%S')
+
+        await ctx.send(f"{name}, {country} is in timezone UTC{pm}{offset_string}.\nCurrently: `{datetime_text}`")
+
     @_timezone_by_location.error
     async def timezone_by_location_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
 
-    @commands.command(name="weather", aliases = ["w"])
+    @commands.group(name="weather", aliases = ["w"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _weather_by_location(self, ctx, *args):
         """Show weather of given location
+
+        Give argument `<city>` or `<city>, <country>` or `<city>, <state>, <country>`.
+        You can also use `<zip code>, <country>`
+
+        You can also set your location with `-w set <location>` and remove it with `-w remove`.
         """
-        await ctx.send("⚠️ under construction")
+
+        # FUNCTIONS
+
+        def temperature_string(kelvin1, *kelvin2args):
+            celsius1 = round(kelvin1-273.15,1)
+            fahrenheit1 = round((kelvin1-273.15) * 9/5 + 32,1)
+
+            if len(kelvin2args) == 0:
+                temperature = f"{celsius1}°C ({fahrenheit1}°F)"
+            else:
+                kelvin2 = float(kelvin2args[0])
+                celsius2 = round(kelvin2-273.15,1)
+                fahrenheit2 = round((kelvin2-273.15) * 9/5 + 32,1)
+                temperature = f"{celsius1}°C - {celsius2}°C ({fahrenheit1}°F - {fahrenheit2}°F)"
+            return temperature
+
+        def wind_direction(deg):
+            direction_dict = OrderedDict()
+            direction_dict[0]     = "N"
+            direction_dict[22.5]  = "NNE"
+            direction_dict[45]    = "NE"
+            direction_dict[67.5]  = "ENE"
+            direction_dict[90]    = "E"
+            direction_dict[112.5] = "ESE"
+            direction_dict[135]   = "SE"
+            direction_dict[157.5] = "SSE"
+            direction_dict[180]   = "S"
+            direction_dict[202.5] = "SSW"
+            direction_dict[225]   = "SW"
+            direction_dict[247.5] = "WSW"
+            direction_dict[270]   = "W"
+            direction_dict[292.5] = "WNW"
+            direction_dict[315]   = "NW"
+            direction_dict[337.5] = "NNW"
+            direction_dict[360]   = "N"
+            direction = "?"
+            for d in direction_dict:
+                if deg > d - 11.25:
+                    direction = direction_dict[d]
+                else:
+                    break
+            return direction
+
+        def speed_string(x):
+            """convert x from m/s"""
+            kmh = int(round(3.6 * x, 0))
+            mph = int(round(2.236936 * x, 0))
+            speed = f"{kmh}km/h ({mph}mp/h)"
+            return speed
+
+        # EXECUTED CODE
+
+        try:
+            rjson = await self.get_geodata(ctx, args)
+        except Exception as e:
+            await ctx.send(f"Error: {e}")
+            return
+
+        print(rjson)
+
+        try:
+            country = rjson['sys']['country']
+            name = rjson['name']
+        except Exception as e1:
+            try:
+                conU = sqlite3.connect('databases/userdata.db')
+                curU = conU.cursor()
+                loc_list = [[item[0],item[1]] for item in curU.execute("SELECT city, country FROM location WHERE user_id = ?", (str(ctx.author.id),)).fetchall()]
+                country = loc_list[0][1]
+                name = loc_list[0][0]
+            except Exception as e2:
+                print(f"Error while trying to fetch country and city:\n>{e1}\n>{e2}")
+                await ctx.send("Error: Place not found.")
+
+        # PARSE FROM RESPONSE
+        try:
+            weather_list = [[x['main'],x['description'],x['icon']] for x in rjson['weather']]
+        except:
+            try:
+                weather_list = [rjson['weather'][0]['main'], rjson['weather'][0]['description'], rjson['weather'][0]['icon']]
+            except:
+                weather_list = []
+        try:
+            temperature = temperature_string(rjson['main']['temp'])
+        except:
+            temperature = "?"
+        try:
+            temperature_feels = temperature_string(rjson['main']['feels_like'])
+        except:
+            temperature_feels = "?"
+        try:
+            temperature_span = temperature_string(rjson['main']['temp_min'], rjson['main']['temp_max'])
+        except:
+            temperature_span = "?"
+
+        try:
+            humidity = rjson['main']['humidity']
+        except:
+            humidity = "?"
+        try:
+            pressure = rjson['main']['pressure'] #hPa
+        except:
+            pressure = "?"
+        try:
+            wind_speed = rjson['wind']['speed']
+        except:
+            wind_speed = "?"
+        try:
+            wind_degree = rjson['wind']['deg']
+        except:
+            wind_degree = "?"
+
+        # STRING TEMP/WIND DATA
+
+        if len(weather_list) == 0:
+            text = "no weather data"
+            icon_url = ""
+        else:
+            icon = weather_list[0][2]
+            icon_url = f"http://openweathermap.org/img/wn/{icon}@2x.png"
+
+            descriptions = []
+            for weather in weather_list:
+                descriptions.append(weather[1])
+            text = "**" + ', '.join(descriptions) + "**\n"
+
+        if temperature == "?":
+            text += ""
+        elif temperature_feels == "?":
+            text += f"{temperature}\n"
+        else:
+            text += f"{temperature} feels like {temperature_feels}\n"
+
+        if temperature_span != "?":
+            text += f"[span: {temperature_span}]\n"
+
+        if humidity != "?":
+            text += f"Humidity: {humidity}%\n"
+
+        if wind_speed == "?" or wind_degree == "?":
+            pass
+        else:
+            text += f"Wind: {wind_direction(wind_degree)} @ {speed_string(wind_speed)}\n"
+
+        embed=discord.Embed(title="", description=text.strip(), color=0xEA6D4A)
+        embed.set_thumbnail(url=icon_url)
+        embed.set_footer(text=f"{name}, {country}")
+        await ctx.send(embed=embed)
+
     @_weather_by_location.error
     async def weather_by_location_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
+
+    async def set_location(self, ctx, args):
+        if len(args) == 0:
+            raise ValueError("Command needs location argument.")
+
+        # FETCH INFO FROM API
+
+        try:
+            rjson = await self.get_geodata(ctx, args)
+        except:
+            await ctx.send(f"Error: {e}")
+            return
+
+        try:
+            country = rjson['sys']['country']
+            city = rjson['name']
+            state = ""
+            longitude = rjson['coord']['lon']
+            latitude =  rjson['coord']['lat']
+        except Exception as e:
+            print("Error while trying to fetch city name and country:", e)
+            raise ValueError("Error 404: Place not found.")
+            return
+
+        # EDIT DATABASE
+
+        conU = sqlite3.connect('databases/userdata.db')
+        curU = conU.cursor()
+        loc_list = [item[0] for item in curU.execute("SELECT city FROM location WHERE user_id = ?", (str(ctx.author.id),)).fetchall()]
+
+        if len(loc_list) == 0:
+            curU.execute("INSERT INTO location VALUES (?, ?, ?, ?, ?, ?, ?)", (str(ctx.author.id), str(ctx.author.name), city, state, country, longitude, latitude))
+            conU.commit()
+        else:
+            curU.execute("UPDATE location SET city = ?, state = ?, country = ?, longitude = ?, latitude = ? WHERE user_id = ?", (city, state, country, longitude, latitude, str(ctx.author.id)))
+            conU.commit()
+        await util.changetimeupdate()
+
+        await ctx.send(f"Set your location to {city}, {country}!\n`lon: {longitude}, lat: {latitude}`")
+
+
+
+    async def remove_location(self, ctx, args):
+        conU = sqlite3.connect('databases/userdata.db')
+        curU = conU.cursor()
+        loc_list = [item[0] for item in curU.execute("SELECT city FROM location WHERE user_id = ?", (str(ctx.author.id),)).fetchall()]
+
+        if len(loc_list) == 0:
+            emoji = util.emoji("think")
+            await ctx.send(f"No location of yours in database. {emoji}")
+        else:
+            curU.execute("DELETE FROM location WHERE user_id = ?", (str(ctx.author.id),))
+            conU.commit()
+            await util.changetimeupdate()
+            await ctx.send("Deleted your location from database!")
+        
+
+
+    @_weather_by_location.command(name="set", pass_context=True)
+    @commands.check(util.is_active)
+    async def _set_location_w(self, ctx, *args):
+        """Set location for weather and timezone command"""
+        try:
+            await self.set_location(ctx, args)
+        except Exception as e:
+            await ctx.send(f"Error: {e}")
+    @_set_location_w.error
+    async def set_location_w_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_timezone_by_location.command(name="set", pass_context=True)
+    @commands.check(util.is_active)
+    async def _set_location_t(self, ctx, *args):
+        """Set location for weather and timezone command"""
+        try:
+            await self.set_location(ctx, args)
+        except Exception as e:
+            await ctx.send(f"Error: {e}")
+    @_set_location_t.error
+    async def set_location_t_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_weather_by_location.command(name="remove", pass_context=True)
+    @commands.check(util.is_active)
+    async def _remove_location_w(self, ctx, *args):
+        """Remove location for weather and timezone command"""
+        try:
+            await self.remove_location(ctx, args)
+        except Exception as e:
+            await ctx.send(f"Error: {e}")
+    @_remove_location_w.error
+    async def remove_location_w_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_timezone_by_location.command(name="remove", pass_context=True)
+    @commands.check(util.is_active)
+    async def _remove_location_t(self, ctx, *args):
+        """Remove location for weather and timezone command"""
+        try:
+            await self.remove_location(ctx, args)
+        except Exception as e:
+            await ctx.send(f"Error: {e}")
+    @_remove_location_t.error
+    async def remove_location_t_error(self, ctx, error):
+        await util.error_handling(ctx, error)
 
 
 
