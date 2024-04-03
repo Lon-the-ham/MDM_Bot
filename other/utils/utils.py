@@ -928,20 +928,39 @@ class Utils():
                 days += math.floor(abs_value / unit_seconds["days"])
                 abs_value -= days * unit_seconds["days"]
 
+            if abs_value >= unit_seconds["hours"]:
+                hours += math.floor(abs_value / unit_seconds["hours"])
+                abs_value -= hours * unit_seconds["hours"]
+
+            if abs_value >= unit_seconds["minutes"]:
+                minutes += math.floor(abs_value / unit_seconds["minutes"])
+                abs_value -= minutes * unit_seconds["minutes"]
+
+            seconds += abs_value
+
         else:
             # RELATIVE WAY
             ts = int(from_timestamp[0])
+
+            today = datetime.utcfromtimestamp(ts)
+            future = datetime.utcfromtimestamp(ts+abs_value)
+            delta = future - today
+
+            days = delta.days
+            hours = delta.seconds // 3600
+            minutes = (delta.seconds - 3600 * hours) // 60
+            seconds = delta.seconds - 3600 * hours - 60 * minutes
+
             oldyear = datetime.utcfromtimestamp(ts).year
             oldmonth = datetime.utcfromtimestamp(ts).month
             oldday = datetime.utcfromtimestamp(ts).day
-            today = date(oldyear, oldmonth, oldday)
 
-            newyear = datetime.utcfromtimestamp(ts+abs_value).year
-            newmonth = datetime.utcfromtimestamp(ts+abs_value).month
-            newday = datetime.utcfromtimestamp(ts+abs_value).day
-            future = date(newyear, newmonth, newday)
+            newyear = (datetime.utcfromtimestamp(ts) + timedelta(days = days)).year
+            newmonth = (datetime.utcfromtimestamp(ts) + timedelta(days = days)).month
+            newday = (datetime.utcfromtimestamp(ts) + timedelta(days = days)).day
 
             years = newyear - oldyear
+
             if newmonth - oldmonth < 0:
                 years -= 1
                 months = newmonth + 12 - oldmonth
@@ -950,29 +969,10 @@ class Utils():
 
             if newday - oldday < 0:
                 if newmonth == 1:
-                    days_in_previous_month = monthrange(newyear-1, 12)[1]
                     if newmonth - oldmonth == 0:
                         years -= 1
-                else:
-                    days_in_previous_month = monthrange(newyear, newmonth-1)[1]
-
                 months -= 1
-                days = days_in_previous_month + newday - oldday
-            else:
-                days = newday - oldday
-
-            abs_value = abs_value % (24*60*60)
-
-
-        if abs_value >= unit_seconds["hours"]:
-            hours += math.floor(abs_value / unit_seconds["hours"])
-            abs_value -= hours * unit_seconds["hours"]
-
-        if abs_value >= unit_seconds["minutes"]:
-            minutes += math.floor(abs_value / unit_seconds["minutes"])
-            abs_value -= minutes * unit_seconds["minutes"]
-
-        seconds += abs_value
+        
 
         ### TURNING VALUES INTO TEXT
 
@@ -1431,7 +1431,7 @@ class Utils():
         conL = sqlite3.connect(f'databases/aftermostchange.db')
         curL = conL.cursor()
         curL.execute('''CREATE TABLE IF NOT EXISTS lastchange (name text, value text, details text)''')
-        curL.execute("UPDATE lastchange SET value = ?, details = ? WHERE name = ?", (utc_timestamp,human_readable_time,"time"))
+        curL.execute("UPDATE lastchange SET value = ?, details = ? WHERE name = ?", (utc_timestamp, human_readable_time, "time"))
         conL.commit()
 
 
