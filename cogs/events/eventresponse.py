@@ -866,7 +866,7 @@ class Event_Response(commands.Cog):
     @commands.Cog.listener()
     @commands.check(util.is_active)
     async def on_guild_channel_update(self, before, after):
-        server = after.channel.guild
+        server = after.guild
         if not server:
             return
         conB = sqlite3.connect(f'databases/botsettings.db')
@@ -880,12 +880,12 @@ class Event_Response(commands.Cog):
 
         title = "Channel updated"
         updated_smth_to_notify = False
-        text = f"<#{before.channel.id}>"
+        text = f"<#{before.id}>"
 
-        if before.channel.name != after.channel.name:
-            text += f"changed name from {before.channel.name} to {after.channel.name}"
+        if before.name != after.name:
+            text += f"changed name from {before.name} to {after.name}"
             updated_smth_to_notify = True
-        if before.channel.nsfw != after.channel.nsfw:
+        if before.nsfw != after.nsfw:
             text += f"changed nsfw status"
             updated_smth_to_notify = True
         footer = ""
