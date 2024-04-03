@@ -1532,7 +1532,7 @@ class General_Utility(commands.Cog):
             await util.changetimeupdate()
             seconds_until = utc_timestamp - now
             readable_time = util.seconds_to_readabletime(seconds_until, False, now)
-            await ctx.reply(f"Alrighty. Will remind you in {readable_time} or so.\n(ID: {reminder_id})", mention_author=False)
+            await ctx.reply(f"Alrighty. Will remind you in {readable_time} or so.\n(ID: {reminder_id} | <t:{utc_timestamp}:f>)", mention_author=False)
     @_remind.error
     async def remind_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -2221,7 +2221,7 @@ class General_Utility(commands.Cog):
 
 
 
-    @commands.command(name="quote", aliases = ["q"])
+    @commands.group(name="quote", aliases = ["q"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _quote(self, ctx, *args):
         """Show quote
@@ -2229,6 +2229,32 @@ class General_Utility(commands.Cog):
         await ctx.send("⚠️ under construction")
     @_quote.error
     async def quote_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_quote.command(name="add", pass_context=True)
+    @commands.check(util.is_active)
+    async def _quote_add(self, ctx, *args):
+        """Add quote"""
+        
+        await ctx.send("⚠️ under construction")
+
+    @_quote_add.error
+    async def quote_add_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_quote.command(name="remove", pass_context=True)
+    @commands.check(util.is_active)
+    async def _quote_remove(self, ctx, *args):
+        """Remove quote"""
+        
+        await ctx.send("⚠️ under construction")
+        
+    @_quote_remove.error
+    async def quote_remove_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
@@ -2544,11 +2570,10 @@ class General_Utility(commands.Cog):
             name = rjson['name']
         except Exception as e1:
             try:
-                conU = sqlite3.connect('databases/userdata.db')
-                curU = conU.cursor()
-                loc_list = [[item[0],item[1]] for item in curU.execute("SELECT city, country FROM location WHERE user_id = ?", (str(ctx.author.id),)).fetchall()]
-                country = loc_list[0][1]
-                name = loc_list[0][0]
+                longitude = rjson['coord']['lon']
+                latitude =  rjson['coord']['lat']
+                country = f"lon: {longitude}, lat: {latitude}"
+                name = "unnamed place"
             except Exception as e2:
                 print(f"Error while trying to fetch country and city:\n>{e1}\n>{e2}")
                 await ctx.send("Error: Place not found.")
@@ -2594,7 +2619,7 @@ class General_Utility(commands.Cog):
         # STRING TEMP/WIND DATA
 
         if len(weather_list) == 0:
-            text = "no weather data"
+            header = "no weather data"
             icon_url = ""
         else:
             icon = weather_list[0][2]
@@ -2603,14 +2628,14 @@ class General_Utility(commands.Cog):
             descriptions = []
             for weather in weather_list:
                 descriptions.append(weather[1])
-            text = "**" + ', '.join(descriptions) + "**\n"
+            header = ', '.join(descriptions)
 
         if temperature == "?":
-            text += ""
+            text = ""
         elif temperature_feels == "?":
-            text += f"{temperature}\n"
+            text = f"**{temperature}**\n"
         else:
-            text += f"{temperature} feels like {temperature_feels}\n"
+            text = f"**{temperature}** feels like {temperature_feels}\n"
 
         if temperature_span != "?":
             text += f"[span: {temperature_span}]\n"
@@ -2623,7 +2648,7 @@ class General_Utility(commands.Cog):
         else:
             text += f"Wind: {wind_direction(wind_degree)} @ {speed_string(wind_speed)}\n"
 
-        embed=discord.Embed(title="", description=text.strip(), color=0xEA6D4A)
+        embed=discord.Embed(title=header, description=text.strip(), color=0xEA6D4A)
         embed.set_thumbnail(url=icon_url)
         embed.set_footer(text=f"{name}, {country}")
         await ctx.send(embed=embed)
