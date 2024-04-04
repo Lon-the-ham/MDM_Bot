@@ -21,7 +21,7 @@ class TimeLoops(commands.Cog):
 
 
 
-    def reminders_enabled():
+    def reminders_enabled(self):
         conB = sqlite3.connect(f'databases/botsettings.db')
         curB = conB.cursor()
         custom_reminders_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("reminder functionality",)).fetchall()]
@@ -386,7 +386,7 @@ class TimeLoops(commands.Cog):
 
             # SEND FIRST MESSAGE
 
-            if len(ping_list) > 0 and reminders_enabled():
+            if len(ping_list) > 0 and self.reminders_enabled():
                 try:
                     firstmessage = "Reminder!"
                     for userid in ping_list:
