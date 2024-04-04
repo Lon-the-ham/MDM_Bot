@@ -4,6 +4,7 @@ import datetime
 import pytz
 from other.utils.utils import Utils as util
 import os
+import asyncio
 import random
 from googletrans import Translator
 import re
@@ -2287,6 +2288,8 @@ class General_Utility(commands.Cog):
 
         # PARSE ARGUMENTS
 
+        city_string = "" # sometimes the returned city name is very specific and lacks the city name, for this case we save the city name here
+
         if len(args) == 0:
             conU = sqlite3.connect('databases/userdata.db')
             curU = conU.cursor()
@@ -2321,7 +2324,7 @@ class General_Utility(commands.Cog):
                 response = requests.get(url, headers=headers, params=payload)
                 rjson = response.json()
                 print(rjson)
-                return rjson
+                return rjson, city_string
 
             else:
                 # GET COORDINATES FIRST BY CITY/COUNTRY NAME
@@ -2337,22 +2340,25 @@ class General_Utility(commands.Cog):
 
                 elif len(arguments) == 2:
                     city = arguments[0].strip()
-                    country = util.isocode(arguments[1])
+                    country = util.isocode(arguments[1].strip())
                     state = ""
-                    location = f"{city},{country}"
 
-                    if len(country) > 4:
+                    if country == "ERROR":
                         state = util.us_state_code(arguments[1].strip())
                         if len(state) == 2:
                             country = "US"
                             location = f"{city},{state},{country}"
+                        else:
+                            location = f"{city},{arguments[1].strip().lower()}"
+                    else:
+                        location = f"{city},{country}"
 
                 else:
                     city = arguments[0].strip()
                     country = ""
                     state = ""
                     location = city
-                #print(f"country: {country}\nstate: {state}\ncity: {city}")
+                print(f"country: {country}\nstate: {state}\ncity: {city}")
 
                 # GET GEO COORDINATES
                 url = 'http://api.openweathermap.org/geo/1.0/direct'
@@ -2365,11 +2371,49 @@ class General_Utility(commands.Cog):
                 response = requests.get(url, headers=headers, params=payload)
                 rjson = response.json()
 
+                # SECOND TRY
+                if len(rjson) == 0 and state == "":
+                    await asyncio.sleep(1)
+                    if country != "":
+                        payload = {
+                                'q': f"{city},{country},US",
+                                'limit': '10',
+                                'appid': API_KEY,
+                                'format': 'json'
+                        }
+                    else:
+                        city_list = city.split()
+                        if len(city_list) == 1:
+                            if len(city.strip()) > 2:
+                                city_list = [city.strip()[:-2].strip(), city.strip()[-2:]]
+                            else:
+                                emoji = util.emoji("sad")
+                                raise ValueError(f"No such location found. {emoji}")
+                        city = ' '.join(city_list[:-1])
+                        state = util.us_state_code(city_list[-1])
+                        if len(state) == 2:
+                            location = f"{city},{state},US"
+                        else:
+                            country = util.isocode(city_list[-1])
+                            if country != "ERROR":
+                                location = f"{city},{country}"
+                            else:
+                                location = f"{city},{city_list[-1]}"
+                        payload = {
+                                'q': location,
+                                'limit': '10',
+                                'appid': API_KEY,
+                                'format': 'json'
+                        }
+                    response = requests.get(url, headers=headers, params=payload)
+                    rjson = response.json()
+
                 if len(rjson) == 0:
                     emoji = util.emoji("disappointed")
                     raise ValueError(f"No such location found. {emoji}")
                     return
 
+                city_string = city.title()
                 city_check = {}
 
                 # CALCULATE SOME SORT OF PLAUSIBILITY
@@ -2421,6 +2465,10 @@ class General_Utility(commands.Cog):
 
                 latitude = rjson[index_with_highest_plausibility]['lat']
                 longitude = rjson[index_with_highest_plausibility]['lon']
+                try:
+                    city_string = rjson[index_with_highest_plausibility]['name']
+                except Exception as e:
+                    print("Error during weather command while trying to fetch city name from json response:", e)
 
         # GET WEATHER DATA
         url = 'https://api.openweathermap.org/data/2.5/weather'
@@ -2439,7 +2487,7 @@ class General_Utility(commands.Cog):
                 raise ValueError("Place not found.")
         except:
             pass
-        return rjson
+        return rjson, city_string
 
 
 
@@ -2455,7 +2503,7 @@ class General_Utility(commands.Cog):
         """
 
         try:
-            rjson = await self.get_geodata(ctx, args)
+            rjson, city_name = await self.get_geodata(ctx, args)
         except:
             await ctx.send(f"Error: {e}")
             return
@@ -2487,6 +2535,8 @@ class General_Utility(commands.Cog):
         utc_now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
         datetime_text = datetime.datetime.utcfromtimestamp(utc_now+offset_sec).strftime('%Y-%m-%d %H:%M:%S')
 
+        if util.alphanum(city_name,"lower") != util.alphanum(name,"lower"):
+            name = city_name + f" ({name})"
         await ctx.send(f"{name}, {country} is in timezone UTC{pm}{offset_string}.\nCurrently: `{datetime_text}`")
 
     @_timezone_by_location.error
@@ -2558,7 +2608,7 @@ class General_Utility(commands.Cog):
         # EXECUTED CODE
 
         try:
-            rjson = await self.get_geodata(ctx, args)
+            rjson, city_name = await self.get_geodata(ctx, args)
         except Exception as e:
             await ctx.send(f"Error: {e}")
             return
@@ -2648,6 +2698,9 @@ class General_Utility(commands.Cog):
         else:
             text += f"Wind: {wind_direction(wind_degree)} @ {speed_string(wind_speed)}\n"
 
+        if util.alphanum(city_name,"lower") != util.alphanum(name,"lower"):
+            name = city_name + f" ({name})"
+
         embed=discord.Embed(title=header, description=text.strip(), color=0xEA6D4A)
         embed.set_thumbnail(url=icon_url)
         embed.set_footer(text=f"{name}, {country}")
@@ -2666,7 +2719,7 @@ class General_Utility(commands.Cog):
         # FETCH INFO FROM API
 
         try:
-            rjson = await self.get_geodata(ctx, args)
+            rjson, city_name = await self.get_geodata(ctx, args)
         except:
             await ctx.send(f"Error: {e}")
             return
@@ -2681,6 +2734,9 @@ class General_Utility(commands.Cog):
             print("Error while trying to fetch city name and country:", e)
             raise ValueError("Error 404: Place not found.")
             return
+
+        if util.alphanum(city_name,"lower") != util.alphanum(city,"lower"):
+            city = city_name + f" ({city})"
 
         # EDIT DATABASE
 
