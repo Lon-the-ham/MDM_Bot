@@ -269,7 +269,7 @@ class Utils():
             elif extra_step == "upper":
                 text = text.upper()
 
-        ctext = ''.join([e for e in text if e.isalpha() or e.isnumeric()])
+        ctext = ''.join([e for e in text.strip() if e.isalpha() or e.isnumeric()])
         return ctext
 
 
@@ -401,6 +401,8 @@ class Utils():
 
 
     def isocode(s):
+        """tries to convert string to ISO country code
+        can return ERROR string if no matches found"""
         ISO3166 = {
             'AD': 'Andorra',
             'AE': 'United Arab Emirates',
@@ -662,10 +664,10 @@ class Utils():
                     return k
             else:
                 for k,v in ISO3166.items():
-                    if Utils.alphanum(s,"lower") in Utils.alphanum(v,"lower"):
+                    if len(s) > 2 and Utils.alphanum(s,"lower") in Utils.alphanum(v,"lower"):
                         return k
                 else:
-                    return s
+                    return "ERROR"
 
 
 
@@ -972,6 +974,9 @@ class Utils():
                     if newmonth - oldmonth == 0:
                         years -= 1
                 months -= 1
+                days = newday - oldday + monthrange(newyear, newmonth)[1]
+            else:
+                days = newday - oldday # overwrite
         
 
         ### TURNING VALUES INTO TEXT
