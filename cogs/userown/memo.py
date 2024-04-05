@@ -1602,21 +1602,19 @@ class Memo(commands.Cog):
 
         Use command with @member mention to see other user's backlog.
         Use command with argument `displaycat` to display categories alongside items.
+
+        `-bl`: Shows backlog
+        `-blc <name>`: Shows backlog of category <name>
+        `-blx <name>`: Shows backlog excluding category <name>
+        `-showcats`: Shows categories in your backlog
+
+        `-add`: Adds to backlog (with default category)
+        `-add [<name>]`: Adds to category <name> in backlog
+        `-del`: Removes from backlog
+        `-edit <index>`: Edits entry nr <index> in backlog
+        `-catedit <index> <name>`: Edits category of entry nr <index> to <name>
+        `-catrename <old name> <new name>`
         """
-        #`-bl`: Shows backlog
-        #`-blc <name>`: Shows backlog of category <name>
-        #`-blx <name>`: Shows backlog excluding category <name>
-        #`-showcats`: Shows categories in your backlog
-
-        #`-add`: Adds to backlog (with default category)
-        #`-add [<name>]`: Adds to category <name> in backlog
-        #`-del`: Removes from backlog
-        #`-edit <index>`: Edits entry nr <index> in backlog
-        #`-catedit <index> <name>`: Edits category of entry nr <index> to <name>
-        #`-catrename <old name> <new name>`
-
-        #important note: 
-        #categories cannot have spaces!
         if len(args) == 0:
             args = ("",)
         await self.backlog(ctx, args)
