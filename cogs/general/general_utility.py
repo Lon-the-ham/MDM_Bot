@@ -12,6 +12,7 @@ from collections import OrderedDict
 import sqlite3
 import math
 import requests
+from emoji import UNICODE_EMOJI
 
 
 class General_Utility(commands.Cog):
@@ -29,6 +30,7 @@ class General_Utility(commands.Cog):
         The bot will reply with a message if online and active.
         """    
         await ctx.send(f'`I am online!`')
+        
     @_test.error
     async def test_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -2535,7 +2537,7 @@ class General_Utility(commands.Cog):
         utc_now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
         datetime_text = datetime.datetime.utcfromtimestamp(utc_now+offset_sec).strftime('%Y-%m-%d %H:%M:%S')
 
-        if util.alphanum(city_name,"lower") != util.alphanum(name,"lower"):
+        if city_name != "" and util.alphanum(city_name,"lower") != util.alphanum(name,"lower"):
             name = city_name + f" ({name})"
         await ctx.send(f"{name}, {country} is in timezone UTC{pm}{offset_string}.\nCurrently: `{datetime_text}`")
 
@@ -2698,7 +2700,7 @@ class General_Utility(commands.Cog):
         else:
             text += f"Wind: {wind_direction(wind_degree)} @ {speed_string(wind_speed)}\n"
 
-        if util.alphanum(city_name,"lower") != util.alphanum(name,"lower"):
+        if city_name != "" and util.alphanum(city_name,"lower") != util.alphanum(name,"lower"):
             name = city_name + f" ({name})"
 
         embed=discord.Embed(title=header, description=text.strip(), color=0xEA6D4A)
@@ -2735,7 +2737,7 @@ class General_Utility(commands.Cog):
             raise ValueError("Error 404: Place not found.")
             return
 
-        if util.alphanum(city_name,"lower") != util.alphanum(city,"lower"):
+        if city_name != "" and util.alphanum(city_name,"lower") != util.alphanum(city,"lower"):
             city = city_name + f" ({city})"
 
         # EDIT DATABASE
