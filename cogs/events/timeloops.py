@@ -790,28 +790,28 @@ class TimeLoops(commands.Cog):
         custom_emoji_dict = {}
 
         for emoji in self.bot.emojis:
-            if emoji.startswith("<") and emoji.endswith(">") and emoji.count(":") == 2:
-                parts = emoji.replace("<","").replace(">","").split(":")
+            if str(emoji).startswith("<") and str(emoji).endswith(">") and str(emoji).count(":") == 2:
+                parts = str(emoji).replace("<","").replace(">","").split(":")
                 animated = parts[0].strip()
                 emoji_name = parts[1].strip()
                 emoji_id = parts[2].strip()
 
-                custom_emoji_dict[animated+emoji_id] = emoji
+                custom_emoji_dict[animated+emoji_id] = str(emoji)
             else:
-                print("Error with", emoji)
+                print("Error with", str(emoji))
 
         # UPDATE EMOJI IN BOTSETTINGS
 
         conB = sqlite3.connect('databases/botsettings.db')
         curB = conB.cursor()
 
-        botsettings_emoji = [[item[0],item[1]] for item in curB.execute("SELECT call, purpose FROM emoji WHERE call != ?", ("",)).fetchall()]
+        botsettings_emoji = [[item[0],item[1]] for item in curB.execute("SELECT call, purpose FROM emojis WHERE call != ?", ("",)).fetchall()]
 
         faulty_botsettings_emoji = []
         removed_botsettings_emoji = []
 
         for emoji in [x[0] for x in botsettings_emoji]:
-            if emoji in self.bot.emojis:
+            if emoji in [str(x) for x in self.bot.emojis]:
                 pass # is custom emoji
             elif emoji in UNICODE_EMOJI['en']:
                 pass # is unicoded emoji
@@ -830,10 +830,10 @@ class TimeLoops(commands.Cog):
 
                 if emoji_a_id in custom_emoji_dict:
                     emoji_new = custom_emoji_dict[emoji_a_id]
-                    curB.execute("UPDATE botsettings SET call = ? WHERE call = ?", (emoji_new, emoji))
+                    curB.execute("UPDATE emojis SET call = ? WHERE call = ?", (emoji_new, emoji))
                     continue
 
-            curB.execute("UPDATE botsettings SET call = ? WHERE call = ?", ("", emoji))
+            curB.execute("UPDATE emojis SET call = ? WHERE call = ?", ("", emoji))
             removed_botsettings_emoji.append(emoji)
         conB.commit()
 
@@ -848,7 +848,7 @@ class TimeLoops(commands.Cog):
         removed_role_emoji = []
 
         for emoji in [x[0] for x in role_emoji]:
-            if emoji in self.bot.emojis:
+            if emoji in [str(x) for x in self.bot.emojis]:
                 pass # is custom emoji
             elif emoji in UNICODE_EMOJI['en']:
                 pass # is unicoded emoji
@@ -879,7 +879,7 @@ class TimeLoops(commands.Cog):
         conNP = sqlite3.connect('databases/npsettings.db')
         curNP = conNP.cursor()
 
-        np_reactions = [[item[0],item[1],item[2],item[3],item[4]] for item in curR.execute("SELECT emoji1, emoji2, emoji3, emoji4, emoji5 FROM npreactions").fetchall()]
+        np_reactions = [[item[0],item[1],item[2],item[3],item[4]] for item in curNP.execute("SELECT emoji1, emoji2, emoji3, emoji4, emoji5 FROM npreactions").fetchall()]
         np_react_list = []
 
         for react_set in np_reactions:
@@ -895,7 +895,7 @@ class TimeLoops(commands.Cog):
         removed_np_emoji = []
 
         for emoji in np_react_list:
-            if emoji in self.bot.emojis:
+            if emoji in [str(x) for x in self.bot.emojis]:
                 pass # is custom emoji
             elif emoji in UNICODE_EMOJI['en']:
                 pass # is unicoded emoji
@@ -989,7 +989,7 @@ class TimeLoops(commands.Cog):
                     message += "\n"
                 message += "\n"
 
-            self.timeloop_notification(title, message.strip(), all_good)
+            await self.timeloop_notification(title, message.strip(), all_good)
         else:
             print("Successful emoji check: all good!")
 
