@@ -3656,7 +3656,7 @@ class Administration_of_Settings(commands.Cog):
 
             # BOTSETTINGS DB: EMOJI
 
-            curB.execute('''CREATE TABLE IF NOT EXISTS emojis (purpose text, call text, extra text)''')
+            curB.execute('''CREATE TABLE IF NOT EXISTS emojis (purpose text, call text, extra text, alias text)''')
 
             #under construction
 
