@@ -8,6 +8,7 @@ import traceback
 import asyncio
 import sqlite3
 import requests
+from emoji import UNICODE_EMOJI
 
 
 
@@ -783,8 +784,214 @@ class TimeLoops(commands.Cog):
         (also update emoji names in npsettings.db, botsettings.db and roles.db)
         ++ calendar
         """
-        pass 
-        # under construction
+
+        # GET CUSTOM EMOJI DICTIONARY
+
+        custom_emoji_dict = {}
+
+        for emoji in self.bot.emojis:
+            if emoji.startswith("<") and emoji.endswith(">") and emoji.count(":") == 2:
+                parts = emoji.replace("<","").replace(">","").split(":")
+                animated = parts[0].strip()
+                emoji_name = parts[1].strip()
+                emoji_id = parts[2].strip()
+
+                custom_emoji_dict[animated+emoji_id] = emoji
+            else:
+                print("Error with", emoji)
+
+        # UPDATE EMOJI IN BOTSETTINGS
+
+        conB = sqlite3.connect('databases/botsettings.db')
+        curB = conB.cursor()
+
+        botsettings_emoji = [[item[0],item[1]] for item in curB.execute("SELECT call, purpose FROM emoji WHERE call != ?", ("",)).fetchall()]
+
+        faulty_botsettings_emoji = []
+        removed_botsettings_emoji = []
+
+        for emoji in [x[0] for x in botsettings_emoji]:
+            if emoji in self.bot.emojis:
+                pass # is custom emoji
+            elif emoji in UNICODE_EMOJI['en']:
+                pass # is unicoded emoji
+            elif emoji in list(UNICODE_EMOJI['en'].values()):
+                pass # is emoji name
+            else:
+                faulty_botsettings_emoji.append(emoji)
+
+        for emoji in faulty_botsettings_emoji:
+            if emoji.startswith("<") and emoji.endswith(">") and emoji.count(":") == 2:
+                parts = emoji.replace("<","").replace(">","").split(":")
+                animated = parts[0].strip()
+                emoji_name = parts[1].strip()
+                emoji_id = parts[2].strip()
+                emoji_a_id = animated + emoji_id
+
+                if emoji_a_id in custom_emoji_dict:
+                    emoji_new = custom_emoji_dict[emoji_a_id]
+                    curB.execute("UPDATE botsettings SET call = ? WHERE call = ?", (emoji_new, emoji))
+                    continue
+
+            curB.execute("UPDATE botsettings SET call = ? WHERE call = ?", ("", emoji))
+            removed_botsettings_emoji.append(emoji)
+        conB.commit()
+
+        # UPDATE EMOJI IN ROLES
+
+        conR = sqlite3.connect('databases/roles.db')
+        curR = conR.cursor()
+
+        role_emoji = [[item[0],item[1]] for item in curR.execute("SELECT details, id FROM roles WHERE details != ?", ("",)).fetchall()]
+
+        faulty_role_emoji = []
+        removed_role_emoji = []
+
+        for emoji in [x[0] for x in role_emoji]:
+            if emoji in self.bot.emojis:
+                pass # is custom emoji
+            elif emoji in UNICODE_EMOJI['en']:
+                pass # is unicoded emoji
+            elif emoji in list(UNICODE_EMOJI['en'].values()):
+                pass # is emoji name
+            else:
+                faulty_role_emoji.append(emoji)
+
+        for emoji in faulty_role_emoji:
+            if emoji.startswith("<") and emoji.endswith(">") and emoji.count(":") == 2:
+                parts = emoji.replace("<","").replace(">","").split(":")
+                animated = parts[0].strip()
+                emoji_name = parts[1].strip()
+                emoji_id = parts[2].strip()
+                emoji_a_id = animated + emoji_id
+
+                if emoji_a_id in custom_emoji_dict:
+                    emoji_new = custom_emoji_dict[emoji_a_id]
+                    curR.execute("UPDATE roles SET details = ? WHERE details = ?", (emoji_new, emoji))
+                    continue
+
+            curR.execute("UPDATE roles SET details = ? WHERE details = ?", ("", emoji))
+            removed_role_emoji.append(emoji)
+        conR.commit()
+
+        # UPDATE EMOJI IN NPSETTINGS
+
+        conNP = sqlite3.connect('databases/npsettings.db')
+        curNP = conNP.cursor()
+
+        np_reactions = [[item[0],item[1],item[2],item[3],item[4]] for item in curR.execute("SELECT emoji1, emoji2, emoji3, emoji4, emoji5 FROM npreactions").fetchall()]
+        np_react_list = []
+
+        for react_set in np_reactions:
+            for react in react_set:
+                if react is None or react.strip() == "":
+                    pass
+                else:
+                    np_react_list.append(react)
+
+        np_react_list = list(dict.fromkeys(np_react_list))
+
+        faulty_np_emoji = []
+        removed_np_emoji = []
+
+        for emoji in np_react_list:
+            if emoji in self.bot.emojis:
+                pass # is custom emoji
+            elif emoji in UNICODE_EMOJI['en']:
+                pass # is unicoded emoji
+            elif emoji in list(UNICODE_EMOJI['en'].values()):
+                pass # is emoji name
+            else:
+                faulty_np_emoji.append(emoji)
+
+        for emoji in faulty_np_emoji:
+            if emoji.startswith("<") and emoji.endswith(">") and emoji.count(":") == 2:
+                parts = emoji.replace("<","").replace(">","").split(":")
+                animated = parts[0].strip()
+                emoji_name = parts[1].strip()
+                emoji_id = parts[2].strip()
+                emoji_a_id = animated + emoji_id
+
+                if emoji_a_id in custom_emoji_dict:
+                    emoji_new = custom_emoji_dict[emoji_a_id]
+                    curNP.execute("UPDATE npreactions SET emoji1 = ? WHERE emoji1 = ?", (emoji_new, emoji))
+                    curNP.execute("UPDATE npreactions SET emoji2 = ? WHERE emoji2 = ?", (emoji_new, emoji))
+                    curNP.execute("UPDATE npreactions SET emoji3 = ? WHERE emoji3 = ?", (emoji_new, emoji))
+                    curNP.execute("UPDATE npreactions SET emoji4 = ? WHERE emoji4 = ?", (emoji_new, emoji))
+                    curNP.execute("UPDATE npreactions SET emoji5 = ? WHERE emoji5 = ?", (emoji_new, emoji))
+                    continue
+
+            curNP.execute("UPDATE npreactions SET emoji1 = ? WHERE emoji1 = ?", ("", emoji))
+            curNP.execute("UPDATE npreactions SET emoji2 = ? WHERE emoji2 = ?", ("", emoji))
+            curNP.execute("UPDATE npreactions SET emoji3 = ? WHERE emoji3 = ?", ("", emoji))
+            curNP.execute("UPDATE npreactions SET emoji4 = ? WHERE emoji4 = ?", ("", emoji))
+            curNP.execute("UPDATE npreactions SET emoji5 = ? WHERE emoji5 = ?", ("", emoji))
+            removed_np_emoji.append(emoji)
+        conNP.commit()
+
+        await util.changetimeupdate()
+
+        # BOTSPAM NOTIFICATION
+
+        if len(removed_botsettings_emoji) == 0 and len(removed_role_emoji) == 0 and len(removed_np_emoji) == 0:
+            all_good = True
+        else:
+            all_good = False
+
+        if not all_good:
+            title = "Removed emojis that are no longer usable"
+            message = ""
+
+            if len(removed_botsettings_emoji) > 0:
+                message += "**bot settings emoji purposes**\n"
+
+                for emoji in removed_botsettings_emoji:
+                    message += emoji + " :: "
+
+                    for emote in botsettings_emoji:
+                        if emote[0] == emoji:
+                            message += "`" + emote[1] + "`, "
+
+                    if message.endswith(", "):
+                        message = message[:-2]
+                    else:
+                        message += "?"
+                    message += "\n"
+                message += "\n"
+
+            if len(removed_role_emoji) > 0:
+                message += "**role database emoji**\n"
+
+                for emoji in removed_role_emoji:
+                    message += emoji + " :: "
+
+                    for emote in role_emoji:
+                        if emote[0] == emoji:
+                            message += f"<@{emote[1]}>, "
+
+                    if message.endswith(", "):
+                        message = message[:-2]
+                    else:
+                        message += "?"
+                    message += "\n"
+                message += "\n"
+
+            if len(removed_np_emoji) > 0:
+                message += "**np react emoji**\n"
+
+                for emoji in removed_np_emoji:
+                    message += emoji + ", "
+
+                    if message.endswith(", "):
+                        message = message[:-2]
+                    else:
+                        message += "?"
+                    message += "\n"
+                message += "\n"
+
+            self.timeloop_notification(title, message.strip(), all_good)
+        else:
+            print("Successful emoji check: all good!")
 
 
 
