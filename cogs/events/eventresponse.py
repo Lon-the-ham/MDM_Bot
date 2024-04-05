@@ -1290,7 +1290,7 @@ class Event_Response(commands.Cog):
                                     emoji = util.emoji("ban")
                                     text = f"Banned <@{user.id}> {emoji}"
                                     footer = f"NAME: {user.name}, ID: {user.id}"
-                                    image = str(user.avatar.url)
+                                    image = str(user.avatar_url)
                                     color = 0xd30000
                                     await self.botspam_send(title, text, footer, image, None, color, None)
                                 except Exception as e:
