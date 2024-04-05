@@ -323,6 +323,8 @@ class Utils():
         cur = con.cursor()
         emoji_list = [[item[0],item[1],item[2]] for item in cur.execute("SELECT purpose, call, extra FROM emojis").fetchall()]
 
+        # fetch emoji by purpose name: if call is empty choose extra
+
         term = name.lower().strip()
         for item in emoji_list:
             if term == item[0]:
@@ -352,7 +354,33 @@ class Utils():
                         else:
                             emote = ""
 
+        # if search was unsuccessful look for alias and choose one at random
+
         if emote == "":
+            term = ''.join(e for e in name.strip().lower().replace(" ","_") if e.isalnum() or e == "_")
+            alias_list = [[item[0],item[1]] for item in cur.execute("SELECT call, extra FROM emojis WHERE LOWER(alias) = ?", (term,)).fetchall()]
+
+            if len(alias_list) > 0:
+                first_choice_list = []
+                second_choice_list = []
+
+                for item in alias_list:
+                    if item[0].strip() == "":
+                        emoji = item[1].strip()
+                        if emoji not in second_choice_list:
+                            second_choice_list.append(emoji)
+                    else:
+                        emoji = item[0].strip()
+                        if emoji not in first_choice_list:
+                            first_choice_list.append(emoji)
+
+                if len(first_choice_list) > 0:
+                    emote = random.choice(first_choice_list)
+
+                elif len(second_choice_list) > 0:
+                    emote = random.choice(second_choice_list)
+
+        if emote == "":                
             print(f"Notice: Emoji with name '{name}' returned an empty string.")
 
         return emote
@@ -1601,19 +1629,6 @@ class Utils():
                 elif word.startswith("emoji:") and len(word) > 6:
                     emoji = word.split(":")[1]
                     new_word = Utils.emoji(emoji)
-                    # welcome emoji is a random emoji from a list
-                    if new_word.strip() == "" and emoji.strip().lower() == "welcome":
-                        try:
-                            welcome_word_list = ["awoken", "aww", "aww2", "aww3", "bongo", "bouncy", "celebrate", "cheer", "cozy", "dance", "excited", "excited_face", "hello", "hello2", "hello3", "lurk", "lurk2", "lurk3", "metal", "morning", "yay", "yay2"]
-                            welcome_emojis = []
-                            for word in welcome_word_list:
-                                emoji = Utils.emoji(word)
-                                if emoji not in welcome_emojis and emoji.strip() != "":
-                                    welcome_emojis.append(emoji)
-                            welcome_emoji = random.choice(welcome_emojis)
-                        except:
-                            welcome_emoji = Utils.emoji("hello")
-                        new_word = welcome_emoji
                 else:
                     new_word = word
                 new_phrase_list.append(new_word)
