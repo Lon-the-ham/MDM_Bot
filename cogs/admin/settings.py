@@ -3658,10 +3658,96 @@ class Administration_of_Settings(commands.Cog):
 
             curB.execute('''CREATE TABLE IF NOT EXISTS emojis (purpose text, call text, extra text, alias text)''')
 
-            #under construction
+            conB = sqlite3.connect('databases/botsettings.db')
+            curB = conB.cursor()
+            botsettings_emoji = [item[0].strip() for item in curB.execute("SELECT purpose FROM emojis").fetchall()]
 
+            default_emoji_dict = {
+                            "attention" : "⚠️",
+                            "awoken" : "🌞",
+                            "aww" : "☺️",
+                            "aww2" : "☺️",
+                            "aww3" : "☺️",
+                            "ban" : "🔨",
+                            "bongo" : "🪘",
+                            "bot" : "🤖",
+                            "bouncy" : "⛹️",
+                            "celebrate" : "🥳",
+                            "cheer" : "😃",
+                            "computer" : "💻",
+                            "cover_eyes" : "🙈",
+                            "cover_eyes2" : "🙈",
+                            "cozy" : "😌",
+                            "crown" : "👑",
+                            "cry" : "😭",
+                            "cry2" : "😭",
+                            "dance" : "🕺",
+                            "dance2" : "💃",
+                            "derpy" : "🤪",
+                            "derpy_playful" : "🤪",
+                            "disappointed" : "😞",
+                            "excited" : "😁",
+                            "excited_alot" : "😁",
+                            "excited_face" : "😁",
+                            "giggle" : "😆",
+                            "grin" : "🙃",
+                            "gun" : "🔫",
+                            "hello" : "👋",
+                            "hello2" : "👋",
+                            "hello3" : "👋",
+                            "hold_head" : "🙉",
+                            "hmm" : "🤔",
+                            "hmm2" : "🤔",
+                            "load" : "⏳",
+                            "lurk" : "👀",
+                            "lurk2" : "👀",
+                            "lurk3" : "👀",
+                            "metal" : "🤘",
+                            "morning" : "🌞",
+                            "mute" : "🙊",
+                            "nice" : "😀",
+                            "no" : "🙅",
+                            "note" : "📝",
+                            "ohh" : "😮",
+                            "pain" : "💀",
+                            "panic" : "😱",
+                            "pensive" : "😔",
+                            "pensive2" : "😔",
+                            "pleading" : "😴",
+                            "pout" : "🙎",
+                            "sad" : "😢",
+                            "shaking" : "🫨",
+                            "shrug" : "🤷",
+                            "shy" : "🙈",
+                            "sleep" : "😴",
+                            "smug" : "👀",
+                            "sob" : "😭",
+                            "surprised" : "😮",
+                            "surprised2" : "😮",
+                            "think" : "🤔",
+                            "think_hmm" : "🤔",
+                            "think_sceptic" : "🤔",
+                            "think_smug" : "🤔",
+                            "thumb_up" : "👍",
+                            "thumbs_up" : "👍",
+                            "umm" : "😐",
+                            "unleashed" : "🦖",
+                            "unleashed_mild" : "🦕",
+                            "upset" : "😾",
+                            "welp" : "🙈",
+                            "yay" : "😄",
+                            "yay2" : "😄",
+                            "yes" : "🙆",
+                            "bye" : "👋",
+                        }
 
-
+            for moji_purpose in default_emoji_dict:
+                if moji_purpose in botsettings_emoji:
+                    pass
+                else:
+                    curB.execute("INSERT INTO emojis VALUES (?, ?, ?, ?)", (moji_purpose, "", default_emoji_dict[moji_purpose], ""))
+                    conB.commit()
+                    print(f"Added emoji for {moji_purpose} into database.")
 
 
             # TIMETABLES DB
