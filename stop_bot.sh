@@ -1,4 +1,5 @@
 #!/bin/bash
-source /home/pi4b/.bashrc
-cd /home/pi4b/bots/MDM_Bot_v3
+source ~/.bashrc
+BASEDIR=$(dirname "$0")
+cd "$BASEDIR"
 pkill -9 -f mdmbot.py
