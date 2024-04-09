@@ -835,7 +835,7 @@ class Administration_of_Server(commands.Cog):
                         general_channel = ctx.channel
                         additional_notes += "-check on general channel id in database\n"
 
-                    welcometext_list = [item[0].strip() for item in cur.execute("SELECT details FROM serversettings WHERE name = ?", ("welcome message",)).fetchall()]
+                    welcometext_list = [item[0].strip() for item in cur.execute("SELECT etc FROM serversettings WHERE name = ?", ("welcome message",)).fetchall()]
                     while "" in welcometext_list:
                         welcometext_list.remove("")
                     if len(welcometext_list) == 0 or welcometext_list[0].strip() == "":
