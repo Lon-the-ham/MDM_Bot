@@ -11,8 +11,8 @@
 # if it's an on/off switch 
 #     > also added to database_on_off_switch(...) function
 # and added to
-#     > update command
-#     > setup command
+#     > update part of botupdating()
+#     > setup part of botupdating()
 
 
 
@@ -3185,21 +3185,29 @@ class Administration_of_Settings(commands.Cog):
     #########################################################################################################################################
     #########################################################################################################################################
 
+
+
+    #########################################################################################################################################
+    #########################################################################################################################################
+    #########################################################################################################################################
+    #########################################################################################################################################
+    #########################################################################################################################################
+    #########################################################################################################################################
+    #########################################################################################################################################
+    #########################################################################################################################################
+    #########################################################################################################################################
+    #########################################################################################################################################
+    #########################################################################################################################################
+    #########################################################################################################################################
+    #########################################################################################################################################
+
+
+
     # UPDATE AND SETUP 
 
 
-
-
-
-
-    @commands.command(name="update", aliases = ["botupdate"], pass_context=True)
-    @commands.has_permissions(manage_guild=True)
-    async def _botupdate(self, ctx, *args):
-        """Update bot
-
-        Only needed when updating the version of the bot from GitHub.
-        i.e. New features will be included in the databases and automatically turned "off". Without this errors might occur because the setting is missing entirely.
-        """
+    async def botupdating(self, ctx, is_setup):
+        """does update or setup"""
 
         # FETCH SERVER ID FROM .ENV FILE AND RETURN IF NOT MAIN SERVER
         try:
@@ -3218,22 +3226,28 @@ class Administration_of_Settings(commands.Cog):
 
         # CREATE ALL DATABASES AND TABLES
         # FILL WITH DEFAULT DATA IF EMPTY
-        async with ctx.typing():
 
-            await ctx.send(f"Starting update of MDM Bot (instance: {bot_instance})...")
+        # ACTIVITY DB
 
-            # ACTIVITY DB
-
-            conA = sqlite3.connect(f'databases/activity.db')
-            curA = conA.cursor()
-            curA.execute('''CREATE TABLE IF NOT EXISTS activity (name text, value text)''')
-            activity_list = [item[0] for item in curA.execute("SELECT value FROM activity WHERE name = ?", ("activity",)).fetchall()]
-            if len(activity_list) == 0:
-                curA.execute("INSERT INTO activity VALUES (?,?)", ("activity", "inactive"))
-                conA.commit()
-                print("Updated activity table")
-            elif len(activity_list) > 1:
+        conA = sqlite3.connect(f'databases/activity.db')
+        curA = conA.cursor()
+        curA.execute('''CREATE TABLE IF NOT EXISTS activity (name text, value text)''')
+        activity_list = [item[0] for item in curA.execute("SELECT value FROM activity WHERE name = ?", ("activity",)).fetchall()]
+        if len(activity_list) == 0:
+            curA.execute("INSERT INTO activity VALUES (?,?)", ("activity", "inactive"))
+            conA.commit()
+            print("Updated activity table")
+        else:
+            if len(activity_list) > 1:
                 print("Warning: Multiple activity entries in activity.db")
+
+            if activity_list[0] == "inactive":
+                print("instance inactive")
+                return
+
+        await ctx.send(f"Starting update of MDM Bot (instance: {bot_instance})...")
+
+        async with ctx.typing():
 
             # AFTERMOST CHANGE DB
 
@@ -3373,33 +3387,45 @@ class Administration_of_Settings(commands.Cog):
             if len(accesswallchannelid_list) == 0:
                 curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("access wall channel id", "none", "", ""))
                 conB.commit()
+                accesswall_channel_id = "none"
                 print("Added dummy entry for access wall channel id")
-            elif len(accesswallchannelid_list) > 1:
-                print("Warning: Multiple access wall channel id entries in serversettings table (botsettings.db)")
+            else:
+                accesswall_channel_id = accesswallchannelid_list[0]
+                if len(accesswallchannelid_list) > 1:
+                    print("Warning: Multiple access wall channel id entries in serversettings table (botsettings.db)")
 
             generalchannelid_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("general channel id",)).fetchall()]
             if len(generalchannelid_list) == 0:
                 curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("general channel id", "none", "", ""))
                 conB.commit()
                 print("Added dummy entry for general channel id")
-            elif len(generalchannelid_list) > 1:
-                print("Warning: Multiple general channel id entries in serversettings table (botsettings.db)")
+                general_channel_id = "none"
+            else:
+                general_channel_id = generalchannelid_list[0]
+                if len(generalchannelid_list) > 1:
+                    print("Warning: Multiple general channel id entries in serversettings table (botsettings.db)")
 
             rolechannelid_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("role channel id",)).fetchall()]
             if len(rolechannelid_list) == 0:
                 curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("role channel id", "none", "", ""))
                 conB.commit()
                 print("Added dummy entry for role channel id")
-            elif len(rolechannelid_list) > 1:
-                print("Warning: Multiple role channel id entries in serversettings table (botsettings.db)")
+                role_channel_id = "none"
+            else:
+                role_channel_id = rolechannelid_list[0]
+                if len(rolechannelid_list) > 1:
+                    print("Warning: Multiple role channel id entries in serversettings table (botsettings.db)")
 
             ruleschannelid_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("rules channel id",)).fetchall()]
             if len(ruleschannelid_list) == 0:
                 curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("rules channel id", "none", "", ""))
                 conB.commit()
                 print("Added dummy entry for turing test channel id (rules channel id)")
-            elif len(ruleschannelid_list) > 1:
-                print("Warning: Multiple turing test channel id (rules channel id) entries in serversettings table (botsettings.db)")
+                rules_channel_id = "none"
+            else:
+                rules_channel_id = ruleschannelid_list[0]
+                if len(ruleschannelid_list) > 1:
+                    print("Warning: Multiple turing test channel id (rules channel id) entries in serversettings table (botsettings.db)")
 
             # on/off switches
 
@@ -3408,24 +3434,33 @@ class Administration_of_Settings(commands.Cog):
                 curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("access wall", "off", "", ""))
                 conB.commit()
                 print("Updated serversettings table: access wall")
-            elif len(accesswall_list) > 1:
-                print("Warning: Multiple access wall entries in serversettings table (botsettings.db)")
+                accesswall = "off"
+            else:
+                accesswall = accesswall_list[0]
+                if len(accesswall_list) > 1:
+                    print("Warning: Multiple access wall entries in serversettings table (botsettings.db)")
 
             welcomemessage_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("welcome message",)).fetchall()]
             if len(welcomemessage_list) == 0:
                 curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("welcome message", "off", "", ""))
                 conB.commit()
+                welcomemessage = "off"
                 print("Updated serversettings table: welcome message")
-            elif len(welcomemessage_list) > 1:
-                print("Warning: Multiple welcome message entries in serversettings table (botsettings.db)")
+            else:
+                welcomemessage = welcomemessage_list[0]
+                if len(welcomemessage_list) > 1:
+                    print("Warning: Multiple welcome message entries in serversettings table (botsettings.db)")
 
             reactionroles_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("reaction roles",)).fetchall()]
             if len(reactionroles_list) == 0:
                 curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("reaction roles", "off", "by rank", ""))
                 conB.commit()
+                reactionroles = "off"
                 print("Updated serversettings table: reaction roles")
-            elif len(reactionroles_list) > 1:
-                print("Warning: Multiple reaction roles entries in serversettings table (botsettings.db)")
+            else:
+                reactionroles = reactionroles_list[0]
+                if len(reactionroles_list) > 1:
+                    print("Warning: Multiple reaction roles entries in serversettings table (botsettings.db)")
 
             botdisplay_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("bot display",)).fetchall()]
             if len(botdisplay_list) == 0:
@@ -3841,16 +3876,408 @@ class Administration_of_Settings(commands.Cog):
 
             version = util.get_version()
             await ctx.send(f"Updated to {version}.")
+
+
+
+            #############################################################################################################################
+            ################################################## SETUP PART ###############################################################
+            #############################################################################################################################
+
+
+
+            if not is_setup:
+                return
+
+            setup_count = 0 
+
+            setup_count += 1
+            if is_setup:
+                text = f"**Setup step {setup_count}: Welcome message**\n"
+                text += "Do you want this bot to give new users a welcome message? Respond with `on` to enable, or `off` to disable.\n(If you enable the access wall feature this will be the message that's being sent *after* verification of the user.)"
+                input_valid = False
+                while input_valid == False:
+                    input_valid = True
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+                    if the_input not in ["skip", "cancel"]:
+                        if the_input.lower() in ["on", "off"]:
+                            curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (the_input.lower(), "welcome message"))
+                            conB.commit()
+                            welcomemessage = the_input.lower()
+                            await ctx.send(f"Welcome messages set `{the_input.lower()}`!")
+                        else:
+                            text = "Error: Invalid input, try again or skip/cancel."
+                            input_valid = False
+                    elif the_input == "cancel":
+                        is_setup = False
+
+            setup_count += 1
+            if is_setup and welcomemessage == "on":
+                text = f"**Setup step {setup_count}: General channel**\n"
+                text += "Please provide the channel id of your #general channel (where welcome messages will be sent to)."
+                input_valid = False
+                while input_valid == False:
+                    input_valid = True
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+                    if the_input not in ["skip", "cancel"]:
+
+                        if the_input.startswith("<#") and the_input.endswith(">"):
+                            the_input = the_input.replace("<#","").replace(">","")
+
+                        if util.represents_integer(the_input):
+                            try:
+                                generalchannel = self.bot.get_channel(int(the_input))
+                                print("General Channel:", generalchannel.name)
+                                curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (the_input, "general channel id"))
+                                conB.commit()
+                                generalchannel_id = the_input
+                                await ctx.send(f"General channel set to <#{the_input}>!")
+                            except Exception as e:
+                                print("Error:", e)
+                                text = "Error: Something wrong with the channel, make sure it is accessible to me. Try again or skip/cancel."
+                                input_valid = False
+                        else:
+                            text = "Error: Invalid input, try again or skip/cancel."
+                            input_valid = False
+                    elif the_input == "cancel":
+                        is_setup = False
+
+            setup_count += 1
+            if is_setup:
+                text = f"**Setup step {setup_count}: Access Wall Feature**\n"
+                text += "Do you want to have an access wall on this server?\n(New users cannot see all channels. They get a role that makes them able to interact with mods in a dedicated access wall channel, and after being verified they lose the access wall role and get a new verified role that gives them permissions to interact with the rest of the server.)\nRespond with `on` to enable, or `off` to disable."
+                input_valid = False
+                while input_valid == False:
+                    input_valid = True
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+                    if the_input not in ["skip", "cancel"]:
+                        if the_input.lower() in ["on", "off"]:
+                            curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (the_input, "access wall"))
+                            conB.commit()
+                            accesswall = the_input.lower()
+                            await ctx.send(f"Access wall set `{the_input.lower()}`!")
+                        else:
+                            text = "Error: Invalid input, try again or skip/cancel."
+                            input_valid = False
+                    elif the_input == "cancel":
+                        is_setup = False
+
+            setup_count += 1
+            if is_setup and accesswall == "on":
+                text = f"**Setup step {setup_count}: Access Wall Channel**\n"
+                text += "Please provide the channel in which newcomers will be placed. Respond with `create` to create a new one."
+                input_valid = False
+                while input_valid == False:
+                    input_valid = True
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+                    if the_input not in ["skip", "cancel"]:
+
+                        if the_input.startswith("<#") and the_input.endswith(">"):
+                            the_input = the_input.replace("<#","").replace(">","")
+
+                        if util.represents_integer(the_input.lower()):
+                            try:
+                                accesswall_channel = self.bot.get_channel(int(the_input))
+                                print("Access Wall Channel:", accesswall_channel.name)
+                                curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (the_input, "access wall channel id"))
+                                conB.commit()
+                                accesswall_channel_id = the_input.lower()
+                                await ctx.send(f"Access wall channel set to <#{the_input.lower()}>!")
+                            except Exception as e:
+                                print("Error:", e)
+                                text = "Error: Something wrong with the channel, make sure it is accessible to me. Try again or skip/cancel."
+                                input_valid = False
+                        elif the_input.lower() == "create":
+                            accesswall_channel = await ctx.guild.create_text_channel('Access Wall')
+                            curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (str(accesswall_channel.id), "access wall channel id"))
+                            conB.commit()
+                            accesswall_channel_id = the_input.lower()
+                            await ctx.send(f"Access wall channel set to <#{accesswall_channel.id}>!")
+                        else:
+                            text = "Error: Invalid input, try again or skip/cancel."
+                            input_valid = False
+                    elif the_input == "cancel":
+                        is_setup = False
+
+            setup_count += 1
+            if is_setup and accesswall == "on" and accesswall_channel_id != "none":
+                text = f"**Setup step {setup_count}: Verified Role**\n"
+                text += "Please provide the role for verified users. Respond with `create` to create a new one."
+                input_valid = False
+                while input_valid == False:
+                    input_valid = True
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+                    if the_input not in ["skip", "cancel"]:
+
+                        if the_input.startswith("<@&") and the_input.endswith(">"):
+                            the_input = the_input.replace("<@&","").replace(">","")
+
+                        if util.represents_integer(the_input.lower()):
+                            try:
+                                verified_role = discord.utils.get(ctx.guild.roles, id = int(the_input))
+                                print("Verified Role:", verified_role.name)
+                                curB.execute("UPDATE specialroles SET role_id = ? WHERE name = ?", (the_input, "verified role"))
+                                conB.commit()
+                                await ctx.send(f"Set verified role to `@{verified_role.name}`.")
+                            except Exception as e:
+                                print("Error:", e)
+                                text = "Error: Something wrong with the role. Try again, create or skip/cancel."
+                                input_valid = False
+
+                        elif the_input.lower() == "create":
+                            verified_role = await ctx.guild.create_role(name="Verified", color=discord.Colour(None))
+                            curB.execute("UPDATE specialroles SET role_id = ? WHERE name = ?", (str(verified_role.id), "verified role"))
+                            conB.commit()
+                            await ctx.send(f"Set verified role to `@{verified_role.name}`.")
+
+                        else:
+                            text = "Error: Invalid input, try again or skip/cancel."
+                            input_valid = False
+                    elif the_input == "cancel":
+                        is_setup = False
+
+            setup_count += 1
+            if is_setup and accesswall == "on" and accesswall_channel_id != "none":
+                text = f"**Setup step {setup_count}: Access Wall Role**\n"
+                text += "Please provide the access wall role. Respond with `create` to create a new one."
+                input_valid = False
+                while input_valid == False:
+                    input_valid = True
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+                    if the_input not in ["skip", "cancel"]:
+
+                        if the_input.startswith("<@&") and the_input.endswith(">"):
+                            the_input = the_input.replace("<@&","").replace(">","")
+
+                        if util.represents_integer(the_input.lower()):
+                            try:
+                                wintersgate_role = discord.utils.get(ctx.guild.roles, id = int(the_input))
+                                print("Access Wall Role:", wintersgate_role.name)
+                                curB.execute("UPDATE specialroles SET role_id = ? WHERE name = ?", (the_input, "access wall role"))
+                                conB.commit()
+                                await ctx.send(f"Set access wall role to `@{wintersgate_role.name}`.")
+                            except Exception as e:
+                                print("Error:", e)
+                                text = "Error: Something wrong with the role. Try again, create or skip/cancel."
+                                input_valid = False
+
+                        elif the_input.lower() == "create":
+                            wintersgate_role = await ctx.guild.create_role(name="Access Wall Dweller", color=discord.Colour(None))
+                            curB.execute("UPDATE specialroles SET role_id = ? WHERE name = ?", (str(wintersgate_role.id), "access wall role"))
+                            conB.commit()
+                            await ctx.send(f"Set access wall role to `@{wintersgate_role.name}`.")
+
+                        else:
+                            text = "Error: Invalid input, try again or skip/cancel."
+                            input_valid = False
+                    elif the_input == "cancel":
+                        is_setup = False
+
+            # under construction:
+            # find channels where @everyone has access (viewing, messaging rights)
+            #        text and voice?
+            # set accessibility for verified role explicitly to true (viewing, messaging rights)
+            # set viewing for @everyone role explicitly for all channels with messaging rights to false
+            # set messaging for @everyone role explicitly for all channels to false
+            # set accessibility for these 2 roles in access wall channel
+
+            setup_count += 1
+            if is_setup and accesswall == "on":
+                text = f"**Setup step {setup_count}: Access Wall - Turing Test Feature**\n"
+                text += "Do you want to have a mechanism that autobans obvious bots on this server?\n(We call this jokingly a Turing test, but all it does is check if an account reacts with a certain emoji to a message, and if they do ban them. Reason is that many bots try to bypass `Check if you read the rules`-checks by just reacting with whatever the first react on a message is on the last few messages in all channels it can see. Setup requires a permanent message such as a message that contains the rules in a dedicated #rules channel or similar. ||Also make sure to mention in the rules to NOT react to the rules message before verified, because it will get them banned.|| The bot handles the rest.)\nRespond with `on` to enable, or `off` to disable."
+                input_valid = False
+                while input_valid == False:
+                    input_valid = True
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+                    if the_input not in ["skip", "cancel"]:
+                        if the_input.lower() in ["on", "off"]:
+                            curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (the_input, "turing test"))
+                            conB.commit()
+                            turingtest = the_input.lower()
+                            await ctx.send(f"Access wall set `{the_input.lower()}`!")
+                        else:
+                            text = "Error: Invalid input, try again or skip/cancel."
+                            input_valid = False
+                    elif the_input == "cancel":
+                        is_setup = False
+
+            setup_count += 1
+            if is_setup and accesswall == "on" and accesswall_channel_id != "none":
+                text = f"**Setup step {setup_count}: Access Wall - Turing Test Channel**\n"
+                text += "Please provide the channel with the permanent message for turing test (a channel with the server rules is recommended). Respond with `create` to create a new one."
+                input_valid = False
+                while input_valid == False:
+                    input_valid = True
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+                    if the_input not in ["skip", "cancel"]:
+
+                        if the_input.startswith("<#") and the_input.endswith(">"):
+                            the_input = the_input.replace("<#","").replace(">","")
+
+                        if util.represents_integer(the_input.lower()):
+                            try:
+                                rules_channel = self.bot.get_channel(int(the_input))
+                                print("Rules/Turing Test Channel:", rules_channel.name)
+                                curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (the_input, "rules channel id"))
+                                conB.commit()
+                                rules_channel_id = the_input.lower()
+                            except Exception as e:
+                                print("Error:", e)
+                                text = "Error: Something wrong with the channel, make sure it is accessible to me. Try again or skip/cancel."
+                                input_valid = False
+
+                            if input_valid:
+                                tt_msg = await rules_channel.fetch_message(rules_channel.last_message_id)
+
+                                if tt_msg is None:
+                                    text = f"<@{ctx.author.id}> Please write a message in here. To continue setup just send a 0 or something and edit the message later."
+                                    tt_msg = await util.setup_channel(ctx, self.bot, rules_channel, text)
+
+                                if tt_msg is None:
+                                    await ctx.send("Error: no message for turing test provided.")
+                                else:
+                                    curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (str(tt_msg.id), "rules message id"))
+                                    conB.commit()
+                                    await ctx.send(f"Turing test will be performed on {tt_msg.jump_url}.")
+
+                                    try:
+                                        reactions = tt_msg.reactions
+                                        if len(reactions) == 0:
+                                            turingmsg_emoji = util.emoji("pensive") 
+                                            await tt_msg.add_reaction(turingmsg_emoji)
+                                        else:
+                                            turingmsg_emoji = str(reactions[0])
+                                        curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (turingmsg_emoji, "rules first reaction"))
+                                        conB.commit()
+                                        await ctx.send(f"Set test condition to: DO NOT REACT WITH {turingmsg_emoji}")
+                                    except Exception as e:
+                                        await ctx.send(f"Failed to put react to message.: {e}")
+
+
+                        elif the_input.lower() == "create":
+                            rules_channel = await ctx.guild.create_text_channel('Rules')
+                            text = f"<@{ctx.author.id}> Please write a message in here. To continue setup just send a dot or something and edit the message later."
+                            tt_msg = await util.setup_channel(ctx, self.bot, rules_channel, text)
+
+                            if tt_msg is None:
+                                await ctx.send("Error: no message for turing test provided.")
+                            else:
+                                curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (str(tt_msg.id), "rules message id"))
+                                conB.commit()
+                                await ctx.send(f"Turing test will be performed on {tt_msg.jump_url}.")
+
+                                try:
+                                    reactions = tt_msg.reactions
+                                    if len(reactions) == 0:
+                                        turingmsg_emoji = util.emoji("pensive") 
+                                        await tt_msg.add_reaction(turingmsg_emoji)
+                                    else:
+                                        turingmsg_emoji = str(reactions[0])
+                                    curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (turingmsg_emoji, "rules first reaction"))
+                                    conB.commit()
+                                    await ctx.send(f"Set test condition to: DO NOT REACT WITH {turingmsg_emoji}")
+                                except Exception as e:
+                                    await ctx.send(f"Failed to put react to message.: {e}")
+
+                        else:
+                            text = "Error: Invalid input, try again or skip/cancel."
+                            input_valid = False
+                    elif the_input == "cancel":
+                        is_setup = False
+
+            # under construction : set viewability to true for access wall role, writability to false for all
+
+            setup_count += 1
+            if is_setup:
+                text = f"**Setup step {setup_count}: Timeout system**\n"
+                text += "Do you want to enable a timeout system to mute users for a specified amount of time?\n(With this feature you can take access to the (main parts of the) server away from users for a given amount of time with e.g. `-mute @user 2 hours`.)\nRespond with `on` to enable, or `off` to disable."
+                input_valid = False
+                while input_valid == False:
+                    input_valid = True
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+                    if the_input not in ["skip", "cancel"]:
+                        if the_input.lower() in ["on", "off"]:
+                            curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (the_input.lower(), "timeout system"))
+                            conB.commit()
+                            timeoutsystem = the_input.lower()
+                            await ctx.send(f"Timeout system set `{the_input.lower()}`!")
+                        else:
+                            text = "Error: Invalid input, try again or skip/cancel."
+                            input_valid = False
+                    elif the_input == "cancel":
+                        is_setup = False
+
+            setup_count += 1
+            if is_setup and timeoutsystem == "on":
+                text = f"**Setup step {setup_count}: Timeout Role**\n"
+                text += "Please provide the timeout role that muted users will get. Respond with `create` to create a new one."
+                input_valid = False
+                while input_valid == False:
+                    input_valid = True
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+                    if the_input not in ["skip", "cancel"]:
+
+                        if the_input.startswith("<@&") and the_input.endswith(">"):
+                            the_input = the_input.replace("<@&","").replace(">","")
+
+                        if util.represents_integer(the_input.lower()):
+                            try:
+                                timeout_role = discord.utils.get(ctx.guild.roles, id = int(the_input))
+                                print("Timeout Role:", timeout_role.name)
+                                curB.execute("UPDATE specialroles SET role_id = ? WHERE name = ?", (the_input, "timeout role"))
+                                conB.commit()
+                                await ctx.send(f"Set timeout role to `@{timeout_role.name}`.")
+                            except Exception as e:
+                                print("Error:", e)
+                                text = "Error: Something wrong with the role. Try again, create or skip/cancel."
+                                input_valid = False
+
+                        elif the_input.lower() == "create":
+                            timeout_role = await ctx.guild.create_role(name="Timeout", color=discord.Colour(None))
+                            curB.execute("UPDATE specialroles SET role_id = ? WHERE name = ?", (str(timeout_role.id), "timeout role"))
+                            conB.commit()
+                            await ctx.send(f"Set timeout role to `@{timeout_role.name}`.")
+
+                        else:
+                            text = "Error: Invalid input, try again or skip/cancel."
+                            input_valid = False
+                    elif the_input == "cancel":
+                        is_setup = False
+
+            # under construction: remove access from timeout role to any text/voice channel
+
+            if is_setup:
+                # reaction role
+                pass
+
+            
+            await util.update_role_database(ctx)
+            await util.changetimeupdate()
+            if is_setup:
+                await ctx.send("Setup completed!")
+
+
+
+
+    @commands.command(name="update", aliases = ["botupdate"], pass_context=True)
+    @commands.has_permissions(manage_guild=True)
+    async def _botupdate(self, ctx, *args):
+        """Update bot
+
+        Only needed when updating the version of the bot from GitHub.
+        i.e. New features will be included in the databases and automatically turned "off". Without this errors might occur because the setting is missing entirely.
+        """   
+        is_setup = False
+        await self.botupdating(ctx, is_setup)
     @_botupdate.error
     async def botupdate_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
 
-
-
     @commands.command(name="setup", aliases = ["botsetup"], pass_context=True)
+    @commands.check(util.is_active)
     @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
     async def _botsetup(self, ctx, *args):
         """Set up bot
 
@@ -3858,13 +4285,10 @@ class Administration_of_Settings(commands.Cog):
         but also for re-setting up the bot.
         """
 
-        # FETCH ACTIVITY AND RETURN IF NOT ACTIVE
+        is_setup = True
+        await self.botupdating(ctx, is_setup)
 
-        # CHECK MAIN SERVER
-
-        conA = sqlite3.connect(f'../databases/activity.db')
-        curA = conA.cursor()
-        curA.execute('''CREATE TABLE IF NOT EXISTS activity (name text, value text)''')
+        #under construction
 
         # CREATE ACTIVITY FILE IF NOT EXISTENT >> ACTIVITY
         # CREATE SERVERSETTINGS FILE IF NOT EXISTENT >> APP ID, BOTSPAM CHANNEL, MAIN SERVER FROM .ENV
@@ -3872,6 +4296,10 @@ class Administration_of_Settings(commands.Cog):
         # FETCH SERVER ID FROM .ENV FILE AND RETURN IF NOT MAIN SERVER
 
         await ctx.send("under construction")
+
+    @_botsetup.error
+    async def botsetup_error(self, ctx, error):
+        await util.error_handling(ctx, error)
 
 
 
