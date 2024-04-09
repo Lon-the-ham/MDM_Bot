@@ -2289,6 +2289,49 @@ class Utils():
 
 
 
+    async def setup_msg(ctx, bot, text):
+        def check(m): # checking if it's the same user and channel
+            return ((m.author == ctx.author) and (m.channel == ctx.channel))
+
+        await ctx.send(f"{text}\n\nRespond with `skip` to skip step, or with `cancel` to stop entire process.")
+
+        try: # waiting for message
+            async with ctx.typing():
+                response = await bot.wait_for('message', check=check, timeout=300.0) # timeout - how long bot waits for message (in seconds)
+        except asyncio.TimeoutError: # returning after timeout
+            await ctx.send("action timed out")
+            return "cancel"
+
+        if response.content.lower().strip() not in ["cancel", "skip"]:
+            return response.content.strip()
+
+        elif response.content.lower().strip() == "cancel":
+            await ctx.send("cancelled action")
+            return "cancel"
+
+        else:
+            await ctx.send("skipping action")
+            return "skip"
+
+
+
+    async def setup_channel(ctx, bot, channel, text):
+        def check(m): # checking if it's the same user and channel
+            return ((m.author == ctx.author) and (m.channel == channel))
+
+        await ctx.send(f"{text}")
+
+        try: # waiting for message
+            async with ctx.typing():
+                response = await bot.wait_for('message', check=check, timeout=300.0) # timeout - how long bot waits for message (in seconds)
+        except asyncio.TimeoutError: # returning after timeout
+            await ctx.send("action timed out")
+            return None
+
+        return response # return message object
+
+
+
     async def timeparse(textstring, *from_timestamp):
         if len(from_timestamp) == 0:
             ts = None
