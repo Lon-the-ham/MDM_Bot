@@ -197,7 +197,7 @@ class Event_Response(commands.Cog):
                     generalchannel_id = int([item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("general channel id",)).fetchall()][0])
                     general_channel = self.bot.get_channel(generalchannel_id)
 
-                    welcometext_list = [item[0].strip() for item in curB.execute("SELECT etc FROM serversettings WHERE name = ?", ("welcome message",)).fetchall()]
+                    welcometext_list = [item[0].strip() for item in curB.execute("SELECT details FROM serversettings WHERE name = ?", ("welcome message",)).fetchall()]
                     while "" in welcometext_list:
                         welcometext_list.remove("")
                     if len(welcometext_list) == 0 or welcometext_list[0].strip() == "":
