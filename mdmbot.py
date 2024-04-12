@@ -45,7 +45,7 @@ class YataBot(commands.Bot):
             "cogs.music.exchanges",
             "cogs.music.fm",
             "cogs.music.info",
-            #"cogs.music.scrobble_data", ❌
+            #"cogs.music.scrobble_utility", ❌
             "cogs.roles.roles",
             "cogs.roles.reactionroles",
             "cogs.userown.memo",
