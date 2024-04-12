@@ -3475,8 +3475,11 @@ class Administration_of_Settings(commands.Cog):
                 curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("timeout system", "off", "", ""))
                 conB.commit()
                 print("Updated serversettings table: timeout system")
-            elif len(timeoutsystem_list) > 1:
-                print("Warning: Multiple timeout system entries in serversettings table (botsettings.db)")
+                timeoutsystem = "off"
+            else:
+                timeoutsystem = timeoutsystem_list[0]
+                if len(timeoutsystem_list) > 1:
+                    print("Warning: Multiple timeout system entries in serversettings table (botsettings.db)")
 
             turingtest_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("turing test",)).fetchall()]
             if len(turingtest_list) == 0:
@@ -4072,13 +4075,21 @@ class Administration_of_Settings(commands.Cog):
                     elif the_input == "cancel":
                         is_setup = False
 
-            # under construction:
-            # find channels where @everyone has access (viewing, messaging rights)
-            #        text and voice?
-            # set accessibility for verified role explicitly to true (viewing, messaging rights)
-            # set viewing for @everyone role explicitly for all channels with messaging rights to false
-            # set messaging for @everyone role explicitly for all channels to false
-            # set accessibility for these 2 roles in access wall channel
+                if is_setup:
+                    try:
+                        everyone_role_id = int([item[0] for item in cur.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id",)).fetchall()][0])
+                        everyone_role = discord.utils.get(ctx.guild.roles, id = everyone_role_id)
+
+                    except Exception as e:
+                        print(e)
+
+                    # under construction:
+                    # find channels where @everyone has access (viewing, messaging rights)
+                    #        text and voice?
+                    # set accessibility for verified role explicitly to true (viewing, messaging rights)
+                    # set viewing for @everyone role explicitly for all channels with messaging rights to false
+                    # set messaging for @everyone role explicitly for all channels to false
+                    # set accessibility for these 2 roles in access wall channel
 
             setup_count += 1
             if is_setup and accesswall == "on":
@@ -4245,15 +4256,76 @@ class Administration_of_Settings(commands.Cog):
 
             # under construction: remove access from timeout role to any text/voice channel
 
+            setup_count += 1
             if is_setup:
-                # reaction role
-                pass
+                text = f"**Setup step {setup_count}: Reaction roles**\n"
+                text += "Do you want to enable a reaction role system so that users can assign roles to themselves by reacting to a message in a #roles channel?\nRespond with `on` to enable, or `off` to disable."
+                input_valid = False
+                while input_valid == False:
+                    input_valid = True
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+                    if the_input not in ["skip", "cancel"]:
+                        if the_input.lower() in ["on", "off"]:
+                            curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (the_input.lower(), "reaction roles"))
+                            conB.commit()
+                            reactionroles = the_input.lower()
+                            await ctx.send(f"Reaction roles set `{the_input.lower()}`!")
+                        else:
+                            text = "Error: Invalid input, try again or skip/cancel."
+                            input_valid = False
+                    elif the_input == "cancel":
+                        is_setup = False
+
+            setup_count += 1
+            if is_setup and reactionroles == "on":
+                text = f"**Setup step {setup_count}: Reaction Roles Channel**\n"
+                text += "Please provide the channel for the reaction roles. Respond with `create` to create a new one."
+                input_valid = False
+                while input_valid == False:
+                    input_valid = True
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+                    if the_input not in ["skip", "cancel"]:
+
+                        if the_input.startswith("<#") and the_input.endswith(">"):
+                            the_input = the_input.replace("<#","").replace(">","")
+
+                        if util.represents_integer(the_input.lower()):
+                            try:
+                                reactionroles_channel = self.bot.get_channel(int(the_input))
+                                print("Reaction Roles Channel:", reactionroles_channel.name)
+                                curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (the_input, "role channel id"))
+                                conB.commit()
+                                reactionroles_channel_id = the_input.lower()
+                                await ctx.send(f"Role channel set to <#{the_input.lower()}>!")
+                            except Exception as e:
+                                print("Error:", e)
+                                text = "Error: Something wrong with the channel, make sure it is accessible to me. Try again or skip/cancel."
+                                input_valid = False
+                        elif the_input.lower() == "create":
+                            reactionroles_channel = await ctx.guild.create_text_channel('Roles')
+                            curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (str(reactionroles_channel.id), "role channel id"))
+                            conB.commit()
+                            reactionroles_channel_id = the_input.lower()
+                            await ctx.send(f"Role channel set to <#{reactionroles_channel.id}>!")
+                        else:
+                            text = "Error: Invalid input, try again or skip/cancel."
+                            input_valid = False
+                    elif the_input == "cancel":
+                        is_setup = False
+
+                if is_setup:
+                    pass
+                    # under construction remove writing permissions of channel
+
+            if is_setup and reactionroles == "on":   
+                # create role categories
+                pass 
 
             
             await util.update_role_database(ctx)
             await util.changetimeupdate()
             if is_setup:
-                await ctx.send("Setup completed!")
+                await ctx.send("Setup completed!\nThese are just the most important features. Read our [docs](https://github.com/Lon-the-ham/MDM_Bot/blob/main/documentation.md) to find out about the other things you can enable/disable or customise!")
 
 
 
