@@ -918,7 +918,10 @@ class Music_Info(commands.Cog):
                                                         await self.send_bandlist(ctx, parsed_items_f, primaryinput, iTotalRecords)
                                             
             except Exception as e:
-                await ctx.channel.send(f'Error while searching term:\n{e}')
+                if str(e) == "Expecting value: line 1 column 1 (char 0)":
+                    await ctx.channel.send(f"Error: Request was probably blocked.")
+                else:
+                    await ctx.channel.send(f'Error while searching term:\n{e}')
 
         if fetchingband:
             await self.fetch_bandinfo(ctx, band_link, band_aka)
