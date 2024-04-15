@@ -4091,7 +4091,7 @@ class Administration_of_Settings(commands.Cog):
                     text += "Respond with `yes` to make the bot try to automatically adjust permissions of the roles.\n"
                     text += "1. Verfied Role will get the permissions the everyone role currently has\n"
                     text += "2. Access Wall Role will not get any permissions except writing in Access Wall channel\n"
-                    text += "3. Everyone Role loses access to ALL channels\n"
+                    text += "3. Everyone Role loses access to ALL channels"
 
                     the_input = await util.setup_msg(ctx, self.bot, text)
 
@@ -4383,7 +4383,7 @@ class Administration_of_Settings(commands.Cog):
             if is_setup and timeoutsystem == "on" and timeout_role_id not in ["", "none"]:
                 
                 text = f"**Setup step {setup_count}: Adjust permissions?**\n"
-                text += "Respond with `yes` to remove access of this role to all channels. Respond with `no` if you want to manually adjust yourself.\n"
+                text += "Respond with `yes` to remove access of this role to all channels. Respond with `no` if you want to manually adjust yourself."
 
                 the_input = await util.setup_msg(ctx, self.bot, text)
 
@@ -4493,7 +4493,7 @@ class Administration_of_Settings(commands.Cog):
             if is_setup and reactionroles == "on":   
                 # create role categories
                 text = f"**Setup step {setup_count}: create standard roles?**\n"
-                text += "Respond with `yes` to create roles automatically (i.e. you can choose colours, pronouns), `no` to skip this part.\n"
+                text += "Respond with `yes` to create roles automatically (i.e. you can choose colours, pronouns), `no` to skip this part."
 
                 the_input = await util.setup_msg(ctx, self.bot, text)
 
