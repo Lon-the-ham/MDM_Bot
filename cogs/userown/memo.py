@@ -1303,7 +1303,7 @@ class Memo(commands.Cog):
                 # PARSE AND WRITE INTO BACKLOG
                 if continuing:
                     for row in reader:
-                        if i == 0 and len(row) >= 2 and row[0] == "CATEGORY" and row[1] in ["ITEM", "A"]:
+                        if i == 0 and len(row) >= 2 and row[0].strip() == "CATEGORY" and row[1].strip() in ["ITEM", "A"]:
                             pass
 
                         else:
@@ -1400,7 +1400,7 @@ class Memo(commands.Cog):
                     for line in txtfile:
                         LL = line.split("\t")
 
-                        if i == 0 and len(LL) >= 2 and LL[0] == "CATEGORY" and LL[1] in ["ITEM", "A"]:
+                        if i == 0 and len(LL) >= 2 and LL[0].strip() == "CATEGORY" and LL[1].strip() in ["ITEM", "A"]:
                             pass
 
                         else:
@@ -1531,7 +1531,7 @@ class Memo(commands.Cog):
                     if naive:
                         cat = item[0].replace("\t","_")
                         entry = item[1].replace("\t"," ")
-                        f.write(f"{cat}\t{entry}")
+                        f.write(f"{cat}\t{entry}\n")
                     else:
                         if " - " in item[1]:
                             first = item[1].split(" - ",1)[0]
