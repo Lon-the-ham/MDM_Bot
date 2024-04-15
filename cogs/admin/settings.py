@@ -25,6 +25,7 @@ from tzlocal import get_localzone
 import pytz
 from other.utils.utils import Utils as util
 import os
+import asyncio
 import sqlite3
 from emoji import UNICODE_EMOJI
 
@@ -2011,7 +2012,7 @@ class Administration_of_Settings(commands.Cog):
         """Set emoji of roles (for reacts)
 
         Set emoji for assigning/unassigning a role with a react in #roles channel via
-        `-set rolecat <@role> <emoji>`
+        `-set rolemoji <@role> <emoji>`
         1st argument needs to be an @mention of the role or the role id.
         2nd argument needs to be the emoji.
 
@@ -2021,7 +2022,7 @@ class Administration_of_Settings(commands.Cog):
         >> An emoji is not allowed to be assigned to multiple roles.
         
         You can also change multiple role-emojis at once by separating role-emoji pairs with a semicolon.
-        i.e. `-set rolecat <@role1> <emoji1>; <@role2> <emoji2> ; <@role3> <emoji3>`
+        i.e. `-set rolemoji <@role1> <emoji1>; <@role2> <emoji2> ; <@role3> <emoji3>`
         """
 
         if len(args) < 2:
@@ -2068,7 +2069,7 @@ class Administration_of_Settings(commands.Cog):
                 error_1_args.append(arg.strip())
 
         if len(role_emoji_pairs) == 0:
-            await ctx.send(f"Error: Missing arguments.\nUse i.e. `{self.prefix}set rolecat <@role> <emoji>` or provide multiple role-emoji pairs separated by semicolons.")
+            await ctx.send(f"Error: Missing arguments.\nUse i.e. `{self.prefix}set rolemoji <@role> <emoji>` or provide multiple role-emoji pairs separated by semicolons.")
             return
 
 
@@ -3508,8 +3509,11 @@ class Administration_of_Settings(commands.Cog):
                 curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("automatic role", "off", "", ""))
                 conB.commit()
                 print("Updated serversettings table: automatic role")
-            elif len(automaticrole_list) > 1:
-                print("Warning: Multiple automatic role entries in serversettings table (botsettings.db)")
+                automaticrole = "off"
+            else:
+                automaticrole = automaticrole_list[0]
+                if len(automaticrole_list) > 1:
+                    print("Warning: Multiple automatic role entries in serversettings table (botsettings.db)")
 
             genretagreminder_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("genre tag reminder",)).fetchall()]
             if len(genretagreminder_list) == 0:
@@ -3676,8 +3680,11 @@ class Administration_of_Settings(commands.Cog):
                 curB.execute("INSERT INTO specialroles VALUES (?, ?, ?, ?)", ("timeout role", "", "", ""))
                 conB.commit()
                 print("Added dummy entry for timeout role")
-            elif len(specialroles_timeout_list) > 1:
-                print("Warning: Multiple timeout role entries in specialroles table (botsettings.db)")
+                timeout_role_id = "none"
+            else:
+                timeout_role_id = specialroles_timeout_list[0]
+                if len(specialroles_timeout_list) > 1:
+                    print("Warning: Multiple timeout role entries in specialroles table (botsettings.db)")
 
             specialroles_verified_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("verified role",)).fetchall()]
             if len(specialroles_verified_list) == 0:
@@ -3915,6 +3922,9 @@ class Administration_of_Settings(commands.Cog):
 
             setup_count += 1
             if is_setup and welcomemessage == "on":
+                hint = "Welcome message is turned on, make sure to disable:```Server Settings > Overview > System messages channel > Turn off 'Send a random welcome message when someone joins this server'```"
+                await ctx.send(hint)
+                await asyncio.sleep(0.5)
                 text = f"**Setup step {setup_count}: General channel**\n"
                 text += "Please provide the channel id of your #general channel (where welcome messages will be sent to)."
                 input_valid = False
@@ -4075,21 +4085,77 @@ class Administration_of_Settings(commands.Cog):
                     elif the_input == "cancel":
                         is_setup = False
 
-                if is_setup:
-                    try:
-                        everyone_role_id = int([item[0] for item in cur.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id",)).fetchall()][0])
-                        everyone_role = discord.utils.get(ctx.guild.roles, id = everyone_role_id)
+                setup_count += 1
+                if is_setup and accesswall == "on":
+                    text = f"**Setup step {setup_count}: Adjust permissions?**\n"
+                    text += "Respond with `yes` to make the bot try to automatically adjust permissions of the roles.\n"
+                    text += "1. Verfied Role will get the permissions the everyone role currently has\n"
+                    text += "2. Access Wall Role will not get any permissions except writing in Access Wall channel\n"
+                    text += "3. Everyone Role loses access to ALL channels\n"
 
-                    except Exception as e:
-                        print(e)
+                    the_input = await util.setup_msg(ctx, self.bot, text)
 
-                    # under construction:
-                    # find channels where @everyone has access (viewing, messaging rights)
-                    #        text and voice?
-                    # set accessibility for verified role explicitly to true (viewing, messaging rights)
-                    # set viewing for @everyone role explicitly for all channels with messaging rights to false
-                    # set messaging for @everyone role explicitly for all channels to false
-                    # set accessibility for these 2 roles in access wall channel
+                    if the_input.lower() in ["yes", "y"]:
+                        await ctx.send("Adjusting permissions of verified role...")
+                        try:
+                            everyone_role_id = int([item[0] for item in cur.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id",)).fetchall()][0])
+                            everyone_role = discord.utils.get(ctx.guild.roles, id = everyone_role_id)
+
+                            for channel in ctx.guild.text_channels:
+                                if str(channel.id) == accesswall_channel_id:
+                                    await ctx.channel.set_permissions(verified_role, view_channel=False, send_messages=False)
+                                else:
+                                    public_perms = channel.permissions_for(everyone_role)
+
+                                    if ('send_messages', True) in public_perms:
+                                        await ctx.channel.set_permissions(verified_role, view_channel=True, send_messages=True)
+                                    elif ('read_messages', True) in public_perms:
+                                        await ctx.channel.set_permissions(verified_role, view_channel=True, send_messages=False)
+
+                            for channel in ctx.guild.voice_channels:
+                                voice_perms = channel.permissions_for(everyone_role)
+                                if ('connect', True) in voice_perms:
+                                    await ctx.channel.set_permissions(verified_role, connect=True)
+
+                        except Exception as e:
+                            await ctx.send(f"An error ocurred: {e}")
+
+                        await ctx.send("Adjusting permissions of access wall role...")
+                        try:
+                            for channel in ctx.guild.text_channels:
+                                if str(channel.id) == accesswall_channel_id:
+                                    await ctx.channel.set_permissions(accesswall_role, view_channel=True, send_messages=True)
+                                else:
+                                    await ctx.channel.set_permissions(accesswall_role, view_channel=False, send_messages=False)
+
+                            for channel in ctx.guild.voice_channels:
+                                await ctx.channel.set_permissions(accesswall_role, connect=False)
+
+                        except Exception as e:
+                            await ctx.send(f"An error ocurred: {e}")
+
+                        await ctx.send("Adjusting permissions of everyone role...")
+                        try:
+                            everyone_role_id = int([item[0] for item in cur.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id",)).fetchall()][0])
+                            everyone_role = discord.utils.get(ctx.guild.roles, id = everyone_role_id)
+
+                            for channel in ctx.guild.text_channels:
+                                await ctx.channel.set_permissions(everyone_role, view_channel=False, send_messages=False)
+
+                            for channel in ctx.guild.voice_channels:
+                                await ctx.channel.set_permissions(everyone_role, connect=False)
+
+                        except Exception as e:
+                            await ctx.send(f"An error ocurred: {e}")
+
+                        await ctx.send("Make sure to adjust and test the permissions as you need them! Especially **adjust channel categories** in case you add new channels later.")
+                        await asyncio.sleep(1.5)
+
+                    elif the_input.lower() != "cancel":
+                        pass
+                    else:
+                        is_setup = False
+
 
             setup_count += 1
             if is_setup and accesswall == "on":
@@ -4195,10 +4261,66 @@ class Administration_of_Settings(commands.Cog):
                     elif the_input == "cancel":
                         is_setup = False
 
-            # under construction : set viewability to true for access wall role, writability to false for all
+            setup_count += 1
+            if is_setup and accesswall == "off":
+                text = f"**Setup step {setup_count}: Automatic Community Role**\n"
+                text += "Do you want to have an automatically assigned member role?\nThis will be necessary to enable the timeout feature and mute users for a given amount of time.)\nRespond with `on` to enable, or `off` to disable."
+                input_valid = False
+                while input_valid == False:
+                    input_valid = True
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+                    if the_input not in ["skip", "cancel"]:
+                        if the_input.lower() in ["on", "off"]:
+                            curB.execute("UPDATE serversettings SET value = ? WHERE name = ?", (the_input.lower(), "automatic role"))
+                            conB.commit()
+                            automaticrole = the_input.lower()
+                            await ctx.send(f"Automatic role feature set `{the_input.lower()}`!")
+                        else:
+                            text = "Error: Invalid input, try again or skip/cancel."
+                            input_valid = False
+                    elif the_input == "cancel":
+                        is_setup = False
 
             setup_count += 1
-            if is_setup:
+            if is_setup and automaticrole == "on":
+                text = f"**Setup step {setup_count}: Automatic Community Role**\n"
+                text += "Please provide the community role. Respond with `create` to create a new one."
+                input_valid = False
+                while input_valid == False:
+                    input_valid = True
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+                    if the_input not in ["skip", "cancel"]:
+
+                        if the_input.startswith("<@&") and the_input.endswith(">"):
+                            the_input = the_input.replace("<@&","").replace(">","")
+
+                        if util.represents_integer(the_input.lower()):
+                            try:
+                                community_role = discord.utils.get(ctx.guild.roles, id = int(the_input))
+                                print("Community Role:", community_role.name)
+                                curB.execute("UPDATE specialroles SET role_id = ? WHERE name = ?", (the_input, "community role"))
+                                conB.commit()
+                                await ctx.send(f"Set community role to `@{community_role.name}`.")
+                            except Exception as e:
+                                print("Error:", e)
+                                text = "Error: Something wrong with the role. Try again, create or skip/cancel."
+                                input_valid = False
+
+                        elif the_input.lower() == "create":
+                            community_role = await ctx.guild.create_role(name="Community", color=discord.Colour(None))
+                            curB.execute("UPDATE specialroles SET role_id = ? WHERE name = ?", (str(community_role.id), "community role"))
+                            conB.commit()
+                            await ctx.send(f"Set community role to `@{community_role.name}`.")
+
+                        else:
+                            text = "Error: Invalid input, try again or skip/cancel."
+                            input_valid = False
+                    elif the_input == "cancel":
+                        is_setup = False
+
+
+            setup_count += 1
+            if is_setup and (accesswall == "on" or automaticrole == "on"):
                 text = f"**Setup step {setup_count}: Timeout system**\n"
                 text += "Do you want to enable a timeout system to mute users for a specified amount of time?\n(With this feature you can take access to the (main parts of the) server away from users for a given amount of time with e.g. `-mute @user 2 hours`.)\nRespond with `on` to enable, or `off` to disable."
                 input_valid = False
@@ -4218,7 +4340,7 @@ class Administration_of_Settings(commands.Cog):
                         is_setup = False
 
             setup_count += 1
-            if is_setup and timeoutsystem == "on":
+            if is_setup and (accesswall == "on" or automaticrole == "on") and timeoutsystem == "on":
                 text = f"**Setup step {setup_count}: Timeout Role**\n"
                 text += "Please provide the timeout role that muted users will get. Respond with `create` to create a new one."
                 input_valid = False
@@ -4237,6 +4359,7 @@ class Administration_of_Settings(commands.Cog):
                                 curB.execute("UPDATE specialroles SET role_id = ? WHERE name = ?", (the_input, "timeout role"))
                                 conB.commit()
                                 await ctx.send(f"Set timeout role to `@{timeout_role.name}`.")
+                                timeout_role_id = the_input
                             except Exception as e:
                                 print("Error:", e)
                                 text = "Error: Something wrong with the role. Try again, create or skip/cancel."
@@ -4247,6 +4370,7 @@ class Administration_of_Settings(commands.Cog):
                             curB.execute("UPDATE specialroles SET role_id = ? WHERE name = ?", (str(timeout_role.id), "timeout role"))
                             conB.commit()
                             await ctx.send(f"Set timeout role to `@{timeout_role.name}`.")
+                            timeout_role_id = str(timeout_role.id)
 
                         else:
                             text = "Error: Invalid input, try again or skip/cancel."
@@ -4254,7 +4378,30 @@ class Administration_of_Settings(commands.Cog):
                     elif the_input == "cancel":
                         is_setup = False
 
-            # under construction: remove access from timeout role to any text/voice channel
+
+            setup_count += 1
+            if is_setup and timeoutsystem == "on" and timeout_role_id not in ["", "none"]:
+                
+                text = f"**Setup step {setup_count}: Adjust permissions?**\n"
+                text += "Respond with `yes` to remove access of this role to all channels. Respond with `no` if you want to manually adjust yourself.\n"
+
+                the_input = await util.setup_msg(ctx, self.bot, text)
+
+                if the_input.lower() in ["yes", "y"]:
+                    try:
+                        for channel in ctx.guild.text_channels:
+                            await ctx.channel.set_permissions(everyone_role, view_channel=False, send_messages=False)
+
+                        for channel in ctx.guild.voice_channels:
+                            await ctx.channel.set_permissions(everyone_role, connect=False)
+
+                        await ctx.send(f"Removed access permissions.")
+
+                    except Exception as e:
+                        await ctx.send(f"An Error ocurred: {e}")
+                else:
+                    await ctx.send(f"Make sure to later adjust permissions yourself!")
+
 
             setup_count += 1
             if is_setup:
@@ -4307,25 +4454,176 @@ class Administration_of_Settings(commands.Cog):
                             conB.commit()
                             reactionroles_channel_id = the_input.lower()
                             await ctx.send(f"Role channel set to <#{reactionroles_channel.id}>!")
+
+                            try:
+                                # adjust verified role permission
+                                verified_role_id = int([item[0] for item in cur.execute("SELECT role_id FROM specialroles WHERE name = ?", ("verified role",)).fetchall()][0])
+                                verified_role = discord.utils.get(ctx.guild.roles, id = verified_role_id)
+                                await ctx.channel.set_permissions(verified_role, send_messages=False)
+                            except:
+                                pass
+                            try:
+                                # adjust access wall role permission
+                                accesswall_role_id = int([item[0] for item in cur.execute("SELECT role_id FROM specialroles WHERE name = ?", ("access wall role",)).fetchall()][0])
+                                accesswall_role = discord.utils.get(ctx.guild.roles, id = accesswall_role_id)
+                                await ctx.channel.set_permissions(accesswall_role, send_messages=False)
+                            except:
+                                pass
+                            try:
+                                # adjust everyone role permission
+                                everyone_role_id = int([item[0] for item in cur.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id",)).fetchall()][0])
+                                everyone_role = discord.utils.get(ctx.guild.roles, id = everyone_role_id)
+                                await ctx.channel.set_permissions(everyone_role, view_channel=False, send_messages=False)
+                            except:
+                                pass
+                            try:
+                                # adjust timeout role permission
+                                timeout_role_id = int([item[0] for item in cur.execute("SELECT role_id FROM specialroles WHERE name = ?", ("timeout role",)).fetchall()][0])
+                                timeout_role = discord.utils.get(ctx.guild.roles, id = timeout_role_id)
+                                await ctx.channel.set_permissions(timeout_role, view_channel=False, send_messages=False)
+                            except:
+                                pass
                         else:
                             text = "Error: Invalid input, try again or skip/cancel."
                             input_valid = False
                     elif the_input == "cancel":
                         is_setup = False
 
-                if is_setup:
-                    pass
-                    # under construction remove writing permissions of channel
-
+            setup_count += 1
             if is_setup and reactionroles == "on":   
                 # create role categories
-                pass 
+                text = f"**Setup step {setup_count}: create standard roles?**\n"
+                text += "Respond with `yes` to create roles automatically (i.e. you can choose colours, pronouns), `no` to skip this part.\n"
+
+                the_input = await util.setup_msg(ctx, self.bot, text)
+
+                if the_input.lower() in ["yes", "y"]:
+
+                    conR = sqlite3.connect(f'databases/roles.db')
+                    curR = conR.cursor()
+                    used_emoji = [item[0] for item in cur.execute("SELECT details FROM roles WHERE details != ?", ("",)).fetchall()]
+
+                    coldict = {
+                                "Dodger Blue":      "🐳",
+                                "Night Blue":       "🫐",
+                                "Aqua":             "❄️",
+                                "Turquoise":        "🦚",
+                                "Rose":             "🌺",
+                                "Pink":             "🐷",
+                                "Dark Pink":        "💄",
+                                "Violet":           "🍇",
+                                "Bright Purple":    "🌌",
+                                "Crimson Red":      "🦀",
+                                "Orange":           "🍊",
+                                "Forest Green":     "🥑",
+                                "Light Green":      "🎍",
+                                "Emerald Green":    "🎾",
+                                "Amber":            "🍯",
+                                "Yellow":           "✨",
+                                "Beige":            "🙊",
+                                "Reddish Brown":    "🧱",
+                                "White":            "🐑",
+                                "Black":            "🏴‍☠️",
+                        }
+
+                    prondict = {
+                                "Any/All":      "👤",
+                                "He/Him":       "♂️",
+                                "She/Her":      "♀️",
+                                "They/Them":    "🧍",
+                        }
+
+                    unused_emoji = []
+
+                    for emoji in UNICODE_EMOJI['en']:
+                        if emoji not in used_emoji:
+                            if emoji not in list(coldict.values()):
+                                if emoji not in list(prondict.values()):
+                                    unused_emoji.append(emoji)
+
+                    assignability = "True"
+
+                    text = f"**Create colour roles?**\n"
+                    text += "Respond with `yes` to create roles automatically.\n"
+
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+
+                    if the_input.lower() in ["yes", "y"]: # COLOR ROLES
+                        category = "color"
+
+                        for role_name in coldict:
+                            emoji = coldict[role_name]
+                            hex_color = util.hexcolor(role_name)
+                            HEX_code = util.hexstring(hex_color)
+                            role = await ctx.guild.create_role(name=role_name, color=discord.Colour(hex_color))                             
+                            curR.execute("INSERT INTO roles VALUES (?, ?, ?, ?, ?, ?, ?)", (str(role.id), role_name, assignability, category, '', HEX_code, emoji))
+                            conR.commit()
+
+                        category_turn_list = [item[0] for item in curB.execute("SELECT turn FROM reactionrolesettings WHERE name = ?", (category,)).fetchall()]
+                        buttontype = "radiobutton"
+
+                        if len(category_turn_list) == 0:
+                            reactionrolesettings_list = [util.forceinteger(item[0]) for item in curB.execute("SELECT rankorder FROM reactionrolesettings").fetchall()]
+                            n_in_reactionrolesettings = max(reactionrolesettings_list + [0]) + 1
+                            curB.execute("INSERT INTO reactionrolesettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (category, "on", buttontype, "", str(n_in_reactionrolesettings+1), "React to choose a name colour!", "", "", ""))
+                        else:
+                            curB.execute("UPDATE reactionrolesettings SET turn = ? WHERE name = ?", ("on", category))
+                        conB.commit()
+
+                        await ctx.send("Created color roles!")
+
+
+                    text = f"**Create pronoun roles?**\n"
+                    text += "Respond with `yes` to create roles automatically.\n"
+
+                    the_input = await util.setup_msg(ctx, self.bot, text)
+
+                    if the_input.lower() in ["yes", "y"]: # PRONOUN ROLES
+                        category = "pronoun"
+
+                        for role_name in prondict:
+                            emoji = prondict[role_name]
+                            role = await ctx.guild.create_role(name=role_name)                             
+                            curR.execute("INSERT INTO roles VALUES (?, ?, ?, ?, ?, ?, ?)", (str(role.id), role_name, assignability, category, '', '', emoji))
+                            conR.commit()
+
+                        category_turn_list = [item[0] for item in curB.execute("SELECT turn FROM reactionrolesettings WHERE name = ?", (category,)).fetchall()]
+                        buttontype = "free"
+
+                        if len(category_turn_list) == 0:
+                            reactionrolesettings_list = [util.forceinteger(item[0]) for item in curB.execute("SELECT rankorder FROM reactionrolesettings").fetchall()]
+                            n_in_reactionrolesettings = max(reactionrolesettings_list + [0]) + 1
+                            curB.execute("INSERT INTO reactionrolesettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (category, "on", buttontype, "", str(n_in_reactionrolesettings+1), "React to choose your pronouns!", "", "", ""))
+                        else:
+                            curB.execute("UPDATE reactionrolesettings SET turn = ? WHERE name = ?", ("on", category))
+                        conB.commit()
+
+                        await ctx.send("Created pronoun roles!")
+
+                    text =  "To create more reaction role categories:\n"
+                    text += "1. use command `-set rolecat` to set role categories of a selection of roles\n"
+                    text += "2. use command `-set rolemoji` to set the reaction emojis of the roles\n"
+                    text += "3. use command `-set reactrolecat` to enable role categories as reaction roles\n"
+                    text += "`YOU CAN SKIP STEP 1-3 FOR THE ROLES CREATED AUTOMATICALLY`\n"
+                    text += "4. (optional: use `-set reactroletype <category> r` to allow users to only have one role of this category)\n"
+                    text += "5. (optional: use command `-set reactroleembed` to customise the embed containing the role reactions for each category)\n\n"
+                    text += "At the end use `-rcupdate` to send the embed messages for each reaction role category into the #roles channel."
+                    await ctx.send(text)
+                else:
+                    text =  "To manually customise reaction role embeds do:\n"
+                    text += "1. use command `-set rolecat` to set role categories of a selection of roles\n"
+                    text += "2. use command `-set rolemoji` to set the reaction emojis of the roles\n"
+                    text += "3. use command `-set reactrolecat` to enable role categories as reaction roles\n"
+                    text += "4. (optional: use `-set reactroletype <category> r` to allow users to only have one role of this category)\n"
+                    text += "5. (optional: use command `-set reactroleembed` to customise the embed containing the role reactions for each category)\n\n"
+                    text += "At the end use `-rcupdate` to send the embed messages for each reaction role category into the #roles channel."
+                    await ctx.send(text)
 
             
             await util.update_role_database(ctx)
             await util.changetimeupdate()
             if is_setup:
-                await ctx.send("Setup completed!\nThese are just the most important features. Read our [docs](https://github.com/Lon-the-ham/MDM_Bot/blob/main/documentation.md) to find out about the other things you can enable/disable or customise!")
+                await ctx.send("✨Setup completed!✨\nThese are just the most important features. Read our [docs](https://github.com/Lon-the-ham/MDM_Bot/blob/main/documentation.md) to find out about the other things you can enable/disable or customise!")
 
 
 
@@ -4360,20 +4658,9 @@ class Administration_of_Settings(commands.Cog):
         is_setup = True
         await self.botupdating(ctx, is_setup)
 
-        #under construction
-
-        # CREATE ACTIVITY FILE IF NOT EXISTENT >> ACTIVITY
-        # CREATE SERVERSETTINGS FILE IF NOT EXISTENT >> APP ID, BOTSPAM CHANNEL, MAIN SERVER FROM .ENV
-
-        # FETCH SERVER ID FROM .ENV FILE AND RETURN IF NOT MAIN SERVER
-
-        await ctx.send("under construction")
-
     @_botsetup.error
     async def botsetup_error(self, ctx, error):
         await util.error_handling(ctx, error)
-
-
 
 
 

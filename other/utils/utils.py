@@ -411,9 +411,57 @@ class Utils():
 
 
 
+    def hexcolor(arg):
+        color_dict = {
+            #BLUE
+            "dodger blue":          0x1e90ff,
+            "night blue":           0x151b54,
+            "aqua":                 0x00ffff,
+            "turquoise":            0x30d5c8,
+            #PINK
+            "rose":                 0xf33a6a,
+            "pink":                 0xffc0cb,
+            "dark pink":            0xaa336a,
+            #PURPLE
+            "violet":               0x7f00ff,
+            "bright purple":        0xbf40bf,
+            #RED
+            "crimson red":          0xb90e0a, 
+            #ORANGE
+            "orange":               0xffa500,
+            #GREEN
+            "emerald green":        0x50c878,
+            "forest green":         0x228b22,
+            "light green":          0x90ee90,
+            #YELLOW
+            "amber":                0xffbf00,
+            "yellow":               0xffff00,
+            #BROWN
+            "beige":                0xf5f5dc,
+            "reddish brown":        0xa8422d,
+            #GRAYSCALE
+            "white":                0xffffff,
+            "black":                0x000000,
+        }
+
+        if arg.lower().strip() in color_dict:
+            return color_dict[arg.lower().strip()]
+        else:
+            return 0x000000
+
+
     def hexmatch(arg):
         # return True if arg is a hexcolor in #000000 format
         return re.search(r'^#(?:[0-9a-fA-F]{3}){1,2}$', arg)
+
+
+
+    def hexstring(arg):
+        try:
+            s = "#" + '{0:06x}'.format(arg)
+            return s
+        except:
+            return "#000000"
 
 
 
