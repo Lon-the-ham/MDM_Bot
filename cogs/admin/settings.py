@@ -857,8 +857,7 @@ class Administration_of_Settings(commands.Cog):
             # check threads
             total_text_channels = len(ctx.guild.text_channels)
             total_voice_channels = len(ctx.guild.voice_channels)
-            total_threads = "?"
-            # under construction (if solution to this found)
+            total_threads = "?" # under construction (if solution to this found)
             open_threads = 0
             for channel in ctx.guild.text_channels:
                 open_threads += len(channel.threads)
@@ -3879,8 +3878,24 @@ class Administration_of_Settings(commands.Cog):
             curU.execute('''CREATE TABLE IF NOT EXISTS location (user_id text, username text, city text, state text, country text, longitude text, latitude text)''')
 
 
-            # search for other mdm bot instances and add them to app list in botsettings.db
-            # under construction
+            # SEARCH FOR OTHER MDM BOT INSTANCES
+            await asyncio.sleep(1)
+            app_id_list = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("app id",)).fetchall()]
+            number_list = [item[0] for item in curB.execute("SELECT details FROM botsettings WHERE name = ?", ("app id",)).fetchall()]
+
+            async for msg in ctx.channel.history(limit=15):
+                if msg.content.startswith("Starting update of MDM Bot (instance: ") and msg.content.endswith(")...") and msg.author.bot:
+                    try:
+                        number = msg.content.split("Starting update of MDM Bot (instance: ")[1].split(")...")[0].strip()
+                        if util.represents_integer(number):
+                            if str(msg.author.id) not in app_id_list:
+                                if number not in number_list:
+                                    curB.execute("INSERT INTO botsettings VALUES (?, ?, ?, ?)", ("app id", str(msg.author.id), "", number))
+                                    conB.commit()
+
+                    except Exception as e:
+                        print("Could not add app to database:", e)
+
 
             await util.changetimeupdate()
 
