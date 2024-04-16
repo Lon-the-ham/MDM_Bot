@@ -10,6 +10,7 @@ from other.utils.utils import Utils as util
 import sqlite3
 import requests
 import os
+import sys
 
 
 class Administration_of_Server(commands.Cog):
@@ -1061,6 +1062,38 @@ class Administration_of_Server(commands.Cog):
 
 
 
+    def checkfile(self, filename):
+        """returns True if .db file is readable"""
+        if filename.endswith(".db"):
+            try:
+                con = sqlite3.connect(f'databases/{filename}')
+                cur = con.cursor()  
+                table_list = [item[0] for item in cur.execute("SELECT name FROM sqlite_master WHERE type = ?", ("table",)).fetchall()]
+                #print(table_list)
+                try:
+                    for table in table_list:
+                        cursor = con.execute(f'SELECT * FROM {table}')
+                        column_names = list(map(lambda x: x[0], cursor.description))
+                        #print(column_names)
+                        try:
+                            item_list = [item[0] for item in cur.execute(f"SELECT * FROM {table} ORDER BY {column_names[0]} ASC LIMIT 1").fetchall()]
+                            #print(item_list)
+                        except Exception as e:
+                            print(f"Error with {filename} table {table} query:", e)
+                            return False
+                except Exception as e:
+                    print(f"Error with {filename} table {table} structure:", e)
+                    return False
+            except Exception as e:
+                print(f"Error with {filename}:", e)
+                return False
+
+            return True
+            
+        else:
+            raise ValueError("Not a .db file!")
+
+
 
     @commands.command(name='troubleshoot', aliases = ['trouble','troubles'])
     @commands.has_permissions(manage_guild=True)
@@ -1069,12 +1102,102 @@ class Administration_of_Server(commands.Cog):
     async def _troubleshoot(self, ctx: commands.Context, *args):
         """🔒 Looks for problems and solutions with the database files"""
 
-        # FIND CORRUPTED DBs
-        # >>>>>>> SELECT * FROM dbname.sqlite_master WHERE type='table';
-        # >>>>>>> PRAGMA table_info(table_name);
-        # SEARCH FOR BACKUP FILE WITH WORKING DB FILE
-        # IF NOT ASK TO DELETE AND CREATE NEW
-        await ctx.send("under construction")
+        broken_files = []
+
+        for filename in os.listdir(f"{sys.path[0]}/databases/"):
+            if filename.endswith(".db"):
+                if self.checkfile(filename):
+                    pass
+                else:
+                    broken_files.append(filename)
+
+        if len(broken_files):
+            await ctx.send("No errors detected. All available database files seem to be readable.")
+
+        else:
+            async with ctx.typing():
+                await ctx.send(f"Issues detected. Looking for solutions...")
+
+                try:
+                    botspam_channel_id = int(os.getenv("bot_channel_id"))     
+                    botspamchannel = await self.bot.fetch_channel(botspam_channel_id)
+
+                    now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+                    last_occurence = 0
+                    async for msg in botspamchannel.history(limit=200):
+                        if "`LAST ACTIVE`" in msg.content and msg.author.bot:
+                            try:
+                                timestamp = int(msg.content.split("last edited: <t:")[1].split(":f> i.e. <t:")[0])
+                                if timestamp > last_occurence:
+                                    last_occurence = timestamp
+                                    the_message = msg
+                                    
+                                    # CHECK FILES AND TRY
+                                    
+                                    if str(the_message.attachments) == "[]":
+                                        print("Error: No attachment in `LAST ACTIVE` message.")
+                                    else:
+                                        print("...clearing space and retrieving files")
+                                        for filename in os.listdir(f"{sys.path[0]}/temp/"):
+                                            os.remove(f"{sys.path[0]}/temp/{filename}")
+                                        split_v1 = str(the_message.attachments).split("filename='")[1]
+                                        filename = str(split_v1).split("' ")[0]
+                                        if filename.endswith(".zip"): # Checks if it is a .zip file
+                                            await the_message.attachments[0].save(fp="temp/re_{}".format(filename))
+
+                                            with zipfile.ZipFile(f"{sys.path[0]}/temp/re_{filename}", 'r') as zip_ref:
+                                                zip_ref.extractall(f"{sys.path[0]}/temp/")
+
+                                            for filename in broken_files:
+                                                if filename.endswith(".db"):
+                                                    if self.checkfile(filename):
+                                                        dbExist = os.path.exists(f"{sys.path[0]}/databases/{filename}")
+                                                        if dbExist:
+                                                            os.remove(f"{sys.path[0]}/databases/{filename}")
+                                                        os.replace(f"{sys.path[0]}/temp/{filename}", f"{sys.path[0]}/databases/{filename}")
+
+                                                        while filename in broken_files:
+                                                            broken_files.remove(filename)
+
+                                                        await ctx.send(f"Fixed {filename} with backup from <t:{timestamp}:f>.")
+
+                                                        if len(broken_files) == 0:
+                                                            break
+
+                            except Exception as e:
+                                print("Error with backup:", e)
+
+                    for filename in os.listdir(f"{sys.path[0]}/temp/"):                
+                        os.remove(f"{sys.path[0]}/temp/{filename}")
+
+                    if len(broken_files) > 0:
+                        text = ', '.join(broken_files)
+                        await ctx.send(f"The following databases could not be fixed automatically:\n{text}\n\nPut the backup files you want as replacement in a .zip folder and upload it with `{self.prefix}loadbackup` to replace the files.\n______")
+                        response = await util.are_you_sure_msg(ctx, self.bot, "In case there are no suitable backup files: Do you want to delete the corrupted files?\nSkip with `no`.")
+
+                        if response:
+                            for filename in broken_files:
+                                try:
+                                    os.remove(f"{sys.path[0]}/databases/{filename}")
+                                except:
+                                    pass
+                            await ctx.send(f"Removed corrupted files. Please use `{self.prefix}update` now.")
+                    else:
+                        await ctx.send("Done.")
+
+                except:
+                    text = ', '.join(broken_files)
+                    await ctx.send(f"It seems like the following database files are corrupted and need to be replaced with an older variant:\n{text}\n\nPut the backup files you want as replacement in a .zip folder and upload it with `{self.prefix}loadbackup` to replace the files.\n______")
+                    response = await util.are_you_sure_msg(ctx, self.bot, "In case there are no suitable backup files: Do you want to delete the corrupted files?\nSkip with `no`.")
+
+                    if response:
+                        for filename in broken_files:
+                            try:
+                                os.remove(f"{sys.path[0]}/databases/{filename}")
+                            except:
+                                pass
+                        await ctx.send(f"Removed corrupted files. Please use `{self.prefix}update` now.")
+
     @_troubleshoot.error
     async def troubleshoot_error(self, ctx, error):
         await util.error_handling(ctx, error)
