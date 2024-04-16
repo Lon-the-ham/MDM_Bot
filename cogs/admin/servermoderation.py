@@ -1089,7 +1089,7 @@ class Administration_of_Server(commands.Cog):
                 return False
 
             return True
-            
+
         else:
             raise ValueError("Not a .db file!")
 
@@ -1111,7 +1111,7 @@ class Administration_of_Server(commands.Cog):
                 else:
                     broken_files.append(filename)
 
-        if len(broken_files):
+        if len(broken_files) == 0:
             await ctx.send("No errors detected. All available database files seem to be readable.")
 
         else:
