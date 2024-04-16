@@ -76,7 +76,7 @@ class Administration_of_Bot_Instance(commands.Cog):
 
                                         if dbExist:
                                             os.remove(f"{sys.path[0]}/databases/{filename}")
-                                            os.replace(f"{sys.path[0]}/temp/{filename}", f"{sys.path[0]}/databases/{filename}")
+                                        os.replace(f"{sys.path[0]}/temp/{filename}", f"{sys.path[0]}/databases/{filename}")
 
                             for filename in os.listdir(f"{sys.path[0]}/temp/"):                
                                 os.remove(f"{sys.path[0]}/temp/{filename}")
