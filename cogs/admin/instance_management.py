@@ -61,23 +61,39 @@ class Administration_of_Bot_Instance(commands.Cog):
                         filename = str(split_v1).split("' ")[0]
                         if filename.endswith(".zip"): # Checks if it is a .zip file
                             await the_message.attachments[0].save(fp="temp/re_{}".format(filename))
+                            continue_with_this = True
 
+                            # CHECK FILE EXTENSIONS
                             with zipfile.ZipFile(f"{sys.path[0]}/temp/re_{filename}", 'r') as zip_ref:
-                                zip_ref.extractall(f"{sys.path[0]}/temp/")
-
-                            await ctx.send("...syncing")
-
-                            for filename in os.listdir(f"{sys.path[0]}/temp/"):
-                                if filename.endswith(".db"):
-                                    if filename == "activity.db":
-                                        pass 
+                                filename_list = zip_ref.namelist()
+                                for name in filename_list:
+                                    if name.endswith(".db") or name.endswith(".gitignore") or name.endswith(".txt"):
+                                        pass
                                     else:
-                                        dbExist = os.path.exists(f"{sys.path[0]}/databases/{filename}")
+                                        await ctx.send("Error with backup .zip: File must not contain anything but `.db`, `.txt` and `.gitignore` files!")
+                                        continue_with_this = False
+                                        break
 
-                                        if dbExist:
-                                            os.remove(f"{sys.path[0]}/databases/{filename}")
-                                        os.replace(f"{sys.path[0]}/temp/{filename}", f"{sys.path[0]}/databases/{filename}")
+                                # EXTRACT FILES
+                                if continue_with_this:
+                                    zip_ref.extractall(f"{sys.path[0]}/temp/")
 
+                            # REPLACE FILES
+                            if continue_with_this:
+                                await ctx.send("...syncing")
+
+                                for filename in os.listdir(f"{sys.path[0]}/temp/"):
+                                    if filename.endswith(".db"):
+                                        if filename == "activity.db":
+                                            pass 
+                                        else:
+                                            dbExist = os.path.exists(f"{sys.path[0]}/databases/{filename}")
+
+                                            if dbExist:
+                                                os.remove(f"{sys.path[0]}/databases/{filename}")
+                                            os.replace(f"{sys.path[0]}/temp/{filename}", f"{sys.path[0]}/databases/{filename}")
+
+                            # REMOVE TEMPORARIES
                             for filename in os.listdir(f"{sys.path[0]}/temp/"):                
                                 os.remove(f"{sys.path[0]}/temp/{filename}")
                         else:
@@ -99,25 +115,45 @@ class Administration_of_Bot_Instance(commands.Cog):
                 filename = str(split_v1).split("' ")[0]
                 if filename.endswith(".zip"): # Checks if it is a .zip file
                     await the_message.attachments[0].save(fp="temp/re_{}".format(filename))
+                    continue_with_this = True
 
                     with zipfile.ZipFile(f"{sys.path[0]}/temp/re_{filename}", 'r') as zip_ref:
-                        zip_ref.extractall(f"{sys.path[0]}/temp/")
+                        filename_list = zip_ref.namelist()
 
-                    await ctx.send("...syncing")
-
-                    for filename in os.listdir(f"{sys.path[0]}/temp/"):
-                        if filename.endswith(".db"):
-                            if filename == "activity.db":
-                                pass 
+                        # CHECK FILE EXTENSIONS
+                        for name in filename_list:
+                            if name.endswith(".db") or name.endswith(".gitignore") or name.endswith(".txt"):
+                                pass
                             else:
-                                dbExist = os.path.exists(f"{sys.path[0]}/databases/{filename}")
+                                await ctx.send("Error: File must not contain anything but `.db`, `.txt` and `.gitignore` files!")
+                                continue_with_this = False
+                                break
 
-                                if dbExist:
-                                    os.remove(f"{sys.path[0]}/databases/{filename}")
-                                    os.replace(f"{sys.path[0]}/temp/{filename}", f"{sys.path[0]}/databases/{filename}")
+                        # COPY FILES
+                        if continue_with_this:
+                            zip_ref.extractall(f"{sys.path[0]}/temp/")
 
+                    # REPLACE FILES
+                    if continue_with_this:
+                        await ctx.send("...syncing")
+
+                        for filename in os.listdir(f"{sys.path[0]}/temp/"):
+                            if filename.endswith(".db"):
+                                if filename == "activity.db":
+                                    pass 
+                                else:
+                                    dbExist = os.path.exists(f"{sys.path[0]}/databases/{filename}")
+
+                                    if dbExist:
+                                        os.remove(f"{sys.path[0]}/databases/{filename}")
+                                        os.replace(f"{sys.path[0]}/temp/{filename}", f"{sys.path[0]}/databases/{filename}")
+
+                    # REMOVE TEMPORARIES
                     for filename in os.listdir(f"{sys.path[0]}/temp/"):                
                         os.remove(f"{sys.path[0]}/temp/{filename}")
+
+                    if not continue_with_this:
+                        raise ValueError("Error: File must not contain anything but `.db`, `.txt` and `.gitignore` files!")
                 else:
                     await ctx.send("Attachment must be a `.zip` file with `.db` files in it.")
             else:
@@ -146,19 +182,21 @@ class Administration_of_Bot_Instance(commands.Cog):
             lastedited = 0
             lastchanged = 0
             for filename in os.listdir(db_directory):
-                zf.write(os.path.join(db_directory, filename), filename)
-
-                edittime = int(os.path.getmtime(os.path.join(db_directory, filename)))
-                if (edittime > lastedited) and ("activity.db" not in str(filename)):
-                    lastedited = edittime
-                if str(filename) == "aftermostchange.db":
-                    try:
-                        conL = sqlite3.connect(f'databases/aftermostchange.db')
-                        curL = conL.cursor()
-                        lastchange_list = [item[0] for item in curL.execute("SELECT value FROM lastchange WHERE name = ?", ("time",)).fetchall()]
-                        lastchanged = int(lastchange_list[-1])
-                    except Exception as e:
-                        print(f"Error while trying to read out aftermostchange.db: {e}")
+                if str(filename).endswith(".db") or str(filename).endswith(".gitignore") or str(filename).endswith(".txt"):
+                    zf.write(os.path.join(db_directory, filename), filename)
+                    edittime = int(os.path.getmtime(os.path.join(db_directory, filename)))
+                    if (edittime > lastedited) and ("activity.db" not in str(filename)):
+                        lastedited = edittime
+                    if str(filename) == "aftermostchange.db":
+                        try:
+                            conL = sqlite3.connect(f'databases/aftermostchange.db')
+                            curL = conL.cursor()
+                            lastchange_list = [item[0] for item in curL.execute("SELECT value FROM lastchange WHERE name = ?", ("time",)).fetchall()]
+                            lastchanged = int(lastchange_list[-1])
+                        except Exception as e:
+                            print(f"Error while trying to read out aftermostchange.db: {e}")
+                else:
+                    print(f"Ignoring file: {str(filename)}")
             zf.close()
 
             if last_activity == "active":

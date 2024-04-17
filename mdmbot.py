@@ -1,6 +1,7 @@
 # MAIN PYTHON FILE
 
 import os
+import sys
 from dotenv import load_dotenv
 import datetime
 import discord
@@ -129,6 +130,14 @@ class YataBot(commands.Bot):
                     conC.commit()
                 except Exception as e:
                     print(f"Error while trying to clear cooldown database - user requests table: {e}")
+
+                # CLEAR TEMP FOLDER
+
+                try:
+                    for filename in os.listdir(f"{sys.path[0]}/temp/"):                
+                        os.remove(f"{sys.path[0]}/temp/{filename}")
+                except Exception as e:
+                    print("Error while trying to clear temp folder:", e)
             else:
                 stat_name = "standby mode"
                 await self.change_presence(activity=discord.Game(name=stat_name))

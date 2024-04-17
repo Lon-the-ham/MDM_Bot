@@ -11,6 +11,7 @@ import sqlite3
 import requests
 import os
 import sys
+import zipfile
 
 
 class Administration_of_Server(commands.Cog):
@@ -1124,7 +1125,10 @@ class Administration_of_Server(commands.Cog):
 
                     now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
                     last_occurence = 0
-                    async for msg in botspamchannel.history(limit=200):
+                    reached_end = False
+                    async for msg in botspamchannel.history(limit=300):
+                        if reached_end:
+                            break
                         if "`LAST ACTIVE`" in msg.content and msg.author.bot:
                             try:
                                 timestamp = int(msg.content.split("last edited: <t:")[1].split(":f> i.e. <t:")[0])
@@ -1144,25 +1148,43 @@ class Administration_of_Server(commands.Cog):
                                         filename = str(split_v1).split("' ")[0]
                                         if filename.endswith(".zip"): # Checks if it is a .zip file
                                             await the_message.attachments[0].save(fp="temp/re_{}".format(filename))
+                                            continue_with_this = True
+
+                                            # CHECK FILE EXTENSIONS
 
                                             with zipfile.ZipFile(f"{sys.path[0]}/temp/re_{filename}", 'r') as zip_ref:
-                                                zip_ref.extractall(f"{sys.path[0]}/temp/")
+                                                filename_list = zip_ref.namelist()
+                                                for name in filename_list:
+                                                    if name.endswith(".db") or name.endswith(".gitignore") or name.endswith(".txt"):
+                                                        pass
+                                                    else:
+                                                        print("Error with ZIP file, contained stuff other than .db, .txt and .gitignore files")
+                                                        continue_with_this = False
 
-                                            for filename in broken_files:
-                                                if filename.endswith(".db"):
-                                                    if self.checkfile(filename):
-                                                        dbExist = os.path.exists(f"{sys.path[0]}/databases/{filename}")
-                                                        if dbExist:
-                                                            os.remove(f"{sys.path[0]}/databases/{filename}")
-                                                        os.replace(f"{sys.path[0]}/temp/{filename}", f"{sys.path[0]}/databases/{filename}")
+                                                # EXTRACT FILES
+                                                if continue_with_this:
+                                                    zip_ref.extractall(f"{sys.path[0]}/temp/")
 
-                                                        while filename in broken_files:
-                                                            broken_files.remove(filename)
+                                            # SWAP BROKEN FILES
+                                            if continue_with_this:
+                                                for filename in broken_files:
+                                                    if filename.endswith(".db"):
+                                                        if self.checkfile(filename):
+                                                            dbExist = os.path.exists(f"{sys.path[0]}/databases/{filename}")
+                                                            if dbExist:
+                                                                os.remove(f"{sys.path[0]}/databases/{filename}")
+                                                            os.replace(f"{sys.path[0]}/temp/{filename}", f"{sys.path[0]}/databases/{filename}")
 
-                                                        await ctx.send(f"Fixed {filename} with backup from <t:{timestamp}:f>.")
+                                                            while filename in broken_files:
+                                                                broken_files.remove(filename)
 
-                                                        if len(broken_files) == 0:
-                                                            break
+                                                            await ctx.send(f"Fixed {filename} with backup from <t:{timestamp}:f>.")
+
+                                                            if len(broken_files) == 0:
+                                                                reached_end = True
+
+                                            for filename in os.listdir(f"{sys.path[0]}/temp/"):                
+                                                os.remove(f"{sys.path[0]}/temp/{filename}")
 
                             except Exception as e:
                                 print("Error with backup:", e)
