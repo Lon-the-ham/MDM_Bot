@@ -397,9 +397,23 @@ class Utils():
 
 
     def get_version():
+        con = sqlite3.connect(f'databases/botsettings.db')
+        cur = con.cursor()
+        version_list = [item[0] for item in cur.execute("SELECT value FROM botsettings WHERE name = ?", ("version",)).fetchall()]
+
+        if len(version_list) == 0:
+            version = "version ?"            
+        else:
+            version = version_list[0] 
+
+        return version
+
+
+
+    def get_version_from_file():
         try:
             lines = []
-            with open('version.txt', 'r') as s:
+            with open('other/version.txt', 'r') as s:
                 for line in s:
                     lines.append(line.strip())
             version = lines[0]

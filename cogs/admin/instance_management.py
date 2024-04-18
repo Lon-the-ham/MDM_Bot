@@ -269,16 +269,7 @@ class Administration_of_Bot_Instance(commands.Cog):
 
         Shows for each instance whether the bot is active or inactive, as well as its current version.
         """    
-        try:
-            lines = []
-            with open('version.txt', 'r') as s:
-                for line in s:
-                    print(line.strip())
-                    lines.append(line.strip())
-            version = lines[0]
-        except Exception as e:
-            version = "version ?"
-            print("Error with version check:", e)
+        version = util.get_version()
 
         conA = sqlite3.connect(f'databases/activity.db')
         curA = conA.cursor()

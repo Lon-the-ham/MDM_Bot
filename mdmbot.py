@@ -81,8 +81,21 @@ class YataBot(commands.Bot):
                 print("Error with activity check:", e)
 
             # VERSION
-            version = util.get_version()
+            version = util.get_version_from_file()
             print(version)
+            try:
+                con = sqlite3.connect(f'databases/botsettings.db')
+                cur = con.cursor()
+                version_list = [item[0] for item in cur.execute("SELECT value FROM botsettings WHERE name = ?", ("version",)).fetchall()]
+                if len(version_list) == 0:
+                    cur.execute("INSERT INTO botsettings VALUES (?, ?, ?, ?)", ("version", version, "", ""))
+                    con.commit()
+                else:
+                    cur.execute("UPDATE botsettings SET value = ? WHERE name = ?", (version, "version"))
+                    con.commit()
+                #await util.changetimeupdate()
+            except Exception as e:
+                print("Error while storing version number.")
 
             if load_settings:
 
