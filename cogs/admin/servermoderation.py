@@ -847,7 +847,7 @@ class Administration_of_Server(commands.Cog):
                         welcometext = f'Welcome <@{user_id}>! {yayemoji}\nYou made it {excitedemoji}'
                     else:
                         welcometext_preparse = welcometext_list[0]
-                        welcometext = await util.customtextparse(welcometext_preparse, userid)
+                        welcometext = await util.customtextparse(welcometext_preparse, user_id)
                     await general_channel.send(welcometext)
                 else:
                     print("welcome message turned off")

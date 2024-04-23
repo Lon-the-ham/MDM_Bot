@@ -2180,8 +2180,8 @@ class Utils():
         # limit text to 3440 char (for 1st embed only)
         # limit footer to 1024 char (for last embed only)
         # every field limited to 256 + 1024 char
-        if len(text_list) == 0:
-            print("error: text list empty")
+        if len(fields_list) == 0:
+            print("error: field list empty")
             return
 
         if channel == None or channel == "":
@@ -2198,6 +2198,8 @@ class Utils():
         k = 0
         embeds_list.append(discord.Embed(title=header, description=text_string, color=color))
         current_length = len(header) + len(text_string)
+
+        # under construction: maximum of 24 fields or 6000 chars per embed 
 
         for item in fields_list:
             if len(item) > 0:
