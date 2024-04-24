@@ -1,9 +1,8 @@
 # MDM_Bot
-repository for the custom discord bot for r/melodicdeathmetal
-
-
 
 ##############################################
+
+How to setup the bot on your raspberry pi:
 
 ### First time pi installs:
 
