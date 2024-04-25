@@ -261,7 +261,7 @@ class Administration_of_Bot_Instance(commands.Cog):
 
 
 
-    @commands.command(name='status', aliases = ["instancestatus"])
+    @commands.command(name='status', aliases = ["instancestatus", "version"])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     async def _botstatus(self, ctx):
