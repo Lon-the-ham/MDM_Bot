@@ -15,6 +15,13 @@ class Event_Response(commands.Cog):
     def __init__(self, bot: commands.bot) -> None:
         self.bot = bot
 
+    def is_inactive(self):
+        try:
+            activity = util.is_active()
+            return not activity
+        except:
+            return True
+
     # HELPFUL FUNCTIONS
 
     def find_urls(self, message_string):
@@ -106,8 +113,10 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_member_join(self, member):
+        if self.is_inactive():
+            return
+
         server = member.guild
         user_id = member.id
         conB = sqlite3.connect(f'databases/botsettings.db')
@@ -117,6 +126,19 @@ class Event_Response(commands.Cog):
         if str(server.id) not in main_server:
             print(f"{member.name} joined {server.name}")
             return
+
+        if self.setting_enabled("inactivity filter"):
+            try:
+                conUA = sqlite3.connect('databases/useractivity.db')
+                curUA = conUA.cursor()
+                curUA.execute("DELETE FROM useractivity WHERE userid = ?", (str(member.id),))
+
+                join_time = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+                curUA.execute("INSERT INTO useractivity VALUES (?, ?, ?, ?, ?)", (str(member.name), str(member.id), "0", str(join_time), ""))
+                conUA.commit()
+            except Exception as e:
+                print("Error:", e)
 
         # CHECK IF ACCESS WALL IS ENABLED
 
@@ -236,8 +258,10 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_raw_member_remove(self, payload):
+        if self.is_inactive():
+            return
+
         user = payload.user
         server_id = payload.guild_id
 
@@ -264,8 +288,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_member_update(self, before, after):
+        if self.is_inactive():
+            return
         if before.bot:
             return
         member = before
@@ -333,8 +358,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_member_ban(self, server, user):
+        if self.is_inactive():
+            return
         if not server:
             return
         conB = sqlite3.connect(f'databases/botsettings.db')
@@ -383,8 +409,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_member_unban(self, server, user):
+        if self.is_inactive():
+            return
         if not server:
             return
         conB = sqlite3.connect(f'databases/botsettings.db')
@@ -410,8 +437,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_message_edit(self, before, after):
+        if self.is_inactive():
+            return
         if before.author.bot:
             return
         server = before.guild
@@ -461,8 +489,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_message_delete(self, message):
+        if self.is_inactive():
+            return
         if message.author.bot:
             return
         server = message.guild
@@ -493,8 +522,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_bulk_message_delete(self, messages):
+        if self.is_inactive():
+            return
         message = messages[0]
         server = message.guild
         if not server:
@@ -518,8 +548,9 @@ class Event_Response(commands.Cog):
 
             
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_message(self, message):
+        if self.is_inactive():
+            return
         if message.author.bot:
             return
         server = message.guild
@@ -531,7 +562,68 @@ class Event_Response(commands.Cog):
         if str(server.id) not in main_server:
             return
 
-        # 1 MODS MODS MODS FUNCTION
+        # 1 USER ACTIVITY TRACKING (FOR INACTIVITY FILTER)
+
+        if self.setting_enabled("inactivity filter"):
+            try:
+                inactivityfilter_list = [[item[0],item[1]] for item in curB.execute("SELECT details, etc FROM serversettings WHERE name = ?", ("inactivity filter",)).fetchall()]
+                days = int(inactivityfilter_list[0][0])
+                startingpoint = int(inactivityfilter_list[0][1])
+
+                conUA = sqlite3.connect(f'databases/useractivity.db')
+                curUA = conUA.cursor()
+                user = message.author
+                msg_utc = int((message.created_at.replace(tzinfo=None) - datetime.datetime(1970, 1, 1)).total_seconds())
+                useractivity_list = [item[0] for item in curUA.execute("SELECT last_active FROM useractivity WHERE userid = ?", (str(user.id),)).fetchall()]
+
+                if len(useractivity_list) == 0:
+                    roleliststring = ';;'.join([str(y.id) for y in user.roles])
+                    join_utc = int((user.joined_at.replace(tzinfo=None) - datetime.datetime(1970, 1, 1)).total_seconds())
+                    curUA.execute("INSERT INTO useractivity VALUES (?, ?, ?, ?, ?)", (str(user.name), str(user.id), str(msg_utc), str(join_utc), roleliststring))
+                    conUA.commit()
+                    await util.changetimeupdate()
+                else:
+                    lastactive = int(useractivity_list[0])
+
+                    if lastactive + 12*60*60 > msg_utc: # only update every 12 hours
+                        # recent message
+                        pass
+                    else:
+                        rolelist = [str(y.id) for y in user.roles]
+
+                        update_userroles = True
+                        if len(rolelist) <= 1:
+                            try:
+                                accesswallrole_list = [item[0] for item in cur.execute("SELECT role_id FROM specialroles WHERE name = ?", ("access wall role",)).fetchall()]
+                                accesswallrole_id = accesswallrole_list[0]
+                            except:
+                                accesswallrole_id = ""
+                            try:
+                                timeoutrole_list = [item[0] for item in cur.execute("SELECT role_id FROM specialroles WHERE name = ?", ("timeout role",)).fetchall()]
+                                timeoutrole_id = timeoutrole_list[0]
+                                # under construction
+                            except:
+                                timeoutrole_id = ""
+                            try:
+                                inactivityrole_list = [item[0] for item in cur.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]
+                                inactivityrole_id = inactivityrole_list[0]
+                            except:
+                                inactivityrole_id = ""
+
+                            if inactivityrole_id in rolelist or timeoutrole_id in rolelist or accesswallrole_id in rolelist:
+                                update_userroles = False
+
+                        if update_userroles:
+                            roleliststring = ';;'.join(rolelist)
+                            curUA.execute("UPDATE useractivity SET last_active = ?, previous_roles = ? WHERE userid = ?", (str(msg_utc), roleliststring, str(user.id)))
+                        else:
+                            curUA.execute("UPDATE useractivity SET last_active = ? WHERE userid = ?", (str(msg_utc), str(user.id)))
+                        conUA.commit()
+                        await util.changetimeupdate()
+            except Exception as e:
+                print("Error while trying to track user activity:", e)
+
+        # 2 MODS MODS MODS FUNCTION
 
         if self.setting_enabled("mods mods mods notification"):
             alphabeticonly = ''.join(x for x in message.content if x.isalpha()).lower()
@@ -549,7 +641,7 @@ class Event_Response(commands.Cog):
                     await message.add_reaction("👀")
 
 
-        # 2 GENRE TAG FUNCTION
+        # 3 GENRE TAG FUNCTION
         channel = message.channel
         try:
             # check if genre tag reminder is enabled
@@ -615,11 +707,10 @@ class Event_Response(commands.Cog):
 
 
 
-
-
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_guild_role_create(self, role):
+        if self.is_inactive():
+            return
         server = role.guild
         if not server:
             return
@@ -642,8 +733,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_guild_role_delete(self, role):
+        if self.is_inactive():
+            return
         server = role.guild
         if not server:
             return
@@ -666,8 +758,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_guild_role_update(self, before, after):
+        if self.is_inactive():
+            return
         server = before.guild
         if not server:
             return
@@ -706,8 +799,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_scheduled_event_create(self, event):
+        if self.is_inactive():
+            return
         server = event.guild
         if not server:
             return
@@ -730,8 +824,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_scheduled_event_delete(self, event):
+        if self.is_inactive():
+            return
         server = event.guild
         if not server:
             return
@@ -754,8 +849,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_scheduled_event_update(self, before, after):
+        if self.is_inactive():
+            return
         server = after.guild
         if not server:
             return
@@ -778,8 +874,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_invite_create(self, invite):
+        if self.is_inactive():
+            return
         server = invite.guild
         if not server:
             return
@@ -816,8 +913,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_guild_channel_create(self, channel):
+        if self.is_inactive():
+            return
         server = channel.guild
         if not server:
             return
@@ -840,8 +938,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_guild_channel_delete(self, channel):
+        if self.is_inactive():
+            return
         server = channel.guild
         if not server:
             return
@@ -864,8 +963,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_guild_channel_update(self, before, after):
+        if self.is_inactive():
+            return
         server = after.guild
         if not server:
             return
@@ -900,8 +1000,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_thread_create(self, thread):
+        if self.is_inactive():
+            return
         server = thread.guild
         if not server:
             return
@@ -928,8 +1029,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_thread_remove(self, thread):
+        if self.is_inactive():
+            return
         server = thread.guild
         if not server:
             return
@@ -956,8 +1058,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_thread_delete(self, thread):
+        if self.is_inactive():
+            return
         server = thread.guild
         if not server:
             return
@@ -985,8 +1088,9 @@ class Event_Response(commands.Cog):
 
 
     @commands.Cog.listener()
-    @commands.check(util.is_active)
     async def on_voice_state_update(self, member, before, after):
+        if self.is_inactive():
+            return
         server = member.guild
         if not server:
             return
@@ -1030,9 +1134,10 @@ class Event_Response(commands.Cog):
 
 
 
-    @commands.Cog.listener() 
-    @commands.check(util.is_active)
+    @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
+        if self.is_inactive():
+            return
 
         # INITIALISE
 
