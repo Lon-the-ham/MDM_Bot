@@ -1727,6 +1727,96 @@ class Roles(commands.Cog):
 
 
 
+    @commands.command(name='letmeout', aliases = ['imactive', 'illbeactiveipromise'])
+    @commands.check(util.is_active) 
+    async def _recoverfrominactivity(self, ctx):
+        """break out from inactivity channel
+        """    
+
+        # FETCH ROLE
+        
+        conB = sqlite3.connect('databases/botsettings.db')
+        curB = conB.cursor()
+
+        inactivityrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]        
+        if len(inactivityrole_list) == 0 or not util.represents_integer(inactivityrole_list[0]):
+            print("Error: You need to set an inactivity role!")
+            return
+        else:
+            if len(inactivityrole_list) > 1:
+                print("Warning: there are multiple inactivity role entries in the database")
+            inactivity_role_id = int(inactivityrole_list[0])
+
+        try:
+            inactivity_role = ctx.guild.get_role(inactivity_role_id)
+        except Exception as e:
+            print("Error:", e)
+            print("Error: Faulty inactivity role id!")
+            return
+
+        if inactivity_role is None:
+            print("Error: Faulty inactivity role id!")
+            return
+
+        # CHECK IF USER HAS ROLE
+
+        user = ctx.author
+
+        if inactivity_role not in user.roles:
+            await ctx.send("According to my check book you aren't marked as inactive.\nIf this is an error contact the mods.")
+            return
+
+        # FETCH PREVIOUS ROLES
+
+        conUA = sqlite3.connect('databases/useractivity.db')
+        curUA = conUA.cursor()
+        prevroles_list = [item[0] for item in curUA.execute("SELECT previous_roles FROM useractivity WHERE userid = ?", (str(user.id),)).fetchall()]
+        try:
+            prevrole_idstrings = prevroles_list[0].split(";;")
+            prevroles = []
+            for role_id_str in prevrole_idstrings:
+                if util.represents_integer(role_id_str):
+                    role_id = int(role_id_str)
+                    try:
+                        role = ctx.guild.get_role(role_id)
+                    except:
+                        pass
+
+                    if role is None:
+                        pass
+                    else:
+                        prevroles.append(role)
+
+            if len(prevroles) == 0:
+                await member.remove_roles(inactivity_role)
+            else:
+                await user.edit(roles=prevroles)
+
+        except Exception as e:
+            print("Error:", e)
+            prevroles = []
+
+            await member.remove_roles(inactivity_role)
+
+        # SWAP ROLES
+
+        await ctx.message.delete()
+
+        # NOTIFY MODS
+
+        bot_channel_id = int(os.getenv("bot_channel_id"))
+        botspamchannel = self.bot.get_channel(bot_channel_id)
+        emoji = util.emoji("unleashed")
+        text = f"{user.mention} has broken out of inactivity! {emoji}"
+        embed = discord.Embed(title="", description=text, color=0xffffff)
+        await botspamchannel.send(embed=embed)
+        
+    @_recoverfrominactivity.error
+    async def recoverfrominactivity_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(
         Roles(bot),

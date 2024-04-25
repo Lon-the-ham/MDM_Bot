@@ -72,6 +72,8 @@ class YataBot(commands.Bot):
             try:
                 conA = sqlite3.connect(f'databases/activity.db')
                 curA = conA.cursor()
+                curA.execute('''CREATE TABLE IF NOT EXISTS activity (name text, value text)''')
+                curA.execute('''CREATE TABLE IF NOT EXISTS version (name text, value text)''')
                 activity_list = [item[0] for item in curA.execute("SELECT value FROM activity WHERE name = ?", ("activity",)).fetchall()]
                 activity = activity_list[0]
                 load_settings = True
@@ -84,16 +86,13 @@ class YataBot(commands.Bot):
             version = util.get_version_from_file()
             print(version)
             try:
-                con = sqlite3.connect(f'databases/botsettings.db')
-                cur = con.cursor()
-                version_list = [item[0] for item in cur.execute("SELECT value FROM botsettings WHERE name = ?", ("version",)).fetchall()]
+                version_list = [item[0] for item in curA.execute("SELECT value FROM version WHERE name = ?", ("version",)).fetchall()]
                 if len(version_list) == 0:
-                    cur.execute("INSERT INTO botsettings VALUES (?, ?, ?, ?)", ("version", version, "", ""))
-                    con.commit()
+                    curA.execute("INSERT INTO version VALUES (?, ?)", ("version", version))
+                    conA.commit()
                 else:
-                    cur.execute("UPDATE botsettings SET value = ? WHERE name = ?", (version, "version"))
-                    con.commit()
-                #await util.changetimeupdate()
+                    curA.execute("UPDATE version SET value = ? WHERE name = ?", (version, "version"))
+                    conA.commit()
             except Exception as e:
                 print("Error while storing version number.")
 

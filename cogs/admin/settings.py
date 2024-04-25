@@ -12,7 +12,7 @@
 #     > also added to database_on_off_switch(...) function
 # and added to
 #     > update part of botupdating()
-#     > setup part of botupdating()
+#     (for important features maybe also setup part of botupdating())
 
 
 
@@ -255,6 +255,15 @@ class Administration_of_Settings(commands.Cog):
                 print("Warning: there are multiple turing test/rules channel entries in the database")
             ruleschannel_id = ruleschannel_list[0]
 
+        inactivitychannel_list = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("inactivity channel id",)).fetchall()] # turing test channel
+        if len(inactivitychannel_list) == 0:
+            inactivitychannel_id = "error⚠️"
+            print("Error: no slumber/inactivity channel in database")
+        else:
+            if len(inactivitychannel_list) > 1:
+                print("Warning: there are multiple slumber/inactivity channel entries in the database")
+            inactivitychannel_id = inactivitychannel_list[0]
+
 
 
         #################################################### ON/OFF SETTINGS
@@ -345,9 +354,9 @@ class Administration_of_Settings(commands.Cog):
                 turingbanmessage_switch = turingbanmessage_list[0][0]
                 turingbanmessage_text = turingbanmessage_list[0][1]
                 if turingbanmessage_text.strip() in [""]:
-                    tbm_type = "default text"
+                    tbm_type = "text: `default`"
                 else:
-                    tbm_type = "custom text"
+                    tbm_type = "text: `custom`"
 
             desctext_general.append(f" ⮡  turing ban message: `{turingbanmessage_switch}` ({tbm_type})")
             desctext_features.append(f" ⮡  turing ban message: `{turingbanmessage_switch}` ({tbm_type})")
@@ -411,6 +420,20 @@ class Administration_of_Settings(commands.Cog):
             genretagreminder = genretagreminder_list[0]
         desctext_general.append(f"GenreTag Remind functionality: `{genretagreminder}`")
         desctext_features.append(f"GenreTag Remind functionality: `{genretagreminder}`")
+
+        inactivityfilter_list = [[item[0], item[1]] for item in cur.execute("SELECT value, details FROM serversettings WHERE name = ?", ("inactivity filter",)).fetchall()]
+        inactivitydays = ""
+        if len(inactivityfilter_list) == 0:
+            inactivityfilter = "error⚠️"
+            print("Error: no inactivity filter on/off in database")
+        else:
+            if len(inactivityfilter_list) > 1:
+                print("Warning: there are multiple inactivity filter on/off entries in the database")
+            inactivityfilter = inactivityfilter_list[0][0]
+            if inactivityfilter == "on":
+                inactivitydays = " (" + inactivityfilter_list[0][1] + ")"
+        desctext_general.append(f"Inactivity filter: `{inactivityfilter}`{inactivitydays}")
+        desctext_features.append(f"Inactivity filter: `{inactivityfilter}`{inactivitydays}")
 
         penaltynotifier_list = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("user mute/ban/kick notification",)).fetchall()]
         if len(penaltynotifier_list) == 0:
@@ -629,6 +652,10 @@ class Administration_of_Settings(commands.Cog):
             desctext_general.append(f"Turing test channel: <#{ruleschannel_id}>")
             desctext_channels.append(f"Turing test channel: <#{ruleschannel_id}>")
 
+        if inactivityfilter == "on":
+            desctext_general.append(f"Slumber/Inactive channel: <#{inactivitychannel_id}>")
+            desctext_channels.append(f"Slumber/Inactive channel: <#{inactivitychannel_id}>")
+
         #################################################### REACTION ROLES
 
         if reactionroles == "on":
@@ -736,6 +763,20 @@ class Administration_of_Settings(commands.Cog):
                     print("Warning: there are multiple verified role entries in the database")
                 verified_role = verifiedrole_list[0]
             desctext_roles.append(f"Verified role: <@&{verified_role}>")
+
+        if inactivityfilter == "on":
+            inactivityrole_list = [item[0] for item in cur.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]        
+            if len(inactivityrole_list) == 0:
+                if inactivityfilter == "off":
+                    inactivity_role = "not provided"
+                else:
+                    inactivity_role = "error⚠️"
+                    print("Error: no inactivity role in database")
+            else:
+                if len(inactivityrole_list) > 1:
+                    print("Warning: there are multiple inactivity role entries in the database")
+                inactivity_role = inactivityrole_list[0]
+            desctext_roles.append(f"Inactivity role: <@&{inactivity_role}>")
 
         #################################################### EMOJI
 
@@ -982,6 +1023,15 @@ class Administration_of_Settings(commands.Cog):
             "accesswallchannel": "channels",
             "turingchannel": "channels",
             "genretagchannel": "channels",
+            "inactivitychannel": "channels",
+            #
+            #roles:
+            "accesswallrole": "special roles",
+            "botdisplayrole": "special roles",
+            "communityrole": "special roles",
+            "inactivityrole": "special roles",
+            "timeoutrole": "special roles",
+            "verifiedrole": "special roles",
             #
             #role stuff:
             "reactrolecat": "role settings", 
@@ -1011,6 +1061,7 @@ class Administration_of_Settings(commands.Cog):
             "timeout": "feature on/off switches", 
             "welcome": "feature on/off switches", 
             "penaltynotifier": "feature on/off switches", 
+            "inactivityfilter": "feature on/off switches", 
             # on/off notifications
             "joinleavenotification": "notification on/off switches", 
             "channelnotification": "notification on/off switches", 
@@ -1137,14 +1188,16 @@ class Administration_of_Settings(commands.Cog):
 
 
     ################################################################################# CHANNELS
+
     
     async def database_channel_change(self, ctx, args, db_entry_name):
         channeldict = {
             "access wall channel id": "Access wall channel",
             "botspam channel id": "Botspam/notification channel",
             "general channel id": "General (welcome) channel",
+            "inactivity channel id": "Slumber/Inactivity channel",
             "role channel id": "(Reaction) Roles channel",
-            "rules channel id": "Turing test channel"
+            "rules channel id": "Turing test channel",
         }
         channel_name = channeldict[db_entry_name]
         if len(args) == 0:
@@ -1259,6 +1312,23 @@ class Administration_of_Settings(commands.Cog):
         await self.database_channel_change(ctx, args, "rules channel id")
     @_set_turingchannel.error
     async def set_turingchannel_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+    @_set.command(name="inactivitychannel", aliases = ["slumberchannel", "prunechannel"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_inactivitychannel(self, ctx, *args):
+        """Set the inactivity channel id
+
+        Use `-set inactivitychannel <channelid>` or `-set inactivitychannel <#channelname>`.
+
+        If inactivity filter is enabled users that have been inactive for X days (default: 180) will be placed into this channel.
+        """
+        await self.database_channel_change(ctx, args, "inactivity channel id")
+    @_set_inactivitychannel.error
+    async def set_inactivitychannel_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
@@ -2328,6 +2398,7 @@ class Administration_of_Settings(commands.Cog):
             "backlog functionality": "Memo/backlog feature",
             "bot display": "Bot's sidebar role switch",
             "genre tag reminder": "Genre Tag Reminder",
+            "inactivity filter": "User Inactivity Filter",
             "pingable interests functionality": "Pingable interest feature",
             "reaction roles": "Reaction role feature",
             "reminder functionality": "Custom reminder feature",
@@ -2353,25 +2424,33 @@ class Administration_of_Settings(commands.Cog):
 
         if len(args) == 0:
             await ctx.send("Command needs an `on` or `off` argument.")
-            return
+            return ""
 
         switchturn = args[0].lower().replace("`","")
 
         if switchturn not in ["on", "off"]:
             await ctx.send("Argument needs to be either `on` or `off`.")
-            return
+            return ""
 
         try:
             con = sqlite3.connect(f'databases/botsettings.db')
             cur = con.cursor()  
+            inactivityfilter_list = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", (switch_name,)).fetchall()]
+
+            if inactivityfilter_list[0].lower().strip() == "intermediate":
+                await ctx.send("Setting cannot be changed at the moment!")
+                return
+
             cur.execute("UPDATE serversettings SET value = ? WHERE name = ?", (switchturn, switch_name))
             con.commit()
             await util.changetimeupdate()
         except Exception as e:
             print(e)
             await ctx.send(f"Error while trying to change {switch_displayname} in database.")
-            return
+            return ""
         await ctx.send(f"{switch_displayname} turned {switchturn}!")
+
+        return switchturn
 
 
     @_set.command(name="accesswall", aliases = ["wintersgate"], pass_context=True)
@@ -2398,7 +2477,7 @@ class Administration_of_Settings(commands.Cog):
         await util.error_handling(ctx, error)
 
 
-    @_set.command(name="autorole", aliases = ["communityrole"], pass_context=True)
+    @_set.command(name="autorole", aliases = ["automaticrole", "communityrolefeature"], pass_context=True)
     @commands.check(util.is_active)
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
@@ -2706,6 +2785,72 @@ class Administration_of_Settings(commands.Cog):
         await self.database_on_off_switch(ctx, args, "reminder functionality")
     @_set_reminders.error
     async def set_reminders_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+    @_set.group(name="inactivityfilter", aliases = ["userfilter", "userinactivityfilter"], pass_context=True, invoke_without_command=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_inactivityfilter(self, ctx, *args):
+        """Enable/disable inactivity filter
+
+        1st arg needs to be either `on` or `off`, or use subcommand `-inactivityfilter days <number>` to specify the number of days users can be inactive without being put into inactivity/slumber channel.
+
+        If this feature is enabled, users that haven't been active within the past X days will be put into a slumber channel.
+        """
+        setting = await self.database_on_off_switch(ctx, args, "inactivity filter")
+
+        if setting == "on":
+            con = sqlite3.connect(f'databases/botsettings.db')
+            cur = con.cursor()
+            now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+            cur.execute("UPDATE serversettings SET etc = ? WHERE name = ?", (str(now), "inactivity filter"))
+            con.commit()
+
+            conUA = sqlite3.connect('databases/useractivity.db')
+            curUA = conUA.cursor()
+            curUA.execute("DELETE FROM useractivity")
+            conUA.commit()
+            await ctx.send(f"Reset counting time to <t:{now}:f>.")
+
+    @_set_inactivityfilter.error
+    async def set_inactivityfilter_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+    @_set_inactivityfilter.command(name="days", aliases = ["day", "time", "triggertime"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_inactivityfilter_days(self, ctx, *args):
+        """Sets trigger time, i.e. the amount of days people can be inactive without being put into inactivity/slumber channel, if the user inactivity filter is enabled that is.
+        """
+        number_string = ' '.join(args)
+        if util.represents_integer(number_string) and int(number_string) > 0:
+            number = int(number_string)
+        else:
+            await ctx.send(f"Error: Input needs to be a positive integer.")
+            return
+
+        if number < 7:
+            await ctx.send(f"The number of days should be at least 7.")
+            return
+
+        try:
+            con = sqlite3.connect(f'databases/botsettings.db')
+            cur = con.cursor()  
+            cur.execute("UPDATE serversettings SET details = ? WHERE name = ?", (str(number), "inactivity filter"))
+            con.commit()
+            await util.changetimeupdate()
+        except Exception as e:
+            print(e)
+            await ctx.send(f"Error while trying to change user inactivity filter's trigger time in database.")
+            return
+
+        await ctx.send(f"Set the trigger time of the user inactivity filter to {str(number)} days!")
+    @_set_inactivityfilter_days.error
+    async def set_inactivityfilter_days_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
@@ -3168,6 +3313,364 @@ class Administration_of_Settings(commands.Cog):
 
 
 
+    ##################################################### SET ROLES  ##############################################################################
+
+
+
+    async def set_role(self, ctx, rolename, args):
+
+        the_input = ''.join(args).lower()
+        if the_input.startswith("<@&") and the_input.endswith(">"):
+            the_input = the_input.replace("<@&", "").replace(">", "")
+
+        if util.represents_integer(the_input):
+            role_id = int(the_input)
+
+        elif the_input == "none":
+            conB = sqlite3.connect(f'databases/botsettings.db')
+            curB = conB.cursor()
+            curB.execute("UPDATE specialroles SET role_id = ? WHERE name = ?", ("", rolename))
+            conB.commit()
+            await util.changetimeupdate()
+            await ctx.send(f"Removed {rolename}, set to `none`.")
+            return
+        else:
+            await ctx.send(f"Error: Invalid input, needs to be role mention or id.")
+            return
+
+        try:
+            role_object = discord.utils.get(ctx.guild.roles, id = role_id)
+
+            conB = sqlite3.connect(f'databases/botsettings.db')
+            curB = conB.cursor()
+            curB.execute("UPDATE specialroles SET role_id = ? WHERE name = ?", (str(role_id), rolename))
+            conB.commit()
+            await util.changetimeupdate()
+            await ctx.send(f"Set {rolename} to `@{role_object.name}`.")
+
+        except Exception as e:
+            await ctx.send(f"Error: {e}")
+            return
+
+
+    @_set.command(name="accesswallrole", aliases = ["accesswall_role"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_accesswallrole(self, ctx, *args):
+        """Set the access wall role.
+
+        Use role mention or id. Or use argument `none` to remove.
+        """
+        await self.set_role(ctx, "access wall role", args)
+    @_set_accesswallrole.error
+    async def set_accesswallrole_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+    @_set.command(name="botdisplayrole", aliases = ["botdisplay_role"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_botdisplayrole(self, ctx, *args):
+        """Set the bot display role.
+
+        Use role mention or id. Or use argument `none` to remove.
+        """
+        await self.set_role(ctx, "bot display role", args)
+    @_set_botdisplayrole.error
+    async def set_botdisplayrole_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+    @_set.command(name="communityrole", aliases = ["community_role"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_communityrole(self, ctx, *args):
+        """Set the community role.
+
+        Use role mention or id. Or use argument `none` to remove.
+        """
+        await self.set_role(ctx, "community role", args)
+    @_set_communityrole.error
+    async def set_communityrole_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+    @_set.command(name="inactivityrole", aliases = ["inactivity_role"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_inactivityrole(self, ctx, *args):
+        """Set the inactivity role.
+
+        Use role mention or id. Or use argument `none` to remove.
+        """
+        await self.set_role(ctx, "inactivity role", args)
+    @_set_inactivityrole.error
+    async def set_inactivityrole_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+    @_set.command(name="timeoutrole", aliases = ["timeout_role"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_timeoutrole(self, ctx, *args):
+        """Set the timeout role.
+
+        Use role mention or id. Or use argument `none` to remove.
+        """
+        await self.set_role(ctx, "timeout role", args)
+    @_set_timeoutrole.error
+    async def set_timeoutrole_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+    @_set.command(name="verifiedrole", aliases = ["verified_role"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_verifiedrole(self, ctx, *args):
+        """Set the verified role.
+
+        Use role mention or id. Or use argument `none` to remove.
+        """
+        await self.set_role(ctx, "verified role", args)
+    @_set_verifiedrole.error
+    async def set_verifiedrole_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+
+    @commands.command(name='inactivitycheck', aliases = ['checkinactive', 'checkinactives'])
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _inactivitycheck(self, ctx: commands.Context, *args):
+        """Check for users who haven't been active in x days.
+
+        Only when inactivity filter is active.
+        You can provide an integer argument to make the bot check for that many days."""
+
+        conB = sqlite3.connect('databases/botsettings.db')
+        curB = conB.cursor()
+
+        inactivityfilter_setting = [[item[0], item[1], item[2]] for item in curB.execute("SELECT value, details, etc FROM serversettings WHERE name = ?", ("inactivity filter", )).fetchall()]
+
+        if len(inactivityfilter_setting) == 0 or inactivityfilter_setting[0][0].lower() != "on":
+            await ctx.send("Inactivity filter is set `off`. It needs to be enabled to check for inactivity.")
+            return
+
+        async with ctx.typing():
+
+            # PARSE ARGUMENTS
+
+            day_args = ''.join(args)
+            if util.represents_integer(day_args):
+                days = int(day_args)
+            else:
+                days_string = inactivityfilter_setting[0][1]
+                if util.represents_integer(days_string):
+                    days = int(days_string)
+                    if days < 7:
+                        days = 7
+                else:
+                    days = 7
+
+            conUA = sqlite3.connect('databases/useractivity.db')
+            curUA = conUA.cursor()
+            users_in_db = [util.forceinteger(item[0]) for item in curUA.execute("SELECT userid FROM useractivity").fetchall()]
+
+            response = await util.are_you_sure_embed(ctx, self.bot, f"Go through messages of the past {days} days?", "This *can* take a long time and might affect funtionality of the bot in the meantime.\n(limit 1 mil. messages per channel)", 0xff0000)
+
+            if response != "True":
+                await ctx.send("action cancelled")
+                return
+
+            now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+            # FETCH ROLE AND CHANNEL
+
+            inactivityrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]        
+            if len(inactivityrole_list) == 0 or not util.represents_integer(inactivityrole_list[0]):
+                await ctx.send("Error: You need to set an inactivity role!")
+                return
+            else:
+                if len(inactivityrole_list) > 1:
+                    print("Warning: there are multiple inactivity role entries in the database")
+                inactivity_role_id = int(inactivityrole_list[0])
+
+            try:
+                inactivity_role = ctx.guild.get_role(inactivity_role_id)
+            except Exception as e:
+                print("Error:", e)
+                await ctx.send("Error: Faulty inactivity role id!")
+                return
+
+            if inactivity_role is None:
+                await ctx.send("Error: Faulty inactivity role id!")
+                return
+
+            inactivitychannel_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("inactivity channel id",)).fetchall()] # turing test channel
+            if len(inactivitychannel_list) == 0 or not util.represents_integer(inactivitychannel_list[0]):
+                await ctx.send("Error: You need to set an inactivity channel!")
+                return
+            else:
+                if len(inactivitychannel_list) > 1:
+                    print("Warning: there are multiple slumber/inactivity channel entries in the database")
+                inactivitychannel_id = int(inactivitychannel_list[0])
+
+            try:
+                inactivitychannel = self.bot.get_channel(inactivitychannel_id)
+            except Exception as e:
+                print("Error:", e)
+                await ctx.send("Error: Faulty inactivity channel id!")
+                return
+
+            if inactivitychannel is None:
+                await ctx.send("Error: Faulty inactivity channel id!")
+                return
+
+            # ASSEMBLE CHANNELS AND THREADS
+
+            all_channels = []
+
+            for channel in ctx.guild.text_channels:
+                all_channels.append(channel)
+
+                for thread in channel.threads:
+                    all_channels.append(thread)
+
+            # START CHECK
+
+            unchecked_user_ids = []
+            for user in ctx.guild.members:
+                if user.bot:
+                    pass
+                else:
+                    unchecked_user_ids.append(user.id)
+
+            await ctx.send("Starting check...")
+            for channel in all_channels:
+                print(f"checking {channel.name}:")
+                try:
+                    unchecked_channel_user_ids = []
+                    if channel.type == "public_thread" or "private_thread":
+                        for user in ctx.guild.members: # threads seem to lack a proper channel.members
+                            if user.bot:
+                                pass
+                            else:
+                                unchecked_channel_user_ids.append(user.id)
+                    else:
+                        for user in channel.members:
+                            if user.bot:
+                                pass
+                            else:
+                                unchecked_channel_user_ids.append(user.id)
+
+                    if len(unchecked_user_ids) == 0: # all members checked
+                        break
+
+                    i = 0 # count messages
+                    u = 0 # count active users
+                    a = 0 # count added active users
+                    async for msg in channel.history(limit=1000000):
+                        i += 1
+
+                        if len(unchecked_channel_user_ids) == 0: # all members with access to that channel checked
+                            break
+
+                        utc_timestamp = int((msg.created_at.replace(tzinfo=None) - datetime.datetime(1970, 1, 1)).total_seconds())
+
+                        if utc_timestamp < now - (days * 24 * 60 * 60):
+                            break # we reached the oldest message we were interested in
+
+                        if msg.author.bot:
+                            continue
+
+                        if msg.author.id in unchecked_channel_user_ids:
+
+                            u += 1
+                            unchecked_channel_user_ids.remove(msg.author.id) # found user activity in this channel (older messages not relevant for last_active)
+                            if msg.author.id in unchecked_user_ids:
+                                a += 1
+                                unchecked_user_ids.remove(msg.author.id) # found user activity in general
+                                print(f"  found {msg.author.name} (new)")
+                            else:
+                                print(f"  found {msg.author.name}")
+
+                            if msg.author.id in users_in_db:
+                                users_in_db = [util.forceinteger(item[0]) for item in curUA.execute("SELECT last_active FROM useractivity WHERE userid = ?", (str(msg.author.id),)).fetchall()]
+
+                                if users_in_db[0] > utc_timestamp:
+                                    curUA.execute("UPDATE useractivity SET last_active = ? WHERE userid = ?", (str(utc_timestamp), str(msg.author.id)))
+                                    conUA.commit()
+                
+                            else:
+                                join_time = int((msg.author.joined_at.replace(tzinfo=None) - datetime.datetime(1970, 1, 1)).total_seconds())
+                                curUA.execute("INSERT INTO useractivity VALUES (?, ?, ?, ?, ?)", (str(msg.author.name), str(msg.author.id), str(utc_timestamp), str(join_time), ""))
+                                conUA.commit()
+
+                                if msg.author.id not in users_in_db:
+                                    users_in_db.append(msg.author.id)
+
+                            if len(unchecked_user_ids) == 0:
+                                break
+
+                    await ctx.send(f"Checked {i} messages in {channel.mention}\nfound {u} active users ({a} additional)")
+
+                except Exception as e:
+                    print("Error:", e)
+                    await ctx.send(f"Error while trying to check {channel.mention}: {e}")
+
+
+            # EXCLUDE NEW USERS AND QUARANTINE INACTIVE USERS
+
+            inactive_count = 0
+            new_count = 0
+            for user in ctx.guild.members:
+                if user.id in unchecked_user_ids:
+
+                    join_time = int((user.joined_at.replace(tzinfo=None) - datetime.datetime(1970, 1, 1)).total_seconds())
+                    if (now - join_time) / (24*60*60) < days:
+                        new_count += 1
+                        continue
+
+                    inactive_count += 1
+                    if inactivity_role in user.roles:
+                        pass
+                    else:
+                        user_role_ids = []
+                        for role in user.roles:
+                            if role.id != ctx.guild.id: #ignore @everyone role
+                                user_role_ids.append(str(role.id))
+
+                        previousroles = ';;'.join(user_role_ids)
+
+                        try:
+                            await user.edit(roles=[inactivity_role])
+                        except Exception as e:
+                            await ctx.send(f"Could not change roles for {user.name}.")
+
+                        if user.id in users_in_db:
+                            curUA.execute("UPDATE useractivity SET last_active = ?, previous_roles = ? WHERE userid = ?", ("0", previousroles, str(msg.author.id)))
+                            conUA.commit()
+            
+                        else:
+                            curUA.execute("INSERT INTO useractivity VALUES (?, ?, ?, ?, ?)", (str(user.name), str(user.id), "0", str(join_time), previousroles))
+                            conUA.commit()
+
+            await util.changetimeupdate()
+
+            # under construction: send reminder message into inactivity channel about what to do
+
+            await ctx.send(f"Inactivity check done. {inactive_count} users put into inactivity channel.\n({new_count} new members exempt)")
+    @_inactivitycheck.error
+    async def inactivitycheck_error(self, ctx, error):
+        await util.error_handling(ctx, error) 
 
 
 
@@ -3232,6 +3735,7 @@ class Administration_of_Settings(commands.Cog):
         conA = sqlite3.connect(f'databases/activity.db')
         curA = conA.cursor()
         curA.execute('''CREATE TABLE IF NOT EXISTS activity (name text, value text)''')
+        curA.execute('''CREATE TABLE IF NOT EXISTS version (name text, value text)''')
         activity_list = [item[0] for item in curA.execute("SELECT value FROM activity WHERE name = ?", ("activity",)).fetchall()]
         if len(activity_list) == 0:
             curA.execute("INSERT INTO activity VALUES (?,?)", ("activity", "inactive"))
@@ -3427,6 +3931,17 @@ class Administration_of_Settings(commands.Cog):
                 if len(ruleschannelid_list) > 1:
                     print("Warning: Multiple turing test channel id (rules channel id) entries in serversettings table (botsettings.db)")
 
+            inactivitychannelid_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("inactivity channel id",)).fetchall()]
+            if len(inactivitychannelid_list) == 0:
+                curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("inactivity channel id", "none", "", ""))
+                conB.commit()
+                print("Added dummy entry for slumber channel id (inactivity channel id)")
+                inactivity_channel_id = "none"
+            else:
+                inactivity_channel_id = inactivitychannelid_list[0]
+                if len(inactivitychannelid_list) > 1:
+                    print("Warning: Multiple slumber channel id (inactivity channel id) entries in serversettings table (botsettings.db)")
+
             # on/off switches
 
             accesswall_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("access wall",)).fetchall()]
@@ -3522,6 +4037,18 @@ class Administration_of_Settings(commands.Cog):
             else:
                 if len(genretagreminder_list) > 1:
                     print("Warning: there are multiple genre tag reminder on/off entries in the database")
+
+            inactivityfilter_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("inactivity filter",)).fetchall()]
+            if len(inactivityfilter_list) == 0:
+                now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("inactivity filter", "off", "180", str(now)))
+                conB.commit()
+                print("Updated serversettings table: inactivity filter")
+                inactivityfilter = "off"
+            else:
+                inactivityfilter = inactivityfilter_list[0]
+                if len(inactivityfilter_list) > 1:
+                    print("Warning: there are multiple inactivity filter on/off entries in the database")
 
             pingterest_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("pingable interests functionality",)).fetchall()]
             if len(pingterest_list) == 0:
@@ -3673,6 +4200,14 @@ class Administration_of_Settings(commands.Cog):
                 print("Added dummy entry for community role")
             elif len(specialroles_accesswall_list) > 1:
                 print("Warning: Multiple community role entries in specialroles table (botsettings.db)")
+
+            specialroles_inactivity_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]
+            if len(specialroles_inactivity_list) == 0:
+                curB.execute("INSERT INTO specialroles VALUES (?, ?, ?, ?)", ("inactivity role", "", "", ""))
+                conB.commit()
+                print("Added dummy entry for inactivity role")
+            elif len(specialroles_accesswall_list) > 1:
+                print("Warning: Multiple inactivity role entries in specialroles table (botsettings.db)")
 
             specialroles_timeout_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("timeout role",)).fetchall()]
             if len(specialroles_timeout_list) == 0:
@@ -3877,6 +4412,11 @@ class Administration_of_Settings(commands.Cog):
             curU = conU.cursor()
             curU.execute('''CREATE TABLE IF NOT EXISTS location (user_id text, username text, city text, state text, country text, longitude text, latitude text)''')
 
+            # USER ACTIVITY
+
+            conUA = sqlite3.connect('databases/useractivity.db')
+            curUA = conUA.cursor()
+            curUA.execute('''CREATE TABLE IF NOT EXISTS useractivity (username text, userid text, last_active text, join_time text, previous_roles text)''')
 
             # SEARCH FOR OTHER MDM BOT INSTANCES
             await asyncio.sleep(1)

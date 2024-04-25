@@ -18,7 +18,7 @@ class TimeLoops(commands.Cog):
         self.index = 0
         self.minutely_check.start()
         self.hourly_check.start()
-        self.update_databases.start()
+        self.daily_check.start()
 
 
 
@@ -148,7 +148,7 @@ class TimeLoops(commands.Cog):
 
 
     @tasks.loop(hours=24.0)
-    async def update_databases(self):
+    async def daily_check(self):
         try:
             activity = util.is_active()
         except:
@@ -179,8 +179,14 @@ class TimeLoops(commands.Cog):
         except Exception as e:
             await self.timeloop_error(e, "daily_check:update_emoji")
 
-    @update_databases.before_loop
-    async def before_update_databases(self):
+        # inactivity filter
+        try:
+            await self.inactivity_filtering()
+        except Exception as e:
+            await self.timeloop_error(e, "daily_check:inactivity_filter")
+
+    @daily_check.before_loop
+    async def before_daily_check(self):
         await self.bot.wait_until_ready()
         await asyncio.sleep(40.7)
 
@@ -992,6 +998,132 @@ class TimeLoops(commands.Cog):
             await self.timeloop_notification(title, message.strip(), all_good)
         else:
             print("Successful emoji check: all good!")
+
+
+
+    # inactivity stuff
+
+    async def inactivity_filtering(self):
+
+        # FETCH INACTIVITY FILTER SETTINGS
+
+        conB = sqlite3.connect('databases/botsettings.db')
+        curB = conB.cursor()
+
+        inactivityfilter_setting = [[item[0], item[1], item[2]] for item in curB.execute("SELECT value, details, etc FROM serversettings WHERE name = ?", ("inactivity filter", )).fetchall()]
+
+        if len(inactivityfilter_setting) == 0 or inactivityfilter_setting[0][0].lower() != "on":
+            print("Timeloop notification: Inactivity filter is set `off`. No action was taken.")
+            return
+
+        days_string = inactivityfilter_setting[0][1]
+        if util.represents_integer(days_string):
+            days = int(days_string)
+            if days < 7:
+                days = 7
+        else:
+            days = 7
+
+        # FETCH ROLE
+
+        inactivityrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]        
+        if len(inactivityrole_list) == 0 or not util.represents_integer(inactivityrole_list[0]):
+            print("Error: No inactivity role!")
+            return
+        else:
+            if len(inactivityrole_list) > 1:
+                print("Warning: there are multiple inactivity role entries in the database")
+            inactivity_role_id = int(inactivityrole_list[0])
+
+        try:
+            inactivity_role = ctx.guild.get_role(inactivity_role_id)
+        except Exception as e:
+            print("Error:", e)
+            print("Error: Faulty inactivity role id!")
+            return
+
+        if inactivity_role is None:
+            print("Error: Faulty inactivity role id!")
+            return
+
+        # FETCH SERVER
+
+        try:
+            botsettings_mainserver_list = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id",)).fetchall()]
+            server_id = int(botsettings_mainserver_list[0])
+        except:
+            try:
+                server_id = int(os.getenv("guild_id"))
+            except:
+                print("Error: no valid guild id provided")
+                return
+
+        server = self.bot.get_guild(server_id)
+        if server is None:
+            server = await self.bot.fetch_guild(server_id)
+            if server is None:
+                print("bot.fetch_guild(<server_id>) returned None")
+                return
+
+        # CHECK USERS
+
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        conUA = sqlite3.connect('databases/useractivity.db')
+        curUA = conUA.cursor()
+        users_and_times = [item[0] for item in curUA.execute("SELECT userid, last_active, join_time FROM useractivity").fetchall()]
+
+        error_count = 0
+        sleep_count = 0
+
+        for item in users_and_times:
+            user_id = item[0]
+            last_active = int(item[1])
+            join_time = int(item[2])
+
+            if (last_active > now - (days * 24 * 60 * 60)) or (join_time > now - (days * 24 * 60 * 60)):
+                continue
+
+            try:
+                user = server.get_member(user_id)
+            except Exception as e:
+                error_count += 1
+                print("Error with user:", e)
+                continue
+
+            if inactivity_role in user.roles:
+                # already in inactivity channel
+                continue
+
+            user_role_ids = []
+            for role in user.roles:
+                if role.id != server.id: #ignore @everyone role
+                    user_role_ids.append(str(role.id))
+
+            previousroles = ';;'.join(user_role_ids)
+
+            try:
+                await the_member.edit(roles=[inactivity_role])
+            except Exception as e:
+                error_count += 1
+                print(f"Error with user {user.name}:", e)
+                continue
+
+            curUA.execute("UPDATE useractivity SET previous_roles = ? WHERE userid = ?", (previousroles, str(msg.author.id)))
+            conUA.commit()
+
+            sleep_count += 1
+
+        if sleep_count > 0:
+            await util.changetimeupdate()
+            message = f"Put {sleep_count} users into inactivity channel.\n\n"
+            if error_count > 0:
+                all_good = False
+                message += f"Error with {error_count} users."
+            else:
+                all_good = True
+            title = "Inactivity Filter"
+            await self.timeloop_notification(title, message.strip(), all_good)
 
 
 
