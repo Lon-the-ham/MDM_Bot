@@ -397,9 +397,9 @@ class Utils():
 
 
     def get_version():
-        con = sqlite3.connect(f'databases/botsettings.db')
+        con = sqlite3.connect(f'databases/activity.db')
         cur = con.cursor()
-        version_list = [item[0] for item in cur.execute("SELECT value FROM botsettings WHERE name = ?", ("version",)).fetchall()]
+        version_list = [item[0] for item in cur.execute("SELECT value FROM version WHERE name = ?", ("version",)).fetchall()]
 
         if len(version_list) == 0:
             version = "version ?"            
