@@ -146,8 +146,9 @@ class YataBot(commands.Bot):
                 # CLEAR TEMP FOLDER
 
                 try:
-                    for filename in os.listdir(f"{sys.path[0]}/temp/"):                
-                        os.remove(f"{sys.path[0]}/temp/{filename}")
+                    for filename in os.listdir(f"{sys.path[0]}/temp/"):  
+                        if filename != ".gitignore":              
+                            os.remove(f"{sys.path[0]}/temp/{filename}")
                 except Exception as e:
                     print("Error while trying to clear temp folder:", e)
             else:

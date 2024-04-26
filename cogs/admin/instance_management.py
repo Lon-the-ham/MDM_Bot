@@ -51,7 +51,8 @@ class Administration_of_Bot_Instance(commands.Cog):
                 if found:
                     await ctx.send("...clearing space and retrieving files")
                     for filename in os.listdir(f"{sys.path[0]}/temp/"):
-                        os.remove(f"{sys.path[0]}/temp/{filename}")
+                        if filename != ".gitignore":
+                            os.remove(f"{sys.path[0]}/temp/{filename}")
                     
                     if str(the_message.attachments) == "[]":
                         print("Error: No attachment in `LAST ACTIVE` message.")
@@ -67,10 +68,10 @@ class Administration_of_Bot_Instance(commands.Cog):
                             with zipfile.ZipFile(f"{sys.path[0]}/temp/re_{filename}", 'r') as zip_ref:
                                 filename_list = zip_ref.namelist()
                                 for name in filename_list:
-                                    if name.endswith(".db") or name.endswith(".gitignore") or name.endswith(".txt"):
+                                    if name.endswith(".db") or name.endswith(".txt"):
                                         pass
                                     else:
-                                        await ctx.send("Error with backup .zip: File must not contain anything but `.db`, `.txt` and `.gitignore` files!")
+                                        await ctx.send("Error with backup .zip: File must not contain anything but `.db` and `.txt` files!")
                                         continue_with_this = False
                                         break
 
@@ -94,8 +95,9 @@ class Administration_of_Bot_Instance(commands.Cog):
                                             os.replace(f"{sys.path[0]}/temp/{filename}", f"{sys.path[0]}/databases/{filename}")
 
                             # REMOVE TEMPORARIES
-                            for filename in os.listdir(f"{sys.path[0]}/temp/"):                
-                                os.remove(f"{sys.path[0]}/temp/{filename}")
+                            for filename in os.listdir(f"{sys.path[0]}/temp/"):          
+                                if filename != ".gitignore":      
+                                    os.remove(f"{sys.path[0]}/temp/{filename}")
                         else:
                             await ctx.send("Error with backup attachment: File not in `.zip` format.")
                 else:
@@ -109,7 +111,8 @@ class Administration_of_Bot_Instance(commands.Cog):
             if the_message.attachments:
                 await ctx.send("...clearing space and retrieving attachment")
                 for filename in os.listdir(f"{sys.path[0]}/temp/"):
-                    os.remove(f"{sys.path[0]}/temp/{filename}")
+                    if filename != ".gitignore":
+                        os.remove(f"{sys.path[0]}/temp/{filename}")
 
                 split_v1 = str(the_message.attachments).split("filename='")[1]
                 filename = str(split_v1).split("' ")[0]
@@ -122,10 +125,10 @@ class Administration_of_Bot_Instance(commands.Cog):
 
                         # CHECK FILE EXTENSIONS
                         for name in filename_list:
-                            if name.endswith(".db") or name.endswith(".gitignore") or name.endswith(".txt"):
+                            if name.endswith(".db") or name.endswith(".txt"):
                                 pass
                             else:
-                                await ctx.send("Error: File must not contain anything but `.db`, `.txt` and `.gitignore` files!")
+                                await ctx.send("Error: File must not contain anything but `.db` and `.txt` files!")
                                 continue_with_this = False
                                 break
 
@@ -146,14 +149,15 @@ class Administration_of_Bot_Instance(commands.Cog):
 
                                     if dbExist:
                                         os.remove(f"{sys.path[0]}/databases/{filename}")
-                                        os.replace(f"{sys.path[0]}/temp/{filename}", f"{sys.path[0]}/databases/{filename}")
+                                    os.replace(f"{sys.path[0]}/temp/{filename}", f"{sys.path[0]}/databases/{filename}")
 
                     # REMOVE TEMPORARIES
-                    for filename in os.listdir(f"{sys.path[0]}/temp/"):                
-                        os.remove(f"{sys.path[0]}/temp/{filename}")
+                    for filename in os.listdir(f"{sys.path[0]}/temp/"):           
+                        if filename != ".gitignore":     
+                            os.remove(f"{sys.path[0]}/temp/{filename}")
 
                     if not continue_with_this:
-                        raise ValueError("Error: File must not contain anything but `.db`, `.txt` and `.gitignore` files!")
+                        raise ValueError("Error: File must not contain anything but `.db` and `.txt` files!")
                 else:
                     await ctx.send("Attachment must be a `.zip` file with `.db` files in it.")
             else:
@@ -182,7 +186,7 @@ class Administration_of_Bot_Instance(commands.Cog):
             lastedited = 0
             lastchanged = 0
             for filename in os.listdir(db_directory):
-                if str(filename).endswith(".db") or str(filename).endswith(".gitignore") or str(filename).endswith(".txt"):
+                if str(filename).endswith(".db") or str(filename).endswith(".txt"):
                     zf.write(os.path.join(db_directory, filename), filename)
                     edittime = int(os.path.getmtime(os.path.join(db_directory, filename)))
                     if (edittime > lastedited) and ("activity.db" not in str(filename)):
