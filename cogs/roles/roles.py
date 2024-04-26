@@ -448,7 +448,7 @@ class Roles(commands.Cog):
         for role in assignable_roles:
             role_name = role[0]
             role_cat = role[1]
-            cat_dict[role_cat].append(role_name)
+            cat_dict[role_cat].append(util.cleantext2(role_name))
 
         # EMBED VARIABLES
 
@@ -502,7 +502,7 @@ class Roles(commands.Cog):
         for role in all_roles:
             role_name = role[0]
             role_cat = role[1]
-            cat_dict[role_cat].append(role_name)
+            cat_dict[role_cat].append(util.cleantext2(role_name))
 
         # EMBED VARIABLES
 
@@ -567,7 +567,7 @@ class Roles(commands.Cog):
         else:
             user_roles = []
             for role in user_object.roles:
-                user_roles.append(role.name)
+                user_roles.append(util.cleantext2(role.name))
             user_roles.sort()
             display_name = await util.cleantext(user.display_name)
             header = f'Roles of {display_name}'
@@ -613,7 +613,7 @@ class Roles(commands.Cog):
         members_w_t_role = []
         for member in memberlist:
             if the_role in member.roles:
-                members_w_t_role.append(str(member))
+                members_w_t_role.append(util.cleantext2(str(member)))
         members_w_t_role.sort()
         header = f"Members with role {the_role.name} are:"
 
@@ -622,6 +622,7 @@ class Roles(commands.Cog):
             msg = msg[:4092] + "\n..."
 
         embed = discord.Embed(title=header, description=msg, color=0xFF8C00)
+        embed.set_footer(text = f"found {len(members_w_t_role)} members")
         await ctx.send(embed=embed)   
     @_whohasrole.error
     async def whohasrole_error(self, ctx, error):
@@ -1810,6 +1811,15 @@ class Roles(commands.Cog):
         text = f"{user.mention} has broken out of inactivity! {emoji}"
         embed = discord.Embed(title="", description=text, color=0xffffff)
         await botspamchannel.send(embed=embed)
+
+        # UPDATE INACTIVIT DB
+
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+        conUA = sqlite3.connect('databases/useractivity.db')
+        curUA = conUA.cursor()
+        curUA.execute("UPDATE useractivity SET last_active = ? WHERE userid = ?", (str(now), str(user.id)))
+        conUA.commit()
+        await util.changetimeupdate()
         
     @_recoverfrominactivity.error
     async def recoverfrominactivity_error(self, ctx, error):

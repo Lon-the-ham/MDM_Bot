@@ -4225,8 +4225,13 @@ class Administration_of_Settings(commands.Cog):
                 curB.execute("INSERT INTO specialroles VALUES (?, ?, ?, ?)", ("verified role", "", "", ""))
                 conB.commit()
                 print("Added dummy entry for verified role")
-            elif len(specialroles_verified_list) > 1:
-                print("Warning: Multiple verified role entries in specialroles table (botsettings.db)")
+                verified_role_id = ""
+            else:
+                verified_role_id = specialroles_verified_list[0]
+                if not util.represents_integer(verified_role_id):
+                    verified_role_id = ""
+                if len(specialroles_verified_list) > 1:
+                    print("Warning: Multiple verified role entries in specialroles table (botsettings.db)")
 
 
             # BOTSETTINGS DB: REACTIONROLESETTINGS
@@ -4443,6 +4448,36 @@ class Administration_of_Settings(commands.Cog):
             await ctx.send(f"Updated to {version}.")
 
 
+            #############################################################################################################################
+            ################################################## FIX ERRORS ###############################################################
+            #############################################################################################################################
+
+            UA_users = [item[0] for item in curUA.execute("SELECT userid FROM useractivity").fetchall()]
+            UA_uniqueusers = list(dict.fromkeys(UA_users))
+
+            for user_id in UA_uniqueusers:
+                UA_list = [[util.forceinteger(item[0]), item[1], item[2], item[3]] for item in curUA.execute("SELECT last_active, previous_roles, username, join_time FROM useractivity WHERE userid = ?", (str(user_id),)).fetchall()]
+
+                last_active = 0
+                previousroles = verified_role_id
+                join_time = ""
+                username = ""
+                for item in UA_list:
+                    if item[0] > last_active:
+                        last_active = item[0]
+
+                    if len(item[1].strip()) > 0:
+                        previousroles = item[1].strip()
+
+                    if len(item[2].strip()) > 0:
+                        username = item[2].strip()
+
+                    if len(item[3].strip()) > 0:
+                        join_time = item[3].strip()
+
+                curUA.execute("DELETE FROM useractivity WHERE userid = ?", (user_id,))
+                curUA.execute("INSERT INTO useractivity VALUES (?, ?, ?, ?, ?)", (username, user_id, last_active, join_time, previousroles))
+                conUA.commit()
 
             #############################################################################################################################
             ################################################## SETUP PART ###############################################################
