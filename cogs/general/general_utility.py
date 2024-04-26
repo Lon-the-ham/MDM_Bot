@@ -977,7 +977,7 @@ class General_Utility(commands.Cog):
             try:
                 value_to_convert = float(value_one)
                 converted_value = round((value_to_convert) * 0.03527396195,2)
-                await ctx.send(f'Grams to Ounces\n```{"{:,}".format(value_to_convert)}oz is about {"{:,}".format(converted_value)}g.```')
+                await ctx.send(f'Grams to Ounces\n```{"{:,}".format(value_to_convert)}g is about {"{:,}".format(converted_value)}oz.```')
             except:
                 await ctx.send(f'Error: Grams to Ounces computation crashed. {derpy}')
 
