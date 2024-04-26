@@ -1143,7 +1143,8 @@ class Administration_of_Server(commands.Cog):
                                     else:
                                         print("...clearing space and retrieving files")
                                         for filename in os.listdir(f"{sys.path[0]}/temp/"):
-                                            os.remove(f"{sys.path[0]}/temp/{filename}")
+                                            if filename != ".gitignore":
+                                                os.remove(f"{sys.path[0]}/temp/{filename}")
                                         split_v1 = str(the_message.attachments).split("filename='")[1]
                                         filename = str(split_v1).split("' ")[0]
                                         if filename.endswith(".zip"): # Checks if it is a .zip file
@@ -1155,10 +1156,10 @@ class Administration_of_Server(commands.Cog):
                                             with zipfile.ZipFile(f"{sys.path[0]}/temp/re_{filename}", 'r') as zip_ref:
                                                 filename_list = zip_ref.namelist()
                                                 for name in filename_list:
-                                                    if name.endswith(".db") or name.endswith(".gitignore") or name.endswith(".txt"):
+                                                    if name.endswith(".db") or name.endswith(".txt"):
                                                         pass
                                                     else:
-                                                        print("Error with ZIP file, contained stuff other than .db, .txt and .gitignore files")
+                                                        print("Error with ZIP file, contained stuff other than .db and .txt files")
                                                         continue_with_this = False
 
                                                 # EXTRACT FILES
@@ -1183,14 +1184,16 @@ class Administration_of_Server(commands.Cog):
                                                             if len(broken_files) == 0:
                                                                 reached_end = True
 
-                                            for filename in os.listdir(f"{sys.path[0]}/temp/"):                
-                                                os.remove(f"{sys.path[0]}/temp/{filename}")
+                                            for filename in os.listdir(f"{sys.path[0]}/temp/"):   
+                                                if filename != ".gitignore":             
+                                                    os.remove(f"{sys.path[0]}/temp/{filename}")
 
                             except Exception as e:
                                 print("Error with backup:", e)
 
-                    for filename in os.listdir(f"{sys.path[0]}/temp/"):                
-                        os.remove(f"{sys.path[0]}/temp/{filename}")
+                    for filename in os.listdir(f"{sys.path[0]}/temp/"):   
+                        if filename != ".gitignore":             
+                            os.remove(f"{sys.path[0]}/temp/{filename}")
 
                     if len(broken_files) > 0:
                         text = ', '.join(broken_files)
