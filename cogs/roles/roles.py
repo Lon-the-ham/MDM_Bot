@@ -613,7 +613,7 @@ class Roles(commands.Cog):
         members_w_t_role = []
         for member in memberlist:
             if the_role in member.roles:
-                members_w_t_role.append(util.cleantext2(str(member)))
+                members_w_t_role.append(util.cleantext2(member.name))
         members_w_t_role.sort()
         header = f"Members with role {the_role.name} are:"
 
