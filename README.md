@@ -109,6 +109,7 @@ Next we will set up a cronjob, basically a recurring task that the raspberry pi 
 and it should open the crontab file. There you can write two lines at the bottom of the file
 
 > 6  5    * * *   pi    /home/pi/bots/MDM_Bot/start_discordbot.sh
+> 
 > @reboot pi    sleep 10;  /home/pi/bots/MDM_Bot/start_discordbot.sh
 
 Just make sure the path matches the path the file has in your case and replace the "pi" with whatever name you gave your device (per default it's usually "pi" though).
