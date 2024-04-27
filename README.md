@@ -2,7 +2,7 @@
 
 This discord bot is meant for actively moderating one server and providing additional QoL features that you can also use on other servers. Host it on your own device or web service to have full control over your discord server moderation without having to rely on proprietary bots with undisclosed source code.
 
-The main difference to other discord bots is that you can host multiple variants of this app on multiple devices and switch between them in case one instance/device has connection issues or breaks etc, but of course you can still use this bot just with one instance on one device like most other discord applications. For more information what's all possible with this bot read the documentation.md.
+The main difference to other discord bots is that you can host multiple variants of this app on multiple instances and switch between them in case one instance/device has connection issues or breaks etc, but of course you can still use this bot just with one instance on one device like most other discord applications. For more information what's all possible with this bot read the documentation.md.
 
 ---
 
