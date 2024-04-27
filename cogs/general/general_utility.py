@@ -2830,6 +2830,68 @@ class General_Utility(commands.Cog):
 
 
 
+    @commands.command(name='img', aliases = ['image'])
+    @commands.check(util.is_active)
+    async def _imagesearch(self, ctx: commands.Context, *args):
+        """Google image search
+
+        (has a 100 day API limit per day)
+        """
+
+        # INITIALISE API DATA
+        try:
+            API_KEY = os.getenv("google_search_key")
+        except:
+            emoji = util.emoji("disappointed")
+            raise ValueError(f"No API key provided. {emoji}\n||(Ask mods to get an API key from developers.google.com)||")
+            return
+
+        try: # cooldown to not trigger actual rate limits or IP blocks
+            await util.cooldown(ctx, "googlesearch")
+        except Exception as e:
+            await util.cooldown_exception(ctx, e, "googlesearch")
+            return
+
+        try:
+            version = Utils.get_version().replace("version","v").replace(" ","").strip()
+        except:
+            version = "v_X"
+        USER_AGENT = f'MDM_Bot_{version}'
+        headers = {'user-agent': USER_AGENT}
+
+        # PARSE ARGUMENTS
+
+        string = ' '.join(args)
+
+        payload = {
+            'key': API_KEY,
+            'cx': '144bb367d0fc4439e',
+            'hl': 'lang_en',
+            'q':  string,
+            'safe': 'active',
+            'searchType': 'image',
+        }
+
+        # GET IMAGE DATA
+        url = 'https://customsearch.googleapis.com/customsearch/v1'
+        response = requests.get(url, headers=headers, params=payload)
+        rjson = response.json()
+
+        try:
+            for item in rjson['items']:
+                if item['link'].startswith("https://lookaside.fbsbx.com"): #facebook links don't work well with discord
+                    continue
+                await ctx.send(item['link'])
+                break
+        except:
+            await ctx.send("Error: Probably reached API limit.")
+
+    @_imagesearch.error
+    async def imagesearch_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
 async def setup(bot: commands.bot) -> None:
     await bot.add_cog(
         General_Utility(bot),

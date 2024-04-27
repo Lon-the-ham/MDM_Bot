@@ -4380,7 +4380,7 @@ class Administration_of_Settings(commands.Cog):
 
             cooldown_db_list = [item[0] for item in curC.execute("SELECT service FROM cooldowns").fetchall()]
             cooldowns = ["lastfm", "metallum", "musicbrainz", "openweathermap", "spotify"]
-            cooldowns_crit = ["rym"]
+            cooldowns_crit = ["googlesearch", "rym"]
             for cd in cooldowns:
                 if cd not in cooldown_db_list:
                     curC.execute("INSERT INTO cooldowns VALUES (?, ?, ?, ?, ?, ?)", (cd, "0", "1", "soft", "20", "10"))
