@@ -59,10 +59,15 @@ While you're on the developer portal you can also add your new bot to the server
 Download the latest release version of this bot and extract the files (while preserving the folder structure) into some directory of your choice on your raspberry pi, e.g. `home/bots/MDM_Bot/`. Now you need to create an environment file called `.env` (that's the entire name) in the same folder that contains `mdmbot.py` and `start_discordbot.sh`. And add the following 6 lines
 
 > application_id = `application ID`
+> 
 > bot_instance = 1
+> 
 > discord_token = `token`
+> 
 > prefix = -
+> 
 > guild_id = `server ID`
+> 
 > bot_channel_id = `channel ID`
 
 where you insert the IDs and the token you wrote down earlier. The prefix can be any command prefix of your choice, we personally use a hyphen. The bot_instance number is only really important if you want to host this on multiple devices, just choose "1" for the first device, "2" for the second (if there is one) and so on.
