@@ -125,3 +125,7 @@ Now that your raspberry is setup successfully, the only remaining thing is to co
 IMPORTANT: For anything to work first use command `-update` in your main channel to let the app set up its databases. Otherwise the bot will run into issues trying to execute many of its commands.
 
 Then you can use `-setup` if you want to be guided through a few of the bigger moderation settings, or just use `-set` to see what kinds of settings you can adapt manually. The documentation.md may help you with all the feature this application provides and deciding which ones you want to enable/disable.
+
+---
+
+Note: We are updating this application every now and then, so if you want the new features and bug fixes you may want to update the .py files on your device every now and then as well. Just make sure to preserve the database folder containing all your server/user specific information and the `.env` file, everything else can then be replaced. After you've switched the files, you may need to run `-update` again on your main server.
