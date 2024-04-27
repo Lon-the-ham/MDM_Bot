@@ -113,6 +113,7 @@ and it should open the crontab file. There you can write two lines at the bottom
 > @reboot pi    sleep 10;  /home/pi/bots/MDM_Bot/start_discordbot.sh
 
 Just make sure the path matches the path the file has in your case and replace the "pi" with whatever name you gave your device (per default it's usually "pi" though).
+
 The first line will restart the bot every day at 5:06 AM (device's local time), and the second line will restart the bot when you start your device. You can ofc change the time it updates or even change it to "only restarting once a week" or something, but we recommend restarting the script every once in a while in case the device loses connection and is unable to reconnect afterwards or for whatever other issues may happen.
 
 If all that is done you can un- and replug your device and the app should get going!
@@ -120,6 +121,7 @@ If all that is done you can un- and replug your device and the app should get go
 ### Last steps
 
 Now that your raspberry is setup successfully, the only remaining thing is to configure the application itself within discord. 
-IMPORTANT: For anything to work first use command `-update` in your main channel to let the app set up its databases. Otherwise the bot will have trouble doing most things.
+
+IMPORTANT: For anything to work first use command `-update` in your main channel to let the app set up its databases. Otherwise the bot will run into issues trying to execute many of its commands.
 
 Then you can use `-setup` if you want to be guided through a few of the bigger moderation settings, or just use `-set` to see what kinds of settings you can adapt manually. The documentation.md may help you with all the feature this application provides and deciding which ones you want to enable/disable.
