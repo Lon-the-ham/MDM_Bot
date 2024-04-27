@@ -149,6 +149,7 @@ class TimeLoops(commands.Cog):
 
     @tasks.loop(hours=24.0)
     async def daily_check(self):
+        print("daily check...")
         try:
             activity = util.is_active()
         except:
@@ -1024,28 +1025,6 @@ class TimeLoops(commands.Cog):
         else:
             days = 7
 
-        # FETCH ROLE
-
-        inactivityrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]        
-        if len(inactivityrole_list) == 0 or not util.represents_integer(inactivityrole_list[0]):
-            print("Error: No inactivity role!")
-            return
-        else:
-            if len(inactivityrole_list) > 1:
-                print("Warning: there are multiple inactivity role entries in the database")
-            inactivity_role_id = int(inactivityrole_list[0])
-
-        try:
-            inactivity_role = ctx.guild.get_role(inactivity_role_id)
-        except Exception as e:
-            print("Error:", e)
-            print("Error: Faulty inactivity role id!")
-            return
-
-        if inactivity_role is None:
-            print("Error: Faulty inactivity role id!")
-            return
-
         # FETCH SERVER
 
         try:
@@ -1065,13 +1044,35 @@ class TimeLoops(commands.Cog):
                 print("bot.fetch_guild(<server_id>) returned None")
                 return
 
+        # FETCH ROLE
+
+        inactivityrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]        
+        if len(inactivityrole_list) == 0 or not util.represents_integer(inactivityrole_list[0]):
+            print("Error: No inactivity role!")
+            return
+        else:
+            if len(inactivityrole_list) > 1:
+                print("Warning: there are multiple inactivity role entries in the database")
+            inactivity_role_id = int(inactivityrole_list[0])
+
+        try:
+            inactivity_role = server.get_role(inactivity_role_id)
+        except Exception as e:
+            print("Error:", e)
+            print("Error: Faulty inactivity role id!")
+            return
+
+        if inactivity_role is None:
+            print("Error: Faulty inactivity role id!")
+            return
+
         # CHECK USERS
 
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
         conUA = sqlite3.connect('databases/useractivity.db')
         curUA = conUA.cursor()
-        users_and_times = [item[0] for item in curUA.execute("SELECT userid, last_active, join_time FROM useractivity").fetchall()]
+        users_and_times = [[item[0],item[1],item[2]] for item in curUA.execute("SELECT userid, last_active, join_time FROM useractivity").fetchall()]
 
         error_count = 0
         sleep_count = 0
@@ -1085,7 +1086,9 @@ class TimeLoops(commands.Cog):
                 continue
 
             try:
-                user = server.get_member(user_id)
+                user = server.get_member(int(user_id))
+                if user is None:
+                    raise ValueError(f"Error: User object of user with id {user_id} is None.")
             except Exception as e:
                 error_count += 1
                 print("Error with user:", e)
@@ -1103,13 +1106,13 @@ class TimeLoops(commands.Cog):
             previousroles = ';;'.join(user_role_ids)
 
             try:
-                await the_member.edit(roles=[inactivity_role])
+                await user.edit(roles=[inactivity_role])
             except Exception as e:
                 error_count += 1
                 print(f"Error with user {user.name}:", e)
                 continue
 
-            curUA.execute("UPDATE useractivity SET previous_roles = ? WHERE userid = ?", (previousroles, str(msg.author.id)))
+            curUA.execute("UPDATE useractivity SET previous_roles = ? WHERE userid = ?", (previousroles, str(user_id)))
             conUA.commit()
 
             sleep_count += 1
