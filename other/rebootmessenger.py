@@ -37,7 +37,11 @@ async def sendit(string, d_client):
         except:
             con = sqlite3.connect(f'../databases/botsettings.db')
         cur = con.cursor()
-        app_list = [item[0] for item in cur.execute("SELECT details FROM botsettings WHERE name = ? AND value = ?", ("app id", app_id)).fetchall()]
+        try:
+            app_list = [item[0] for item in cur.execute("SELECT details FROM botsettings WHERE name = ? AND value = ?", ("app id", app_id)).fetchall()]
+        except:
+            print("No data to back up yet.")
+            app_list = []
 
         if len(app_list) == 0:
             print("error: no app with this id in database")
