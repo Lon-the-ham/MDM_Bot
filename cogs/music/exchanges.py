@@ -4,6 +4,7 @@ import datetime
 import pytz
 from other.utils.utils import Utils as util
 import os
+import asyncio
 
 
 class Music_Exchange(commands.Cog):
@@ -346,9 +347,9 @@ class Music_Exchange(commands.Cog):
             cdtime = 5
 
         await ctx.send('Starting countdown:')
-        time.sleep(1)
+        await asyncio.sleep(1)
         for i in range(cdtime,-1,-1):
-            time.sleep(1.2)
+            await asyncio.sleep(1.2)
             if (i > 0):
                 await ctx.send(f'`{i}`')
             else:
