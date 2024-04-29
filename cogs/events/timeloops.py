@@ -1074,6 +1074,7 @@ class TimeLoops(commands.Cog):
         curUA = conUA.cursor()
         users_and_times = [[item[0],item[1],item[2]] for item in curUA.execute("SELECT userid, last_active, join_time FROM useractivity").fetchall()]
 
+        new_inactives_mention_list = []
         error_count = 0
         sleep_count = 0
 
@@ -1107,6 +1108,7 @@ class TimeLoops(commands.Cog):
 
             try:
                 await user.edit(roles=[inactivity_role])
+                new_inactives_mention_list.append(f"<@{str(user.id)}>")
             except Exception as e:
                 error_count += 1
                 print(f"Error with user {user.name}:", e)
@@ -1119,10 +1121,11 @@ class TimeLoops(commands.Cog):
 
         if sleep_count > 0:
             await util.changetimeupdate()
-            message = f"Put {sleep_count} users into inactivity channel.\n\n"
+            message = f"Put {sleep_count} users into inactivity channel:\n"
+            message += ', '.join(new_inactives_mention_list) + "\n"
             if error_count > 0:
                 all_good = False
-                message += f"Error with {error_count} users."
+                message += f"Error with {error_count} users. These users are probably higher in role hierarchy than this bot."
             else:
                 all_good = True
             title = "Inactivity Filter"
