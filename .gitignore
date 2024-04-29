@@ -1,3 +1,4 @@
 .env
 .cache
+test.py
 __pycache__
