@@ -1141,293 +1141,298 @@ class Event_Response(commands.Cog):
 
         # INITIALISE
 
-        conB = sqlite3.connect(f'databases/botsettings.db')
-        curB = conB.cursor()    
-        main_server = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id", )).fetchall()]
-        server_id = str(payload.guild_id)
-
-        channel = self.bot.get_channel(payload.channel_id)
-        message = await channel.fetch_message(payload.message_id)
-        react = payload.emoji.name
-        user = payload.member
-
-        # RETRIEVE CHANNELS
-
         try:
-            # ROLE REACTION ASSIGNMENT
-            reactionrole_enabled = self.setting_enabled("reaction roles")
-            rolechannel_id = ""
+            conB = sqlite3.connect(f'databases/botsettings.db')
+            curB = conB.cursor()    
+            main_server = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id", )).fetchall()]
+            server_id = str(payload.guild_id)
 
-            # ROLE CHANNEL
-            rolechannel_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("role channel id",)).fetchall()]
-            if len(rolechannel_list) == 0:
-                reactionrole_enabled = False
-            else:
-                rolechannel_id = rolechannel_list[0].strip()
-                if not util.represents_integer(rolechannel_id):
+            channel = self.bot.get_channel(payload.channel_id)
+            message = await channel.fetch_message(payload.message_id)
+            react = payload.emoji.name
+            user = payload.member
+
+            # RETRIEVE CHANNELS
+
+            try:
+                # ROLE REACTION ASSIGNMENT
+                reactionrole_enabled = self.setting_enabled("reaction roles")
+                rolechannel_id = ""
+
+                # ROLE CHANNEL
+                rolechannel_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("role channel id",)).fetchall()]
+                if len(rolechannel_list) == 0:
                     reactionrole_enabled = False
-        except:
-            reactionrole_enabled = False
+                else:
+                    rolechannel_id = rolechannel_list[0].strip()
+                    if not util.represents_integer(rolechannel_id):
+                        reactionrole_enabled = False
+            except:
+                reactionrole_enabled = False
 
-        try:
-            # ACCESS WALL AND TURING TEST ENABLED?
-            turingtest_enabled = (self.setting_enabled("access wall") and self.setting_enabled("turing test"))
-            ruleschannel_id = ""
+            try:
+                # ACCESS WALL AND TURING TEST ENABLED?
+                turingtest_enabled = (self.setting_enabled("access wall") and self.setting_enabled("turing test"))
+                ruleschannel_id = ""
 
-            # TURING TEST (RULES) CHANNEL
-            ruleschannel_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("rules channel id",)).fetchall()] # turing test channel
-            if len(ruleschannel_list) == 0:
-                turingtest_enabled = False
-            else:
-                ruleschannel_id = ruleschannel_list[0].strip()
-                if not util.represents_integer(ruleschannel_id):
-                    turingtest_enabled = False
-        except:
-            turingtest_enabled = False
-
-        # FETCH APPLICATION IDs
-
-        application_list = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("app id", )).fetchall()]
-        application_list += str(self.bot.application_id)
-
-        # GET TO ACTION
-        # 1. REACTION OUTSIDE ROLE CHANNEL (SUGGESTIONS / PINGTERESTS / TAG REMINDERS)
-
-        if not reactionrole_enabled or str(channel.id) != rolechannel_id:
-            if (str(message.author.id) in application_list) and (str(user.id) not in application_list): # message by bot, reaction not by bot
-                if message.embeds:   #check if list is not empty
-                    embed = message.embeds[0]
-
-                    # A) SUGGESTION FUNCTIONALITY
-
-                    if 'Recommendation' == str(embed.title):
-                        if react == "📝":
-                            testprint = "detected 📝 react by %s" % user.name
-                            print(testprint)
-                            
-                            conM = sqlite3.connect('databases/memobacklog.db') 
-                            curM = conM.cursor()
-                            curM.execute('''CREATE TABLE IF NOT EXISTS memobacklog (bgid text, userid text, username text, backlog text, details text)''')
-                            
-                            now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
-                            bl_entries = [x.strip() for x in (str(embed.description).split("▪️")[0].replace("*", " ").strip()).split(";") if x.strip()] #the x for x if x should remove all empty strings
-                            i=1000
-                            for bl_entry in bl_entries:
-                                mmid = str(now) + "_" + str(user.id) + "_0rec" + str(i)
-                                print(f"adding entry {i - 999} to backlog")
-                                curM.execute("INSERT INTO memobacklog VALUES (?, ?, ?, ?, ?)", (mmid, str(user.id), str(user.name), bl_entry, ""))
-                                conM.commit()
-                                i += 1
-                            await util.changetimeupdate()
-
-                            try:
-                                footer = str(embed.footer.text)
-                                newfooter = footer + "\n-added to " + util.cleantext2(str(user.display_name))[:20].strip() + "'s backlog"
-                                L = len(newfooter)
-                                if L > 2048:
-                                    newfooter = newfooter[L-2048:]
-                                embed.set_footer(text = newfooter[:2048])
-                                await message.edit(embed=embed)
-                            except Exception as e:
-                                print(e)
-
-                    # B) PINGTEREST SUBSCRIPTION
-
-                    if str(embed.title).startswith('Pingterest: '):
-                        pi_name = str(embed.title).lower().split("pingterest: ")[-1]
-                        
-                        if react == "✅":
-                            conP = sqlite3.connect('databases/pingterest.db')
-                            curP = conP.cursor()
-                            curP.execute('''CREATE TABLE IF NOT EXISTS pingterests (pingterest text, userid text, username text, details text)''')
-
-                            pi_list = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND details = ?", (pi_name, "template")).fetchall()]
-
-                            if len(pi_list) == 0:
-                                print("error: pingterest does not exist")
-                            else:
-                                pi_user = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id))).fetchall()]
-                                if len(pi_user) == 0:
-                                    print("pingterest: %s (user joining)" % pi_name)
-                                    curP.execute("INSERT INTO pingterests VALUES (?, ?, ?, ?)", (pi_name, str(user.id), str(user.name), ""))
-                                    conP.commit()
-                                    print("successfully joined pingterest")
-                                    await util.changetimeupdate()
-                                    try:
-                                        footer = str(embed.footer.text)
-                                        newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + "joined!"
-                                        L = len(newfooter)
-                                        if L > 2048:
-                                            newfooter = newfooter[L-2048:]
-                                        embed.set_footer(text = newfooter[:2048])
-                                        await message.edit(embed=embed)
-                                    except Exception as e:
-                                        print(e)
-                                else:
-                                    print("pingterest: %s (already joined)" % pi_name)
-                                    try:
-                                        footer = str(embed.footer.text)
-                                        newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + "already joined"
-                                        L = len(newfooter)
-                                        if L > 2048:
-                                            newfooter = newfooter[L-2048:]
-                                        embed.set_footer(text = newfooter[:2048])
-                                        await message.edit(embed=embed)
-                                    except Exception as e:
-                                        print(e)
-
-                        elif react == "🚫":
-                            conP = sqlite3.connect('databases/pingterest.db')
-                            curP = conP.cursor()
-                            curP.execute('''CREATE TABLE IF NOT EXISTS pingterests (pingterest text, userid text, username text, details text)''')
-
-                            pi_list = [[item[0], item[1], item[2], item[3]] for item in curpi.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND details = ?", (pi_name, "template")).fetchall()]
-
-                            if len(pi_list) == 0:
-                                print("error: pingterest does not exist")
-                            else:
-                                pi_user = [[item[0], item[1], item[2], item[3]] for item in curpi.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id))).fetchall()]
-                                if len(pi_user) != 0:
-                                    print("pingterest: %s (user joined)" % pi_name)
-                                    curP.execute("DELETE FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id)))
-                                    conP.commit()
-                                    print("successfully left pingterest")
-                                    await util.changetimeupdate()
-                                    try:
-                                        footer = str(embed.footer.text)
-                                        newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + "left..."
-                                        L = len(newfooter)
-                                        if L > 2048:
-                                            newfooter = newfooter[L-2048:]
-                                        embed.set_footer(text = newfooter[:2048])
-                                        await message.edit(embed=embed)
-                                    except Exception as e:
-                                        print(e)
-                                else:
-                                    print("pingterest: %s (not joined)" % pi_name)
-                                    try:
-                                        footer = str(embed.footer.text)
-                                        newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + "already unjoined"
-                                        L = len(newfooter)
-                                        if L > 2048:
-                                            newfooter = newfooter[L-2048:]
-                                        embed.set_footer(text = newfooter[:2048])
-                                        await message.edit(embed=embed)
-                                    except Exception as e:
-                                        print(e)
-
-                    # C) TAG REMINDER FEATURE
-
-                    if str(embed.title) == "Tag Reminder":
-                        if react == "✅":
-                            await message.delete()
-                            print("deleted tag reminder message")
-
-
-        # GET TO ACTION
-        # 2. REACTION IN TURING/RULES CHANNEL
-
-        if server_id not in main_server:
-            return
-
-        if turingtest_enabled:
-
-            if str(channel.id) == ruleschannel_id: # turing test channel
-
-                # CHECK MESSAGE ID
-                rulesmsg_id = ""
-                rulesmsg_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("rules message id",)).fetchall()] # turing test channel
-                if len(rulesmsg_list) == 0:
+                # TURING TEST (RULES) CHANNEL
+                ruleschannel_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("rules channel id",)).fetchall()] # turing test channel
+                if len(ruleschannel_list) == 0:
                     turingtest_enabled = False
                 else:
-                    rulesmsg_id = rulesmsg_list[0]
-                    if not util.represents_integer(rulesmsg_id):
+                    ruleschannel_id = ruleschannel_list[0].strip()
+                    if not util.represents_integer(ruleschannel_id):
                         turingtest_enabled = False
+            except:
+                turingtest_enabled = False
 
-                if turingtest_enabled and str(message.id) == rulesmsg_id: # rules message / turing test message
+            # FETCH APPLICATION IDs
 
-                    # users reacting with the first react are very likely to be bots
+            application_list = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("app id", )).fetchall()]
+            application_list += str(self.bot.application_id)
 
-                    # CHECK REACTION EMOJI
-                    react2 = str(payload.emoji) # for custom emoji
+            # GET TO ACTION
+            # 1. REACTION OUTSIDE ROLE CHANNEL (SUGGESTIONS / PINGTERESTS / TAG REMINDERS)
 
-                    trigger_reaction = ""
-                    triggermoji_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("rules first reaction",)).fetchall()] # turing test channel
-                    if len(triggermoji_list) == 0:
+            if not reactionrole_enabled or str(channel.id) != rolechannel_id:
+                if (str(message.author.id) in application_list) and (str(user.id) not in application_list): # message by bot, reaction not by bot
+                    if message.embeds:   #check if list is not empty
+                        embed = message.embeds[0]
+
+                        # A) SUGGESTION FUNCTIONALITY
+
+                        if 'Recommendation' == str(embed.title):
+                            if react == "📝":
+                                testprint = "detected 📝 react by %s" % user.name
+                                print(testprint)
+                                
+                                conM = sqlite3.connect('databases/memobacklog.db') 
+                                curM = conM.cursor()
+                                curM.execute('''CREATE TABLE IF NOT EXISTS memobacklog (bgid text, userid text, username text, backlog text, details text)''')
+                                
+                                now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                                bl_entries = [x.strip() for x in (str(embed.description).split("▪️")[0].replace("*", " ").strip()).split(";") if x.strip()] #the x for x if x should remove all empty strings
+                                i=1000
+                                for bl_entry in bl_entries:
+                                    mmid = str(now) + "_" + str(user.id) + "_0rec" + str(i)
+                                    print(f"adding entry {i - 999} to backlog")
+                                    curM.execute("INSERT INTO memobacklog VALUES (?, ?, ?, ?, ?)", (mmid, str(user.id), str(user.name), bl_entry, ""))
+                                    conM.commit()
+                                    i += 1
+                                await util.changetimeupdate()
+
+                                try:
+                                    footer = str(embed.footer.text)
+                                    newfooter = footer + "\n-added to " + util.cleantext2(str(user.display_name))[:20].strip() + "'s backlog"
+                                    L = len(newfooter)
+                                    if L > 2048:
+                                        newfooter = newfooter[L-2048:]
+                                    embed.set_footer(text = newfooter[:2048])
+                                    await message.edit(embed=embed)
+                                except Exception as e:
+                                    print(e)
+
+                        # B) PINGTEREST SUBSCRIPTION
+
+                        if str(embed.title).startswith('Pingterest: '):
+                            pi_name = str(embed.title).lower().split("pingterest: ")[-1]
+                            
+                            if react == "✅":
+                                conP = sqlite3.connect('databases/pingterest.db')
+                                curP = conP.cursor()
+                                curP.execute('''CREATE TABLE IF NOT EXISTS pingterests (pingterest text, userid text, username text, details text)''')
+
+                                pi_list = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND details = ?", (pi_name, "template")).fetchall()]
+
+                                if len(pi_list) == 0:
+                                    print("error: pingterest does not exist")
+                                else:
+                                    pi_user = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id))).fetchall()]
+                                    if len(pi_user) == 0:
+                                        print("pingterest: %s (user joining)" % pi_name)
+                                        curP.execute("INSERT INTO pingterests VALUES (?, ?, ?, ?)", (pi_name, str(user.id), str(user.name), ""))
+                                        conP.commit()
+                                        print("successfully joined pingterest")
+                                        await util.changetimeupdate()
+                                        try:
+                                            footer = str(embed.footer.text)
+                                            newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + "joined!"
+                                            L = len(newfooter)
+                                            if L > 2048:
+                                                newfooter = newfooter[L-2048:]
+                                            embed.set_footer(text = newfooter[:2048])
+                                            await message.edit(embed=embed)
+                                        except Exception as e:
+                                            print(e)
+                                    else:
+                                        print("pingterest: %s (already joined)" % pi_name)
+                                        try:
+                                            footer = str(embed.footer.text)
+                                            newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + "already joined"
+                                            L = len(newfooter)
+                                            if L > 2048:
+                                                newfooter = newfooter[L-2048:]
+                                            embed.set_footer(text = newfooter[:2048])
+                                            await message.edit(embed=embed)
+                                        except Exception as e:
+                                            print(e)
+
+                            elif react == "🚫":
+                                conP = sqlite3.connect('databases/pingterest.db')
+                                curP = conP.cursor()
+                                curP.execute('''CREATE TABLE IF NOT EXISTS pingterests (pingterest text, userid text, username text, details text)''')
+
+                                pi_list = [[item[0], item[1], item[2], item[3]] for item in curpi.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND details = ?", (pi_name, "template")).fetchall()]
+
+                                if len(pi_list) == 0:
+                                    print("error: pingterest does not exist")
+                                else:
+                                    pi_user = [[item[0], item[1], item[2], item[3]] for item in curpi.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id))).fetchall()]
+                                    if len(pi_user) != 0:
+                                        print("pingterest: %s (user joined)" % pi_name)
+                                        curP.execute("DELETE FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id)))
+                                        conP.commit()
+                                        print("successfully left pingterest")
+                                        await util.changetimeupdate()
+                                        try:
+                                            footer = str(embed.footer.text)
+                                            newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + "left..."
+                                            L = len(newfooter)
+                                            if L > 2048:
+                                                newfooter = newfooter[L-2048:]
+                                            embed.set_footer(text = newfooter[:2048])
+                                            await message.edit(embed=embed)
+                                        except Exception as e:
+                                            print(e)
+                                    else:
+                                        print("pingterest: %s (not joined)" % pi_name)
+                                        try:
+                                            footer = str(embed.footer.text)
+                                            newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + "already unjoined"
+                                            L = len(newfooter)
+                                            if L > 2048:
+                                                newfooter = newfooter[L-2048:]
+                                            embed.set_footer(text = newfooter[:2048])
+                                            await message.edit(embed=embed)
+                                        except Exception as e:
+                                            print(e)
+
+                        # C) TAG REMINDER FEATURE
+
+                        if str(embed.title) == "Tag Reminder":
+                            if react == "✅":
+                                await message.delete()
+                                print("deleted tag reminder message")
+
+
+            # GET TO ACTION
+            # 2. REACTION IN TURING/RULES CHANNEL
+
+            if server_id not in main_server:
+                return
+
+            if turingtest_enabled:
+
+                if str(channel.id) == ruleschannel_id: # turing test channel
+
+                    # CHECK MESSAGE ID
+                    rulesmsg_id = ""
+                    rulesmsg_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("rules message id",)).fetchall()] # turing test channel
+                    if len(rulesmsg_list) == 0:
                         turingtest_enabled = False
                     else:
-                        trigger_reaction = triggermoji_list[0]
-
-                    if turingtest_enabled and ((react.lower() == trigger_reaction.lower()) or (react2.lower() == trigger_reaction.lower())):
-                        print("found turing test trigger react")
-                        userroleIDs = [y.id for y in user.roles]
-
-                        # CHECK ACCESS WALL ROLE
-
-                        try:
-                            accesswall_role_id = int([item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("access wall role",)).fetchall()][0])
-                        except:
+                        rulesmsg_id = rulesmsg_list[0]
+                        if not util.represents_integer(rulesmsg_id):
                             turingtest_enabled = False
 
-                        if turingtest_enabled and accesswall_role_id in userroleIDs: # has access wall/winters gate role
-                            print("user is in access wall")
+                    if turingtest_enabled and str(message.id) == rulesmsg_id: # rules message / turing test message
 
-                            # CHECK VERIFIED ROLE
+                        # users reacting with the first react are very likely to be bots
+
+                        # CHECK REACTION EMOJI
+                        react2 = str(payload.emoji) # for custom emoji
+
+                        trigger_reaction = ""
+                        triggermoji_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("rules first reaction",)).fetchall()] # turing test channel
+                        if len(triggermoji_list) == 0:
+                            turingtest_enabled = False
+                        else:
+                            trigger_reaction = triggermoji_list[0]
+
+                        if turingtest_enabled and ((react.lower() == trigger_reaction.lower()) or (react2.lower() == trigger_reaction.lower())):
+                            print("found turing test trigger react")
+                            userroleIDs = [y.id for y in user.roles]
+
+                            # CHECK ACCESS WALL ROLE
+
                             try:
-                                verified_role_id = int([item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("verified role",)).fetchall()][0])
+                                accesswall_role_id = int([item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("access wall role",)).fetchall()][0])
                             except:
                                 turingtest_enabled = False
 
-                            if turingtest_enabled and verified_role_id not in userroleIDs: # user does not have verified role
+                            if turingtest_enabled and accesswall_role_id in userroleIDs: # has access wall/winters gate role
+                                print("user is in access wall")
 
-                                # actual ban
-                                print("user not verified yet. preparing to ban...")
-                                guild = message.guild
-                                for i in range(0,10):
-                                    print(10-i)
-                                    await asyncio.sleep(1)
-
-                                await guild.ban(user, reason="Failed the Turing Test (auto-ban)", delete_message_days=0)
-
-                                # confirmation
+                                # CHECK VERIFIED ROLE
                                 try:
-                                    title = "Failed Turing Test"
-                                    emoji = util.emoji("ban")
-                                    text = f"Banned <@{user.id}> {emoji}"
-                                    footer = f"NAME: {user.name}, ID: {user.id}"
-                                    image = str(user.avatar_url)
-                                    color = 0xd30000
-                                    await self.botspam_send(title, text, footer, image, None, color, None)
-                                except Exception as e:
-                                    print("Error while trying to send turing ban confirmation:", e)
+                                    verified_role_id = int([item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("verified role",)).fetchall()][0])
+                                except:
+                                    turingtest_enabled = False
+
+                                if turingtest_enabled and verified_role_id not in userroleIDs: # user does not have verified role
+
+                                    # actual ban
+                                    print("user not verified yet. preparing to ban...")
+                                    guild = message.guild
+                                    for i in range(0,10):
+                                        print(10-i)
+                                        await asyncio.sleep(1)
+
+                                    await guild.ban(user, reason="Failed the Turing Test (auto-ban)", delete_message_days=0)
+
+                                    # confirmation
+                                    try:
+                                        title = "Failed Turing Test"
+                                        emoji = util.emoji("ban")
+                                        text = f"Banned <@{user.id}> {emoji}"
+                                        footer = f"NAME: {user.name}, ID: {user.id}"
+                                        image = str(user.avatar_url)
+                                        color = 0xd30000
+                                        await self.botspam_send(title, text, footer, image, None, color, None)
+                                    except Exception as e:
+                                        print("Error while trying to send turing ban confirmation:", e)
 
 
-                                # send bye in access wall
-                                accesswallchannelid_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("access wall channel id",)).fetchall()]
-                                accesswallchannelid = int(accesswallchannelid_list[0])
-                                wintersgate_channel = self.bot.get_channel(accesswallchannelid)
-                                emoji = util.emoji("bye")
-                                await wintersgate_channel.send(f'Bye <@{user.id}>! {emoji}')
-                                
+                                    # send bye in access wall
+                                    accesswallchannelid_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("access wall channel id",)).fetchall()]
+                                    accesswallchannelid = int(accesswallchannelid_list[0])
+                                    wintersgate_channel = self.bot.get_channel(accesswallchannelid)
+                                    emoji = util.emoji("bye")
+                                    await wintersgate_channel.send(f'Bye <@{user.id}>! {emoji}')
+                                    
 
-                                # send DM
-                                turingbanmessage_enabled = self.setting_enabled("turing ban message")
+                                    # send DM
+                                    turingbanmessage_enabled = self.setting_enabled("turing ban message")
 
-                                if turingbanmessage_enabled:
-                                    turingbanmessage_list = [item[0] for item in curB.execute("SELECT details FROM serversettings WHERE name = ?", ("turing ban message",)).fetchall()]
+                                    if turingbanmessage_enabled:
+                                        turingbanmessage_list = [item[0] for item in curB.execute("SELECT details FROM serversettings WHERE name = ?", ("turing ban message",)).fetchall()]
 
-                                    if len(turingbanmessage_list) > 0 and turingbanmessage_list[0].strip() != "":
-                                        try:
-                                            user = await self.bot.fetch_user(user.id)
-                                            message = await util.customtextparse(turingbanmessage_list[0].strip(), str(user.id))
-                                            embed=discord.Embed(title="", description=message, color=0xB80F0A)
-                                            await user.send(embed=embed)
-                                            print("Successfully notified user.")
-                                        except Exception as e:
-                                            print("Error while trying to DM banned user:", e)
-                                    else:
-                                        print("Turing ban message enabled but no message text provided.")
+                                        if len(turingbanmessage_list) > 0 and turingbanmessage_list[0].strip() != "":
+                                            try:
+                                                user = await self.bot.fetch_user(user.id)
+                                                message = await util.customtextparse(turingbanmessage_list[0].strip(), str(user.id))
+                                                embed=discord.Embed(title="", description=message, color=0xB80F0A)
+                                                await user.send(embed=embed)
+                                                print("Successfully notified user.")
+                                            except Exception as e:
+                                                print("Error while trying to DM banned user:", e)
+                                        else:
+                                            print("Turing ban message enabled but no message text provided.")
 
+        except Exception as e:
+            print("Error in on_raw_reaction_add():", e)
+
+            
 
 async def setup(bot: commands.bot) -> None:
     await bot.add_cog(
