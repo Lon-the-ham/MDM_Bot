@@ -274,6 +274,22 @@ class Utils():
 
 
 
+    def areaicon(area_name):
+        """converts place name to flag"""
+        emoji = ""
+        
+        area_icon_dict = {
+            "germany": "🇩🇪",
+            "japan": "🇯🇵",
+        }
+
+        if area_name.lower() in area_icon_dict:
+            return area_icon_dict[area_name.lower()]
+        else:
+            return ""
+
+
+
     def confirmation_check(ctx, message): # checking if it's the same user and channel
             return ((message.author == ctx.author) and (message.channel == ctx.channel))
 
@@ -1638,6 +1654,8 @@ class Utils():
                     # all good
                     break
 
+            print(f"{service} cooldown")
+
         relevant_last_used_str = []
         for item in relevant_last_used:
             relevant_last_used_str.append(str(item))
@@ -2072,12 +2090,13 @@ class Utils():
 
 
 
-    async def lastfm_get(ctx, payload):
-        try: 
-            await Utils.cooldown(ctx, "lastfm")
-        except Exception as e:
-            await Utils.cooldown_exception(ctx, e, "LastFM")
-            return "rate limit"
+    async def lastfm_get(ctx, payload, cooldown):
+        if cooldown:
+            try: 
+                await Utils.cooldown(ctx, "lastfm")
+            except Exception as e:
+                await Utils.cooldown_exception(ctx, e, "LastFM")
+                return "rate limit"
 
         try:
             APP_NAME = "_" + os.getenv("lfm_app_name")

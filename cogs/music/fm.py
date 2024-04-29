@@ -134,7 +134,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def lastfm_apifetch(self, ctx, member, show_tags, called_services):
+    async def lastfm_apifetch(self, ctx, member, show_tags, called_services, cooldown):
         # FETCH LFM USERNAME
 
         con = sqlite3.connect('databases/npsettings.db')
@@ -155,7 +155,7 @@ class Music_NowPlaying(commands.Cog):
                 'user': lfm_name,
                 'limit': "1",
             }
-            response = await util.lastfm_get(ctx, payload)
+            response = await util.lastfm_get(ctx, payload, cooldown)
             if response == "rate limit":
                 return
             rjson = response.json()
@@ -433,6 +433,7 @@ class Music_NowPlaying(commands.Cog):
                             "rym": False,
                             }
 
+        substitute_tags = []
         for setting in tag_settings_dict:
             service = setting.split("_")[0]
 
@@ -453,12 +454,22 @@ class Music_NowPlaying(commands.Cog):
                 else:
                     tag_settings_dict[setting] = "off"
 
+            elif tag_settings_dict[setting] == "standard_substitute": # same as standard but also acts as substitute if tags are missing
+                if np_service.lower() == service:
+                    tag_services_dict[service] = True
+                    tag_settings_dict[setting] = "on"
+                else:
+                    tag_settings_dict[setting] = "off"
+                    substitute_tags.append(service)
+
+        substitute_tags = list(dict.fromkeys(substitute_tags))
+
         anything_to_fetch = False
         for service in tag_services_dict:
             if tag_services_dict[service]:
                 anything_to_fetch = True
 
-        if not anything_to_fetch:
+        if not anything_to_fetch and len(substitute_tags) == 0:
             return ""
 
         # CHECK IF TAGS NEED LABELING
@@ -469,15 +480,12 @@ class Music_NowPlaying(commands.Cog):
             if tag_services_dict[tagservice]:
                 enabled_services_count += 1
 
-        if native_service_tags and enabled_services_count == 1:
-            labeling = False
-        else:
-            labeling = True
-
         # FETCH TAGS
 
-        genre_tags = ""
+        genre_tags = {}
         listener_stats = []
+        year = ""
+        area = ""
 
         for tagservice in tag_services_dict:
             if tag_services_dict[tagservice]:
@@ -509,15 +517,10 @@ class Music_NowPlaying(commands.Cog):
                             genretag_list, ml_string = await self.fetch_spotify_tags(spotify_track_id, g_tags, listenertags)
 
                             if len(genretag_list) > 0:
-                                if labeling:
-                                    genre_tags += "\nSpoofy: "
-                                else:
-                                    genre_tags += "\n" 
-
-                                genre_tags += f"{self.tagseparator}".join(genretag_list)
+                                genre_tags["spotify"] = f"{self.tagseparator}".join(genretag_list)
 
                             if ml_string != "":
-                                if labeling:
+                                if tagservice != np_service:
                                     new_ml_string = ml_string.split("monthly")[0] + "monthly spoofy listeners"
                                     listener_stats.append(new_ml_string.strip())
                                 else:
@@ -532,15 +535,19 @@ class Music_NowPlaying(commands.Cog):
                             lfm_playcount = True
 
                         if lfm_listeners or lfm_playcount:
+                            if np_service.lower() == "lastfm":
+                                cooldown = False
+                            else:
+                                cooldown = True
                             try:
                                 try:
                                     mbid = musicbrainz_ids[0] # artist mbid
                                 except:
                                     mbid = None
-                                listeners, total_scrobbles = await self.fetch_lastfm_data_via_api(ctx, mbid, artist)
+                                listeners, total_scrobbles = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
                             except Exception as e:
                                 print(f"Probably no Last.fm API credentials, switching to Web Scraping information.\n(Exception message: {e})")
-                                listeners, total_scrobbles = await self.fetch_lastfm_data_via_web(ctx, artist)
+                                listeners, total_scrobbles = await self.fetch_lastfm_data_via_web(ctx, artist, cooldown)
 
                             if listeners.strip() != "" and lfm_listeners:
                                 listeners_readable = util.shortnum(listeners)
@@ -553,7 +560,28 @@ class Music_NowPlaying(commands.Cog):
 
                     elif tagservice == "musicbrainz":
                         #under construction
-                        pass
+                        try:
+                            mbid = musicbrainz_ids[0] # artist mbid
+                        except:
+                            mbid = None
+
+                        if tag_settings_dict['musicbrainz_date'] == "on":
+                            checkyear = True
+                        else:
+                            checkyear = False
+                        if tag_settings_dict['musicbrainz_area'] == "on":
+                            checkarea = True
+                        else:
+                            checkarea = False
+                        if tag_settings_dict['musicbrainz_tags'] == "on":
+                            checktags = True
+                        else:
+                            checktags = False
+                        cooldown = False
+                        mbid, genretag_list, year, area = await self.fetch_musicbrainz_tags(ctx, mbid, artist, album, song, checkyear, checkarea, checktags, cooldown)
+
+                        if len(genretag_list) > 0:
+                            genre_tags["musicbrainz"] = f"{self.tagseparator}".join(genretag_list)
 
                     elif tagservice == "rym":
                         #under construction
@@ -562,11 +590,59 @@ class Music_NowPlaying(commands.Cog):
                     else:
                         print(f"Error: tag service {tagservice} unknown")
 
-        listener_stats_string = f"{self.tagseparator}".join(listener_stats).strip()
-        if genre_tags.strip() == "" and (tag_settings_dict["spotify_genretags"] == "on" or tag_settings_dict["musicbrainz_tags"] == "on" or tag_settings_dict["rym_genretags"] == "on"):
-            genre_tags = "\nno genre tags found"
-        tag_string = listener_stats_string + genre_tags
+        # SUBSTITUTE TAGS
+
+        if len(genre_tags) == 0 and len(substitute_tags) > 0: # if no genre tags found, try substitutes
+            print("searching for substitute tags...")
+            for setting in substitute_tags:
+                if setting == "musicbrainz":
+                    checkyear = False
+                    checkarea = False
+                    checktags = True
+                    cooldown = False
+                    mbid, genretag_list, year, area = await self.fetch_musicbrainz_tags(ctx, mbid, artist, album, song, checkyear, checkarea, checktags, cooldown)
+
+                    if len(genretag_list) > 0:
+                        genre_tags["musicbrainz"] = f"{self.tagseparator}".join(genretag_list)
+
+                    if len(genre_tags) > 0:
+                        break
+
+        # TAG DICT TO STRING
+
+        genre_tag_string = ""
+
+        if len(genre_tags) > 1 or (len(genre_tags) == 1 and np_service not in genre_tags):
+            for service in genre_tags:
+                if service == "spotify":
+                    genre_tag_string += "\nSpoofy: " + genre_tags["spotify"]
+
+                elif service == "musicbrainz":
+                    genre_tag_string += "\nMB: " + genre_tags["musicbrainz"]
+
+                elif service == "rym":
+                    genre_tag_string += "\nRYM: " + genre_tags["rym"]
+
+        else:
+            for service in genre_tags:
+                genre_tag_string += "\n" + genre_tags["spotify"]
+
+        # FINISH UP
+
+        art_info = []
+        if area.strip() != "":
+            art_info.append(area.strip())
+        if year.strip() != "":
+            art_info.append(year.strip())
+        listener_stats_string = f"{self.tagseparator}".join(listener_stats + art_info).strip()
+
+        if genre_tag_string.strip() == "" and (tag_settings_dict["spotify_genretags"] == "on" or tag_settings_dict["musicbrainz_tags"] == "on" or tag_settings_dict["rym_genretags"] == "on"):
+            genre_tag_string = "\nno genre tags found"
+        tag_string = listener_stats_string + genre_tag_string
+        if len(tag_string) > 2048:
+            tag_string = tag_string[:2045] + "..."
         return tag_string[:2048]
+
 
 
     async def parse_called_services(self, args):
@@ -788,7 +864,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def fetch_lastfm_data_via_api(self, ctx, musicbrainz_id, artistname):
+    async def fetch_lastfm_data_via_api(self, ctx, musicbrainz_id, artistname, cooldown):
         """fetch lastfm genre tags and total scrobbles"""
 
         payload = {'method': 'artist.getInfo'}
@@ -800,7 +876,7 @@ class Music_NowPlaying(commands.Cog):
             payload['mbid'] = musicbrainz_id
             print("artist mbid:", musicbrainz_id)
 
-        response = await util.lastfm_get(ctx, payload)
+        response = await util.lastfm_get(ctx, payload, cooldown)
         if response == "rate limit":
             return "", ""
         rjson = response.json()
@@ -818,8 +894,15 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def fetch_lastfm_data_via_web(self, ctx, artistname):
+    async def fetch_lastfm_data_via_web(self, ctx, artistname, cooldown):
         """fetch lastfm genre tags and total scrobbles"""
+
+        if cooldown:
+            try: 
+                await Utils.cooldown(ctx, "lastfm")
+            except Exception as e:
+                await Utils.cooldown_exception(ctx, e, "LastFM")
+                return "rate limit"
 
         listeners = ""
         total_scrobbles = ""
@@ -854,7 +937,152 @@ class Music_NowPlaying(commands.Cog):
 
 
 
+    async def fetch_musicbrainz_tags(self, ctx, mbid, artist, album, song, checkyear, checkarea, checktags, cooldown):   
+        if cooldown:
+            try: # cooldown to not trigger actual rate limits or IP blocks
+                await util.cooldown(ctx, "musicbrainz")
+            except Exception as e:
+                await util.cooldown_exception(ctx, e, "musicbrainz")
+                return
 
+        #under construction
+        try:
+            version = Utils.get_version().replace("version","v").replace(" ","").strip()
+        except:
+            version = "v_X"
+
+        try:
+            contact = os.getenv("contact_email")
+        except:
+            contact = ""
+
+        USER_AGENT = f'MDM_Bot/{version}_({contact})'
+
+        # define headers
+        headers = {'user-agent': USER_AGENT}
+        payload = {"fmt": "json"}
+
+        tags = []
+        year = ""
+        area = ""
+
+        # GET YEAR
+
+        if checkyear or (mbid is None or mbid == ""):
+            print("check year...")
+            try:
+                if artist == "":
+                    return mbid, tags, year, area
+
+                if album != "" and song != "":
+                    url = f"http://musicbrainz.org/ws/2/recording"
+                    payload['query'] = f"recording:{song}%20AND%20artist:{artist}%20AND%20releasegroup:{album}"
+                    response = requests.get(url, headers=headers, params=payload)
+                    rjson = response.json()['recordings'][0]
+                elif album != "":
+                    url = f"http://musicbrainz.org/ws/2/release-group"
+                    payload['query'] = f"releasegroup:{album}%20AND%20artist:{artist}"
+                    response = requests.get(url, headers=headers, params=payload)
+                    rjson = response.json()['release-groups'][0]
+                elif song != "":
+                    url = f"http://musicbrainz.org/ws/2/recording"
+                    payload['query'] = f"recording:{song}%20AND%20artist:{artist}"
+                    response = requests.get(url, headers=headers, params=payload)
+                    rjson = response.json()['recordings'][0]
+                else:
+                    return mbid, tags, year, area
+
+                if mbid is None or mbid == "":
+                    mbid = rjson['artist-credit'][0]['artist']['id']
+
+                if mbid == rjson['artist-credit'][0]['artist']['id']:
+                    try:
+                        disambiguation = rjson['artist-credit'][0]['artist']['disambiguation']
+                        print(f"Found description: {disambiguation}")
+                    except:
+                        pass
+                    if checkyear:
+                        year = rjson['first-release-date'].split("-")[0]
+                        print(f"Found date: {year}")
+                    #tags.append(disambiguation) # add disambiguation to tags?
+                else:
+                    print("Error: the found artist on musicbrainz doesn't match the provided mbid")
+            except Exception as e: 
+                print("Error:", e)
+
+        # GET AREA
+
+        payload = {"fmt": "json"}
+
+        if checkarea:
+            print("check area...")
+            try:
+                url = f"https://musicbrainz.org/ws/2/artist/{mbid}"
+                response = requests.get(url, headers=headers, params=payload)
+                rjson = response.json()['area']
+                area_name = rjson['name']
+
+                area = util.areaicon(area_name)
+            except Exception as e:
+                print("Error:", e)
+
+        # GET TAGS
+
+        if checktags:
+            print("check MB tags...")
+            session = requests.session()
+            burp0_url = f"https://musicbrainz.org:443/artist/{mbid}/tags"
+            burp0_headers = {"Sec-Ch-Ua": "\"Chromium\";v=\"123\", \"Not:A-Brand\";v=\"8\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.58 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate, br", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Priority": "u=0, i", "Connection": "close"}
+            response = session.get(burp0_url, headers=burp0_headers)
+
+            soup = BeautifulSoup(response.text, "html.parser")
+            htmltags = soup.find('script', type="application/json")
+            rjson = json.loads(htmltags.text)['aggregatedTags']
+
+            tag_dict = {}
+            maximal_count = 0
+            for item in rjson:
+                #print(item)
+                try:
+                    tagname = item['tag']['name']
+                    is_genre = item['tag']['genre']
+                    votecount = int(item['count'])
+                    print(f"found tag: {tagname} - {votecount}")
+                    if tagname not in tag_dict:
+                        tag_dict[tagname] = votecount
+                    if votecount > maximal_count:
+                        maximal_count = votecount
+                except:
+                    pass
+
+            i = 0
+            for tag in tag_dict:
+                i += 1
+                if tag_dict[tag] > 0 and tag_dict[tag] >= maximal_count/2:
+                    tags.append(tag)
+
+                if i > 9: # maximum of 10 tags
+                    break
+
+        return mbid, tags, year, area
+
+
+
+    @commands.command(name='ttest')
+    @commands.check(util.is_active)
+    async def _ttest(self, ctx):
+        """test
+        """    
+        mbid = ""
+        artist = "Morbid Dystopia"
+        album = "Lurking Atrocity Demo"
+        song = "Deathspotism"
+        
+        await self.fetch_musicbrainz_tags(ctx, mbid, artist, album, song, True, True, True)
+        
+    @_ttest.error
+    async def ttest_error(self, ctx, error):
+        await util.error_handling(ctx, error)
 
 
     #################################################################################################################################
@@ -1014,7 +1242,7 @@ class Music_NowPlaying(commands.Cog):
         called_services = await self.parse_called_services(args)
         try:
             if api_or_web.lower() == "api":
-                message = await self.lastfm_apifetch(ctx, the_member, tags, called_services)
+                message = await self.lastfm_apifetch(ctx, the_member, tags, called_services, True)
             else:
                 message = await self.lastfm_webscrape(ctx, the_member, tags, called_services, True) # last argument for whether a cooldown is needed
             await self.add_np_reactions(ctx, message, the_member)
@@ -1042,7 +1270,7 @@ class Music_NowPlaying(commands.Cog):
                     message = await self.applemusic_activity(ctx, the_member, tags, called_services)
                 except:
                     try:
-                        message = await self.lastfm_apifetch(ctx, the_member, tags, called_services)
+                        message = await self.lastfm_apifetch(ctx, the_member, tags, called_services, True)
                     except:
                         emoji = util.emoji("disappointed")
                         text = f"No played music found {emoji}"
