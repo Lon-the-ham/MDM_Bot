@@ -5219,8 +5219,7 @@ class Administration_of_Settings(commands.Cog):
 
 
     @commands.command(name="update", aliases = ["botupdate"], pass_context=True)
-    @commands.has_permissions(manage_guild=True)
-    @commands.check(util.is_main_server)
+    @commands.has_permissions(manage_guild=True) # this command needs to be available outside of the main server
     async def _botupdate(self, ctx, *args):
         """Update bot
 

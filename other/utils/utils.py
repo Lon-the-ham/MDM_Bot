@@ -303,7 +303,7 @@ class Utils():
 
     def cleantext2(s):
         ctxt = Utils.cleantext(str(s))
-        ctxt2 = ctxt.replace("*","\*").replace("_","\_").replace("#","\#").replace(">","\>")
+        ctxt2 = ctxt.replace("*","\*").replace("_","\_").replace("#","\#").replace("\n> ","\n\> ")
         return ctxt2
 
 
@@ -335,22 +335,14 @@ class Utils():
 
 
     def emoji(name):
-        con = sqlite3.connect(f'databases/botsettings.db')
-        cur = con.cursor()
-        emoji_list = [[item[0],item[1],item[2]] for item in cur.execute("SELECT purpose, call, extra FROM emojis").fetchall()]
+        try:
+            con = sqlite3.connect(f'databases/botsettings.db')
+            cur = con.cursor()
+            emoji_list = [[item[0],item[1],item[2]] for item in cur.execute("SELECT purpose, call, extra FROM emojis").fetchall()]
 
-        # fetch emoji by purpose name: if call is empty choose extra
+            # fetch emoji by purpose name: if call is empty choose extra
 
-        term = name.lower().strip()
-        for item in emoji_list:
-            if term == item[0]:
-                if item[1].strip() == "":
-                    emote = item[2]
-                else:
-                    emote = item[1]
-                break
-        else:
-            term = ''.join(e for e in name.strip().lower().replace(" ","_") if e.isalnum() or e == "_")
+            term = name.lower().strip()
             for item in emoji_list:
                 if term == item[0]:
                     if item[1].strip() == "":
@@ -358,48 +350,61 @@ class Utils():
                     else:
                         emote = item[1]
                     break
-                else:
-                    term = ''.join(e for e in name.strip().lower() if e.isalnum())
-                    for item in emoji_list:
-                        if term == item[0]:
-                            if item[1].strip() == "":
-                                emote = item[2]
-                            else:
-                                emote = item[1]
-                            break
+            else:
+                term = ''.join(e for e in name.strip().lower().replace(" ","_") if e.isalnum() or e == "_")
+                for item in emoji_list:
+                    if term == item[0]:
+                        if item[1].strip() == "":
+                            emote = item[2]
                         else:
-                            emote = ""
-
-        # if search was unsuccessful look for alias and choose one at random
-
-        if emote == "":
-            term = ''.join(e for e in name.strip().lower().replace(" ","_") if e.isalnum() or e == "_")
-            alias_list = [[item[0],item[1]] for item in cur.execute("SELECT call, extra FROM emojis WHERE LOWER(alias) = ?", (term,)).fetchall()]
-
-            if len(alias_list) > 0:
-                first_choice_list = []
-                second_choice_list = []
-
-                for item in alias_list:
-                    if item[0].strip() == "":
-                        emoji = item[1].strip()
-                        if emoji not in second_choice_list:
-                            second_choice_list.append(emoji)
+                            emote = item[1]
+                        break
                     else:
-                        emoji = item[0].strip()
-                        if emoji not in first_choice_list:
-                            first_choice_list.append(emoji)
+                        term = ''.join(e for e in name.strip().lower() if e.isalnum())
+                        for item in emoji_list:
+                            if term == item[0]:
+                                if item[1].strip() == "":
+                                    emote = item[2]
+                                else:
+                                    emote = item[1]
+                                break
+                            else:
+                                emote = ""
 
-                if len(first_choice_list) > 0:
-                    emote = random.choice(first_choice_list)
+            # if search was unsuccessful look for alias and choose one at random
 
-                elif len(second_choice_list) > 0:
-                    emote = random.choice(second_choice_list)
+            if emote == "":
+                term = ''.join(e for e in name.strip().lower().replace(" ","_") if e.isalnum() or e == "_")
+                alias_list = [[item[0],item[1]] for item in cur.execute("SELECT call, extra FROM emojis WHERE LOWER(alias) = ?", (term,)).fetchall()]
 
-        if emote == "":                
-            print(f"Notice: Emoji with name '{name}' returned an empty string.")
+                if len(alias_list) > 0:
+                    first_choice_list = []
+                    second_choice_list = []
 
-        return emote
+                    for item in alias_list:
+                        if item[0].strip() == "":
+                            emoji = item[1].strip()
+                            if emoji not in second_choice_list:
+                                second_choice_list.append(emoji)
+                        else:
+                            emoji = item[0].strip()
+                            if emoji not in first_choice_list:
+                                first_choice_list.append(emoji)
+
+                    if len(first_choice_list) > 0:
+                        emote = random.choice(first_choice_list)
+
+                    elif len(second_choice_list) > 0:
+                        emote = random.choice(second_choice_list)
+
+            if emote == "":                
+                print(f"Notice: Emoji with name '{name}' returned an empty string.")
+
+            return emote
+
+        except Exception as e:
+            print("Error:", e)
+            return ""
 
 
 

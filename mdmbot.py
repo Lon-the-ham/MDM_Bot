@@ -96,13 +96,18 @@ class YataBot(commands.Bot):
             except Exception as e:
                 print("Error while storing version number.")
 
+            try:
+                con = sqlite3.connect(f'databases/botsettings.db')
+                cur = con.cursor()
+                cur.execute('''CREATE TABLE IF NOT EXISTS botsettings (name text, value text, type text, details text)''')
+            except Exception as e:
+                print("Error:", e)
+
             if load_settings:
 
                 # STATUS
 
                 try:
-                    con = sqlite3.connect(f'databases/botsettings.db')
-                    cur = con.cursor()
                     status_list = [[item[0],item[1]] for item in cur.execute("SELECT type, value FROM botsettings WHERE name = ?", ("status",)).fetchall()]
                     stat_type = status_list[0][0]
                     stat_name = status_list[0][1]
