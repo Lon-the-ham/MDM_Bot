@@ -3665,9 +3665,9 @@ class Administration_of_Settings(commands.Cog):
 
             await util.changetimeupdate()
 
-            # under construction: send reminder message into inactivity channel about what to do
-
-            await ctx.send(f"Inactivity check done. {inactive_count} users put into inactivity channel.\n({new_count} new members exempt)")
+            msg = f"Inactivity check done. {inactive_count} users put into inactivity channel.\n({new_count} new members exempt)"
+            msg += f"\n\nMake sure to add a message in the inactivity channel that tells the inactive users to use `{self.prefix}letmeout` to get back to being active."
+            await ctx.send(msg)
     @_inactivitycheck.error
     async def inactivitycheck_error(self, ctx, error):
         await util.error_handling(ctx, error) 
@@ -4369,7 +4369,7 @@ class Administration_of_Settings(commands.Cog):
             curNP = conNP.cursor()
             curNP.execute('''CREATE TABLE IF NOT EXISTS npreactions (id text, name text, emoji1 text, emoji2 text, emoji3 text, emoji4 text, emoji5 text, details text)''')
             curNP.execute('''CREATE TABLE IF NOT EXISTS lastfm (id text, name text, lfm_name text, lfm_link text, details text)''')
-            curNP.execute('''CREATE TABLE IF NOT EXISTS tagsettings (id text, name text, spotify_monthlylisteners text, spotify_genretags text, lastfm_listeners text, lastfm_total_artistplays text, lastfm_artistscrobbles text, lastfm_albumscrobbles text, lastfm_trackscrobbles text, lastfm_rank text, musicbrainz_tags text, musicbrainz_area text, musicbrainz_date text, rym_genretags text, rym_albumrating text)''')
+            curNP.execute('''CREATE TABLE IF NOT EXISTS tagsettings (id text, name text, spotify_monthlylisteners text, spotify_genretags text, lastfm_listeners text, lastfm_total_artistplays text, lastfm_artistscrobbles text, lastfm_albumscrobbles text, lastfm_trackscrobbles text, lastfm_rank text, lastfm_tags text, musicbrainz_tags text, musicbrainz_area text, musicbrainz_date text, rym_genretags text, rym_albumrating text)''')
 
 
             # COOLDOWNS i.e. PREVENTIVE SELF RATE LIMITING
