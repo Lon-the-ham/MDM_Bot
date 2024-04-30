@@ -390,13 +390,13 @@ class Music_NowPlaying(commands.Cog):
                 mbid = None
             con = sqlite3.connect('databases/npsettings.db')
             cur = con.cursor()
-            tagsetting_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7],item[8],item[9],item[10],item[11],item[12],item[13],item[14]] for item in cur.execute("SELECT id, name, spotify_monthlylisteners, spotify_genretags, lastfm_listeners, lastfm_total_artistplays, lastfm_artistscrobbles, lastfm_albumscrobbles, lastfm_trackscrobbles, lastfm_rank, musicbrainz_tags, musicbrainz_area , musicbrainz_date , rym_genretags, rym_albumrating FROM tagsettings WHERE id = ?", (user_id,)).fetchall()]
+            tagsetting_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7],item[8],item[9],item[10],item[11],item[12],item[13],item[14],item[15]] for item in cur.execute("SELECT id, name, spotify_monthlylisteners, spotify_genretags, lastfm_listeners, lastfm_total_artistplays, lastfm_artistscrobbles, lastfm_albumscrobbles, lastfm_trackscrobbles, lastfm_rank, musicbrainz_tags, musicbrainz_area , musicbrainz_date , rym_genretags, rym_albumrating, lastfm_tags FROM tagsettings WHERE id = ?", (user_id,)).fetchall()]
             if len(tagsetting_list) == 0:
                 username = util.cleantext2(str(ctx.message.author.name))
-                cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "off", "off", "off", "off", "off"))
+                cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "standard_substitute", "off", "off", "off", "off"))
                 con.commit()
                 await util.changetimeupdate()
-                tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "off", "off", "off", "off"]]
+                tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "standard_substitute", "off", "off", "off", "off"]]
 
             # CHECK WHICH TAGS TO FETCH
 
@@ -414,6 +414,7 @@ class Music_NowPlaying(commands.Cog):
             musicbrainz_date = tagsettings[12].lower().strip() 
             rym_genretags = tagsettings[13].lower().strip() 
             rym_albumrating = tagsettings[14].lower().strip() 
+            lastfm_tags = tagsettings[15].lower().strip() # added later
 
             tag_settings_dict = {
                                 "spotify_monthlylisteners": spotify_monthlylisteners, 
@@ -424,6 +425,7 @@ class Music_NowPlaying(commands.Cog):
                                 "lastfm_albumscrobbles": lastfm_albumscrobbles, 
                                 "lastfm_trackscrobbles": lastfm_trackscrobbles, 
                                 "lastfm_rank": lastfm_rank, 
+                                "lastfm_tags": lastfm_tags,
                                 "musicbrainz_tags": musicbrainz_tags, 
                                 "musicbrainz_area": musicbrainz_area, 
                                 "musicbrainz_date": musicbrainz_date, 
@@ -559,8 +561,6 @@ class Music_NowPlaying(commands.Cog):
 
 
                         elif tagservice == "musicbrainz":
-                            #under construction
-
                             if tag_settings_dict['musicbrainz_date'] == "on":
                                 checkyear = True
                             else:
@@ -941,7 +941,6 @@ class Music_NowPlaying(commands.Cog):
                 await util.cooldown_exception(ctx, e, "musicbrainz")
                 return
 
-        #under construction
         try:
             version = Utils.get_version().replace("version","v").replace(" ","").strip()
         except:
@@ -1442,23 +1441,72 @@ class Music_NowPlaying(commands.Cog):
 
         if number_hyphens == 0:
             await ctx.send(f"Error: Could not parse artist and track. Please use a hyphen as separator.")
+            return
         else:
             if number_hyphens == 1:
-                artist = argument.split("-")[0]
-                track = argument.split("-")[1]
+                artist = argument.split("-")[0].strip()
+                track = argument.split("-")[1].strip()
             else:
                 number_spacehyphens = argument.count(" - ")
                 if number_spacehyphens == 1:
-                    artist = argument.split(" - ")[0]
-                    track = argument.split(" - ")[1]
+                    artist = argument.split(" - ")[0].strip()
+                    track = argument.split(" - ")[1].strip()
                 else:
                     # unsure about parsing
-                    artist = argument.split("-")[0]
-                    track = "-".join(argument.split("-")[1:])
-                    await ctx.send(f"⚠️ uncertain parsing")
+                    artist = argument.split("-")[0].strip()
+                    track = "-".join(argument.split("-")[1:]).strip()
+                    print(f"Warning: uncertain parsing")
 
+        # FETCH INFO FROM API
 
-        await ctx.send(f"⚠️ command in construction")
+        payload = {
+            'method': 'track.search',
+            'track': track,
+            'artist': artist,
+            'limit': "1",
+        }
+        cooldown = True
+        response = await util.lastfm_get(ctx, payload, cooldown)
+        if response == "rate limit":
+            print("rate limit")
+            return
+
+        try:
+            # PARSE JSON
+
+            rjson = response.json()
+            trackjson = rjson['results']['trackmatches']['track'][0]
+            track = trackjson['name']
+            artist = trackjson['artist']
+            song_link = trackjson['url']
+            albumart = rjson['results']['trackmatches']['track'][-1]['#text']
+
+            # MAKE EMBED
+
+            member = ctx.message.author
+            description = f"[{track}]({song_link})\nby **{util.cleantext2(artist)}** | {album}"
+            embed = discord.Embed(description=description, color = member.color)
+            embed.set_author(name=f"{member.display_name}'s fakenowplaying" , icon_url=member.avatar)
+            try:
+                embed.set_thumbnail(url=albumart)
+            except Exception as e:
+                print(e)
+
+            # HANDLE TAGS
+
+            if show_tags:
+                tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, [], [])
+                try:
+                    if tag_string != "":
+                        embed.set_footer(text = tag_string)
+                except Exception as e:
+                    print("Error while creating footer for spotify tags and listener stats: ", e)
+
+            message = await ctx.send(embed=embed)
+            return message
+        except Exception as e:
+            print("Error:", e)
+            await ctx.send(f"Error: Could not find track on LastFM.")
 
 
 
@@ -1467,7 +1515,8 @@ class Music_NowPlaying(commands.Cog):
     async def _fakenowplaying(self, ctx: commands.Context, *args):
         """now playing by giving artist and song, gives out embed 
         """
-        await ctx.send("⚠️ under construction")
+        tags = False
+        await self.fakenowplaying(ctx, args, tags)
     @_fakenowplaying.error
     async def fakenowplaying_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -1479,7 +1528,8 @@ class Music_NowPlaying(commands.Cog):
     async def _fakenowplaying_extra(self, ctx: commands.Context, *args):
         """now playing by giving artist and song, gives out embed with tags
         """
-        await ctx.send("⚠️ under construction")
+        tags = True
+        await self.fakenowplaying(ctx, args, tags)
     @_fakenowplaying_extra.error
     async def fakenowplaying_extra_error(self, ctx, error):
         await util.error_handling(ctx, error)
