@@ -601,7 +601,6 @@ class Event_Response(commands.Cog):
                             try:
                                 timeoutrole_list = [item[0] for item in cur.execute("SELECT role_id FROM specialroles WHERE name = ?", ("timeout role",)).fetchall()]
                                 timeoutrole_id = timeoutrole_list[0]
-                                # under construction
                             except:
                                 timeoutrole_id = ""
                             try:
