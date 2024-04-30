@@ -2223,8 +2223,7 @@ class Utils():
         embeds_list.append(discord.Embed(title=header, description=text_string, color=color))
         current_length = len(header) + len(text_string)
 
-        # under construction: maximum of 24 fields or 6000 chars per embed 
-
+        fieldcount = 0
         for item in fields_list:
             if len(item) > 0:
                 field_header = item[0]
@@ -2237,11 +2236,13 @@ class Utils():
                 else:
                     field_text = ""
 
-                if current_length + len(field_header) + len(field_text) < 6000:
+                if current_length + len(field_header) + len(field_text) < 6000 and fieldcount < 24:
+                    fieldcount += 1
                     current_length += len(field_header) + len(field_text)
                     embeds_list[k].add_field(name=field_header, value=field_text, inline=False)
                 else:
                     k += 1
+                    fieldcount = 0
                     embeds_list.append(discord.Embed(title="", description="", color=color))
                     current_length = len(field_header) + len(field_text)
                     embeds_list[k].add_field(name=field_header, value=field_text, inline=False)
