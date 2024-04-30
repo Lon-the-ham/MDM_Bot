@@ -391,7 +391,7 @@ class Music_NowPlaying(commands.Cog):
             cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "off", "off", "off", "off", "off"))
             con.commit()
             await util.changetimeupdate()
-            tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "off", "off", "off", "off", "off"]]
+            tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "off", "off", "off", "off"]]
 
         # CHECK WHICH TAGS TO FETCH
 
