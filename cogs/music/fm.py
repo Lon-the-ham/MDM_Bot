@@ -382,265 +382,262 @@ class Music_NowPlaying(commands.Cog):
             decide where to fetch genre tags from and retrieve
             return string
         """
-        user_id = str(ctx.message.author.id)
-        con = sqlite3.connect('databases/npsettings.db')
-        cur = con.cursor()
-        tagsetting_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7],item[8],item[9],item[10],item[11],item[12],item[13],item[14]] for item in cur.execute("SELECT id, name, spotify_monthlylisteners, spotify_genretags, lastfm_listeners, lastfm_total_artistplays, lastfm_artistscrobbles, lastfm_albumscrobbles, lastfm_trackscrobbles, lastfm_rank, musicbrainz_tags, musicbrainz_area , musicbrainz_date , rym_genretags, rym_albumrating FROM tagsettings WHERE id = ?", (user_id,)).fetchall()]
-        if len(tagsetting_list) == 0:
-            username = util.cleantext2(str(ctx.message.author.name))
-            cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "off", "off", "off", "off", "off"))
-            con.commit()
-            await util.changetimeupdate()
-            tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "off", "off", "off", "off"]]
+        async with ctx.typing():
+            user_id = str(ctx.message.author.id)
+            try:
+                mbid = musicbrainz_ids[0]
+            except:
+                mbid = None
+            con = sqlite3.connect('databases/npsettings.db')
+            cur = con.cursor()
+            tagsetting_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7],item[8],item[9],item[10],item[11],item[12],item[13],item[14]] for item in cur.execute("SELECT id, name, spotify_monthlylisteners, spotify_genretags, lastfm_listeners, lastfm_total_artistplays, lastfm_artistscrobbles, lastfm_albumscrobbles, lastfm_trackscrobbles, lastfm_rank, musicbrainz_tags, musicbrainz_area , musicbrainz_date , rym_genretags, rym_albumrating FROM tagsettings WHERE id = ?", (user_id,)).fetchall()]
+            if len(tagsetting_list) == 0:
+                username = util.cleantext2(str(ctx.message.author.name))
+                cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "off", "off", "off", "off", "off"))
+                con.commit()
+                await util.changetimeupdate()
+                tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "off", "off", "off", "off"]]
 
-        # CHECK WHICH TAGS TO FETCH
+            # CHECK WHICH TAGS TO FETCH
 
-        tagsettings = tagsetting_list[0]
-        spotify_monthlylisteners = tagsettings[2].lower().strip()
-        spotify_genretags = tagsettings[3].lower().strip()
-        lastfm_listeners = tagsettings[4].lower().strip() 
-        lastfm_total_artistplays = tagsettings[5].lower().strip()
-        lastfm_artistscrobbles = tagsettings[6].lower().strip()
-        lastfm_albumscrobbles = tagsettings[7].lower().strip()
-        lastfm_trackscrobbles = tagsettings[8].lower().strip()
-        lastfm_rank = tagsettings[9].lower().strip()
-        musicbrainz_tags = tagsettings[10].lower().strip() 
-        musicbrainz_area = tagsettings[11].lower().strip() 
-        musicbrainz_date = tagsettings[12].lower().strip() 
-        rym_genretags = tagsettings[13].lower().strip() 
-        rym_albumrating = tagsettings[14].lower().strip() 
+            tagsettings = tagsetting_list[0]
+            spotify_monthlylisteners = tagsettings[2].lower().strip()
+            spotify_genretags = tagsettings[3].lower().strip()
+            lastfm_listeners = tagsettings[4].lower().strip() 
+            lastfm_total_artistplays = tagsettings[5].lower().strip()
+            lastfm_artistscrobbles = tagsettings[6].lower().strip()
+            lastfm_albumscrobbles = tagsettings[7].lower().strip()
+            lastfm_trackscrobbles = tagsettings[8].lower().strip()
+            lastfm_rank = tagsettings[9].lower().strip()
+            musicbrainz_tags = tagsettings[10].lower().strip() 
+            musicbrainz_area = tagsettings[11].lower().strip() 
+            musicbrainz_date = tagsettings[12].lower().strip() 
+            rym_genretags = tagsettings[13].lower().strip() 
+            rym_albumrating = tagsettings[14].lower().strip() 
 
-        tag_settings_dict = {
-                            "spotify_monthlylisteners": spotify_monthlylisteners, 
-                            "spotify_genretags": spotify_genretags, 
-                            "lastfm_listeners": lastfm_listeners, 
-                            "lastfm_total_artistplays": lastfm_total_artistplays, 
-                            "lastfm_artistscrobbles": lastfm_artistscrobbles, 
-                            "lastfm_albumscrobbles": lastfm_albumscrobbles, 
-                            "lastfm_trackscrobbles": lastfm_trackscrobbles, 
-                            "lastfm_rank": lastfm_rank, 
-                            "musicbrainz_tags": musicbrainz_tags, 
-                            "musicbrainz_area": musicbrainz_area, 
-                            "musicbrainz_date": musicbrainz_date, 
-                            "rym_genretags": rym_genretags, 
-                            "rym_albumrating": rym_albumrating,
-                            }
-        tag_services_dict = {
-                            "spotify": False, 
-                            "lastfm": False, 
-                            "musicbrainz": False, 
-                            "rym": False,
-                            }
+            tag_settings_dict = {
+                                "spotify_monthlylisteners": spotify_monthlylisteners, 
+                                "spotify_genretags": spotify_genretags, 
+                                "lastfm_listeners": lastfm_listeners, 
+                                "lastfm_total_artistplays": lastfm_total_artistplays, 
+                                "lastfm_artistscrobbles": lastfm_artistscrobbles, 
+                                "lastfm_albumscrobbles": lastfm_albumscrobbles, 
+                                "lastfm_trackscrobbles": lastfm_trackscrobbles, 
+                                "lastfm_rank": lastfm_rank, 
+                                "musicbrainz_tags": musicbrainz_tags, 
+                                "musicbrainz_area": musicbrainz_area, 
+                                "musicbrainz_date": musicbrainz_date, 
+                                "rym_genretags": rym_genretags, 
+                                "rym_albumrating": rym_albumrating,
+                                }
+            tag_services_dict = {
+                                "spotify": False, 
+                                "lastfm": False, 
+                                "musicbrainz": False, 
+                                "rym": False,
+                                }
 
-        substitute_tags = []
-        for setting in tag_settings_dict:
-            service = setting.split("_")[0]
+            substitute_tags = []
+            for setting in tag_settings_dict:
+                service = setting.split("_")[0]
 
-            if tag_settings_dict[setting] == "on":
-                tag_services_dict[service] = True
-
-            elif tag_settings_dict[setting] == "standard":
-                if np_service.lower() == service:
+                if tag_settings_dict[setting] == "on":
                     tag_services_dict[service] = True
-                    tag_settings_dict[setting] = "on"
-                else:
-                    tag_settings_dict[setting] = "off"
 
-            elif tag_settings_dict[setting] == "callable":
-                if service in called_services:
-                    tag_services_dict[service] = True
-                    tag_settings_dict[setting] = "on"
-                else:
-                    tag_settings_dict[setting] = "off"
+                elif tag_settings_dict[setting] == "standard":
+                    if np_service.lower() == service:
+                        tag_services_dict[service] = True
+                        tag_settings_dict[setting] = "on"
+                    else:
+                        tag_settings_dict[setting] = "off"
 
-            elif tag_settings_dict[setting] == "standard_substitute": # same as standard but also acts as substitute if tags are missing
-                if np_service.lower() == service:
-                    tag_services_dict[service] = True
-                    tag_settings_dict[setting] = "on"
-                else:
-                    tag_settings_dict[setting] = "off"
-                    substitute_tags.append(service)
+                elif tag_settings_dict[setting] == "callable":
+                    if service in called_services:
+                        tag_services_dict[service] = True
+                        tag_settings_dict[setting] = "on"
+                    else:
+                        tag_settings_dict[setting] = "off"
 
-        substitute_tags = list(dict.fromkeys(substitute_tags))
+                elif tag_settings_dict[setting] == "standard_substitute": # same as standard but also acts as substitute if tags are missing
+                    if np_service.lower() == service:
+                        tag_services_dict[service] = True
+                        tag_settings_dict[setting] = "on"
+                    else:
+                        tag_settings_dict[setting] = "off"
+                        substitute_tags.append(service)
 
-        anything_to_fetch = False
-        for service in tag_services_dict:
-            if tag_services_dict[service]:
-                anything_to_fetch = True
+            substitute_tags = list(dict.fromkeys(substitute_tags))
 
-        if not anything_to_fetch and len(substitute_tags) == 0:
-            return ""
+            anything_to_fetch = False
+            for service in tag_services_dict:
+                if tag_services_dict[service]:
+                    anything_to_fetch = True
 
-        # CHECK IF TAGS NEED LABELING
+            if not anything_to_fetch and len(substitute_tags) == 0:
+                return ""
 
-        native_service_tags = tag_services_dict[np_service.lower()]
-        enabled_services_count = 0
-        for tagservice in tag_services_dict:
-            if tag_services_dict[tagservice]:
-                enabled_services_count += 1
+            # CHECK IF TAGS NEED LABELING
 
-        # FETCH TAGS
+            native_service_tags = tag_services_dict[np_service.lower()]
+            enabled_services_count = 0
+            for tagservice in tag_services_dict:
+                if tag_services_dict[tagservice]:
+                    enabled_services_count += 1
 
-        genre_tags = {}
-        listener_stats = []
-        year = ""
-        area = ""
+            # FETCH TAGS
 
-        for tagservice in tag_services_dict:
-            if tag_services_dict[tagservice]:
-                fetching = True
-                if tagservice.lower() == "lastfm" and np_service.lower() == "lastfm":
-                    pass # cooldown was already checked in parent function
-                else:
-                    try:
-                        await util.cooldown(ctx, tagservice)
-                    except Exception as e:
-                        fetching = False
+            genre_tags = {}
+            listener_stats = []
+            year = ""
+            area = ""
 
-                # DO THE ACTUAL TAG FETCHING
+            for tagservice in tag_services_dict:
+                if tag_services_dict[tagservice]:
+                    fetching = True
+                    if tagservice.lower() == "lastfm" and np_service.lower() == "lastfm":
+                        pass # cooldown was already checked in parent function
+                    else:
+                        try:
+                            await util.cooldown(ctx, tagservice)
+                        except Exception as e:
+                            fetching = False
 
-                if fetching:
-                    
-                    if tagservice == "spotify":
-                        if spotify_track_id is None or spotify_track_id == "":
-                            spotify_track_id = await self.fetch_spotify_track_id(artist, album, song)
+                    # DO THE ACTUAL TAG FETCHING
 
-                        if spotify_track_id != "":
-                            g_tags = False
-                            listenertags = False
-                            if tag_settings_dict["spotify_genretags"] == "on":
-                                g_tags = True
-                            if tag_settings_dict["spotify_monthlylisteners"] == "on":
-                                listenertags = True
-                            
-                            genretag_list, ml_string = await self.fetch_spotify_tags(spotify_track_id, g_tags, listenertags)
+                    if fetching:
+                        
+                        if tagservice == "spotify":
+                            if spotify_track_id is None or spotify_track_id == "":
+                                spotify_track_id = await self.fetch_spotify_track_id(artist, album, song)
+
+                            if spotify_track_id != "":
+                                g_tags = False
+                                listenertags = False
+                                if tag_settings_dict["spotify_genretags"] == "on":
+                                    g_tags = True
+                                if tag_settings_dict["spotify_monthlylisteners"] == "on":
+                                    listenertags = True
+                                
+                                genretag_list, ml_string = await self.fetch_spotify_tags(spotify_track_id, g_tags, listenertags)
+
+                                if len(genretag_list) > 0:
+                                    genre_tags["spotify"] = f"{self.tagseparator}".join(genretag_list)
+
+                                if ml_string != "":
+                                    if tagservice != np_service:
+                                        new_ml_string = ml_string.split("monthly")[0] + "monthly spoofy listeners"
+                                        listener_stats.append(new_ml_string.strip())
+                                    else:
+                                        listener_stats.append(ml_string.strip())
+
+                        elif tagservice == "lastfm":
+                            lfm_listeners = False
+                            lfm_playcount = False
+                            if tag_settings_dict["lastfm_listeners"] == "on":
+                                lfm_listeners = True
+                            if tag_settings_dict["lastfm_total_artistplays"] == "on":
+                                lfm_playcount = True
+
+                            if lfm_listeners or lfm_playcount:
+                                if np_service.lower() == "lastfm":
+                                    cooldown = False
+                                else:
+                                    cooldown = True
+                                try:
+                                    listeners, total_scrobbles = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
+                                except Exception as e:
+                                    print(f"Probably no Last.fm API credentials, switching to Web Scraping information.\n(Exception message: {e})")
+                                    listeners, total_scrobbles = await self.fetch_lastfm_data_via_web(ctx, artist, cooldown)
+
+                                if listeners.strip() != "" and lfm_listeners:
+                                    listeners_readable = util.shortnum(listeners)
+                                    listener_stats.append(f"{listeners_readable} lfm listeners")
+
+                                if total_scrobbles.strip() != "" and lfm_playcount:
+                                    total_scrobbles_readable = util.shortnum(total_scrobbles)
+                                    listener_stats.append(f"{total_scrobbles_readable} total scrobbles")
+
+
+                        elif tagservice == "musicbrainz":
+                            #under construction
+
+                            if tag_settings_dict['musicbrainz_date'] == "on":
+                                checkyear = True
+                            else:
+                                checkyear = False
+                            if tag_settings_dict['musicbrainz_area'] == "on":
+                                checkarea = True
+                            else:
+                                checkarea = False
+                            if tag_settings_dict['musicbrainz_tags'] == "on":
+                                checktags = True
+                            else:
+                                checktags = False
+                            cooldown = False
+                            mbid, genretag_list, year, area = await self.fetch_musicbrainz_tags(ctx, mbid, artist, album, song, checkyear, checkarea, checktags, cooldown)
 
                             if len(genretag_list) > 0:
-                                genre_tags["spotify"] = f"{self.tagseparator}".join(genretag_list)
+                                genre_tags["musicbrainz"] = f"{self.tagseparator}".join(genretag_list)
 
-                            if ml_string != "":
-                                if tagservice != np_service:
-                                    new_ml_string = ml_string.split("monthly")[0] + "monthly spoofy listeners"
-                                    listener_stats.append(new_ml_string.strip())
-                                else:
-                                    listener_stats.append(ml_string.strip())
+                        elif tagservice == "rym":
+                            #under construction
+                            pass
 
-                    elif tagservice == "lastfm":
-                        lfm_listeners = False
-                        lfm_playcount = False
-                        if tag_settings_dict["lastfm_listeners"] == "on":
-                            lfm_listeners = True
-                        if tag_settings_dict["lastfm_total_artistplays"] == "on":
-                            lfm_playcount = True
-
-                        if lfm_listeners or lfm_playcount:
-                            if np_service.lower() == "lastfm":
-                                cooldown = False
-                            else:
-                                cooldown = True
-                            try:
-                                try:
-                                    mbid = musicbrainz_ids[0] # artist mbid
-                                except:
-                                    mbid = None
-                                listeners, total_scrobbles = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
-                            except Exception as e:
-                                print(f"Probably no Last.fm API credentials, switching to Web Scraping information.\n(Exception message: {e})")
-                                listeners, total_scrobbles = await self.fetch_lastfm_data_via_web(ctx, artist, cooldown)
-
-                            if listeners.strip() != "" and lfm_listeners:
-                                listeners_readable = util.shortnum(listeners)
-                                listener_stats.append(f"{listeners_readable} lfm listeners")
-
-                            if total_scrobbles.strip() != "" and lfm_playcount:
-                                total_scrobbles_readable = util.shortnum(total_scrobbles)
-                                listener_stats.append(f"{total_scrobbles_readable} total scrobbles")
-
-
-                    elif tagservice == "musicbrainz":
-                        #under construction
-                        try:
-                            mbid = musicbrainz_ids[0] # artist mbid
-                        except:
-                            mbid = None
-
-                        if tag_settings_dict['musicbrainz_date'] == "on":
-                            checkyear = True
                         else:
-                            checkyear = False
-                        if tag_settings_dict['musicbrainz_area'] == "on":
-                            checkarea = True
-                        else:
-                            checkarea = False
-                        if tag_settings_dict['musicbrainz_tags'] == "on":
-                            checktags = True
-                        else:
-                            checktags = False
+                            print(f"Error: tag service {tagservice} unknown")
+
+            # SUBSTITUTE TAGS
+
+            if len(genre_tags) == 0 and len(substitute_tags) > 0: # if no genre tags found, try substitutes
+                print("searching for substitute tags...")
+                for setting in substitute_tags:
+                    if setting == "musicbrainz":
+                        checkyear = False
+                        checkarea = False
+                        checktags = True
                         cooldown = False
                         mbid, genretag_list, year, area = await self.fetch_musicbrainz_tags(ctx, mbid, artist, album, song, checkyear, checkarea, checktags, cooldown)
 
                         if len(genretag_list) > 0:
                             genre_tags["musicbrainz"] = f"{self.tagseparator}".join(genretag_list)
 
-                    elif tagservice == "rym":
-                        #under construction
-                        pass
+                        if len(genre_tags) > 0:
+                            break
 
-                    else:
-                        print(f"Error: tag service {tagservice} unknown")
+            # TAG DICT TO STRING
 
-        # SUBSTITUTE TAGS
+            genre_tag_string = ""
 
-        if len(genre_tags) == 0 and len(substitute_tags) > 0: # if no genre tags found, try substitutes
-            print("searching for substitute tags...")
-            for setting in substitute_tags:
-                if setting == "musicbrainz":
-                    checkyear = False
-                    checkarea = False
-                    checktags = True
-                    cooldown = False
-                    mbid, genretag_list, year, area = await self.fetch_musicbrainz_tags(ctx, mbid, artist, album, song, checkyear, checkarea, checktags, cooldown)
+            if len(genre_tags) > 1 or (len(genre_tags) == 1 and np_service not in genre_tags):
+                for service in genre_tags:
+                    if service == "spotify":
+                        genre_tag_string += "\nSpoofy: " + genre_tags["spotify"]
 
-                    if len(genretag_list) > 0:
-                        genre_tags["musicbrainz"] = f"{self.tagseparator}".join(genretag_list)
+                    elif service == "musicbrainz":
+                        genre_tag_string += "\nMB: " + genre_tags["musicbrainz"]
 
-                    if len(genre_tags) > 0:
-                        break
+                    elif service == "rym":
+                        genre_tag_string += "\nRYM: " + genre_tags["rym"]
 
-        # TAG DICT TO STRING
+            else:
+                for service in genre_tags:
+                    genre_tag_string += "\n" + genre_tags["spotify"]
 
-        genre_tag_string = ""
+            # FINISH UP
 
-        if len(genre_tags) > 1 or (len(genre_tags) == 1 and np_service not in genre_tags):
-            for service in genre_tags:
-                if service == "spotify":
-                    genre_tag_string += "\nSpoofy: " + genre_tags["spotify"]
+            art_info = []
+            if area.strip() != "":
+                art_info.append(area.strip())
+            if year.strip() != "":
+                art_info.append(year.strip())
+            listener_stats_string = f"{self.tagseparator}".join(listener_stats + art_info).strip()
 
-                elif service == "musicbrainz":
-                    genre_tag_string += "\nMB: " + genre_tags["musicbrainz"]
-
-                elif service == "rym":
-                    genre_tag_string += "\nRYM: " + genre_tags["rym"]
-
-        else:
-            for service in genre_tags:
-                genre_tag_string += "\n" + genre_tags["spotify"]
-
-        # FINISH UP
-
-        art_info = []
-        if area.strip() != "":
-            art_info.append(area.strip())
-        if year.strip() != "":
-            art_info.append(year.strip())
-        listener_stats_string = f"{self.tagseparator}".join(listener_stats + art_info).strip()
-
-        if genre_tag_string.strip() == "" and (tag_settings_dict["spotify_genretags"] == "on" or tag_settings_dict["musicbrainz_tags"] == "on" or tag_settings_dict["rym_genretags"] == "on"):
-            genre_tag_string = "\nno genre tags found"
-        tag_string = listener_stats_string + genre_tag_string
-        if len(tag_string) > 2048:
-            tag_string = tag_string[:2045] + "..."
-        return tag_string[:2048]
+            if genre_tag_string.strip() == "" and (tag_settings_dict["spotify_genretags"] == "on" or tag_settings_dict["musicbrainz_tags"] == "on" or tag_settings_dict["rym_genretags"] == "on"):
+                genre_tag_string = "\nno genre tags found"
+            tag_string = listener_stats_string + genre_tag_string
+            if len(tag_string) > 2048:
+                tag_string = tag_string[:2045] + "..."
+            return tag_string[:2048]
 
 
 
