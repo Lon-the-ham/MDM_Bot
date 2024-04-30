@@ -1037,8 +1037,13 @@ class Music_NowPlaying(commands.Cog):
 
                 soup = BeautifulSoup(response.text, "html.parser")
                 htmltags = soup.find('script', type="application/json")
-                #print(htmltags.text)
-                rjson = json.loads(htmltags.text)
+
+                try:
+                    rjson = json.loads(htmltags.text)
+                except:
+                    print("trying manual parse...")
+                    manualparse = response.text.split('<script type="application/json">')[1].split('</script>')[0].strip()
+                    rjson = json.loads(manualparse)
 
                 tag_dict = {}
                 maximal_count = 0
