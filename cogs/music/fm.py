@@ -16,7 +16,6 @@ from spotipy.oauth2 import SpotifyClientCredentials
 from emoji import UNICODE_EMOJI
 
 
-
 class Music_NowPlaying(commands.Cog):
     def __init__(self, bot: commands.bot) -> None:
         self.bot = bot
@@ -1030,39 +1029,44 @@ class Music_NowPlaying(commands.Cog):
 
         if checktags:
             print("check MB tags...")
-            session = requests.session()
-            burp0_url = f"https://musicbrainz.org:443/artist/{mbid}/tags"
-            burp0_headers = {"Sec-Ch-Ua": "\"Chromium\";v=\"123\", \"Not:A-Brand\";v=\"8\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.58 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate, br", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Priority": "u=0, i", "Connection": "close"}
-            response = session.get(burp0_url, headers=burp0_headers)
+            try:
+                session = requests.session()
+                burp0_url = f"https://musicbrainz.org:443/artist/{mbid}/tags"
+                burp0_headers = {"Sec-Ch-Ua": "\"Chromium\";v=\"123\", \"Not:A-Brand\";v=\"8\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.58 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate, br", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Priority": "u=0, i", "Connection": "close"}
+                response = session.get(burp0_url, headers=burp0_headers)
 
-            soup = BeautifulSoup(response.text, "html.parser")
-            htmltags = soup.find('script', type="application/json")
-            rjson = json.loads(htmltags.text)['aggregatedTags']
+                soup = BeautifulSoup(response.text, "html.parser")
+                htmltags = soup.find('script', type="application/json")
+                #print(htmltags.text)
+                rjson = json.loads(htmltags.text)
 
-            tag_dict = {}
-            maximal_count = 0
-            for item in rjson:
-                #print(item)
-                try:
-                    tagname = item['tag']['name']
-                    is_genre = item['tag']['genre']
-                    votecount = int(item['count'])
-                    print(f"found tag: {tagname} - {votecount}")
-                    if tagname not in tag_dict:
-                        tag_dict[tagname] = votecount
-                    if votecount > maximal_count:
-                        maximal_count = votecount
-                except:
-                    pass
+                tag_dict = {}
+                maximal_count = 0
+                for item in rjson['aggregatedTags']:
+                    #print(item)
+                    try:
+                        tagname = item['tag']['name']
+                        is_genre = item['tag']['genre']
+                        votecount = int(item['count'])
+                        print(f"found tag: {tagname} - {votecount}")
+                        if tagname not in tag_dict:
+                            tag_dict[tagname] = votecount
+                        if votecount > maximal_count:
+                            maximal_count = votecount
+                    except:
+                        pass
 
-            i = 0
-            for tag in tag_dict:
-                i += 1
-                if tag_dict[tag] > 0 and tag_dict[tag] >= maximal_count/2:
-                    tags.append(tag)
+                i = 0
+                for tag in tag_dict:
+                    i += 1
+                    if tag_dict[tag] > 0 and tag_dict[tag] >= maximal_count/2:
+                        tags.append(tag)
 
-                if i > 9: # maximum of 10 tags
-                    break
+                    if i > 9: # maximum of 10 tags
+                        break
+            except Exception as e:
+                print("Error:", e)
+                return mbid, tags, year, area
 
         return mbid, tags, year, area
 
