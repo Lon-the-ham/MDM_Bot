@@ -27,7 +27,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def musicbee_activity(self, ctx, member, tags, called_services):
+    async def musicbee_activity(self, ctx, member, show_tags, called_services):
         for activity in member.activities:
             if str(activity.type) == "ActivityType.playing" and activity.name == "MusicBee":
 
@@ -75,6 +75,14 @@ class Music_NowPlaying(commands.Cog):
                     except Exception as e:
                         print(f"could not find image: {e}")
 
+                # HANDLE TAGS
+                if show_tags:
+                    tag_string = await self.fetch_tags(ctx, "musicbee", artist, album, song, None, None, called_services)
+                    try:
+                        embed.set_footer(text = tag_string)
+                    except Exception as e:
+                        print("Error while creating footer for musicbee np: ", e)
+
                 message = await ctx.send(embed=embed)
                 return message
         else:
@@ -82,7 +90,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def applemusic_activity(self, ctx, member, tags, called_services):
+    async def applemusic_activity(self, ctx, member, show_tags, called_services):
         activity_list = []
         for activity in member.activities:
             try:
@@ -124,6 +132,14 @@ class Music_NowPlaying(commands.Cog):
                         embed.set_thumbnail(url=activity.small_image_url)
                     except Exception as e:
                         print(f"could not find image: {e}")
+
+                # HANDLE TAGS
+                if show_tags:
+                    tag_string = await self.fetch_tags(ctx, "applemusic", artist, album, song, None, None, called_services)
+                    try:
+                        embed.set_footer(text = tag_string)
+                    except Exception as e:
+                        print("Error while creating footer for applemusic np: ", e)
 
                 message = await ctx.send(embed=embed)
                 return message
@@ -393,10 +409,10 @@ class Music_NowPlaying(commands.Cog):
             tagsetting_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7],item[8],item[9],item[10],item[11],item[12],item[13],item[14],item[15]] for item in cur.execute("SELECT id, name, spotify_monthlylisteners, spotify_genretags, lastfm_listeners, lastfm_total_artistplays, lastfm_artistscrobbles, lastfm_albumscrobbles, lastfm_trackscrobbles, lastfm_rank, musicbrainz_tags, musicbrainz_area , musicbrainz_date , rym_genretags, rym_albumrating, lastfm_tags FROM tagsettings WHERE id = ?", (user_id,)).fetchall()]
             if len(tagsetting_list) == 0:
                 username = util.cleantext2(str(ctx.message.author.name))
-                cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "standard_substitute", "off", "off", "off", "off"))
+                cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard", "standard_substitute", "off", "off", "off", "off"))
                 con.commit()
                 await util.changetimeupdate()
-                tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "standard_substitute", "off", "off", "off", "off"]]
+                tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard", "standard_substitute", "off", "off", "off", "off"]]
 
             # CHECK WHICH TAGS TO FETCH
 
@@ -478,14 +494,6 @@ class Music_NowPlaying(commands.Cog):
             if not anything_to_fetch and len(substitute_tags) == 0:
                 return ""
 
-            # CHECK IF TAGS NEED LABELING
-
-            native_service_tags = tag_services_dict[np_service.lower()]
-            enabled_services_count = 0
-            for tagservice in tag_services_dict:
-                if tag_services_dict[tagservice]:
-                    enabled_services_count += 1
-
             # FETCH TAGS
 
             genre_tags = {}
@@ -535,10 +543,13 @@ class Music_NowPlaying(commands.Cog):
                         elif tagservice == "lastfm":
                             lfm_listeners = False
                             lfm_playcount = False
+                            lfm_tags = False
                             if tag_settings_dict["lastfm_listeners"] == "on":
                                 lfm_listeners = True
                             if tag_settings_dict["lastfm_total_artistplays"] == "on":
                                 lfm_playcount = True
+                            if tag_settings_dict["lastfm_tags"] == "on":
+                                lfm_tags = True
 
                             if lfm_listeners or lfm_playcount:
                                 if np_service.lower() == "lastfm":
@@ -546,10 +557,10 @@ class Music_NowPlaying(commands.Cog):
                                 else:
                                     cooldown = True
                                 try:
-                                    listeners, total_scrobbles = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
+                                    listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
                                 except Exception as e:
                                     print(f"Probably no Last.fm API credentials, switching to Web Scraping information.\n(Exception message: {e})")
-                                    listeners, total_scrobbles = await self.fetch_lastfm_data_via_web(ctx, artist, cooldown)
+                                    listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_web(ctx, artist, cooldown)
 
                                 if listeners.strip() != "" and lfm_listeners:
                                     listeners_readable = util.shortnum(listeners)
@@ -559,6 +570,8 @@ class Music_NowPlaying(commands.Cog):
                                     total_scrobbles_readable = util.shortnum(total_scrobbles)
                                     listener_stats.append(f"{total_scrobbles_readable} total scrobbles")
 
+                                if lfm_tags and len(lfm_genre_tag_list) > 0:
+                                    genre_tags["lastfm"] = f"{self.tagseparator}".join(lfm_genre_tag_list)
 
                         elif tagservice == "musicbrainz":
                             if tag_settings_dict['musicbrainz_date'] == "on":
@@ -610,18 +623,25 @@ class Music_NowPlaying(commands.Cog):
 
             if len(genre_tags) > 1 or (len(genre_tags) == 1 and np_service not in genre_tags):
                 for service in genre_tags:
-                    if service == "spotify":
+                    if service == "spotify" and genre_tags["spotify"].strip() != "":
                         genre_tag_string += "\nSpoofy: " + genre_tags["spotify"]
 
-                    elif service == "musicbrainz":
+                    elif service == "lastfm" and genre_tags["lastfm"].strip() != "":
+                        genre_tag_string += "\nLFM: " + genre_tags["lastfm"]
+
+                    elif service == "musicbrainz" and genre_tags["musicbrainz"].strip() != "":
                         genre_tag_string += "\nMB: " + genre_tags["musicbrainz"]
 
-                    elif service == "rym":
+                    elif service == "rym" and genre_tags["rym"].strip() != "":
                         genre_tag_string += "\nRYM: " + genre_tags["rym"]
 
+                if genre_tag_string.strip() == "":
+                    genre_tag_string = "\nno genre tags found"
             else:
                 for service in genre_tags:
-                    genre_tag_string += "\n" + genre_tags["spotify"]
+                    genre_tag_string += "\n" + genre_tags[service]
+                    if genre_tags[service].strip() == "":
+                        genre_tag_string = "\nno genre tags found" # only do that if there actually was a service that looked for tags
 
             # FINISH UP
 
@@ -632,7 +652,7 @@ class Music_NowPlaying(commands.Cog):
                 art_info.append(year.strip())
             listener_stats_string = f"{self.tagseparator}".join(listener_stats + art_info).strip()
 
-            if genre_tag_string.strip() == "" and (tag_settings_dict["spotify_genretags"] == "on" or tag_settings_dict["musicbrainz_tags"] == "on" or tag_settings_dict["rym_genretags"] == "on"):
+            if genre_tag_string.strip() == "" and (tag_settings_dict["spotify_genretags"] == "on" or tag_settings_dict["musicbrainz_tags"] == "on" or tag_settings_dict["rym_genretags"] == "on" or tag_settings_dict["lastfm_tags"] == "on"):
                 genre_tag_string = "\nno genre tags found"
             tag_string = listener_stats_string + genre_tag_string
             if len(tag_string) > 2048:
@@ -885,8 +905,25 @@ class Music_NowPlaying(commands.Cog):
 
         LFM_listeners = rjson['artist']['stats']['listeners']
         LFM_playcount = rjson['artist']['stats']['playcount']
+        #print("LFM listeners:", LFM_listeners)
+        #print("LFM playcount:", LFM_playcount)
 
-        return LFM_listeners, LFM_playcount
+        genre_tags = []
+        tag_json = rjson['artist']['tags']['tag']
+        i = 0
+        for tag in tag_json:
+            try:
+                if util.alphanum(tag['name'],"lower") == util.alphanum(artistname,"lower"):
+                    pass
+                else:
+                    genre_tags.append(tag['name'].lower())
+                    i += 1
+                    if i > 10:
+                        break
+            except:
+                pass
+
+        return LFM_listeners, LFM_playcount, genre_tags
 
 
 
@@ -926,10 +963,10 @@ class Music_NowPlaying(commands.Cog):
                 except Exception as e:
                     print(e)
 
-            return listeners, total_scrobbles
+            return listeners, total_scrobbles, []
 
         except:
-            return "", ""
+            return "", "", []
 
 
 
@@ -1071,23 +1108,6 @@ class Music_NowPlaying(commands.Cog):
 
         return mbid, tags, year, area
 
-
-
-    @commands.command(name='ttest')
-    @commands.check(util.is_active)
-    async def _ttest(self, ctx):
-        """test
-        """    
-        mbid = ""
-        artist = "Morbid Dystopia"
-        album = "Lurking Atrocity Demo"
-        song = "Deathspotism"
-        
-        await self.fetch_musicbrainz_tags(ctx, mbid, artist, album, song, True, True, True)
-        
-    @_ttest.error
-    async def ttest_error(self, ctx, error):
-        await util.error_handling(ctx, error)
 
 
     #################################################################################################################################
@@ -1436,81 +1456,120 @@ class Music_NowPlaying(commands.Cog):
 
 
     async def fakenowplaying(self, ctx, args, tags):
-        argument = ' '.join(args)
-        number_hyphens = argument.count("-")
+        async with ctx.typing():
+            argument = ' '.join(args)
+            number_hyphens = argument.count("-")
 
-        if number_hyphens == 0:
-            await ctx.send(f"Error: Could not parse artist and track. Please use a hyphen as separator.")
-            return
-        else:
-            if number_hyphens == 1:
-                artist = argument.split("-")[0].strip()
-                track = argument.split("-")[1].strip()
+            if number_hyphens == 0:
+                await ctx.send(f"Error: Could not parse artist and track. Please use a hyphen as separator.")
+                return
             else:
-                number_spacehyphens = argument.count(" - ")
-                if number_spacehyphens == 1:
-                    artist = argument.split(" - ")[0].strip()
-                    track = argument.split(" - ")[1].strip()
-                else:
-                    # unsure about parsing
+                if number_hyphens == 1:
                     artist = argument.split("-")[0].strip()
-                    track = "-".join(argument.split("-")[1:]).strip()
-                    print(f"Warning: uncertain parsing")
+                    track = argument.split("-")[1].strip()
+                else:
+                    number_spacehyphens = argument.count(" - ")
+                    if number_spacehyphens == 1:
+                        artist = argument.split(" - ")[0].strip()
+                        track = argument.split(" - ")[1].strip()
+                    else:
+                        # unsure about parsing
+                        artist = argument.split("-")[0].strip()
+                        track = "-".join(argument.split("-")[1:]).strip()
+                        print(f"Warning: uncertain parsing")
 
-        # FETCH INFO FROM API
-
-        payload = {
-            'method': 'track.search',
-            'track': track,
-            'artist': artist,
-            'limit': "1",
-        }
-        cooldown = True
-        response = await util.lastfm_get(ctx, payload, cooldown)
-        if response == "rate limit":
-            print("rate limit")
-            return
-
-        try:
-            # PARSE JSON
-
-            rjson = response.json()
-            trackjson = rjson['results']['trackmatches']['track'][0]
-            track = trackjson['name']
-            artist = trackjson['artist']
-            song_link = trackjson['url']
-            albumart = rjson['results']['trackmatches']['track'][-1]['#text']
-
-            # MAKE EMBED
-
-            member = ctx.message.author
-            description = f"[{track}]({song_link})\nby **{util.cleantext2(artist)}** | {album}"
-            embed = discord.Embed(description=description, color = member.color)
-            embed.set_author(name=f"{member.display_name}'s fakenowplaying" , icon_url=member.avatar)
             try:
-                embed.set_thumbnail(url=albumart)
-            except Exception as e:
-                print(e)
+                # FETCH TRACK FROM LASTFM API
 
-            # HANDLE TAGS
-
-            if show_tags:
-                tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, [], [])
+                payload = {
+                    'method': 'track.getInfo',
+                    'track': track,
+                    'artist': artist,
+                }
+                cooldown = True
                 try:
-                    if tag_string != "":
-                        embed.set_footer(text = tag_string)
+                    response = await util.lastfm_get(ctx, payload, cooldown)
+                    if response == "rate limit":
+                        print("rate limit")
+                        return
                 except Exception as e:
-                    print("Error while creating footer for spotify tags and listener stats: ", e)
+                    print("Error:", e)
+                    if str(e) == "No LastFM keys provided":
+                        await ctx.send("Error: No LastFM API key provided to search for artist and track. Ask mods to add one to the bot's environment file.")
 
-            message = await ctx.send(embed=embed)
-            return message
-        except Exception as e:
-            print("Error:", e)
-            await ctx.send(f"Error: Could not find track on LastFM.")
+                # PARSE JSON
+
+                rjson = response.json()['track']
+                track = rjson['name']
+                song_link = rjson['url']
+                artist = rjson['artist']['name']
+                mbid = rjson['artist']['mbid']
+                album = rjson['album']['title']
+            
+                try:
+                    albumart = rjson['album']['image'][-1]['#text']
+                except:
+                    albumart = ""
+
+                tag_string = ""
+                if tags:
+                    try:
+                        genre_tags = []
+                        tag_json = rjson['toptags']['tag'] 
+                        i = 0
+                        for tag in tag_json:
+                            try:
+                                if util.alphanum(tag['name'],"lower") == util.alphanum(artist,"lower"):
+                                    pass
+                                else:
+                                    genre_tags.append(tag['name'].lower())
+                                    i += 1
+                                    if i > 9:
+                                        break
+                            except:
+                                pass
+
+                        if len(genre_tags) > 0:
+                            genre_tag_string = "LFM: " + f"{self.tagseparator}".join(genre_tags)
+                        else:
+                            genre_tag_string = "LFM: no genre tags found"
+
+                        cooldown = False
+                        listeners, total_scrobbles, artist_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
+
+                        listener_tags = []
+                        if str(listeners).strip() != "":
+                            listener_tags.append(f"{util.shortnum(listeners)} lfm listeners")
+                        if str(total_scrobbles).strip() != "":
+                            listener_tags.append(f"{util.shortnum(total_scrobbles)} total scrobbles")
+
+                        tag_string += f"{self.tagseparator}".join(listener_tags)
+                        tag_string += f"\n{genre_tag_string}"
+                    except Exception as e:
+                        print("Error:", e)
+
+                # MAKE EMBED
+
+                member = ctx.message.author
+                description = f"[{track}]({song_link})\nby **{util.cleantext2(artist)}** | {album}"
+                embed = discord.Embed(description=description, color = member.color)
+                embed.set_author(name=f"{member.display_name}'s fakenowplaying" , icon_url=member.avatar)
+                try:
+                    embed.set_thumbnail(url=albumart)
+                except Exception as e:
+                    print(e)
+                if tags:
+                    embed.set_footer(text=tag_string)
+
+                message = await ctx.send(embed=embed)
+                return message
+            except Exception as e:
+                print("Error:", e)
+                await ctx.send(f"Error: Could not find track on LastFM.")
 
 
 
-    @commands.command(name='fakenowplaying', aliases = ['fnp', 'fakenp'])
+    @commands.command(name='fakenowplaying', aliases = ['fnp', 'fakenp', 'fakeplaying', 'fake', 'fp'])
     @commands.check(util.is_active)
     async def _fakenowplaying(self, ctx: commands.Context, *args):
         """now playing by giving artist and song, gives out embed 
@@ -1523,7 +1582,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    @commands.command(name='fnpx', aliases = ['fakenowplayingx', 'fakenpx'])
+    @commands.command(name='fnpx', aliases = ['fakenowplayingx', 'fakenpx', 'fakeplayingx', 'fakex', 'fpx'])
     @commands.check(util.is_active)
     async def _fakenowplaying_extra(self, ctx: commands.Context, *args):
         """now playing by giving artist and song, gives out embed with tags
