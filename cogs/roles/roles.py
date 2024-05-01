@@ -623,7 +623,7 @@ class Roles(commands.Cog):
 
         embed = discord.Embed(title=header, description=msg, color=0xFF8C00)
         embed.set_footer(text = f"found {len(members_w_t_role)} members")
-        await ctx.send(embed=embed)   
+        await ctx.send(embed=embed)
     @_whohasrole.error
     async def whohasrole_error(self, ctx, error):
         await util.error_handling(ctx, error)
