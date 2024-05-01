@@ -409,10 +409,10 @@ class Music_NowPlaying(commands.Cog):
             tagsetting_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7],item[8],item[9],item[10],item[11],item[12],item[13],item[14],item[15]] for item in cur.execute("SELECT id, name, spotify_monthlylisteners, spotify_genretags, lastfm_listeners, lastfm_total_artistplays, lastfm_artistscrobbles, lastfm_albumscrobbles, lastfm_trackscrobbles, lastfm_rank, musicbrainz_tags, musicbrainz_area , musicbrainz_date , rym_genretags, rym_albumrating, lastfm_tags FROM tagsettings WHERE id = ?", (user_id,)).fetchall()]
             if len(tagsetting_list) == 0:
                 username = util.cleantext2(str(ctx.message.author.name))
-                cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard", "standard_substitute", "off", "off", "off", "off"))
+                cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "standard_substitute", "off", "off", "off", "off"))
                 con.commit()
                 await util.changetimeupdate()
-                tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard", "standard_substitute", "off", "off", "off", "off"]]
+                tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "standard_substitute", "off", "off", "off", "off"]]
 
             # CHECK WHICH TAGS TO FETCH
 
@@ -493,6 +493,9 @@ class Music_NowPlaying(commands.Cog):
 
             if not anything_to_fetch and len(substitute_tags) == 0:
                 return ""
+
+            print(tag_services_dict)
+            print(substitute_tags)
 
             # FETCH TAGS
 
@@ -604,7 +607,18 @@ class Music_NowPlaying(commands.Cog):
             if len(genre_tags) == 0 and len(substitute_tags) > 0: # if no genre tags found, try substitutes
                 print("searching for substitute tags...")
                 for setting in substitute_tags:
-                    if setting == "musicbrainz":
+                    if setting == "lastfm":
+                        cooldown = False
+                        listeners, total_scrobbles, artist_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
+
+                        if len(artist_genre_tag_list) > 0:
+                            genre_tags["lastfm"] = f"{self.tagseparator}".join(artist_genre_tag_list)
+                            #print(genre_tags["lastfm"])
+
+                        if genre_tags["lastfm"].strip() != "":
+                            break
+
+                    elif setting == "musicbrainz":
                         checkyear = False
                         checkarea = False
                         checktags = True
@@ -613,9 +627,16 @@ class Music_NowPlaying(commands.Cog):
 
                         if len(genretag_list) > 0:
                             genre_tags["musicbrainz"] = f"{self.tagseparator}".join(genretag_list)
+                            #print(genre_tags["musicbrainz"])
 
-                        if len(genre_tags) > 0:
+                        if genre_tags["musicbrainz"].strip() != "":
                             break
+
+                    elif setting == "spotify":
+                        pass # under construction
+
+                    elif setting == "rym":
+                        pass # under construction
 
             # TAG DICT TO STRING
 
@@ -1078,6 +1099,7 @@ class Music_NowPlaying(commands.Cog):
                     manualparse = response.text.split('<script type="application/json">')[1].split('</script>')[0].strip()
                     rjson = json.loads(manualparse)
 
+                #print(rjson['aggregatedTags'])
                 tag_dict = {}
                 maximal_count = 0
                 for item in rjson['aggregatedTags']:
@@ -1547,7 +1569,12 @@ class Music_NowPlaying(commands.Cog):
                         tag_string += f"\n{genre_tag_string}"
                     except Exception as e:
                         print("Error:", e)
+            except Exception as e:
+                print("Error:", e)
+                await ctx.send(f"Error while trying to retrieve data from LastFM.")
+                return
 
+            try:
                 # MAKE EMBED
 
                 member = ctx.message.author
@@ -1563,9 +1590,11 @@ class Music_NowPlaying(commands.Cog):
 
                 message = await ctx.send(embed=embed)
                 return message
+
+                await self.add_np_reactions(ctx, message, the_member)
             except Exception as e:
                 print("Error:", e)
-                await ctx.send(f"Error: Could not find track on LastFM.")
+                await ctx.send(f"Error while trying to make embed.")
 
 
 
