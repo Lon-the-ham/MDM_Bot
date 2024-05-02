@@ -2877,9 +2877,13 @@ class General_Utility(commands.Cog):
         response = requests.get(url, headers=headers, params=payload)
         rjson = response.json()
 
+        bad_urls = [
+            "https://lookaside.", # facebook and instagram pictures
+        ]
+
         try:
             for item in rjson['items']:
-                if item['link'].startswith("https://lookaside.fbsbx.com"): #facebook links don't work well with discord
+                if any([item['link'].startswith(x) for x in bad_urls]): #some links don't work well with discord
                     continue
                 await ctx.send(item['link'])
                 break
