@@ -273,6 +273,16 @@ class Event_Response(commands.Cog):
             return
         print(f"{user.name} left main server")
 
+        # REMOVE USER FROM USER ACTIVITY LIST
+
+        try:
+            conUA = sqlite3.connect('databases/useractivity.db')
+            curUA = conUA.cursor()
+            curUA.execute("DELETE FROM useractivity WHERE userid = ?", (str(user.id),))
+            conUA.commit()
+        except Exception as e:
+            print("Error:", e)
+
         # CHECK IF SERVER LEAVE NOTIFICATION IS ENABLED
 
         if not self.setting_enabled("join/leave server notification"):

@@ -1075,6 +1075,7 @@ class TimeLoops(commands.Cog):
         users_and_times = [[item[0],item[1],item[2]] for item in curUA.execute("SELECT userid, last_active, join_time FROM useractivity").fetchall()]
 
         new_inactives_mention_list = []
+        error_users = []
         error_count = 0
         sleep_count = 0
 
@@ -1111,6 +1112,7 @@ class TimeLoops(commands.Cog):
                 new_inactives_mention_list.append(f"<@{str(user.id)}>")
             except Exception as e:
                 error_count += 1
+                error_users.append(f"<@{user.id}>")
                 print(f"Error with user {user.name}:", e)
                 continue
 
@@ -1125,7 +1127,8 @@ class TimeLoops(commands.Cog):
             message += ', '.join(new_inactives_mention_list) + "\n"
             if error_count > 0:
                 all_good = False
-                message += f"Error with {error_count} users. These users are probably higher in role hierarchy than this bot."
+                message += f"Error with {error_count} users. These users are probably higher in role hierarchy than this bot:\n"
+                message += ', '.join(error_users)
             else:
                 all_good = True
             title = "Inactivity Filter"
