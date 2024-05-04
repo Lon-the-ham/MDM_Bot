@@ -119,12 +119,16 @@ class Help(commands.Cog):
                     title = f""
                     command = self.bot.get_command(argument)
 
-                    description = f"**{command.name}**"
+                    description = f"**{str(command.name)}**"
                     if command.aliases:
                         description += f"   [aliases: " + ', '.join(command.aliases) + "]\n\n"
                     else:
                         description += "\n\n"
-                    description += command.help
+
+                    if command.help is None:
+                        description += "`Error: Lon forgot to add a desciption lmao`"
+                    else:
+                        description += str(command.help)
 
                 else:
                     # If argument is a subcommand, get the help text from that subcommand:
