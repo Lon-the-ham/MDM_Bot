@@ -5,6 +5,8 @@ import pytz
 from other.utils.utils import Utils as util
 import os
 import asyncio
+import math
+import random
 
 
 class Music_Exchange(commands.Cog):
