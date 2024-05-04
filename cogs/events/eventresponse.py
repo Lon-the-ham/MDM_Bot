@@ -1156,10 +1156,16 @@ class Event_Response(commands.Cog):
             main_server = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id", )).fetchall()]
             server_id = str(payload.guild_id)
 
-            channel = self.bot.get_channel(payload.channel_id)
-            message = await channel.fetch_message(payload.message_id)
+            channel_id = payload.channel_id
+            message_id = payload.message_id
+
             react = payload.emoji.name
             user = payload.member
+            user_id = payload.user_id
+
+            channel = self.bot.get_channel(channel_id)
+            message = await channel.fetch_message(message_id)
+            message_author_id = message.author.id
 
             # RETRIEVE CHANNELS
 
@@ -1203,8 +1209,10 @@ class Event_Response(commands.Cog):
             # GET TO ACTION
             # 1. REACTION OUTSIDE ROLE CHANNEL (SUGGESTIONS / PINGTERESTS / TAG REMINDERS)
 
-            if not reactionrole_enabled or str(channel.id) != rolechannel_id:
-                if (str(message.author.id) in application_list) and (str(user.id) not in application_list): # message by bot, reaction not by bot
+            if not reactionrole_enabled or str(channel_id) != rolechannel_id:
+                
+                if (str(message_author_id) in application_list) and (str(user_id) not in application_list): # message by bot, reaction not by bot
+
                     if message.embeds:   #check if list is not empty
                         embed = message.embeds[0]
 
@@ -1342,7 +1350,7 @@ class Event_Response(commands.Cog):
 
             if turingtest_enabled:
 
-                if str(channel.id) == ruleschannel_id: # turing test channel
+                if str(channel_id) == ruleschannel_id: # turing test channel
 
                     # CHECK MESSAGE ID
                     rulesmsg_id = ""
@@ -1354,7 +1362,7 @@ class Event_Response(commands.Cog):
                         if not util.represents_integer(rulesmsg_id):
                             turingtest_enabled = False
 
-                    if turingtest_enabled and str(message.id) == rulesmsg_id: # rules message / turing test message
+                    if turingtest_enabled and str(message_id) == rulesmsg_id: # rules message / turing test message
 
                         # users reacting with the first react are very likely to be bots
 
@@ -1392,7 +1400,15 @@ class Event_Response(commands.Cog):
 
                                     # actual ban
                                     print("user not verified yet. preparing to ban...")
-                                    guild = message.guild
+                                    guild = self.bot.get_guild(payload.guild_id)
+                                    if guild is None:
+                                        guild = await self.bot.fetch_guild(payload.guild_id)
+                                        if guild is None:
+                                            try:
+                                                guild = message.guild
+                                            except:
+                                                raise ValueError("could not fetch guild")
+
                                     for i in range(0,10):
                                         print(10-i)
                                         await asyncio.sleep(1)
