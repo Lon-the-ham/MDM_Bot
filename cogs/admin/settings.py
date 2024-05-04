@@ -628,6 +628,17 @@ class Administration_of_Settings(commands.Cog):
         desctext_general.append(f"'Mods Mods Mods' calls: `{notification_modsmodsmods}`")
         desctext_notifications.append(f"'Mods Mods Mods' calls: `{notification_modsmodsmods}`")
 
+        notification_detailederror_list = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("detailed error reporting",)).fetchall()]
+        if len(notification_detailederror_list) == 0:
+            notification_detailederror = "error⚠️"
+            print("Error: no 'mods mods mods' notification setting in database")
+        else:
+            if len(notification_detailederror_list) > 1:
+                print("Warning: there are multiple detailed error reporting setting entries in the database")
+            notification_detailederror = notification_detailederror_list[0]
+        desctext_general.append(f"Detailed Error Reporting: `{notification_detailederror}`")
+        desctext_notifications.append(f"Detailed Error Reporting: `{notification_detailederror}`")
+
 
         #################################################### CHANNELS (adding to output)
 
@@ -1074,6 +1085,7 @@ class Administration_of_Settings(commands.Cog):
             "invite notification": "notification on/off switches", 
             "usernamenotification": "notification on/off switches",
             "modsmodsmodsnotification": "notification on/off switches",
+            "detailederrorreporting": "notification on/off switches",
             }
         res = {}
         for key, val in sorted(subcommand_dict.items()):
@@ -2419,6 +2431,7 @@ class Administration_of_Settings(commands.Cog):
             "scheduled event notification": "Scheduled Event Notification",
             "invite notification": "Invite Creation Notification",
             "user name change notification": "User servername change notification",
+            "detailed error reporting": "Detailed Error Reporting",
         }
         switch_displayname = switch_displayname_dict[switch_name]
 
@@ -2620,6 +2633,7 @@ class Administration_of_Settings(commands.Cog):
         await util.error_handling(ctx, error)
 
 
+
     @_set.command(name="botroleswitch", aliases = ["displayroleswitch"], pass_context=True)
     @commands.check(util.is_active)
     @commands.has_permissions(manage_guild=True)
@@ -2637,6 +2651,7 @@ class Administration_of_Settings(commands.Cog):
     @_set_botrole.error
     async def set_botrole_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
 
 
     @_set.command(name="memo", aliases = ["backlog", "memos", "backlogs"], pass_context=True)
@@ -2657,6 +2672,7 @@ class Administration_of_Settings(commands.Cog):
         await util.error_handling(ctx, error)
 
 
+
     @_set.command(name="genretagreminder", aliases = ["genrereminder", "tagreminder"], pass_context=True)
     @commands.check(util.is_active)
     @commands.has_permissions(manage_guild=True)
@@ -2673,6 +2689,7 @@ class Administration_of_Settings(commands.Cog):
     @_set_genretagreminder.error
     async def set_genretagreminder_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
 
 
     @_set.command(name="pingterest", aliases = ["pingterests", "pingableinterests"], pass_context=True)
@@ -2694,6 +2711,7 @@ class Administration_of_Settings(commands.Cog):
         await util.error_handling(ctx, error)
 
 
+
     @_set.command(name="reactionroles", aliases = ["reactionrole"], pass_context=True)
     @commands.check(util.is_active)
     @commands.has_permissions(manage_guild=True)
@@ -2709,6 +2727,7 @@ class Administration_of_Settings(commands.Cog):
     @_set_reactionroles.error
     async def set_reactionroles_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
 
 
     @_set.command(name="timeout", aliases = ["muting"], pass_context=True)
@@ -2732,6 +2751,7 @@ class Administration_of_Settings(commands.Cog):
         await util.error_handling(ctx, error)
 
 
+
     @_set.command(name="welcome", aliases = ["welcoming"], pass_context=True)
     @commands.check(util.is_active)
     @commands.has_permissions(manage_guild=True)
@@ -2749,6 +2769,7 @@ class Administration_of_Settings(commands.Cog):
     @_set_welcome.error
     async def set_welcome_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
 
 
     @_set.command(name="penaltynotifier", aliases = ["userpenaltynotification", "usernotification", "userpenaltynotifier", "usernotifier"], pass_context=True)
@@ -2769,6 +2790,7 @@ class Administration_of_Settings(commands.Cog):
         await util.error_handling(ctx, error)
 
 
+
     @_set.command(name="reminders", aliases = ["reminder", "reminderfunctionality"], pass_context=True)
     @commands.check(util.is_active)
     @commands.has_permissions(manage_guild=True)
@@ -2786,6 +2808,7 @@ class Administration_of_Settings(commands.Cog):
     @_set_reminders.error
     async def set_reminders_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
 
 
     @_set.group(name="inactivityfilter", aliases = ["userfilter", "userinactivityfilter"], pass_context=True, invoke_without_command=True)
@@ -2817,6 +2840,7 @@ class Administration_of_Settings(commands.Cog):
     @_set_inactivityfilter.error
     async def set_inactivityfilter_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
 
 
     @_set_inactivityfilter.command(name="days", aliases = ["day", "time", "triggertime"], pass_context=True)
@@ -2856,6 +2880,21 @@ class Administration_of_Settings(commands.Cog):
 
 
     ################################################################################# ON/OFF (NOTIFICATIONS)
+
+
+    @_set.command(name="detailederrorreporting", aliases = ["detailederrornotification"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_detailederrornotification(self, ctx, *args):
+        """Enable/disable notifications for channel creations/deletions/changes
+
+        1st arg needs to be `on` or `off`.
+        """
+        await self.database_on_off_switch(ctx, args, "detailed error reporting")
+    @_set_detailederrornotification.error
+    async def set_detailederrornotification_error(self, ctx, error):
+        await util.error_handling(ctx, error)
 
 
     @_set.command(name="channelnotification", aliases = ["channelsnotification"], pass_context=True)
@@ -4172,6 +4211,14 @@ class Administration_of_Settings(commands.Cog):
             elif len(modsmodsmodsnotif_list) > 1:
                 print("Warning: Multiple mods mods mods notification entries in serversettings table (botsettings.db)")
 
+            detailederrornotif_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("detailed error reporting",)).fetchall()]
+            if len(detailederrornotif_list) == 0:
+                curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("detailed error reporting", "off", "", ""))
+                conB.commit()
+                print("Updated serversettings table: detailed error reporting")
+            elif len(detailederrornotif_list) > 1:
+                print("Warning: Multiple detailed error reporting entries in serversettings table (botsettings.db)")
+
 
             # BOTSETTINGS DB: SPECIALROLES
 
@@ -4379,7 +4426,7 @@ class Administration_of_Settings(commands.Cog):
             curC.execute('''CREATE TABLE IF NOT EXISTS cooldowns (service text, last_used text, limit_seconds text, limit_type text, long_limit_seconds text, long_limit_amount text)''') # soft limit type: delay, hard limit type: stop request
 
             cooldown_db_list = [item[0] for item in curC.execute("SELECT service FROM cooldowns").fetchall()]
-            cooldowns = ["lastfm", "metallum", "musicbrainz", "openweathermap", "spotify"]
+            cooldowns = ["applemusic", "metallum", "musicbrainz", "lastfm", "openweathermap", "spotify"]
             cooldowns_crit = ["googlesearch", "rym"]
             for cd in cooldowns:
                 if cd not in cooldown_db_list:

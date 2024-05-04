@@ -96,6 +96,17 @@ class Utils():
             print("-------------------------------------")
             print(traceback.format_exc())
             print("-------------------------------------")
+            try:
+                conB = sqlite3.connect(f'databases/botsettings.db')
+                curB = conB.cursor()
+                detailederrornotif_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("detailed error reporting",)).fetchall()]
+                if len(detailederrornotif_list) == 0 or detailederrornotif_list[0] != "on":
+                    pass
+                else:
+                    detailtext = str(traceback.format_exc()).split("The above exception")[0].strip()
+                    await Utils.bot_spam_send(ctx, f"Error in {ctx.channel.mention}", f"Error message: {str(error)}```{detailtext}```")
+            except Exception as e:
+                print("Error:", e)
 
 
 
@@ -281,6 +292,7 @@ class Utils():
         area_icon_dict = {
             "germany": "🇩🇪",
             "japan": "🇯🇵",
+            # under construction
         }
 
         if area_name.lower() in area_icon_dict:
@@ -1519,7 +1531,7 @@ class Utils():
 
 
 
-    async def bot_spam_send(bot, title, text): #todo:where is this used?
+    async def bot_spam_send(bot, title, text): 
         try:
             con = sqlite3.connect(f'databases/botsettings.db')
             cur = con.cursor()
@@ -1529,9 +1541,12 @@ class Utils():
             try:
                 botspamchannel_id = int(os.getenv("bot_channel_id"))
             except Exception as e:
-                print(f"Error in timeloop notification ({title}):", e)
+                print(f"Error in util.bot_spam_send() ({title}):", e)
                 return
-        botspamchannel = bot.get_channel(botspamchannel_id) 
+        try:
+            botspamchannel = bot.get_channel(botspamchannel_id) 
+        except Exception as e:
+            botspamchannel = discord.utils.get(bot.guild.channels, id=botspamchannel_id) # in case self.bot couldn't be provided and instead ctx was passed
         embed=discord.Embed(title=title, description=text, color=0x000000)
         await botspamchannel.send(embed=embed)
 
