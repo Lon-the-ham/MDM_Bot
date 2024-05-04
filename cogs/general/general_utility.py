@@ -1435,11 +1435,16 @@ class General_Utility(commands.Cog):
             await ctx.send("Command needs arguments")
             return
 
-        # TRY TO FIRST PARSE INDICATORS WHETHER TIME PERIOD OR UNIX TIME STAMP IS PROVIDED
+        # CLEAN UP INPUT
 
         arguments = []
         for arg in args:
             arguments.append(util.cleantext(arg))
+
+        argument_string = await util.remove_role_mentions_from_string(' '.join(arguments), ctx)
+        arguments = argument_string.split()
+
+        # TRY TO FIRST PARSE INDICATORS WHETHER TIME PERIOD OR UNIX TIME STAMP IS PROVIDED
 
         userid = str(ctx.author.id)
         if arguments[0].lower() == "me":
@@ -1506,10 +1511,9 @@ class General_Utility(commands.Cog):
                 arguments.pop(0)
 
             if len(arguments) == 0:
-                await ctx.send("What should the reminder be about?")
-                return
-
-            remindertext = ' '.join(arguments)
+                remindertext = "*vaguely gestures*"
+            else:
+                remindertext = ' '.join(arguments)
 
             cur.execute("INSERT INTO reminders VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (reminder_id, str(ctx.author.name), userid, str(utc_timestamp), remindertext, str(ctx.channel.id), str(ctx.channel.name), str(ctx.message.id), str(now)))
             con.commit()

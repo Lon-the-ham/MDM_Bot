@@ -1206,8 +1206,56 @@ class Utils():
 
 
 
+    def separate_num_alph_componentpreserving(s):
+        """preserves emoji, channels, roles, pings and timestamps"""
+        pre_list = s.strip().split()
+        final_list = []
+        for word in pre_list:
+            if len(word) > 17 and word.endswith(">") and (word.startswith("<@") or word.startswith("<#")) and Utils.represents_integer(word[2:-1]):
+                # channel or role
+                final_list.append(word)
+
+            elif len(word) > 17 and word.endswith(">") and word.startswith("<@&") and Utils.represents_integer(word[3:-1]):
+                # user ping
+                final_list.append(word)
+
+            elif len(word) > 7 and word.endswith(">") and word[-3] == ":" and word[-2] in ["d", "D", "t", "T", "f", "F", "R"] and word.startswith("<t:") and Utils.represents_integer(word[3:-3]):
+                # hammer time
+                final_list.append(word)
+
+            elif len(word) > 17 and word.endswith(">") and word.startswith("<:") and ":" in word[2:-1] and len(word[2:-1].split(":")[0]) > 1 and Utils.represents_integer(word[2:-1].split(":")[1]):
+                # custom static emoji
+                final_list.append(word)
+            
+            elif len(word) > 18 and word.endswith(">") and word.startswith("<a:") and ":" in word[3:-1] and len(word[3:-1].split(":")[0]) > 1 and Utils.represents_integer(word[3:-1].split(":")[1]):    
+                # custom animated emoji
+                final_list.append(word)
+
+            elif word in UNICODE_EMOJI['en']:
+                # default emoji
+                final_list.append(word)
+
+            elif word.startswith("https://") or (word.startswith("[") and "](https://" in word and word.endswith(")")):
+                # URL
+                final_list.append(word)
+
+            else:
+                res = re.split('([-+]?\d+\.\d+)|([-+]?\d+)', word.strip())
+                res_filtered = [r.strip() for r in res if r is not None and r.strip() != '']
+                final_list += res_filtered
+
+        return final_list
+
+
+
     def separate_num_alph_string(s):
         res = ' '.join(Utils.separate_num_alph(s))
+        return res
+
+
+
+    def separate_num_alph_string_componentpreserving(s):
+        res = ' '.join(Utils.separate_num_alph_componentpreserving(s))
         return res
 
 
@@ -2296,6 +2344,37 @@ class Utils():
 
 
 
+    async def remove_role_mentions_from_string(textstring, ctx):
+        """ctx = None in case function has no access to ctx"""
+        try:
+            textstring_split = textstring.replace(">", "> ").replace("<", " <").split()
+            while "" in textstring_split:
+                textstring_split.remove("")
+
+            textstring_filteredlist = []
+            for arg in textstring_split:
+                if arg.startswith("<@&") and arg.endswith(">") and Utils.represents_integer(arg[3:-1]):
+                    if ctx is None:
+                        textstring_filteredlist.append("@disabled_rolemention")
+                    else:
+                        try:
+                            role = ctx.guild.get_role(int(arg[3:-1]))
+                            rolename = str(role.name)
+                            if len(rolename) > 50:
+                                rolename = rolename[:47] + "..."
+                        except:
+                            rolename = "inavlid_role"
+                        textstring_filteredlist.append(f"@{rolename}")
+                else:
+                    textstring_filteredlist.append(arg)
+            textstring_new = " ".join(textstring_filteredlist)
+        except:
+            textstring_new = textstring
+
+        return textstring_new
+
+
+
     async def scrape_exchangerates():
         """In case Exchangerate API key isn't provided this gives rudimentary support for currency conversion"""
         conER = sqlite3.connect('databases/exchangerate.db')
@@ -2445,11 +2524,15 @@ class Utils():
         if textstring.strip() == "":
             return "infinity", "indefinite", ""
 
+        # buffer for <>-objects and swap out role pings for plain text
+        textstring = await Utils.remove_role_mentions_from_string(textstring, None)
+
+        # parse "until" time or "in" time
+
         if textstring.lower().strip().startswith("until"):
 
             ### parse time from end timestamp
-
-            word_list = Utils.separate_num_alph_string(textstring).strip().split()
+            word_list = Utils.separate_num_alph_string_componentpreserving(textstring).strip().split()
             if len(word_list) < 2:
                 return "infinity", "indefinite", textstring
 
@@ -2473,7 +2556,7 @@ class Utils():
         else:
             ### parse time from given values and units
 
-            word_list_pre = Utils.separate_num_alph(textstring)
+            word_list_pre = Utils.separate_num_alph_componentpreserving(textstring)
             word_list = []
             for word in word_list_pre: # this is to separate reason text from the unit text
                 wordsplit = word.split()
@@ -2502,6 +2585,8 @@ class Utils():
                     break
             else:
                 rest = ' '.join(word_list[j:])
+
+            # FINALIZE
 
             if len(timeelements) == 0:
                 return "infinity", "indefinite", textstring
