@@ -60,10 +60,11 @@ class Music_NowPlaying(commands.Cog):
 
                 # CREATE EMBED
 
-                try:
-                    color = member.color
-                except:
-                    color = 0x000000
+                color = 0x000000
+                #try:
+                #    color = member.color
+                #except:
+                #    color = 0x000000
                 embed = discord.Embed(description=description, color = color)
                 embed.set_author(name=f"{member.display_name}'s MusicBee" , icon_url=member.avatar)
                 try:
@@ -99,47 +100,76 @@ class Music_NowPlaying(commands.Cog):
                 pass 
 
         for activity in member.activities:
-            if str(activity.type) == "ActivityType.playing" and activity.name == "Music" and "iTunes Rich Presence for Discord" in activity_list:
-
-                # FETCH ARTIST/ALBUM/SONG INFORMATION
-
-                try:
-                    song = util.cleantext2(activity.details.replace("🎶", "").strip())
-                    artist = util.cleantext2(activity.state.split("💿")[0].replace("👤","").strip())
-                    album = util.cleantext2(activity.state.split("💿")[1].strip())
-
+            if str(activity.type) == "ActivityType.playing":
+                print(str(activity.name))
+                if str(activity.name) == "Music": # and "iTunes Rich Presence for Discord" in activity_list:
+                    # FETCH ARTIST/ALBUM/SONG INFORMATION
                     try:
-                        applemusic_link = f"https://music.apple.com/us/search?term={artist}_{album}_{song}".replace(" ","_").replace("\\", "")
-                        description = f"[{song}]({applemusic_link})\nby **{artist}** | {album}"
+                        song = util.cleantext2(activity.details.replace("🎶", "").strip())
+                        artist = util.cleantext2(activity.state.split("💿")[0].replace("👤","").strip())
+                        album = util.cleantext2(activity.state.split("💿")[1].strip())
+
+                        try:
+                            applemusic_link = f"https://music.apple.com/us/search?term={artist}_{album}_{song}".replace(" ","_").replace("\\", "")
+                            description = f"[{song}]({applemusic_link})\nby **{artist}** | {album}"
+                        except:
+                            description = f"{song}\nby **{artist}** | {album}"
                     except:
-                        description = f"{song}\nby **{artist}** | {album}"
-                except:
-                    description = f"{activity.details}\n{activity.state}"
+                        description = f"{activity.details}\n{activity.state}"
+
+                elif str(activity.name) == "Apple Music":
+                    # FETCH ARTIST/ALBUM/SONG INFORMATION
+                    try:
+                        artist = util.cleantext2(activity.details.split(" - ", 1)[0].strip())
+                        song = util.cleantext2(activity.details.split(" - ", 1)[1].strip())
+                        album = util.cleantext2(activity.state.split("on ", 1)[1].strip())
+
+                        try:
+                            applemusic_link = f"https://music.apple.com/us/search?term={artist}_{album}_{song}".replace(" ","_").replace("\\", "")
+                            description = f"[{song}]({applemusic_link})\nby **{artist}** | {album}"
+                        except:
+                            description = f"{song}\nby **{artist}** | {album}"
+                    except:
+                        description = f"{activity.details}\n{activity.state}"
+
+                else:
+                    continue
+
 
                 # CREATE EMBED
 
-                try:
-                    color = member.color
-                except:
-                    color = 0x000000
+                color = 0xFE647B
+                #try:
+                #    color = member.color
+                #except:
+                #    color = 0xFE647B
                 embed = discord.Embed(description=description, color = color)
                 embed.set_author(name=f"{member.display_name}'s Apple Music" , icon_url=member.avatar)
                 try:
-                    embed.set_thumbnail(url=activity.large_image_url) # under construction: fetch image from elsewhere?
-                except Exception as e:
-                    print(e)
+                    cooldown = True
+                    picture_list = await self.find_applemusic_pictures(artist, album, song, cooldown)
+                    print(picture_list[0])
+                    embed.set_thumbnail(url=picture_list[0].strip())
+                except:
                     try:
-                        embed.set_thumbnail(url=activity.small_image_url)
+                        embed.set_thumbnail(url=activity.large_image_url) # under construction: fetch image from elsewhere?
                     except Exception as e:
-                        print(f"could not find image: {e}")
+                        print(e)
+                        try:
+                            embed.set_thumbnail(url=activity.small_image_url)
+                        except Exception as e:
+                            print(f"could not find image: {e}")
 
                 # HANDLE TAGS
                 if show_tags:
-                    tag_string = await self.fetch_tags(ctx, "applemusic", artist, album, song, None, None, called_services)
                     try:
-                        embed.set_footer(text = tag_string)
+                        tag_string = await self.fetch_tags(ctx, "applemusic", artist, album, song, None, None, called_services)
+                        try:
+                            embed.set_footer(text = tag_string)
+                        except Exception as e:
+                            print("Error while creating footer for applemusic np: ", e)
                     except Exception as e:
-                        print("Error while creating footer for applemusic np: ", e)
+                        print("Error while trying to fetch tags:", e)
 
                 message = await ctx.send(embed=embed)
                 return message
@@ -200,8 +230,12 @@ class Music_NowPlaying(commands.Cog):
 
             # MAKE EMBED
 
+            try:
+                color = member.color
+            except:
+                color = 0xFFFFFF
             description = f"[{song}]({song_link})\nby **{util.cleantext2(artist)}** | {album}"
-            embed = discord.Embed(description=description, color = member.color)
+            embed = discord.Embed(description=description, color = color)
             embed.set_author(name=f"{lfm_name}'s {recency} on LastFM" , icon_url=member.avatar)
             try:
                 embed.set_thumbnail(url=album_cover)
@@ -308,8 +342,12 @@ class Music_NowPlaying(commands.Cog):
 
         # MAKE EMBED
 
+        try:
+            color = member.color
+        except:
+            color = 0xFFFFFF
         description = f"[{song}]({song_link})\nby **{util.cleantext2(artist)}** | {album}"
-        embed = discord.Embed(description=description, color = member.color)
+        embed = discord.Embed(description=description, color = color)
         embed.set_author(name=f"{lfm_name}'s {recency} on LastFM" , icon_url=member.avatar)
         try:
             if album_cover2.strip() != "":
@@ -354,7 +392,7 @@ class Music_NowPlaying(commands.Cog):
                 songdescription = f"[{song}]({activity.track_url})\nby **{artist}** | {album}"
                 embed = discord.Embed(
                                 description=songdescription.strip(),
-                                color = activity.color)
+                                color = activity.color) #spotify green
                 embed.set_thumbnail(url=activity.album_cover_url)
                 embed.set_author(name=f"{member.display_name}'s Spoofy" , icon_url=member.avatar)
 
@@ -494,8 +532,8 @@ class Music_NowPlaying(commands.Cog):
             if not anything_to_fetch and len(substitute_tags) == 0:
                 return ""
 
-            print(tag_services_dict)
-            print(substitute_tags)
+            print("Fetching tags (primary):", tag_services_dict)
+            print("Fetching tags (secondary):", substitute_tags)
 
             # FETCH TAGS
 
@@ -561,9 +599,11 @@ class Music_NowPlaying(commands.Cog):
                                     cooldown = True
                                 try:
                                     listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
+                                    lfm_fetch_client = "api"
                                 except Exception as e:
                                     print(f"Probably no Last.fm API credentials, switching to Web Scraping information.\n(Exception message: {e})")
                                     listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_web(ctx, artist, cooldown)
+                                    lfm_fetch_client = "web"
 
                                 if listeners.strip() != "" and lfm_listeners:
                                     listeners_readable = util.shortnum(listeners)
@@ -609,14 +649,14 @@ class Music_NowPlaying(commands.Cog):
                 for setting in substitute_tags:
                     if setting == "lastfm":
                         cooldown = False
-                        listeners, total_scrobbles, artist_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
+                        listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
+                        lfm_fetch_client = "api"
 
-                        if len(artist_genre_tag_list) > 0:
-                            genre_tags["lastfm"] = f"{self.tagseparator}".join(artist_genre_tag_list)
+                        if len(lfm_genre_tag_list) > 0:
+                            genre_tags["lastfm"] = f"{self.tagseparator}".join(lfm_genre_tag_list)
                             #print(genre_tags["lastfm"])
-
-                        if genre_tags["lastfm"].strip() != "":
-                            break
+                            if genre_tags["lastfm"].strip() != "":
+                                break
 
                     elif setting == "musicbrainz":
                         checkyear = False
@@ -628,9 +668,8 @@ class Music_NowPlaying(commands.Cog):
                         if len(genretag_list) > 0:
                             genre_tags["musicbrainz"] = f"{self.tagseparator}".join(genretag_list)
                             #print(genre_tags["musicbrainz"])
-
-                        if genre_tags["musicbrainz"].strip() != "":
-                            break
+                            if genre_tags["musicbrainz"].strip() != "":
+                                break
 
                     elif setting == "spotify":
                         pass # under construction
@@ -640,6 +679,10 @@ class Music_NowPlaying(commands.Cog):
 
             # TAG DICT TO STRING
 
+            for key in genre_tags:
+                if genre_tags[key].strip() == "":
+                    del genre_tags[key]
+
             genre_tag_string = ""
 
             if len(genre_tags) > 1 or (len(genre_tags) == 1 and np_service not in genre_tags):
@@ -648,7 +691,17 @@ class Music_NowPlaying(commands.Cog):
                         genre_tag_string += "\nSpoofy: " + genre_tags["spotify"]
 
                     elif service == "lastfm" and genre_tags["lastfm"].strip() != "":
-                        genre_tag_string += "\nLFM: " + genre_tags["lastfm"]
+                        try:
+                            if lfm_fetch_client == "web":
+                                add_asterisk = True
+                            else:
+                                add_asterisk = False
+                        except:
+                            add_asterisk = False
+                        if add_asterisk:
+                            genre_tag_string += "\nLFM*: " + genre_tags["lastfm"]
+                        else:
+                            genre_tag_string += "\nLFM: " + genre_tags["lastfm"]
 
                     elif service == "musicbrainz" and genre_tags["musicbrainz"].strip() != "":
                         genre_tag_string += "\nMB: " + genre_tags["musicbrainz"]
@@ -673,7 +726,7 @@ class Music_NowPlaying(commands.Cog):
                 art_info.append(year.strip())
             listener_stats_string = f"{self.tagseparator}".join(listener_stats + art_info).strip()
 
-            if genre_tag_string.strip() == "" and (tag_settings_dict["spotify_genretags"] == "on" or tag_settings_dict["musicbrainz_tags"] == "on" or tag_settings_dict["rym_genretags"] == "on" or tag_settings_dict["lastfm_tags"] == "on"):
+            if genre_tag_string.strip() == "" and (tag_settings_dict["spotify_genretags"] == "on" or tag_settings_dict["musicbrainz_tags"] == "on" or tag_settings_dict["rym_genretags"] == "on" or tag_settings_dict["lastfm_tags"] == "on" or len(substitute_tags) > 0):
                 genre_tag_string = "\nno genre tags found"
             tag_string = listener_stats_string + genre_tag_string
             if len(tag_string) > 2048:
@@ -915,7 +968,7 @@ class Music_NowPlaying(commands.Cog):
 
         response = await util.lastfm_get(ctx, payload, cooldown)
         if response == "rate limit":
-            return "", ""
+            return "", "", []
         rjson = response.json()
 
         try: # just a check, e.g. some artists return error message
@@ -960,6 +1013,7 @@ class Music_NowPlaying(commands.Cog):
 
         listeners = ""
         total_scrobbles = ""
+        genretags = []
 
         try:
             session = requests.session()
@@ -984,7 +1038,21 @@ class Music_NowPlaying(commands.Cog):
                 except Exception as e:
                     print(e)
 
-            return listeners, total_scrobbles, []
+            try:
+                for ul in soup.find_all('ul'):
+                    try:
+                        ul_class = str(ul.get("class")[0])
+                        if ul_class.startswith("tags-list"):
+                            for a in ul.find_all("a"):
+                                tagname = a.getText().strip().lower()
+                                genretags.append(tagname)
+                            break
+                    except:
+                        pass
+            except:
+                pass
+
+            return listeners, total_scrobbles, genretags
 
         except:
             return "", "", []
@@ -1126,10 +1194,65 @@ class Music_NowPlaying(commands.Cog):
                         break
             except Exception as e:
                 print("Error:", e)
-                return mbid, tags, year, area
 
         return mbid, tags, year, area
 
+
+
+    async def find_applemusic_pictures(self, artist, album, song, cooldown):
+        if cooldown:
+            try: # cooldown to not trigger actual rate limits or IP blocks
+                await util.cooldown(ctx, "applemusic")
+            except Exception as e:
+                await util.cooldown_exception(ctx, e, "applemusic")
+                return []
+
+        try:
+            session = requests.session()
+            burp0_url = f"https://music.apple.com/us/search?term={artist}%20{album}%20{song}"
+            burp0_headers = {"Sec-Ch-Ua": "\"Chromium\";v=\"111\", \"Not(A:Brand\";v=\"8\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.5563.111 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Connection": "close"}
+            response = session.get(burp0_url, headers=burp0_headers)
+
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            found_albumname_in_html = False
+            found_artistname_in_html = False
+            picture_links = []
+
+            for div in soup.find_all("div"):
+                try:
+                    div_class = div.get("class")
+                    if str(div_class[0]).startswith("shelf-grid__body"):
+                        for a in div.find_all("a"):
+                            try:
+                                a_text = util.alphanum(a.getText().strip().split("(")[0],"lower")
+                                if a_text == util.alphanum(album,"lower"):
+                                    found_albumname_in_html = True
+                                if a_text == util.alphanum(artist,"lower"):
+                                    found_artistname_in_html = True
+                            except:
+                                pass
+
+                        for source in div.find_all("source"):
+                            try:
+                                source_srcset = str(source.get("srcset")).replace(","," ").split()
+
+                                for pic in source_srcset:
+                                    if pic.startswith("https://") and (pic.endswith(".jpg") or pic.endswith(".png") or pic.endswith(".webp")):
+                                        picture_links.append(pic)
+                            except: 
+                                pass
+
+                        if found_albumname_in_html and found_artistname_in_html:
+                            return picture_links
+                        else:
+                            picture_links = []
+                except:
+                    pass
+        except:
+            pass
+
+        return []
 
 
     #################################################################################################################################
@@ -1554,7 +1677,7 @@ class Music_NowPlaying(commands.Cog):
                         if len(genre_tags) > 0:
                             genre_tag_string = "LFM: " + f"{self.tagseparator}".join(genre_tags)
                         else:
-                            genre_tag_string = "LFM: no genre tags found"
+                            genre_tag_string = "no genre tags found"
 
                         cooldown = False
                         listeners, total_scrobbles, artist_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
@@ -1589,9 +1712,11 @@ class Music_NowPlaying(commands.Cog):
                     embed.set_footer(text=tag_string)
 
                 message = await ctx.send(embed=embed)
-                return message
 
-                await self.add_np_reactions(ctx, message, the_member)
+                try:
+                    await self.add_np_reactions(ctx, message, member)
+                except Exception as e:
+                    print("Error while trying to add NP reactions:", e)
             except Exception as e:
                 print("Error:", e)
                 await ctx.send(f"Error while trying to make embed.")
@@ -1889,6 +2014,8 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='setfm', aliases = ['fmset', 'setlfm', "setlastfm", "lfmset", "lastfmset", "fmname", "lfmname", "lastfmname", "fmacc", "lfmacc"])
     @commands.check(util.is_active)
     async def _setfm(self, ctx: commands.Context, *args):
+        """Set your last.fm account name
+        """
 
         if len(args) == 0:
             await ctx.send("Command needs an argument!")
@@ -1930,6 +2057,8 @@ class Music_NowPlaying(commands.Cog):
         Just keep in mind that :name: might not be unique and is therefore prone to errors.
 
         Use `-reacts clear` to remove np reacts.
+
+        Warning: Locked emoji due to a boost loss will show as "successfully added", but cannot be used until the server level is restored.
         """
         if len(args) == 0:
             await ctx.send(f"With this command you can add up to 5 reaction emojis to your `{self.prefix}np`, `{self.prefix}npx`, `{self.prefix}fm`, `{self.prefix}spotify`, `{self.prefix}musicbee`, `{self.prefix}applemusic`. \nUse `{self.prefix}help reacts` for more info.")
