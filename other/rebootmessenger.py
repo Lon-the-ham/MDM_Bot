@@ -60,22 +60,23 @@ async def sendit(string, d_client):
             lastedited = 0
             lastchanged = 0
             for filename in os.listdir(db_directory):
-                zf.write(os.path.join(db_directory, filename), filename)
+                if str(filename).endswith(".db") or str(filename).endswith(".txt"): # skip .gitignore file
+                    zf.write(os.path.join(db_directory, filename), filename)
 
-                edittime = int(os.path.getmtime(os.path.join(db_directory, filename)))
-                if (edittime > lastedited) and ("activity.db" not in str(filename)):
-                    lastedited = edittime
-                if str(filename) == "aftermostchange.db":
-                    try:
+                    edittime = int(os.path.getmtime(os.path.join(db_directory, filename)))
+                    if (edittime > lastedited) and ("activity.db" not in str(filename)):
+                        lastedited = edittime
+                    if str(filename) == "aftermostchange.db":
                         try:
-                            conL = sqlite3.connect(f'databases/aftermostchange.db')
-                        except:
-                            conL = sqlite3.connect(f'../databases/aftermostchange.db')
-                        curL = conL.cursor()
-                        lastchange_list = [item[0] for item in curL.execute("SELECT value FROM lastchange WHERE name = ?", ("time",)).fetchall()]
-                        lastchanged = int(lastchange_list[-1])
-                    except Exception as e:
-                        print(f"Error while trying to read out aftermostchange.db: {e}")
+                            try:
+                                conL = sqlite3.connect(f'databases/aftermostchange.db')
+                            except:
+                                conL = sqlite3.connect(f'../databases/aftermostchange.db')
+                            curL = conL.cursor()
+                            lastchange_list = [item[0] for item in curL.execute("SELECT value FROM lastchange WHERE name = ?", ("time",)).fetchall()]
+                            lastchanged = int(lastchange_list[-1])
+                        except Exception as e:
+                            print(f"Error while trying to read out aftermostchange.db: {e}")
             zf.close()
 
 
