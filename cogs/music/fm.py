@@ -98,11 +98,15 @@ class Music_NowPlaying(commands.Cog):
                 activity_list.append(str(activity.name))
             except:
                 pass 
+        if "iTunes Rich Presence for Discord" in activity_list:
+            applemusic_richpresence = True
+        else:
+            applemusic_richpresence = False
 
         for activity in member.activities:
             if str(activity.type) == "ActivityType.playing":
                 print(str(activity.name))
-                if str(activity.name) == "Music": # and "iTunes Rich Presence for Discord" in activity_list:
+                if str(activity.name) == "Music": 
                     # FETCH ARTIST/ALBUM/SONG INFORMATION
                     try:
                         song = util.cleantext2(activity.details.replace("🎶", "").strip())
@@ -110,14 +114,21 @@ class Music_NowPlaying(commands.Cog):
                         album = util.cleantext2(activity.state.split("💿")[1].strip())
 
                         try:
-                            applemusic_link = f"https://music.apple.com/us/search?term={artist}_{album}_{song}".replace(" ","_").replace("\\", "")
-                            description = f"[{song}]({applemusic_link})\nby **{artist}** | {album}"
+                            if applemusic_richpresence:
+                                song_url = f"https://music.apple.com/us/search?term={artist}_{album}_{song}".replace(" ","_").replace("\\", "")
+                            else:
+                                searchterm = f"{artist}+{album}+{song}".replace(" ", "+").replace("\\", "").replace("/", "").replace("\\", "")
+                                song_url = f"https://music.youtube.com/search?q={artist}+{album}+{song}"
+
+                            description = f"[{song}]({song_url})\nby **{artist}** | {album}"
                         except:
                             description = f"{song}\nby **{artist}** | {album}"
                     except:
                         description = f"{activity.details}\n{activity.state}"
 
                 elif str(activity.name) == "Apple Music":
+                    applemusic_richpresence = True
+
                     # FETCH ARTIST/ALBUM/SONG INFORMATION
                     try:
                         artist = util.cleantext2(activity.details.split(" - ", 1)[0].strip())
@@ -125,8 +136,8 @@ class Music_NowPlaying(commands.Cog):
                         album = util.cleantext2(activity.state.split("on ", 1)[1].strip())
 
                         try:
-                            applemusic_link = f"https://music.apple.com/us/search?term={artist}_{album}_{song}".replace(" ","_").replace("\\", "")
-                            description = f"[{song}]({applemusic_link})\nby **{artist}** | {album}"
+                            song_url = f"https://music.apple.com/us/search?term={artist}_{album}_{song}".replace(" ","_").replace("\\", "")
+                            description = f"[{song}]({song_url})\nby **{artist}** | {album}"
                         except:
                             description = f"{song}\nby **{artist}** | {album}"
                     except:
@@ -136,40 +147,59 @@ class Music_NowPlaying(commands.Cog):
                     continue
 
 
-                # CREATE EMBED
+                # EMBED THINGS
 
-                color = 0xFE647B
-                #try:
-                #    color = member.color
-                #except:
-                #    color = 0xFE647B
-                embed = discord.Embed(description=description, color = color)
-                embed.set_author(name=f"{member.display_name}'s Apple Music" , icon_url=member.avatar)
-                try:
-                    cooldown = True
-                    picture_list = await self.find_applemusic_pictures(artist, album, song, cooldown)
-                    print(picture_list[0])
-                    embed.set_thumbnail(url=picture_list[0].strip())
-                except:
-                    try:
-                        embed.set_thumbnail(url=activity.large_image_url) # under construction: fetch image from elsewhere?
-                    except Exception as e:
-                        print(e)
-                        try:
-                            embed.set_thumbnail(url=activity.small_image_url)
-                        except Exception as e:
-                            print(f"could not find image: {e}")
+                if applemusic_richpresence:
 
-                # HANDLE TAGS
-                if show_tags:
+                    # CREATE EMBED
+                    color = 0xFE647B
+                    embed = discord.Embed(description=description, color = color)
+
+                    # SET AUTHOR
+                    embed.set_author(name=f"{member.display_name}'s Apple Music" , icon_url=member.avatar)
                     try:
-                        tag_string = await self.fetch_tags(ctx, "applemusic", artist, album, song, None, None, called_services)
+                        cooldown = True
+                        picture_list = await self.find_applemusic_pictures(artist, album, song, cooldown)
+                        print(picture_list[0])
+                        embed.set_thumbnail(url=picture_list[0].strip())
+                    except:
                         try:
-                            embed.set_footer(text = tag_string)
+                            embed.set_thumbnail(url=activity.large_image_url) # under construction: fetch image from elsewhere?
                         except Exception as e:
-                            print("Error while creating footer for applemusic np: ", e)
-                    except Exception as e:
-                        print("Error while trying to fetch tags:", e)
+                            print(e)
+                            try:
+                                embed.set_thumbnail(url=activity.small_image_url)
+                            except Exception as e:
+                                embed.set_thumbnail(url="https://i.imgur.com/4Ims0Ed.png")
+                                print(f"could not find image: {e}")
+
+                    # HANDLE TAGS
+                    if show_tags:
+                        try:
+                            tag_string = await self.fetch_tags(ctx, "applemusic", artist, album, song, None, None, called_services)
+                            try:
+                                embed.set_footer(text = tag_string)
+                            except Exception as e:
+                                print("Error while creating footer for applemusic np: ", e)
+                        except Exception as e:
+                            print("Error while trying to fetch tags:", e)
+                else:
+                    # EMBED
+                    color = 0x808080
+                    embed = discord.Embed(description=description, color = color)
+                    embed.set_author(name=f"{member.display_name}'s unspecified player" , icon_url=member.avatar)
+                    embed.set_thumbnail(url="https://i.imgur.com/0Djj7I6.jpg")
+                    # HANDLE TAGS
+                    if show_tags:
+                        try:
+                            tag_string = await self.fetch_tags(ctx, "unspecified", artist, album, song, None, None, called_services)
+                            try:
+                                embed.set_footer(text = tag_string)
+                            except Exception as e:
+                                print("Error while creating footer for applemusic np: ", e)
+                        except Exception as e:
+                            print("Error while trying to fetch tags:", e)
+
 
                 message = await ctx.send(embed=embed)
                 return message
@@ -997,6 +1027,8 @@ class Music_NowPlaying(commands.Cog):
             except:
                 pass
 
+        genre_tags = util.filter_genretags(genre_tags)
+
         return LFM_listeners, LFM_playcount, genre_tags
 
 
@@ -1051,6 +1083,8 @@ class Music_NowPlaying(commands.Cog):
                         pass
             except:
                 pass
+
+            genretags = util.filter_genretags(genretags)
 
             return listeners, total_scrobbles, genretags
 
@@ -1194,6 +1228,8 @@ class Music_NowPlaying(commands.Cog):
                         break
             except Exception as e:
                 print("Error:", e)
+
+        tags = util.filter_genretags(tags)
 
         return mbid, tags, year, area
 
@@ -1641,25 +1677,41 @@ class Music_NowPlaying(commands.Cog):
                     print("Error:", e)
                     if str(e) == "No LastFM keys provided":
                         await ctx.send("Error: No LastFM API key provided to search for artist and track. Ask mods to add one to the bot's environment file.")
+                    return
 
                 # PARSE JSON
 
-                rjson = response.json()['track']
-                track = rjson['name']
-                song_link = rjson['url']
-                artist = rjson['artist']['name']
-                mbid = rjson['artist']['mbid']
-                album = rjson['album']['title']
-            
                 try:
-                    albumart = rjson['album']['image'][-1]['#text']
+                    rjson = response.json()['track']
+                    track = rjson['name']
+                    song_link = rjson['url']
+                    artist = rjson['artist']['name']
+                    try:
+                        mbid = rjson['artist']['mbid']
+                    except:
+                        mbid = None
+                    try:
+                        album = rjson['album']['title']
+                    except:
+                        album = ""
+                    try:
+                        albumart = rjson['album']['image'][-1]['#text']
+                    except:
+                        albumart = "https://i.imgur.com/0Djj7I6.jpeg"
+                    try:
+                        artisturl = "https://www.last.fm/music/" + song_link.split("https://www.last.fm/music/")[1].split("/")[0]
+                    except:
+                        artisturl = ""
                 except:
-                    albumart = ""
+                    await ctx.send(f"Error: Could not find track via LastFM.")
+                    return
 
                 tag_string = ""
                 if tags:
                     try:
-                        genre_tags = []
+                        # FETCH TRACK TAGS
+
+                        track_genre_tags = []
                         tag_json = rjson['toptags']['tag'] 
                         i = 0
                         for tag in tag_json:
@@ -1667,20 +1719,23 @@ class Music_NowPlaying(commands.Cog):
                                 if util.alphanum(tag['name'],"lower") == util.alphanum(artist,"lower"):
                                     pass
                                 else:
-                                    genre_tags.append(tag['name'].lower())
+                                    track_genre_tags.append(tag['name'].lower())
                                     i += 1
                                     if i > 9:
                                         break
                             except:
                                 pass
 
-                        if len(genre_tags) > 0:
-                            genre_tag_string = "LFM: " + f"{self.tagseparator}".join(genre_tags)
-                        else:
-                            genre_tag_string = "no genre tags found"
+                        # FETCH ARTIST TAGS
 
                         cooldown = False
                         listeners, total_scrobbles, artist_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
+                        genre_tag_list = util.filter_genretags(artist_genre_tag_list + track_genre_tags)
+
+                        if len(genre_tag_list) > 0:
+                            genre_tag_string = "LFM: " + f"{self.tagseparator}".join(genre_tag_list)
+                        else:
+                            genre_tag_string = "no genre tags found"
 
                         listener_tags = []
                         if str(listeners).strip() != "":
@@ -1688,10 +1743,25 @@ class Music_NowPlaying(commands.Cog):
                         if str(total_scrobbles).strip() != "":
                             listener_tags.append(f"{util.shortnum(total_scrobbles)} total scrobbles")
 
+                        # FETCH ALTERNATIVELY WEB TAGS
+
+                        try:
+                            if genre_tag_string == "no genre tags found":
+                                listeners2, total_scrobbles2, artist_genre_tag_list = await self.fetch_lastfm_data_via_web(ctx, artist, cooldown)
+                                artist_genre_tag_list = util.filter_genretags(artist_genre_tag_list)
+                                if len(artist_genre_tag_list) > 0:
+                                    genre_tag_string = "LFM*: " + f"{self.tagseparator}".join(artist_genre_tag_list)
+                                else:
+                                    genre_tag_string = "no genre tags found"
+                        except Exception as e:
+                            print("Error:", e)
+
+                        # COMPOSE TAG STRING
+
                         tag_string += f"{self.tagseparator}".join(listener_tags)
                         tag_string += f"\n{genre_tag_string}"
                     except Exception as e:
-                        print("Error:", e)
+                        print("Error while trying to fetch tags:", e)
             except Exception as e:
                 print("Error:", e)
                 await ctx.send(f"Error while trying to retrieve data from LastFM.")
@@ -1701,7 +1771,10 @@ class Music_NowPlaying(commands.Cog):
                 # MAKE EMBED
 
                 member = ctx.message.author
-                description = f"[{track}]({song_link})\nby **{util.cleantext2(artist)}** | {album}"
+                if album == "":
+                    description = f"[{track}]({song_link})\nby **{util.cleantext2(artist)}**"
+                else:
+                    description = f"[{track}]({song_link})\nby **{util.cleantext2(artist)}** | {album}"
                 embed = discord.Embed(description=description, color = member.color)
                 embed.set_author(name=f"{member.display_name}'s fakenowplaying" , icon_url=member.avatar)
                 try:
@@ -1709,17 +1782,18 @@ class Music_NowPlaying(commands.Cog):
                 except Exception as e:
                     print(e)
                 if tags:
-                    embed.set_footer(text=tag_string)
+                    embed.set_footer(text=tag_string[:2048])
 
                 message = await ctx.send(embed=embed)
-
-                try:
-                    await self.add_np_reactions(ctx, message, member)
-                except Exception as e:
-                    print("Error while trying to add NP reactions:", e)
             except Exception as e:
                 print("Error:", e)
                 await ctx.send(f"Error while trying to make embed.")
+
+        try:
+            await self.add_np_reactions(ctx, message, member)
+        except Exception as e:
+            print("Error while trying to add NP reactions:", e)
+
 
 
 
@@ -2214,7 +2288,120 @@ class Music_NowPlaying(commands.Cog):
     @_npreactions.error
     async def npreactions_error(self, ctx, error):
         await util.error_handling(ctx, error) 
+
+
+
+    @commands.command(name='bantag', aliases = ['bantags', 'blocktag', 'blocktags'])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _bantag(self, ctx: commands.Context, *args):
+        """🔒 Blocks last.fm/musicbrainz tags from displaying
         
+        You can block multiple tags by separating them with a semicolon.
+
+        Use first argument `p` to ban entire phrases. If a phrase is banned it means that any tag that contains it will get banned.
+        """
+
+        if len(args) == 0:
+            await ctx.send("Command needs arguments.")
+            return
+
+        conNP = sqlite3.connect('databases/npsettings.db')  
+        curNP = conNP.cursor()
+        db_list = [[util.alphanum(item[0],"lower").strip(), item[1].lower().strip()] for item in curNP.execute("SELECT tagname, bantype FROM unwantedtags").fetchall()]
+
+        if args[0].lower() == "p":
+            if len(args) < 2:
+                await ctx.send("Command needs a phrase arguments.")
+                return
+
+            phrases = ' '.join(args[1:]).split(";")
+
+            for phrase in phrases:
+                if [util.alphanum(phrase,"lower").strip(), "phrase"] in db_list:
+                    await ctx.send(f"Phrase {phrase.strip()} is already banned.")
+                    return
+                else:
+                    if [util.alphanum(phrase,"lower").strip(), "tag"] in db_list:
+                        tag_list = [item[0] for item in curNP.execute("SELECT tagname FROM unwantedtags").fetchall()]
+                        i = 0
+                        for item in tag_list:
+                            if util.alphanum(item,"lower").strip() == util.alphanum(phrase,"lower").strip():
+                                curNP.execute("UPDATE unwantedtags SET bantype = ? WHERE tagname = ?", ("phrase", item))
+                                conNP.commit()
+                                i += 1
+                        await ctx.send(f"Changed ban of `{phrase.strip()}` from tag to phrase. [{i}]")
+                    else:
+                        curNP.execute("INSERT INTO unwantedtags VALUES (?, ?, ?)", (phrase.strip(), "phrase", ""))
+                        conNP.commit()
+                        await ctx.send(f"Banned entire phrase `{phrase.strip()}`.")
+
+                    await util.changetimeupdate()
+
+        else:
+            tags  = ' '.join(args).split(";")
+            for tag in tags:
+                if [util.alphanum(tag,"lower").strip(), "tag"] in db_list:
+                    await ctx.send(f"Tag {tag.strip()} is already banned.")
+                    return
+                else:
+                    if [util.alphanum(tag,"lower").strip(), "phrase"] in db_list:
+                        tag_list = [item[0] for item in curNP.execute("SELECT tagname FROM unwantedtags").fetchall()]
+                        i = 0
+                        for item in tag_list:
+                            if util.alphanum(item,"lower").strip() == util.alphanum(tag,"lower").strip():
+                                curNP.execute("UPDATE unwantedtags SET bantype = ? WHERE tagname = ?", ("tag", item))
+                                conNP.commit()
+                                i += 1
+                        await ctx.send(f"Changed ban of `{tag.strip()}` from entire phrase to tag as is. [{i}]")
+                    else:
+                        curNP.execute("INSERT INTO unwantedtags VALUES (?, ?, ?)", (tag.strip(), "tag", ""))
+                        conNP.commit()
+                        await ctx.send(f"Banned tag `{tag.strip()}`.")
+                    await util.changetimeupdate()
+
+    @_bantag.error
+    async def bantag_error(self, ctx, error):
+        await util.error_handling(ctx, error) 
+
+
+
+    @commands.command(name='unbantag', aliases = ['unbantags', 'unblocktag', 'unblocktags'])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _unbantag(self, ctx: commands.Context, *args):
+        """🔒 Unblocks last.fm/musicbrainz tags from displaying
+        
+        You can unblock multiple tags by separating them with a semicolon.
+        """
+        if len(args) == 0:
+            await ctx.send("Command needs arguments.")
+            return
+
+        conNP = sqlite3.connect('databases/npsettings.db')  
+        curNP = conNP.cursor()
+        tag_list = [item[0] for item in curNP.execute("SELECT tagname FROM unwantedtags").fetchall()]
+
+        tags  = ' '.join(args).split(";")
+
+        i = 0
+        for tag in tags:
+            for item in tag_list:
+                if util.alphanum(item,"lower").strip() == util.alphanum(tag,"lower").strip():
+                    curNP.execute("DELETE FROM unwantedtags WHERE tagname = ?", (item,))
+                    conNP.commit()
+                    if item in tag_list:
+                        tag_list.remove(item)
+                        i += 1
+
+        await ctx.send(f"Removed {i} tag(s) from unwanted tags database.")
+
+    @_unbantag.error
+    async def unbantag_error(self, ctx, error):
+        await util.error_handling(ctx, error) 
+
             
 
     @commands.command(name='tagsettings', aliases = ['settags', 'tags', "tagset", "tag"])

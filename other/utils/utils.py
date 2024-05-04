@@ -420,6 +420,56 @@ class Utils():
 
 
 
+    def filter_genretags(genre_tags):
+
+        genre_tags_new = [] # tags to return
+        genre_tags_new_alphanum = [] # check to avoid duplicates
+        
+        # GET BAD TAGS AND PHRASES
+
+        conNP = sqlite3.connect('databases/npsettings.db')  
+        curNP = conNP.cursor()
+        bad_tags_alphanum = []
+        bad_phrase_alphanum = []
+        db_list = [[Utils.alphanum(item[0],"lower").strip(), item[1].lower().strip()] for item in curNP.execute("SELECT tagname, bantype FROM unwantedtags").fetchall()]
+
+        for item in db_list:
+            bantype = item[1]
+            if bantype == "phrase":
+                bad_phrase_alphanum.append(item[0])
+            else:
+                bad_tags_alphanum.append(item[0])
+
+        # FILTER
+
+        for genre in genre_tags:
+            compactname = Utils.alphanum(genre,"lower").strip()
+            if len(compactname) > 2:
+                if compactname[-1] == "s":
+                    secondary = compactname[:-1]
+                else:
+                    secondary = compactname + "s"
+                if compactname[-2:] == "es":
+                    tertiary = compactname[-2:]
+                else:
+                    tertiary = compactname + "es"
+
+                contains_no_bad_phrase = True
+
+                for word in bad_phrase_alphanum:
+                    if word in compactname:
+                        contains_no_bad_phrase = False
+
+                if contains_no_bad_phrase:
+                    if (compactname not in bad_tags_alphanum) and (secondary not in bad_tags_alphanum) and (tertiary not in bad_tags_alphanum):
+                        if (compactname not in genre_tags_new_alphanum)  and (secondary not in genre_tags_new_alphanum) and (tertiary not in genre_tags_new_alphanum):
+                            genre_tags_new.append(genre.lower())
+                            genre_tags_new_alphanum.append(Utils.alphanum(genre,"lower").strip())
+
+        return genre_tags_new
+
+
+
     def forceinteger(s):
         try:
             i = int(s.strip())

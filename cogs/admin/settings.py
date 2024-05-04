@@ -4417,6 +4417,7 @@ class Administration_of_Settings(commands.Cog):
             curNP.execute('''CREATE TABLE IF NOT EXISTS npreactions (id text, name text, emoji1 text, emoji2 text, emoji3 text, emoji4 text, emoji5 text, details text)''')
             curNP.execute('''CREATE TABLE IF NOT EXISTS lastfm (id text, name text, lfm_name text, lfm_link text, details text)''')
             curNP.execute('''CREATE TABLE IF NOT EXISTS tagsettings (id text, name text, spotify_monthlylisteners text, spotify_genretags text, lastfm_listeners text, lastfm_total_artistplays text, lastfm_artistscrobbles text, lastfm_albumscrobbles text, lastfm_trackscrobbles text, lastfm_rank text, lastfm_tags text, musicbrainz_tags text, musicbrainz_area text, musicbrainz_date text, rym_genretags text, rym_albumrating text)''')
+            curNP.execute('''CREATE TABLE IF NOT EXISTS unwantedtags (tagname text, bantype text, details text)''')
 
 
             # COOLDOWNS i.e. PREVENTIVE SELF RATE LIMITING
