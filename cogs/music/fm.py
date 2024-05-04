@@ -2300,7 +2300,9 @@ class Music_NowPlaying(commands.Cog):
         
         You can block multiple tags by separating them with a semicolon.
 
-        Use first argument `p` to ban entire phrases. If a phrase is banned it means that any tag that contains it will get banned.
+        Use first argument `p` to ban entire phrases. If a phrase is banned it means that any tag that contains this word phrase will get banned.
+
+        Note that tags and phrases are compared by getting rid of all non-alphanumeric characters (everything that is not a letter or number). So banning entire phrases with few letters might be risky and ban too many tags unintentionally.
         """
 
         if len(args) == 0:
