@@ -196,7 +196,7 @@ class Administration_of_Server(commands.Cog):
                 await user.send(embed=embed)
                 print("Successfully notified user.")
             except Exception as e:
-                print("Error while trying to DM muted user:", e)
+                print("Error while trying to DM banned user:", e)
     @_ban.error
     async def ban_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -265,7 +265,7 @@ class Administration_of_Server(commands.Cog):
                 await user.send(embed=embed)
                 print("Successfully notified user.")
             except Exception as e:
-                print("Error while trying to DM muted user:", e)
+                print("Error while trying to DM kicked user:", e)
 
     @_kick.error
     async def kick_error(self, ctx, error):
