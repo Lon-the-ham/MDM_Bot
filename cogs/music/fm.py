@@ -2340,7 +2340,7 @@ class Music_NowPlaying(commands.Cog):
                         await ctx.send(f"Banned entire phrase `{phrase.strip()}`.")
 
                     await util.changetimeupdate()
-
+                    db_list.append([util.alphanum(phrase,"lower").strip(), "phrase"])
         else:
             tags  = ' '.join(args).split(";")
             for tag in tags:
@@ -2361,7 +2361,9 @@ class Music_NowPlaying(commands.Cog):
                         curNP.execute("INSERT INTO unwantedtags VALUES (?, ?, ?)", (tag.strip(), "tag", ""))
                         conNP.commit()
                         await ctx.send(f"Banned tag `{tag.strip()}`.")
+
                     await util.changetimeupdate()
+                    db_list.append([util.alphanum(tag,"lower").strip(), "tag"])
 
     @_bantag.error
     async def bantag_error(self, ctx, error):
