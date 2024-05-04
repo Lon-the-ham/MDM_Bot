@@ -1865,18 +1865,49 @@ class Music_NowPlaying(commands.Cog):
             show_musicbee = True
             show_applemusic = True
 
+        # CHECK INACTIVITY ROLE
+
+        conB = sqlite3.connect('databases/botsettings.db')
+        curB = conB.cursor()
+        inactivityfilter_setting = [[item[0], item[1], item[2]] for item in curB.execute("SELECT value, details, etc FROM serversettings WHERE name = ?", ("inactivity filter", )).fetchall()]
+
+        if len(inactivityfilter_setting) == 0 or inactivityfilter_setting[0][0].lower() != "on":
+            print("Timeloop notification: Inactivity filter is set `off`. No action was taken.")
+            inactivityfilter = "off"
+        else:
+            inactivityfilter = "on"
+
+            try:# FETCH ROLE
+                inactivityrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]        
+                if len(inactivityrole_list) == 0 or not util.represents_integer(inactivityrole_list[0]):
+                    inactivity_role_id = None
+                else:
+                    inactivity_role_id = int(inactivityrole_list[0])
+                    inactivity_role = ctx.guild.get_role(inactivity_role_id)
+            except Exception as e:
+                print("Error:", e)
+                inactivity_role = None
+
+        # AGGREGATE ACTIVITIES
+
         guild = ctx.message.guild
         spotify_list = []
         musicbee_list = []
         applemusic_list = []
 
         for member in guild.members:
+            if inactivityfilter == "on":
+                if inactivity_role in member.roles:
+                    print(f"skip {member.name}")
+                    continue
+                    
             activity_list = []
             for activity in member.activities:
                 try:
                     activity_list.append(str(activity.name))
                 except:
                     pass 
+
             for activity in member.activities:
                 if isinstance(activity, Spotify):
                     spotify_list.append([member.display_name, member.id, util.cleantext2(activity.title), util.cleantext2(activity.artist), util.cleantext2(activity.album), activity.track_url])
@@ -1903,7 +1934,7 @@ class Music_NowPlaying(commands.Cog):
                     except:
                         musicbee_list.append([member.display_name, member.id, "", "", "", ""])
 
-                if str(activity.type) == "ActivityType.playing" and activity.name == "Music" and "iTunes Rich Presence for Discord" in activity_list:
+                if str(activity.type) == "ActivityType.playing" and (activity.name == "Apple Music" or (activity.name == "Music" and "iTunes Rich Presence for Discord" in activity_list)):
                     try:
                         title = util.cleantext2(activity.details.replace("🎶", "").strip())
                         artist = util.cleantext2(activity.state.split("💿")[0].replace("👤","").strip())
