@@ -37,6 +37,19 @@ class General_Utility(commands.Cog):
 
 
 
+    @commands.command(name='version', aliases = ["v"])
+    @commands.check(util.is_active)
+    async def _botversion(self, ctx):
+        """shows version of the bot
+        """    
+        version = util.get_version()
+        await ctx.send(f"MDM Bot {version}")
+    @_botversion.error
+    async def botversion_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
     @commands.command(name='say', aliases = ['msg'])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
@@ -2295,13 +2308,14 @@ class General_Utility(commands.Cog):
         if len(args) == 0:
             conU = sqlite3.connect('databases/userdata.db')
             curU = conU.cursor()
-            loc_list = [[item[0],item[1]] for item in curU.execute("SELECT longitude, latitude FROM location WHERE user_id = ?", (str(ctx.author.id),)).fetchall()]
+            loc_list = [[item[0],item[1],item[2]] for item in curU.execute("SELECT longitude, latitude, city FROM location WHERE user_id = ?", (str(ctx.author.id),)).fetchall()]
             if len(loc_list) == 0:
                 raise ValueError(f"No location was set.\nUse `{self.prefix}w set <city>, <country>` to set location.")
                 return
 
             longitude = loc_list[0][0]
             latitude = loc_list[0][1]
+            city_string = loc_list[0][2]
 
         else:
             # GET WEATHER DIRECTLY VIA ZIP CODE
@@ -2629,6 +2643,7 @@ class General_Utility(commands.Cog):
             except Exception as e2:
                 print(f"Error while trying to fetch country and city:\n>{e1}\n>{e2}")
                 await ctx.send("Error: Place not found.")
+                return
 
         # PARSE FROM RESPONSE
         try:
@@ -2750,7 +2765,7 @@ class General_Utility(commands.Cog):
             curU.execute("INSERT INTO location VALUES (?, ?, ?, ?, ?, ?, ?)", (str(ctx.author.id), str(ctx.author.name), city, state, country, longitude, latitude))
             conU.commit()
         else:
-            curU.execute("UPDATE location SET city = ?, state = ?, country = ?, longitude = ?, latitude = ? WHERE user_id = ?", (city, state, country, longitude, latitude, str(ctx.author.id)))
+            curU.execute("UPDATE location SET city = ?, state = ?, country = ?, longitude = ?, latitude = ? WHERE user_id = ?", (city_name, state, country, longitude, latitude, str(ctx.author.id)))
             conU.commit()
         await util.changetimeupdate()
 
@@ -2888,7 +2903,7 @@ class General_Utility(commands.Cog):
                 await ctx.send(item['link'])
                 break
         except:
-            await ctx.send("Error: Probably reached API limit.")
+            await ctx.send("Error: Could not find images or reached API limit.")
 
     @_imagesearch.error
     async def imagesearch_error(self, ctx, error):
