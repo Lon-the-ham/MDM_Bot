@@ -37,7 +37,7 @@ class Administration_of_Bot_Instance(commands.Cog):
                 now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
                 found = False
                 last_occurence = 0
-                async for msg in channel.history(limit=50):
+                async for msg in channel.history(limit=100):
                     if "`LAST ACTIVE`" in msg.content and str(msg.author.id) in app_id_list:
                         try:
                             timestamp = int(msg.content.split("last edited: <t:")[1].split(":f> i.e. <t:")[0])
@@ -265,7 +265,7 @@ class Administration_of_Bot_Instance(commands.Cog):
 
 
 
-    @commands.command(name='status', aliases = ["instancestatus", "version"])
+    @commands.command(name='status', aliases = ["instancestatus"])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     async def _botstatus(self, ctx):
