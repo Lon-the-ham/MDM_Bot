@@ -440,6 +440,8 @@ class Utils():
             else:
                 bad_tags_alphanum.append(item[0])
 
+        regex_list = [item[0] for item in curNP.execute("SELECT regex FROM unwantedtags_regex").fetchall()]
+
         # FILTER
 
         for genre in genre_tags:
@@ -455,10 +457,18 @@ class Utils():
                     tertiary = compactname + "es"
 
                 contains_no_bad_phrase = True
+                for expression in regex_list:
+                    try:
+                        found_match = bool(re.search(expression, genre.lower()))
+                        if found_match:
+                            contains_no_bad_phrase = False
+                    except:
+                        pass
 
-                for word in bad_phrase_alphanum:
-                    if word in compactname:
-                        contains_no_bad_phrase = False
+                if contains_no_bad_phrase:
+                    for word in bad_phrase_alphanum:
+                        if word in compactname:
+                            contains_no_bad_phrase = False
 
                 if contains_no_bad_phrase:
                     if (compactname not in bad_tags_alphanum) and (secondary not in bad_tags_alphanum) and (tertiary not in bad_tags_alphanum):
