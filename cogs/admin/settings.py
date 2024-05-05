@@ -3797,7 +3797,7 @@ class Administration_of_Settings(commands.Cog):
             conL = sqlite3.connect(f'databases/aftermostchange.db')
             curL = conL.cursor()
             curL.execute('''CREATE TABLE IF NOT EXISTS lastchange (name text, value text, details text)''')
-            changetime_list = [item[0] for item in curA.execute("SELECT value FROM activity WHERE name = ?", ("time",)).fetchall()]
+            changetime_list = [item[0] for item in curL.execute("SELECT value FROM lastchange WHERE name = ?", ("time",)).fetchall()]
             if len(changetime_list) == 0:
                 utc_timestamp = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
                 try:
@@ -3807,7 +3807,7 @@ class Administration_of_Settings(commands.Cog):
                 curL.execute("INSERT INTO lastchange VALUES (?,?,?)", ("time", str(utc_timestamp), human_readable_time))
                 conL.commit()
                 print("Updated aftermost change table")
-            elif len(achangetime_list) > 1:
+            elif len(changetime_list) > 1:
                 print("Warning: Multiple time entries in aftermostchange.db")
 
             # BOTSETTINGS DB: BOTSETTINGS
@@ -4418,6 +4418,7 @@ class Administration_of_Settings(commands.Cog):
             curNP.execute('''CREATE TABLE IF NOT EXISTS lastfm (id text, name text, lfm_name text, lfm_link text, details text)''')
             curNP.execute('''CREATE TABLE IF NOT EXISTS tagsettings (id text, name text, spotify_monthlylisteners text, spotify_genretags text, lastfm_listeners text, lastfm_total_artistplays text, lastfm_artistscrobbles text, lastfm_albumscrobbles text, lastfm_trackscrobbles text, lastfm_rank text, lastfm_tags text, musicbrainz_tags text, musicbrainz_area text, musicbrainz_date text, rym_genretags text, rym_albumrating text)''')
             curNP.execute('''CREATE TABLE IF NOT EXISTS unwantedtags (tagname text, bantype text, details text)''')
+            curNP.execute('''CREATE TABLE IF NOT EXISTS unwantedtags_regex (id text, regex text, details text)''')
 
 
             # COOLDOWNS i.e. PREVENTIVE SELF RATE LIMITING
@@ -4470,6 +4471,12 @@ class Administration_of_Settings(commands.Cog):
             conUA = sqlite3.connect('databases/useractivity.db')
             curUA = conUA.cursor()
             curUA.execute('''CREATE TABLE IF NOT EXISTS useractivity (username text, userid text, last_active text, join_time text, previous_roles text)''')
+            
+            # BOT ACTIVITY
+
+            conRA = sqlite3.connect('databases/robotactivity.db')
+            curRA = conRA.cursor()
+            curRA.execute('''CREATE TABLE IF NOT EXISTS raw_reaction_embeds (embed_type text, channel_name text, guild_id text, channel_id text, message_id text, app_id text, called_by_id text, called_by_name text, utc_timestamp text)''')
 
             # SEARCH FOR OTHER MDM BOT INSTANCES
             await asyncio.sleep(1)
