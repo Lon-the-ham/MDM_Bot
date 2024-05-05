@@ -186,6 +186,12 @@ class TimeLoops(commands.Cog):
         except Exception as e:
             await self.timeloop_error(e, "daily_check:inactivity_filter")
 
+        # clear old data
+        try:
+            await self.clear_databases()
+        except Exception as e:
+            await self.timeloop_error(e, "daily_check:clear_databases")
+
     @daily_check.before_loop
     async def before_daily_check(self):
         await self.bot.wait_until_ready()
@@ -1133,6 +1139,29 @@ class TimeLoops(commands.Cog):
                 all_good = True
             title = "Inactivity Filter"
             await self.timeloop_notification(title, message.strip(), all_good)
+
+
+    # clear databases of redundant data
+
+    async def clear_databases(self):
+        # robot activity
+        conRA = sqlite3.connect('databases/robotactivity.db')
+        curRA = conRA.cursor()
+        rawreactionembed_list = [[item[0],item[1], util.forceinteger(item[2])] for item in curRA.execute("SELECT channel_id, message_id, utc_timestamp FROM raw_reaction_embeds").fetchall()]
+        
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        for item in rawreactionembed_list:
+            channel_id = item[0]
+            message_id = item[1]
+            utc_timestamp = item[2]
+
+            if utc_timestamp < now - (365 * 24 * 60 * 60):
+                curRA.execute("DELETE FROM raw_reaction_embeds WHERE message_id = ? AND channel_id = ?", (str(message_id), str(channel_id)))
+        conRA.commit()
+        await util.changetimeupdate()
+
+
 
 
 
