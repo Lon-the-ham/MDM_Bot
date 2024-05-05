@@ -418,6 +418,8 @@ class Memo(commands.Cog):
         con = sqlite3.connect('databases/memobacklog.db')
         cur = con.cursor()
 
+        # PARSE
+
         args2 = []
         for arg in args:
             is_mention = False
@@ -429,6 +431,8 @@ class Memo(commands.Cog):
 
         given_string = " ".join(args2).split("|")
         bl_entries = given_string[0].strip().replace(";"," ;\n")
+
+        # COMPOSE
 
         msg = "**%s**" % bl_entries[:2000]
         if len(bl_entries) > 2000:
@@ -442,14 +446,36 @@ class Memo(commands.Cog):
             if len(additionalinfo) > 1500:
                 msg += " [...]"
 
+        # MAKE EMBED
+
         embed = discord.Embed(title="Recommendation", description=msg, color=0x30D5C8)
         footer = "React with 📝 to add it to your backlog."
         icon = "https://i.imgur.com/8IsAjV6.png"
         extra = ""
         embed.set_footer(text = footer)
         embed.set_thumbnail(url=icon)
-        message = await the_channel.send(embed=embed)
-        await message.add_reaction("📝")
+        embed_message = await ctx.send(embed=embed)
+
+        # SAVE IN DATABASE
+
+        conRA = sqlite3.connect('databases/robotactivity.db')
+        curRA = conRA.cursor()
+        embed_type = "recommendation"
+        channel_name = str(ctx.channel.name)
+        guild_id = str(ctx.guild.id)
+        channel_id = str(ctx.channel.id)
+        message_id = str(embed_message.id)
+        app_id = str(self.bot.application_id)
+        called_by_id = str(ctx.message.author.id)
+        called_by_name = str(ctx.message.author.name)
+        utc_timestamp = str(int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds()))
+        curRA.execute("INSERT INTO raw_reaction_embeds VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (embed_type, channel_name, guild_id, channel_id, message_id, app_id, called_by_id, called_by_name, utc_timestamp))
+        conRA.commit()
+        await util.changetimeupdate()
+
+        # ADD REACTION
+
+        await embed_message.add_reaction("📝")
 
 
 
