@@ -53,7 +53,6 @@ class Pingable_Interests(commands.Cog):
 
         Creates a message with the pingterest to be able to join via react, but also makes an entry in the db for said interest, so that members can join it via -joinpi."""
         
-
         pi_name = " ".join(args).lower()[:60]
 
         if pi_name == "":
@@ -80,9 +79,27 @@ class Pingable_Interests(commands.Cog):
         pi_desc += f"\n\nYou can always use `{self.prefix}joinpi <pingterest name>` or `{self.prefix}leavepi <pingterest name>` to join or leave later. Check with `{self.prefix}listmypi` to get a list of all the pingterests you joined."
 
         embed = discord.Embed(title=pi_title, description=pi_desc, color=0x000080)
-        message = await ctx.send(embed=embed)
-        await message.add_reaction('✅')
-        await message.add_reaction('🚫')
+        embed_message = await ctx.send(embed=embed)
+
+        # SAVE IN DATABASE
+        conRA = sqlite3.connect('databases/robotactivity.db')
+        curRA = conRA.cursor()
+        embed_type = "pingterest"
+        channel_name = str(ctx.channel.name)
+        guild_id = str(ctx.guild.id)
+        channel_id = str(ctx.channel.id)
+        message_id = str(embed_message.id)
+        app_id = str(self.bot.application_id)
+        called_by_id = str(ctx.message.author.id)
+        called_by_name = str(ctx.message.author.name)
+        utc_timestamp = str(int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds()))
+        curRA.execute("INSERT INTO raw_reaction_embeds VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (embed_type, channel_name, guild_id, channel_id, message_id, app_id, called_by_id, called_by_name, utc_timestamp))
+        conRA.commit()
+        await util.changetimeupdate()
+
+        # ADD REACTIONS
+        await embed_message.add_reaction('✅')
+        await embed_message.add_reaction('🚫')
             
     @_pingterest.error
     async def pingterest_error(self, ctx, error):
