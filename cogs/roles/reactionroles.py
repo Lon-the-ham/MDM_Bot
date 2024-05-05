@@ -19,8 +19,20 @@ class RoleEvents(commands.Cog):
         if server_id != self.valid_server:
             return
 
-        channel = self.bot.get_channel(payload.channel_id)
-        message = await channel.fetch_message(payload.message_id)
+        user = payload.member
+        try: 
+            if user.bot:
+                return
+        except:
+            # somehow the payload.member object is None in on_raw_reaction_remove() while it is not in on_raw_reaction_add()
+            pass
+
+        #channel = self.bot.get_channel(payload.channel_id)
+        #message = await channel.fetch_message(payload.message_id)
+
+        channel_id = payload.channel_id
+        message_id = payload.message_id
+
         react = payload.emoji.name #for default emojis
         react2 = str(payload.emoji) #for custom emojis
         user_id = payload.user_id
@@ -48,7 +60,7 @@ class RoleEvents(commands.Cog):
 
         # CHECK CHANNEL
 
-        if channel.id != role_channel_id:
+        if channel_id != role_channel_id:
             return
 
         # CHECK USER
@@ -72,11 +84,11 @@ class RoleEvents(commands.Cog):
             print("Error while trying to fetch list of enabled reaction roles:", e)
             return
 
-        if str(message.id) not in msg_cat_dict: 
+        if str(message_id) not in msg_cat_dict: 
             print("reaction to message that is not an enabled reaction role category in the database")
             return
 
-        category = msg_cat_dict[str(message.id)]
+        category = msg_cat_dict[str(message_id)]
         cat_type = cat_type_dict[category]
 
         # FETCH ROLES
@@ -102,6 +114,8 @@ class RoleEvents(commands.Cog):
             role_id = emoji_role_dict[react2]
         else:
             try:
+                channel = self.bot.get_channel(payload.channel_id)
+                message = await channel.fetch_message(payload.message_id)
                 await message.remove_reaction(payload.emoji, user)
                 print("non accepted react detected")
             except:
@@ -109,15 +123,35 @@ class RoleEvents(commands.Cog):
             return
 
         try:
-            guild = self.bot.get_guild(payload.guild_id)
+            guild = self.bot.get_guild(payload.guild_id) # check if guild is in cache
+            if guild is None:
+                try:
+                    guild = message.guild # if message was already initialized
+                except:
+                    guild = await self.bot.fetch_guild(payload.guild_id) # fetch guild (this sometimes doesn't work somehow)
+                    if guild is None:
+                        try:
+                            channel = self.bot.get_channel(channel_id) # initialize message 
+                            message = await channel.fetch_message(message_id)
+                            guild = message.guild
+                        except:
+                            raise ValueError("could not fetch guild")
             the_role = discord.utils.get(guild.roles, id = int(role_id))
         except Exception as e:
             print("could not fetch role via id. try updating role database:", e)
             return
 
         try:
-            user = guild.get_member(user_id)
-            await user.add_roles(the_role)
+            if user is None:
+                user = guild.get_member(user_id)
+                await user.add_roles(the_role)
+            else:
+                try:
+                    # user was initialized from payload.member
+                    await user.add_roles(the_role)
+                except:
+                    user = guild.get_member(user_id)
+                    await user.add_roles(the_role)
         except:
             print(f"could not assign role {the_role.name} to user")
             return
@@ -146,8 +180,20 @@ class RoleEvents(commands.Cog):
         if server_id != self.valid_server:
             return
 
-        channel = self.bot.get_channel(payload.channel_id)
-        message = await channel.fetch_message(payload.message_id)
+        user = payload.member
+        try: 
+            if user.bot:
+                return
+        except:
+            # somehow the payload.member object is None in on_raw_reaction_remove() while it is not in on_raw_reaction_add()
+            pass
+
+        #channel = self.bot.get_channel(payload.channel_id)
+        #message = await channel.fetch_message(payload.message_id)
+
+        channel_id = payload.channel_id
+        message_id = payload.message_id
+
         react = payload.emoji.name #for default emojis
         react2 = str(payload.emoji) #for custom emojis
         user_id = payload.user_id
@@ -175,7 +221,7 @@ class RoleEvents(commands.Cog):
 
         # CHECK CHANNEL
 
-        if channel.id != role_channel_id:
+        if channel_id != role_channel_id:
             return
 
         # CHECK USER
@@ -199,11 +245,11 @@ class RoleEvents(commands.Cog):
             print("Error while trying to fetch list of enabled reaction roles:", e)
             return
 
-        if str(message.id) not in msg_cat_dict: 
+        if str(message_id) not in msg_cat_dict: 
             print("reaction to message that is not an enabled reaction role category in the database")
             return
 
-        category = msg_cat_dict[str(message.id)]
+        category = msg_cat_dict[str(message_id)]
         cat_type = cat_type_dict[category]
 
         # FETCH ROLES
@@ -231,15 +277,32 @@ class RoleEvents(commands.Cog):
             return
 
         try:
-            guild = self.bot.get_guild(payload.guild_id)
+            guild = self.bot.get_guild(payload.guild_id) # check if guild is in cache
+            if guild is None:
+                guild = await self.bot.fetch_guild(payload.guild_id) # fetch guild (this sometimes doesn't work somehow)
+                if guild is None:
+                    try:
+                        channel = self.bot.get_channel(channel_id) # initialize message 
+                        message = await channel.fetch_message(message_id)
+                        guild = message.guild
+                    except:
+                        raise ValueError("could not fetch guild")
             the_role = discord.utils.get(guild.roles, id = int(role_id))
         except:
             print("could not fetch role via id. try updating role database")
             return
 
         try:
-            user = guild.get_member(user_id)
-            await user.remove_roles(the_role)
+            if user is None:
+                user = guild.get_member(user_id)
+                await user.remove_roles(the_role)
+            else:
+                try:
+                    # if user was initialized from payload.member
+                    await user.remove_roles(the_role)
+                except:
+                    user = guild.get_member(user_id)
+                    await user.remove_roles(the_role)
         except:
             print(f"could not unassign role {the_role.name} from user")
             return
