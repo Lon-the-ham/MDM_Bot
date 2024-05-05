@@ -159,10 +159,11 @@ class Music_NowPlaying(commands.Cog):
                     embed.set_author(name=f"{member.display_name}'s Apple Music" , icon_url=member.avatar)
                     try:
                         cooldown = True
-                        picture_list = await self.find_applemusic_pictures(artist, album, song, cooldown)
+                        picture_list = await self.find_applemusic_pictures(ctx, artist, album, song, cooldown)
                         print(picture_list[0])
                         embed.set_thumbnail(url=picture_list[0].strip())
-                    except:
+                    except Exception as e:
+                        print("Error while trying to fetch album cover from Apple Music", e)
                         try:
                             embed.set_thumbnail(url=activity.large_image_url) # under construction: fetch image from elsewhere?
                         except Exception as e:
@@ -1235,7 +1236,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def find_applemusic_pictures(self, artist, album, song, cooldown):
+    async def find_applemusic_pictures(self, ctx, artist, album, song, cooldown):
         if cooldown:
             try: # cooldown to not trigger actual rate limits or IP blocks
                 await util.cooldown(ctx, "applemusic")
@@ -1245,7 +1246,10 @@ class Music_NowPlaying(commands.Cog):
 
         try:
             session = requests.session()
-            burp0_url = f"https://music.apple.com/us/search?term={artist}%20{album}%20{song}"
+            artist2 = ''.join([x for x in artist if x.isalnum() or x == " "]).replace(" ", "%20")
+            album2 = ''.join([x for x in album if x.isalnum() or x == " "]).replace(" ", "%20")
+            song2 = ''.join([x for x in song if x.isalnum() or x == " "]).replace(" ", "%20")
+            burp0_url = f"https://music.apple.com/us/search?term={artist2}%20{album2}%20{song2}"
             burp0_headers = {"Sec-Ch-Ua": "\"Chromium\";v=\"111\", \"Not(A:Brand\";v=\"8\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.5563.111 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Connection": "close"}
             response = session.get(burp0_url, headers=burp0_headers)
 
@@ -1283,10 +1287,10 @@ class Music_NowPlaying(commands.Cog):
                             return picture_links
                         else:
                             picture_links = []
-                except:
-                    pass
-        except:
-            pass
+                except Exception as e:
+                    print("Error while trying to find album cover jpg/png/webp from AppleMusic:", e)
+        except Exception as e:
+            print("Error while trying to fetch album cover from AppleMusic:", e)
 
         return []
 
@@ -1897,10 +1901,10 @@ class Music_NowPlaying(commands.Cog):
 
         for member in guild.members:
             if inactivityfilter == "on":
-                if inactivity_role in member.roles:
+                if len(member.roles) < 3 and inactivity_role in member.roles: # only inactivity and everyone role
                     print(f"skip {member.name}")
                     continue
-                    
+
             activity_list = []
             for activity in member.activities:
                 try:
