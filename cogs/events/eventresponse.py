@@ -9,6 +9,7 @@ import os
 import re
 import asyncio
 from emoji import UNICODE_EMOJI
+import traceback
 
 
 class Event_Response(commands.Cog):
@@ -707,10 +708,29 @@ class Event_Response(commands.Cog):
                         if found_descriptor:
                             print("found descriptor, no action needed")
                         else:
+                            # SEND REMINDER EMBED
                             col = 0xFFF700
                             msgtext = f"Have you properly tagged your post with a genre, sound description and/or FFO?\nIf yes, react with ✅. If no, pls add that and then react with ✅."
                             embed=discord.Embed(title="Tag Reminder", url="", description=msgtext, color=col)
                             remindermsg = await message.reply(embed=embed, mention_author=True)
+
+                            # SAVE IN DATABASE
+                            conRA = sqlite3.connect('databases/robotactivity.db')
+                            curRA = conRA.cursor()
+                            embed_type = "tag reminder"
+                            channel_name = str(message.channel.name)
+                            guild_id = str(message.guild.id)
+                            channel_id = str(message.channel.id)
+                            message_id = str(remindermsg.id)
+                            app_id = str(self.bot.application_id)
+                            called_by_id = str(message.author.id)
+                            called_by_name = str(message.author.name)
+                            utc_timestamp = str(int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds()))
+                            curRA.execute("INSERT INTO raw_reaction_embeds VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (embed_type, channel_name, guild_id, channel_id, message_id, app_id, called_by_id, called_by_name, utc_timestamp))
+                            conRA.commit()
+                            await util.changetimeupdate()
+
+                            # ADD REACTION
                             await remindermsg.add_reaction("✅")
                             print("reminded")
 
@@ -1158,14 +1178,14 @@ class Event_Response(commands.Cog):
 
             channel_id = payload.channel_id
             message_id = payload.message_id
+            cmid = f"{str(channel_id)}/{str(message_id)}"
 
             react = payload.emoji.name
             user = payload.member
             user_id = payload.user_id
 
-            channel = self.bot.get_channel(channel_id)
-            message = await channel.fetch_message(message_id)
-            message_author_id = message.author.id
+            if user.bot:
+                return
 
             # RETRIEVE CHANNELS
 
@@ -1211,135 +1231,166 @@ class Event_Response(commands.Cog):
 
             if not reactionrole_enabled or str(channel_id) != rolechannel_id:
                 
-                if (str(message_author_id) in application_list) and (str(user_id) not in application_list): # message by bot, reaction not by bot
+                if str(user_id) not in application_list: # reaction not by an MDM bot instance
 
-                    if message.embeds:   #check if list is not empty
-                        embed = message.embeds[0]
+                    conRA = sqlite3.connect('databases/robotactivity.db')
+                    curRA = conRA.cursor()
+                    rawreactionembed_list = [[item[0],item[1],item[2]] for item in curRA.execute("SELECT embed_type, channel_id, message_id FROM raw_reaction_embeds").fetchall()]
+                    rawreactionembed_dict = {}
+                    for item in rawreactionembed_list:
+                        channel_message_ids = f"{item[1]}/{item[2]}"
+                        rawreactionembed_dict[channel_message_ids] = item[0]
 
-                        # A) SUGGESTION FUNCTIONALITY
+                    if cmid in rawreactionembed_dict:
 
-                        if 'Recommendation' == str(embed.title):
-                            if react == "📝":
-                                testprint = "detected 📝 react by %s" % user.name
-                                print(testprint)
+                        channel = self.bot.get_channel(channel_id) 
+                        message = await channel.fetch_message(message_id)
+
+                        if message.embeds:   #check if list is not empty
+                            embed = message.embeds[0]
+
+                            # A) SUGGESTION FUNCTIONALITY
+
+                            if rawreactionembed_dict[cmid] == "recommendation": #'Recommendation' == str(embed.title):
+                                if react == "📝":
+                                    testprint = "detected 📝 react by %s" % user.name
+                                    print(testprint)
+                                    
+                                    conM = sqlite3.connect('databases/memobacklog.db') 
+                                    curM = conM.cursor()
+                                    curM.execute('''CREATE TABLE IF NOT EXISTS memobacklog (bgid text, userid text, username text, backlog text, details text)''')
+                                    
+                                    now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                                    bl_entries = [x.strip() for x in (str(embed.description).split("▪️")[0].replace("*", " ").strip()).split(";") if x.strip()] #the x for x if x should remove all empty strings
+                                    i=1000
+                                    for bl_entry in bl_entries:
+                                        mmid = str(now) + "_" + str(user.id) + "_0rec" + str(i)
+                                        print(f"adding entry {i - 999} to backlog")
+                                        curM.execute("INSERT INTO memobacklog VALUES (?, ?, ?, ?, ?)", (mmid, str(user.id), str(user.name), bl_entry, ""))
+                                        conM.commit()
+                                        i += 1
+                                    await util.changetimeupdate()
+
+                                    try:
+                                        footer = str(embed.footer.text)
+                                        newfooter = footer + "\n-added to " + util.cleantext2(str(user.display_name))[:20].strip() + "'s backlog"
+                                        L = len(newfooter)
+                                        if L > 2048:
+                                            newfooter = newfooter[L-2048:]
+                                        embed.set_footer(text = newfooter[:2048])
+                                        await message.edit(embed=embed)
+                                    except Exception as e:
+                                        print(e)
+
+                            # B) PINGTEREST SUBSCRIPTION
+
+                            elif rawreactionembed_dict[cmid] == "pingterest": #str(embed.title).startswith('Pingterest: '):
+                                pi_name = str(embed.title).lower().split("pingterest: ")[-1]
                                 
-                                conM = sqlite3.connect('databases/memobacklog.db') 
-                                curM = conM.cursor()
-                                curM.execute('''CREATE TABLE IF NOT EXISTS memobacklog (bgid text, userid text, username text, backlog text, details text)''')
-                                
-                                now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
-                                bl_entries = [x.strip() for x in (str(embed.description).split("▪️")[0].replace("*", " ").strip()).split(";") if x.strip()] #the x for x if x should remove all empty strings
-                                i=1000
-                                for bl_entry in bl_entries:
-                                    mmid = str(now) + "_" + str(user.id) + "_0rec" + str(i)
-                                    print(f"adding entry {i - 999} to backlog")
-                                    curM.execute("INSERT INTO memobacklog VALUES (?, ?, ?, ?, ?)", (mmid, str(user.id), str(user.name), bl_entry, ""))
-                                    conM.commit()
-                                    i += 1
-                                await util.changetimeupdate()
+                                if react == "✅":
+                                    conP = sqlite3.connect('databases/pingterest.db')
+                                    curP = conP.cursor()
+                                    curP.execute('''CREATE TABLE IF NOT EXISTS pingterests (pingterest text, userid text, username text, details text)''')
 
-                                try:
-                                    footer = str(embed.footer.text)
-                                    newfooter = footer + "\n-added to " + util.cleantext2(str(user.display_name))[:20].strip() + "'s backlog"
-                                    L = len(newfooter)
-                                    if L > 2048:
-                                        newfooter = newfooter[L-2048:]
-                                    embed.set_footer(text = newfooter[:2048])
-                                    await message.edit(embed=embed)
-                                except Exception as e:
-                                    print(e)
+                                    pi_list = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND details = ?", (pi_name, "template")).fetchall()]
 
-                        # B) PINGTEREST SUBSCRIPTION
-
-                        if str(embed.title).startswith('Pingterest: '):
-                            pi_name = str(embed.title).lower().split("pingterest: ")[-1]
-                            
-                            if react == "✅":
-                                conP = sqlite3.connect('databases/pingterest.db')
-                                curP = conP.cursor()
-                                curP.execute('''CREATE TABLE IF NOT EXISTS pingterests (pingterest text, userid text, username text, details text)''')
-
-                                pi_list = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND details = ?", (pi_name, "template")).fetchall()]
-
-                                if len(pi_list) == 0:
-                                    print("error: pingterest does not exist")
-                                else:
-                                    pi_user = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id))).fetchall()]
-                                    if len(pi_user) == 0:
-                                        print("pingterest: %s (user joining)" % pi_name)
-                                        curP.execute("INSERT INTO pingterests VALUES (?, ?, ?, ?)", (pi_name, str(user.id), str(user.name), ""))
-                                        conP.commit()
-                                        print("successfully joined pingterest")
-                                        await util.changetimeupdate()
-                                        try:
-                                            footer = str(embed.footer.text)
-                                            newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + "joined!"
-                                            L = len(newfooter)
-                                            if L > 2048:
-                                                newfooter = newfooter[L-2048:]
-                                            embed.set_footer(text = newfooter[:2048])
-                                            await message.edit(embed=embed)
-                                        except Exception as e:
-                                            print(e)
+                                    if len(pi_list) == 0:
+                                        print("error: pingterest does not exist")
                                     else:
-                                        print("pingterest: %s (already joined)" % pi_name)
-                                        try:
-                                            footer = str(embed.footer.text)
-                                            newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + "already joined"
-                                            L = len(newfooter)
-                                            if L > 2048:
-                                                newfooter = newfooter[L-2048:]
-                                            embed.set_footer(text = newfooter[:2048])
-                                            await message.edit(embed=embed)
-                                        except Exception as e:
-                                            print(e)
+                                        pi_user = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id))).fetchall()]
+                                        if len(pi_user) == 0:
+                                            print("pingterest: %s (user joining)" % pi_name)
+                                            curP.execute("INSERT INTO pingterests VALUES (?, ?, ?, ?)", (pi_name, str(user.id), str(user.name), ""))
+                                            conP.commit()
+                                            print("successfully joined pingterest")
+                                            await util.changetimeupdate()
+                                            try:
+                                                if embed.footer.text is None:
+                                                    footer = ""
+                                                else:
+                                                    footer = str(embed.footer.text)
+                                                newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + " joined!"
+                                                L = len(newfooter)
+                                                if L > 2048:
+                                                    newfooter = newfooter[L-2048:]
+                                                embed.set_footer(text = newfooter[:2048])
+                                                await message.edit(embed=embed)
+                                            except Exception as e:
+                                                print(e)
+                                        else:
+                                            print("pingterest: %s (already joined)" % pi_name)
+                                            try:
+                                                if embed.footer.text is None:
+                                                    footer = ""
+                                                else:
+                                                    footer = str(embed.footer.text)
+                                                newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + " already joined"
+                                                L = len(newfooter)
+                                                if L > 2048:
+                                                    newfooter = newfooter[L-2048:]
+                                                embed.set_footer(text = newfooter[:2048])
+                                                await message.edit(embed=embed)
+                                            except Exception as e:
+                                                print(e)
 
-                            elif react == "🚫":
-                                conP = sqlite3.connect('databases/pingterest.db')
-                                curP = conP.cursor()
-                                curP.execute('''CREATE TABLE IF NOT EXISTS pingterests (pingterest text, userid text, username text, details text)''')
+                                elif react == "🚫":
+                                    conP = sqlite3.connect('databases/pingterest.db')
+                                    curP = conP.cursor()
+                                    curP.execute('''CREATE TABLE IF NOT EXISTS pingterests (pingterest text, userid text, username text, details text)''')
 
-                                pi_list = [[item[0], item[1], item[2], item[3]] for item in curpi.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND details = ?", (pi_name, "template")).fetchall()]
+                                    pi_list = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND details = ?", (pi_name, "template")).fetchall()]
 
-                                if len(pi_list) == 0:
-                                    print("error: pingterest does not exist")
-                                else:
-                                    pi_user = [[item[0], item[1], item[2], item[3]] for item in curpi.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id))).fetchall()]
-                                    if len(pi_user) != 0:
-                                        print("pingterest: %s (user joined)" % pi_name)
-                                        curP.execute("DELETE FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id)))
-                                        conP.commit()
-                                        print("successfully left pingterest")
-                                        await util.changetimeupdate()
-                                        try:
-                                            footer = str(embed.footer.text)
-                                            newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + "left..."
-                                            L = len(newfooter)
-                                            if L > 2048:
-                                                newfooter = newfooter[L-2048:]
-                                            embed.set_footer(text = newfooter[:2048])
-                                            await message.edit(embed=embed)
-                                        except Exception as e:
-                                            print(e)
+                                    if len(pi_list) == 0:
+                                        print("error: pingterest does not exist")
                                     else:
-                                        print("pingterest: %s (not joined)" % pi_name)
-                                        try:
-                                            footer = str(embed.footer.text)
-                                            newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + "already unjoined"
-                                            L = len(newfooter)
-                                            if L > 2048:
-                                                newfooter = newfooter[L-2048:]
-                                            embed.set_footer(text = newfooter[:2048])
-                                            await message.edit(embed=embed)
-                                        except Exception as e:
-                                            print(e)
+                                        pi_user = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id))).fetchall()]
+                                        if len(pi_user) != 0:
+                                            print("pingterest: %s (user joined)" % pi_name)
+                                            curP.execute("DELETE FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id)))
+                                            conP.commit()
+                                            print("successfully left pingterest")
+                                            await util.changetimeupdate()
+                                            try:
+                                                if embed.footer.text is None:
+                                                    footer = ""
+                                                else:
+                                                    footer = str(embed.footer.text)
+                                                newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + " left..."
+                                                L = len(newfooter)
+                                                if L > 2048:
+                                                    newfooter = newfooter[L-2048:]
+                                                embed.set_footer(text = newfooter[:2048])
+                                                await message.edit(embed=embed)
+                                            except Exception as e:
+                                                print(e)
+                                        else:
+                                            print("pingterest: %s (not joined)" % pi_name)
+                                            try:
+                                                if embed.footer.text is None:
+                                                    footer = ""
+                                                else:
+                                                    footer = str(embed.footer.text)
+                                                newfooter = footer + "\n-" + util.cleantext2(str(user.display_name))[:20].strip() + " already unjoined"
+                                                L = len(newfooter)
+                                                if L > 2048:
+                                                    newfooter = newfooter[L-2048:]
+                                                embed.set_footer(text = newfooter[:2048])
+                                                await message.edit(embed=embed)
+                                            except Exception as e:
+                                                print(e)
 
-                        # C) TAG REMINDER FEATURE
+                            # C) TAG REMINDER FEATURE
 
-                        if str(embed.title) == "Tag Reminder":
-                            if react == "✅":
-                                await message.delete()
-                                print("deleted tag reminder message")
+                            elif rawreactionembed_dict[cmid] == "tag reminder": #str(embed.title) == "Tag Reminder":
+                                if react == "✅":
+                                    await message.delete()
+                                    print("deleted tag reminder message")
+
+                                    conRA = sqlite3.connect('databases/robotactivity.db')
+                                    curRA = conRA.cursor()
+                                    curRA.execute("DELETE FROM raw_reaction_embeds WHERE message_id = ? AND channel_id = ?", (str(message_id), str(channel_id)))
+                                    conRA.commit()
+                                    await util.changetimeupdate()
 
 
             # GET TO ACTION
@@ -1400,14 +1451,21 @@ class Event_Response(commands.Cog):
 
                                     # actual ban
                                     print("user not verified yet. preparing to ban...")
-                                    guild = self.bot.get_guild(payload.guild_id)
+
+                                    # get guild
+                                    guild = self.bot.get_guild(payload.guild_id) # check if guild is in cache
                                     if guild is None:
-                                        guild = await self.bot.fetch_guild(payload.guild_id)
-                                        if guild is None:
-                                            try:
-                                                guild = message.guild
-                                            except:
-                                                raise ValueError("could not fetch guild")
+                                        try:
+                                            guild = message.guild # if message was already initialized
+                                        except:
+                                            guild = await self.bot.fetch_guild(payload.guild_id) # fetch guild (this sometimes doesn't work somehow)
+                                            if guild is None:
+                                                try:
+                                                    channel = self.bot.get_channel(channel_id) # initialize message 
+                                                    message = await channel.fetch_message(message_id)
+                                                    guild = message.guild
+                                                except:
+                                                    raise ValueError("could not fetch guild")
 
                                     for i in range(0,10):
                                         print(10-i)
@@ -1456,6 +1514,7 @@ class Event_Response(commands.Cog):
 
         except Exception as e:
             print("Error in on_raw_reaction_add():", e)
+            print(traceback.format_exc())
 
             
 
