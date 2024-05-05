@@ -115,10 +115,10 @@ class Music_NowPlaying(commands.Cog):
 
                         try:
                             if applemusic_richpresence:
-                                song_url = f"https://music.apple.com/us/search?term={artist}_{album}_{song}".replace(" ","_").replace("\\", "")
+                                song_url = f"https://music.apple.com/us/search?term={artist}%20{album}%20{song}".replace(" ","%20").replace("\\", "")
                             else:
                                 searchterm = f"{artist}+{album}+{song}".replace(" ", "+").replace("\\", "").replace("/", "").replace("\\", "")
-                                song_url = f"https://music.youtube.com/search?q={artist}+{album}+{song}"
+                                song_url = f"https://music.youtube.com/search?q={artist}+{album}+{song}".replace(" ", "+")
 
                             description = f"[{song}]({song_url})\nby **{artist}** | {album}"
                         except:
@@ -136,7 +136,7 @@ class Music_NowPlaying(commands.Cog):
                         album = util.cleantext2(activity.state.split("on ", 1)[1].strip())
 
                         try:
-                            song_url = f"https://music.apple.com/us/search?term={artist}_{album}_{song}".replace(" ","_").replace("\\", "")
+                            song_url = f"https://music.apple.com/us/search?term={artist}%20{album}%20{song}".replace(" ","%20").replace("\\", "")
                             description = f"[{song}]({song_url})\nby **{artist}** | {album}"
                         except:
                             description = f"{song}\nby **{artist}** | {album}"
