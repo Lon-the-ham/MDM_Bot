@@ -1326,7 +1326,7 @@ class Music_NowPlaying(commands.Cog):
                     if emoji in util.convert_stringlist(self.bot.emojis) or emoji in UNICODE_EMOJI['en']:
                         try:
                             await message.add_reaction(emoji)
-                            await asyncio.sleep(1)
+                            await asyncio.sleep(0.5)
                         except Exception as e:
                             print(f"Error while trying to add reaction: {e}")
                     else:
@@ -1832,10 +1832,9 @@ class Music_NowPlaying(commands.Cog):
     async def _serverplaying(self, ctx: commands.Context, *args):
         """Show what ppl on this server are listening to in their status
 
-        going through music sreaming services: Spotify, MusicBee, AppleMusic
+        Command goes through music sreaming services: Spotify, MusicBee, AppleMusic. In case these features are enabled users with the inactivity role, access wall role or timeout role will be excluded.
         
-        Optional arg: spotify, musicbee, applemusic
-        to only filter for people using these services.
+        Optional arg: spotify, musicbee, applemusic to only filter for people using these services.
         """
 
         # PARSE ARGS
@@ -1876,7 +1875,6 @@ class Music_NowPlaying(commands.Cog):
         inactivityfilter_setting = [[item[0], item[1], item[2]] for item in curB.execute("SELECT value, details, etc FROM serversettings WHERE name = ?", ("inactivity filter", )).fetchall()]
 
         if len(inactivityfilter_setting) == 0 or inactivityfilter_setting[0][0].lower() != "on":
-            print("Timeloop notification: Inactivity filter is set `off`. No action was taken.")
             inactivityfilter = "off"
         else:
             inactivityfilter = "on"
@@ -1884,13 +1882,53 @@ class Music_NowPlaying(commands.Cog):
             try:# FETCH ROLE
                 inactivityrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]        
                 if len(inactivityrole_list) == 0 or not util.represents_integer(inactivityrole_list[0]):
-                    inactivity_role_id = None
+                    inactivity_role = None
                 else:
                     inactivity_role_id = int(inactivityrole_list[0])
                     inactivity_role = ctx.guild.get_role(inactivity_role_id)
             except Exception as e:
                 print("Error:", e)
                 inactivity_role = None
+
+        # CHECK TIMEOUT ROLE
+
+        timeout_setting = [[item[0], item[1], item[2]] for item in curB.execute("SELECT value, details, etc FROM serversettings WHERE name = ?", ("timeout system", )).fetchall()]
+
+        if len(timeout_setting) == 0 or timeout_setting[0][0].lower() != "on":
+            timeout = "off"
+        else:
+            timeout = "on"
+
+            try:# FETCH ROLE
+                timeoutrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("timeout role",)).fetchall()]        
+                if len(timeoutrole_list) == 0 or not util.represents_integer(timeoutrole_list[0]):
+                    timeout_role = None
+                else:
+                    timeout_role_id = int(timeoutrole_list[0])
+                    timeout_role = ctx.guild.get_role(timeout_role_id)
+            except Exception as e:
+                print("Error:", e)
+                timeout_role = None
+
+        # CHECK ACCESSWALL ROLE
+
+        accesswall_setting = [[item[0], item[1], item[2]] for item in curB.execute("SELECT value, details, etc FROM serversettings WHERE name = ?", ("access wall", )).fetchall()]
+
+        if len(accesswall_setting) == 0 or accesswall_setting[0][0].lower() != "on":
+            accesswall = "off"
+        else:
+            accesswall = "on"
+
+            try:# FETCH ROLE
+                accesswallrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("access wall role",)).fetchall()]        
+                if len(accesswallrole_list) == 0 or not util.represents_integer(accesswallrole_list[0]):
+                    accesswallrole = None
+                else:
+                    accesswallrole_id = int(accesswallrole_list[0])
+                    accesswall_role = ctx.guild.get_role(accesswallrole_id)
+            except Exception as e:
+                print("Error:", e)
+                accesswall_role = None
 
         # AGGREGATE ACTIVITIES
 
@@ -1900,10 +1938,21 @@ class Music_NowPlaying(commands.Cog):
         applemusic_list = []
 
         for member in guild.members:
-            if inactivityfilter == "on":
-                if len(member.roles) < 3 and inactivity_role in member.roles: # only inactivity and everyone role
-                    print(f"skip {member.name}")
-                    continue
+            if len(member.roles) < 3:
+                if inactivityfilter == "on":
+                    if inactivity_role in member.roles: # only inactivity and everyone role
+                        #print(f"skip {member.name}")
+                        continue
+
+                if timeout == "on":
+                    if timeout_role in member.roles: # only timeout and everyone role
+                        #print(f"skip {member.name}")
+                        continue
+
+                if accesswall == "on":
+                    if accesswall_role in member.roles: # only accesswall and everyone role
+                        #print(f"skip {member.name}")
+                        continue
 
             activity_list = []
             for activity in member.activities:
@@ -2326,7 +2375,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    @commands.command(name='bantag', aliases = ['bantags', 'blocktag', 'blocktags'])
+    @commands.command(name='tagban', aliases = ['bantag', 'bantags', 'blocktag', 'blocktags'])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
@@ -2406,7 +2455,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    @commands.command(name='unbantag', aliases = ['unbantags', 'unblocktag', 'unblocktags'])
+    @commands.command(name='tagunban', aliases = ['unbantag', 'unbantags', 'unblocktag', 'unblocktags'])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
@@ -2440,6 +2489,120 @@ class Music_NowPlaying(commands.Cog):
     @_unbantag.error
     async def unbantag_error(self, ctx, error):
         await util.error_handling(ctx, error) 
+
+
+
+    @commands.command(name='tagbanregex', aliases = ['bantagregex', 'bantagsregex', 'blocktagregex', 'blocktagsregex', 'banregex', 'blockregex'])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _bantagregex(self, ctx: commands.Context, *args):
+        """🔒 Blocks last.fm/musicbrainz tags via regular expression
+        """
+        if len(args) == 0:
+            await ctx.send("Command needs arguments.")
+            return
+
+        conNP = sqlite3.connect('databases/npsettings.db')  
+        curNP = conNP.cursor()
+        db_list = [item[0] for item in curNP.execute("SELECT regex FROM unwantedtags_regex").fetchall()]
+
+        argument = ' '.join(args)
+
+        if argument in db_list:
+            await ctx.send("This regular expression is already in the database!")
+            return
+
+        num_list = [util.forceinteger(item[0]) for item in curNP.execute("SELECT id FROM unwantedtags_regex").fetchall()]
+
+        if len(num_list) == 0:
+            num = 1
+        else:
+            num = max(num_list) + 1
+            
+        curNP.execute("INSERT INTO unwantedtags_regex VALUES (?, ?, ?)", (str(num), argument, ""))
+        conNP.commit()
+        await ctx.send(f"Banned regular expression.```{argument}```")
+
+    @_bantagregex.error
+    async def bantagregex_error(self, ctx, error):
+        await util.error_handling(ctx, error) 
+
+
+
+
+    @commands.command(name='tagunbanregex', aliases = ['unbantagregex', 'unbantagsregex', 'unblocktagregex', 'unblocktagsregex', 'unbanregex', 'unblockregex'])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _unbantagregex(self, ctx: commands.Context, *args):
+        """🔒 Unblocks last.fm/musicbrainz tagbans via regular expression
+        """
+        if len(args) == 0:
+            await ctx.send("Command needs arguments.")
+            return
+
+        conNP = sqlite3.connect('databases/npsettings.db')  
+        curNP = conNP.cursor()
+        db_list = [item[0] for item in curNP.execute("SELECT regex FROM unwantedtags_regex").fetchall()]
+
+        argument = ' '.join(args)
+
+        if argument not in db_list:
+            await ctx.send("This regular expression was not in the database!")
+            return
+
+        curNP.execute("DELETE FROM unwantedtags_regex WHERE regex = ?", (argument,))
+        conNP.commit()
+
+        await ctx.send(f"This regular expression was removed from database!```{argument}```")
+
+    @_unbantagregex.error
+    async def unbantagregex_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+
+    @commands.command(name='testtag', aliases = ['tagtest'])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _testgenretags(self, ctx: commands.Context, *args):
+        """🔒 Test whether tags would be excluded or not
+        """
+        if len(args) == 0:
+            await ctx.send("Command needs arguments.")
+            return
+
+        conNP = sqlite3.connect('databases/npsettings.db')  
+        curNP = conNP.cursor()
+        
+        arguments = ' '.join(args).split(";")
+
+        tag_list = [argument.strip() for argument in arguments]
+        
+        filtered_list = util.filter_genretags(tag_list)
+
+        if len(filtered_list) == 0:
+            if len(tag_list) > 1:
+                await ctx.send("All tags are blocked.")
+            else:
+                await ctx.send("Tag is blocked.")
+        else:
+            output = ', '.join(filtered_list)
+            if len(filtered_list) == len(tag_list):
+                if len(tag_list) > 1:
+                    await ctx.send(f"None of the tags are blocked.\n\nOutput:```{output}```")
+                else:
+                    await ctx.send(f"Tag not blocked.\n\nOutput:```{output}```")
+            else:
+                await ctx.send(f"Some of the tags were filtered out.\n\nOutput:```{output}```")
+
+    @_testgenretags.error
+    async def testgenretags_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
 
             
 
