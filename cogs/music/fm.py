@@ -14,6 +14,7 @@ from discord import Spotify
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from emoji import UNICODE_EMOJI
+import traceback
 
 
 class Music_NowPlaying(commands.Cog):
@@ -78,11 +79,14 @@ class Music_NowPlaying(commands.Cog):
 
                 # HANDLE TAGS
                 if show_tags:
-                    tag_string = await self.fetch_tags(ctx, "musicbee", artist, album, song, None, None, called_services)
                     try:
-                        embed.set_footer(text = tag_string)
+                        tag_string = await self.fetch_tags(ctx, "musicbee", artist, album, song, None, None, called_services)
+                        try:
+                            embed.set_footer(text = tag_string)
+                        except Exception as e:
+                            print("Error while creating footer for musicbee np: ", e)
                     except Exception as e:
-                        print("Error while creating footer for musicbee np: ", e)
+                        print("Unable to fetch tags:", e)
 
                 message = await ctx.send(embed=embed)
                 return message
@@ -222,7 +226,6 @@ class Music_NowPlaying(commands.Cog):
             return
 
         lfm_name = lfm_list[0][0]
-        lfm_link = lfm_list[0][1]
 
         try:
             # FETCH INFORMATION VIA API
@@ -276,20 +279,22 @@ class Music_NowPlaying(commands.Cog):
             # HANDLE TAGS
 
             if show_tags:
-                tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, musicbrainz_ids, called_services)
                 try:
-                    if tag_string != "":
-                        embed.set_footer(text = tag_string)
+                    tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, musicbrainz_ids, called_services)
+                    try:
+                        if tag_string != "":
+                            embed.set_footer(text = tag_string)
+                    except Exception as e:
+                        print("Error while creating footer for spotify tags and listener stats: ", e)
                 except Exception as e:
-                    print("Error while creating footer for spotify tags and listener stats: ", e)
+                    print("Unable to fetch tags", e)
 
             message = await ctx.send(embed=embed)
             return message
 
         except Exception as e:
-            str("Error:", e)
-
-            message = await self.lastfm_webscrape(ctx, member, show_tags, False) # last argument for whether a cooldown is needed
+            print("Error:", e)
+            message = await self.lastfm_webscrape(ctx, member, show_tags, called_services, False) # last argument for whether a cooldown is needed
             return message
 
 
@@ -307,7 +312,6 @@ class Music_NowPlaying(commands.Cog):
             return
 
         lfm_name = lfm_list[0][0]
-        lfm_link = lfm_list[0][1]
 
         # WEBSCRAPE INFORMATION
 
@@ -398,11 +402,14 @@ class Music_NowPlaying(commands.Cog):
         # HANDLE TAGS
 
         if show_tags:
-            tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, None, called_services)
             try:
-                embed.set_footer(text = tag_string)
+                tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, None, called_services)
+                try:
+                    embed.set_footer(text = tag_string)
+                except Exception as e:
+                    print("Error while creating footer for spotify tags and listener stats: ", e)
             except Exception as e:
-                print("Error while creating footer for spotify tags and listener stats: ", e)
+                print("Unable to fetch tags", e)
 
         message = await ctx.send(embed=embed)
         return message
@@ -429,11 +436,14 @@ class Music_NowPlaying(commands.Cog):
 
                 # HANDLE TAGS
                 if show_tags:
-                    tag_string = await self.fetch_tags(ctx, "spotify", artist, album, song, track_id, None, called_services)
                     try:
-                        embed.set_footer(text = tag_string)
+                        tag_string = await self.fetch_tags(ctx, "spotify", artist, album, song, track_id, None, called_services)
+                        try:
+                            embed.set_footer(text = tag_string)
+                        except Exception as e:
+                            print("Error while creating footer for spotify tags and listener stats: ", e)
                     except Exception as e:
-                        print("Error while creating footer for spotify tags and listener stats: ", e)
+                        print("Unable to fetch tags:", e)
 
                 # SEND EMBED
 
@@ -1462,6 +1472,7 @@ class Music_NowPlaying(commands.Cog):
                 footer = f"use '{self.prefix}fmset <username>' to set your lastfm username"
             else:
                 text = str(e)
+                print(traceback.format_exc())
                 footer = ""
             await self.error_embed(ctx, text, footer)
 
@@ -2126,9 +2137,13 @@ class Music_NowPlaying(commands.Cog):
 
 
     @commands.command(name='activities', aliases = ['activity'])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
     @commands.check(util.is_active)
     async def _useractivities(self, ctx: commands.Context, *args):
         """Show activities
+
+        This is a bot testing command. Don't bother.
         """
         member = await self.getmember(ctx, args)
 
@@ -2152,6 +2167,9 @@ class Music_NowPlaying(commands.Cog):
             activity_list.append(string)
 
         text = '\n'.join(activity_list)
+
+        if text.strip() == "":
+            text = "None"
 
         embed = discord.Embed(description=text,
                             color = member.color)
@@ -2564,12 +2582,15 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    @commands.command(name='testtag', aliases = ['tagtest'])
+    @commands.command(name='testtag', aliases = ['tagtest', 'testtags'])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
     async def _testgenretags(self, ctx: commands.Context, *args):
         """🔒 Test whether tags would be excluded or not
+
+        You can test multiple tags at once by separating them with a semicolon.
+        Just keep in mind that combinations of tags may lead to different results than testing them one by one, because the command will also filter out tags it deems duplicates (such as 2 tags that only differ by one being the singular and the other the plural word).
         """
         if len(args) == 0:
             await ctx.send("Command needs arguments.")
