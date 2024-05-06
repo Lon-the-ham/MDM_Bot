@@ -819,32 +819,74 @@ class Administration_of_Settings(commands.Cog):
         ######################################################### KEYS
 
         try:
+            contactemail = os.getenv("contact_email")
+            if contactemail is None:
+                desctext_keys.append("Contact E-Mail: none 🚫")
+            else:
+                desctext_keys.append("Contact E-Mail: provided ✅")
+        except:
+            desctext_keys.append("Contact E-Mail: none 🚫")
+
+        try:
             exchangerate_key = os.getenv("exchangerate_key")
-            desctext_keys.append("Exchangerate Key: provided ✅")
+            if exchangerate_key is None:
+                desctext_keys.append("Exchangerate Key: none 🚫")
+            else:
+                desctext_keys.append("Exchangerate Key: provided ✅")
         except:
             desctext_keys.append("Exchangerate Key: none 🚫")
 
         try:
+            googleimage_key = os.getenv("google_search_key")
+            if googleimage_key is None:
+                desctext_keys.append("Google Image Search Key: none 🚫")
+            else:
+                desctext_keys.append("Google Image Search Key: provided ✅")
+        except:
+            desctext_keys.append("Google Image Search Key: none 🚫")
+
+        try:
             LFM_API_KEY = os.getenv("lfm_api_key")
-            desctext_keys.append("LastFM Key: provided ✅")
+            if LFM_API_KEY is None:
+                desctext_keys.append("LastFM Key: none 🚫")
+            else:
+                desctext_keys.append("LastFM Key: provided ✅")
         except:
             desctext_keys.append("LastFM Key: none 🚫")
 
         try:
             LFM_SHARED_SECRET = os.getenv("lfm_shared_secret")
-            desctext_keys.append("LastFM Secret: provided ✅")
+            if LFM_SHARED_SECRET is None:
+                desctext_keys.append("LastFM Secret: none 🚫")
+            else:
+                desctext_keys.append("LastFM Secret: provided ✅")
         except:
             desctext_keys.append("LastFM Secret: none 🚫")
 
         try:
+            openweather_key = os.getenv("openweathermap_key")
+            if openweather_key is None:
+                desctext_keys.append("Open Weather Map Key: none 🚫")
+            else:
+                desctext_keys.append("Open Weather Map Key: provided ✅")
+        except:
+            desctext_keys.append("Open Weather Map Key: none 🚫")
+
+        try:
             ClientID = os.getenv("Spotify_ClientID")
-            desctext_keys.append("Spotify Client ID: provided ✅")
+            if ClientID is None:
+                desctext_keys.append("Spotify Client ID: none 🚫")
+            else:
+                desctext_keys.append("Spotify Client ID: provided ✅")
         except:
             desctext_keys.append("Spotify Client ID: none 🚫")
 
         try:
             ClientSecret = os.getenv("Spotify_ClientSecret")
-            desctext_keys.append("Spotify Client Secret: provided ✅")
+            if ClientSecret is None:
+                desctext_keys.append("Spotify Client Secret: none 🚫")
+            else:
+                desctext_keys.append("Spotify Client Secret: provided ✅")
         except:
             desctext_keys.append("Spotify Client Secret: none 🚫")
 
