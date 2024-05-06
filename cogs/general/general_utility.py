@@ -2287,6 +2287,8 @@ class General_Utility(commands.Cog):
         # INITIALISE API DATA
         try:
             API_KEY = os.getenv("openweathermap_key")
+            if API_KEY is None:
+                raise ValueError("No OpenWeatherMap API Key")
         except:
             emoji = util.emoji("disappointed")
             raise ValueError(f"No API key provided. {emoji}\n||(Ask mods to create a free OpenWeatherMap account and get an API key.)||")
@@ -2860,9 +2862,11 @@ class General_Utility(commands.Cog):
         # INITIALISE API DATA
         try:
             API_KEY = os.getenv("google_search_key")
-        except:
-            emoji = util.emoji("disappointed")
-            raise ValueError(f"No API key provided. {emoji}\n||(Ask mods to get an API key from developers.google.com)||")
+            if API_KEY is None:
+                emoji = util.emoji("disappointed")
+                raise ValueError(f"No API key provided. {emoji}\n||(Ask mods to get an API key from developers.google.com)||")
+        except Exception as e:
+            await ctx.send(f"Error: {e}")
             return
 
         try: # cooldown to not trigger actual rate limits or IP blocks
