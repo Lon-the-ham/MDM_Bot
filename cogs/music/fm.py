@@ -830,7 +830,10 @@ class Music_NowPlaying(commands.Cog):
             try:
                 ClientID = os.getenv("Spotify_ClientID")
                 ClientSecret = os.getenv("Spotify_ClientSecret")
-            except:
+                if ClientID is None:
+                    raise ValueError("No SpotiPy API provided")
+            except Exception as e:
+                print("Error:", e)
                 return [], ""
 
             print("initialising authentication")
@@ -876,6 +879,8 @@ class Music_NowPlaying(commands.Cog):
         try:
             ClientID = os.getenv("Spotify_ClientID")
             ClientSecret = os.getenv("Spotify_ClientSecret")
+            if ClientID is None:
+                raise ValueError("Could not initialise Spotipy Crednetials")
         except:
             raise ValueError("Could not initialise Spotipy Crednetials")
 
