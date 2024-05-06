@@ -1648,6 +1648,8 @@ class Utils():
             print("Bot spam/notification channel ID in database is faulty.")
             try:
                 botspamchannel_id = int(os.getenv("bot_channel_id"))
+                if botspamchannel_id is None:
+                    raise ValueError("No botspamchannel id provided in .env file")
             except Exception as e:
                 print(f"Error in util.bot_spam_send() ({title}):", e)
                 return
