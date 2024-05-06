@@ -122,7 +122,7 @@ If all that is done you can un- and replug your device and the app should get go
 
 Now that your raspberry is setup successfully, the only remaining thing is to configure the application itself within discord. 
 
-IMPORTANT: For anything to work first use command `-update` in your main channel to let the app set up its databases. Otherwise the bot will run into issues trying to execute many of its commands.
+IMPORTANT: For anything to work first use command `-update` to let the app set up its databases. Otherwise the bot will run into issues trying to execute many of its commands. After that use `-switch 1` (or whatever number you gave it as bot_instance) to set it to active.
 
 Then you can use `-setup` if you want to be guided through a few of the bigger moderation settings, or just use `-set` to see what kinds of settings you can adapt manually. The documentation.md may help you with all the feature this application provides and deciding which ones you want to enable/disable.
 
