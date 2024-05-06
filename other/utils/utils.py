@@ -2239,6 +2239,8 @@ class Utils():
         try:
             API_KEY = os.getenv("lfm_api_key")
             SHARED_SECRET = os.getenv("lfm_shared_secret")
+            if API_KEY is None:
+                raise ValueError("No LastFM keys provided")
         except:
             raise ValueError("No LastFM keys provided")
         
