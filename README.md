@@ -28,8 +28,6 @@ Next you need to install a few packages that the applications uses:
 
 > pip install python-dotenv
   
-> pip install pysqlite3
-  
 > pip install emoji==1.7
   
 > pip install emojis
