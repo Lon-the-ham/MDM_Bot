@@ -6,6 +6,14 @@
 Some features use external APIs and won't work or only partly if you don't create an account and put the api key you receive into the environment file. Don't worry, all APIs that are used here are free services.
 
 
+### Currency Exchange Rate Conversion
+
+With the `-con` command you can not only convert metres to miles or fahrenheit to celsius, but also different currencies to daily updated exchange rates. If you only stick to the few most prominent currencies in the world such as the US Dollar, Euro or Yen, then the implemented web scraper will probably suffice, but if you want to be able to convert all kinds of currencies you can get an api key for the ExchangeRate-API here: https://www.exchangerate-api.com/ 
+Makre sure to add the key to your `.env` file as follows:
+
+> exchangerate_key = `api key`
+
+
 ### Google Image Search
 
 If you want to be able to search out image results via the google API with `-img`, you can head over to https://developers.google.com/custom-search/v1/overview and get an API key for that. Then add that key to your `.env` file as follows
@@ -33,7 +41,7 @@ You probably have to create a regular last.fm account first if you don't have on
 
 ### MusicBrainz
 
-It can be nice to have the bot fetch genre tags from the MusicBrainz database, if it doesn't find tags on last.fm etc. You do not need an API key for that, in fact the feature probably already works without anything. However the devs over at MusicBrainz asks users to provide a contact e-mail address when using their services. For this reason it is probably nice if you'd provide a contact e-mail as follows in your environment file:
+It can be nice to have the bot fetch genre tags from the MusicBrainz database, if it doesn't find tags on last.fm etc. You do not need an API key for that, in fact the feature probably already works without anything. However the devs over at MusicBrainz ask users to provide a contact e-mail address when using their services. For this reason it is probably nice if you'd provide a contact e-mail as follows in your environment file:
 
 > contact_email = `e-mail address`
 
