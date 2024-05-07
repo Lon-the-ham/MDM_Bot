@@ -8,7 +8,7 @@ Some features use external APIs and won't work or only partly if you don't creat
 
 ### Currency Exchange Rate Conversion
 
-With the `-con` command you can not only convert metres to miles or fahrenheit to celsius, but also different currencies to daily updated exchange rates. If you only stick to the few most prominent currencies in the world such as the US Dollar, Euro or Yen, then the implemented web scraper will probably suffice, but if you want to be able to convert all kinds of currencies you can get an api key for the ExchangeRate-API here: https://www.exchangerate-api.com/ 
+With the `-con` command you can not only convert metres to miles or fahrenheit to celsius, but also different currencies using daily updated exchange rates. If you only stick to the few most prominent currencies in the world such as the US Dollar, Euro or Yen, then the implemented web scraper will probably suffice, but if you want to be able to convert all kinds of currencies you can get an api key for the ExchangeRate-API here: https://www.exchangerate-api.com/ 
 Makre sure to add the key to your `.env` file as follows:
 
 > exchangerate_key = `api key`
