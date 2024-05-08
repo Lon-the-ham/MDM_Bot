@@ -480,6 +480,46 @@ class Utils():
 
 
 
+    def filter_tagredundancies(genre_tags):
+        # save tags along with their original position
+        tag_position_list = []
+        i = 0
+        for tag in genre_tags:
+            i += 1
+            tag_position_list.append([tag.lower(), i])
+
+        # sort tags from longest to shortest
+        tag_position_list.sort(key=lambda x: len(x[0]), reverse=True)
+
+        # filter out tags where all words were included in previous tags somewhere
+        tags_to_keep = []
+        found_words = []
+        for tag_and_position in tag_position_list:
+            tag_words = tag_and_position[0].split()
+
+            all_words_present = True
+            for word in tag_words:
+                for previous_word in found_words:
+                    if word in previous_word:
+                        break
+                else:
+                    all_words_present = False
+                    break
+
+            if not all_words_present:
+                tags_to_keep.append(tag_and_position)
+                found_words += tag_words
+
+        tags_to_keep.sort(key=lambda x: x[1])
+        tags_to_return = []
+
+        for tag in tags_to_keep:
+            tags_to_return.append(tag[0])
+
+        return tags_to_return
+
+
+
     def forceinteger(s):
         try:
             i = int(s.strip())
@@ -1299,6 +1339,10 @@ class Utils():
                 # URL
                 final_list.append(word)
 
+            elif word.startswith("<https://") and word.endswith(">"):
+                # unembedded URL
+                final_list.append(word)
+
             else:
                 res = re.split('([-+]?\d+\.\d+)|([-+]?\d+)', word.strip())
                 res_filtered = [r.strip() for r in res if r is not None and r.strip() != '']
@@ -1674,6 +1718,7 @@ class Utils():
         curL.execute('''CREATE TABLE IF NOT EXISTS lastchange (name text, value text, details text)''')
         curL.execute("UPDATE lastchange SET value = ?, details = ? WHERE name = ?", (utc_timestamp, human_readable_time, "time"))
         conL.commit()
+        conL.close()
 
 
 
@@ -1794,6 +1839,7 @@ class Utils():
         curC.execute("DELETE FROM userrequests WHERE cast(time_stamp as integer) < ?", (invoketime - 3600,))
         curC.execute("DELETE FROM userrequests WHERE LOWER(service) = ? AND userid = ? AND time_stamp = ?", (service.lower(), str(ctx.message.author.id), str(invoketime)))
         conC.commit()
+        conC.close()
         await Utils.changetimeupdate()
 
 
@@ -2521,6 +2567,7 @@ class Utils():
                         else:
                             curER.execute("INSERT INTO USDexchangerate VALUES (?, ?, ?, ?, ?, ?)", (currencycode, exchangevalue, name, country, update_time_string, "0"))
                 conER.commit()
+                conER.close()
 
             await Utils.changetimeupdate()
         except Exception as e:
@@ -2724,6 +2771,7 @@ class Utils():
             cur.execute("UPDATE roles SET name = ? WHERE id = ?", (str(r_name), str(r_id)))
             con.commit()
 
+        con.close()
         await Utils.changetimeupdate()
 
 
