@@ -1099,7 +1099,18 @@ class TimeLoops(commands.Cog):
                     raise ValueError(f"Error: User object of user with id {user_id} is None.")
             except Exception as e:
                 error_count += 1
+                error_users.append(f"<@{user.id}>*")
                 print("Error with user:", e)
+                try: # remove user from database if not a member
+                    for member in server.members:
+                        if member.id == user.id:
+                            break
+                    else:
+                        curUA.execute("DELETE FROM useractivity WHERE userid = ?", (str(user_id),))
+                        conUA.commit()
+                        print(f"Removed {user.name} (id: {user.id}) from useractivity database")
+                except Exception as e:
+                    print("Error:", e)
                 continue
 
             if inactivity_role in user.roles:
@@ -1129,16 +1140,13 @@ class TimeLoops(commands.Cog):
 
         if sleep_count > 0:
             await util.changetimeupdate()
-            message = f"Put {sleep_count} users into inactivity channel:\n"
+            message = f"Put {sleep_count} user(s) into inactivity channel:\n"
             message += ', '.join(new_inactives_mention_list) + "\n"
             if error_count > 0:
-                all_good = False
-                message += f"Error with {error_count} users. These users are probably higher in role hierarchy than this bot:\n"
+                message += f"Error with {error_count} user(s). These users are probably either higher in role hierarchy than this bot or left the server:\n"
                 message += ', '.join(error_users)
-            else:
-                all_good = True
             title = "Inactivity Filter"
-            await self.timeloop_notification(title, message.strip(), all_good)
+            await self.timeloop_notification(title, message.strip(), True)
 
 
     # clear databases of redundant data
