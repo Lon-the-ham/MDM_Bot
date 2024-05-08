@@ -28,6 +28,7 @@ import os
 import asyncio
 import sqlite3
 from emoji import UNICODE_EMOJI
+import traceback
 
 
 class Administration_of_Settings(commands.Cog):
@@ -4287,8 +4288,13 @@ class Administration_of_Settings(commands.Cog):
                 curB.execute("INSERT INTO specialroles VALUES (?, ?, ?, ?)", ("community role", "", "", ""))
                 conB.commit()
                 print("Added dummy entry for community role")
-            elif len(specialroles_accesswall_list) > 1:
-                print("Warning: Multiple community role entries in specialroles table (botsettings.db)")
+                community_role_id = ""
+            else:
+                community_role_id = specialroles_community_list[0]
+                if not util.represents_integer(community_role_id):
+                    community_role_id = ""
+                if len(specialroles_accesswall_list) > 1:
+                    print("Warning: Multiple community role entries in specialroles table (botsettings.db)")
 
             specialroles_inactivity_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]
             if len(specialroles_inactivity_list) == 0:
@@ -4458,7 +4464,7 @@ class Administration_of_Settings(commands.Cog):
             curNP = conNP.cursor()
             curNP.execute('''CREATE TABLE IF NOT EXISTS npreactions (id text, name text, emoji1 text, emoji2 text, emoji3 text, emoji4 text, emoji5 text, details text)''')
             curNP.execute('''CREATE TABLE IF NOT EXISTS lastfm (id text, name text, lfm_name text, lfm_link text, details text)''')
-            curNP.execute('''CREATE TABLE IF NOT EXISTS tagsettings (id text, name text, spotify_monthlylisteners text, spotify_genretags text, lastfm_listeners text, lastfm_total_artistplays text, lastfm_artistscrobbles text, lastfm_albumscrobbles text, lastfm_trackscrobbles text, lastfm_rank text, lastfm_tags text, musicbrainz_tags text, musicbrainz_area text, musicbrainz_date text, rym_genretags text, rym_albumrating text)''')
+            curNP.execute('''CREATE TABLE IF NOT EXISTS tagsettings (id text, name text, spotify_monthlylisteners text, spotify_genretags text, lastfm_listeners text, lastfm_total_artistplays text, lastfm_artistscrobbles text, lastfm_albumscrobbles text, lastfm_trackscrobbles text, lastfm_rank text, lastfm_tags text, musicbrainz_tags text, musicbrainz_area text, musicbrainz_date text, rym_genretags text, rym_albumrating text, redundancy_filter text)''')
             curNP.execute('''CREATE TABLE IF NOT EXISTS unwantedtags (tagname text, bantype text, details text)''')
             curNP.execute('''CREATE TABLE IF NOT EXISTS unwantedtags_regex (id text, regex text, details text)''')
 
@@ -4539,24 +4545,26 @@ class Administration_of_Settings(commands.Cog):
                         print("Could not add app to database:", e)
 
 
-            await util.changetimeupdate()
-
-            version = util.get_version()
-            await ctx.send(f"Updated to {version}.")
-
-
             #############################################################################################################################
             ################################################## FIX ERRORS ###############################################################
             #############################################################################################################################
 
+            # remove duplicates in UA database, and set empty previousroles
+
             UA_users = [item[0] for item in curUA.execute("SELECT userid FROM useractivity").fetchall()]
             UA_uniqueusers = list(dict.fromkeys(UA_users))
+
+            if accesswall == "on" and verified_role_id != "":
+                previousroles = verified_role_id
+            elif automaticrole == "on" and community_role_id != "":
+                previousroles = community_role_id
+            else:
+                previousroles = ""
 
             for user_id in UA_uniqueusers:
                 UA_list = [[util.forceinteger(item[0]), item[1], item[2], item[3]] for item in curUA.execute("SELECT last_active, previous_roles, username, join_time FROM useractivity WHERE userid = ?", (str(user_id),)).fetchall()]
 
                 last_active = 0
-                previousroles = verified_role_id
                 join_time = ""
                 username = ""
                 for item in UA_list:
@@ -4574,7 +4582,48 @@ class Administration_of_Settings(commands.Cog):
 
                 curUA.execute("DELETE FROM useractivity WHERE userid = ?", (user_id,))
                 curUA.execute("INSERT INTO useractivity VALUES (?, ?, ?, ?, ?)", (username, user_id, last_active, join_time, previousroles))
-                conUA.commit()
+            conUA.commit()
+
+            # swap out old npsettings -> tagsettings table for new tagsettings table
+
+            try:
+                cursorNP = conNP.execute('SELECT * FROM tagsettings')
+                column_names = list(map(lambda x: x[0], cursorNP.description))
+                cursorNP.close()
+                column_number = len(column_names)
+                
+                if column_number <= 16: # tag redundancy filter missing (17)
+                    print("Renewing Tag Settings Table in NP settings database")
+                    tagsetting_list_old = [item for item in curNP.execute("SELECT * FROM tagsettings").fetchall()]
+                    curNP.close()
+                    tagsetting_list_new = []
+
+                    for item in tagsetting_list_old:
+                        tagsetting_list_new.append(item + ("off",))
+
+                    await asyncio.sleep(1)
+
+                    conNP = sqlite3.connect('databases/npsettings.db')
+                    curNP = conNP.cursor()
+                    curNP.execute("DROP TABLE IF EXISTS tagsettings")
+                    conNP.commit()
+
+                    curNP.execute('''CREATE TABLE IF NOT EXISTS tagsettings (id text, name text, spotify_monthlylisteners text, spotify_genretags text, lastfm_listeners text, lastfm_total_artistplays text, lastfm_artistscrobbles text, lastfm_albumscrobbles text, lastfm_trackscrobbles text, lastfm_rank text, lastfm_tags text, musicbrainz_tags text, musicbrainz_area text, musicbrainz_date text, rym_genretags text, rym_albumrating text, redundancy_filter text)''')
+                    for item in tagsetting_list_new:
+                        curNP.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", item)
+                    conNP.commit()
+
+            except Exception as e:
+                print("Error:", e)
+                print(traceback.format_exc())
+
+
+            ############# CONFIRMATION
+
+            await util.changetimeupdate()
+
+            version = util.get_version()
+            await ctx.send(f"Updated to {version}.")
 
             #############################################################################################################################
             ################################################## SETUP PART ###############################################################
