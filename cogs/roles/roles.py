@@ -1810,6 +1810,7 @@ class Roles(commands.Cog):
         emoji = util.emoji("unleashed")
         text = f"{user.mention} has broken out of inactivity! {emoji}"
         embed = discord.Embed(title="", description=text, color=0xffffff)
+        embed.set_thumbnail(url="https://c.tenor.com/kekA7AIajFsAAAAd/tenor.gif")
         await botspamchannel.send(embed=embed)
 
         # UPDATE INACTIVIT DB
