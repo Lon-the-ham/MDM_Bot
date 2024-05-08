@@ -444,6 +444,7 @@ class Music_NowPlaying(commands.Cog):
                             print("Error while creating footer for spotify tags and listener stats: ", e)
                     except Exception as e:
                         print("Unable to fetch tags:", e)
+                        print(traceback.format_exc())
 
                 # SEND EMBED
 
@@ -485,7 +486,7 @@ class Music_NowPlaying(commands.Cog):
                 mbid = None
             con = sqlite3.connect('databases/npsettings.db')
             cur = con.cursor()
-            tagsetting_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7],item[8],item[9],item[10],item[11],item[12],item[13],item[14],item[15]] for item in cur.execute("SELECT id, name, spotify_monthlylisteners, spotify_genretags, lastfm_listeners, lastfm_total_artistplays, lastfm_artistscrobbles, lastfm_albumscrobbles, lastfm_trackscrobbles, lastfm_rank, musicbrainz_tags, musicbrainz_area , musicbrainz_date , rym_genretags, rym_albumrating, lastfm_tags FROM tagsettings WHERE id = ?", (user_id,)).fetchall()]
+            tagsetting_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7],item[8],item[9],item[10],item[11],item[12],item[13],item[14],item[15],item[16]] for item in cur.execute("SELECT id, name, spotify_monthlylisteners, spotify_genretags, lastfm_listeners, lastfm_total_artistplays, lastfm_artistscrobbles, lastfm_albumscrobbles, lastfm_trackscrobbles, lastfm_rank, musicbrainz_tags, musicbrainz_area , musicbrainz_date , rym_genretags, rym_albumrating, lastfm_tags, redundancy_filter FROM tagsettings WHERE id = ?", (user_id,)).fetchall()]
             if len(tagsetting_list) == 0:
                 username = util.cleantext2(str(ctx.message.author.name))
                 cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "standard_substitute", "off", "off", "off", "off"))
@@ -510,6 +511,7 @@ class Music_NowPlaying(commands.Cog):
             rym_genretags = tagsettings[13].lower().strip() 
             rym_albumrating = tagsettings[14].lower().strip() 
             lastfm_tags = tagsettings[15].lower().strip() # added later
+            redundancy_filter = tagsettings[16].lower().strip() # added later
 
             tag_settings_dict = {
                                 "spotify_monthlylisteners": spotify_monthlylisteners, 
@@ -526,6 +528,7 @@ class Music_NowPlaying(commands.Cog):
                                 "musicbrainz_date": musicbrainz_date, 
                                 "rym_genretags": rym_genretags, 
                                 "rym_albumrating": rym_albumrating,
+                                #"redundancy_filter": redundancy_filter,
                                 }
             tag_services_dict = {
                                 "spotify": False, 
@@ -612,6 +615,12 @@ class Music_NowPlaying(commands.Cog):
                                 
                                 genretag_list, ml_string = await self.fetch_spotify_tags(spotify_track_id, g_tags, listenertags)
 
+                                try:
+                                    if redundancy_filter == "on" and len(genretag_list) > 1:
+                                        genretag_list = util.filter_tagredundancies(genretag_list)
+                                except Exception as e:
+                                    print("Error while trying to remove redundancies from tag list:", e)
+
                                 if len(genretag_list) > 0:
                                     genre_tags["spotify"] = f"{self.tagseparator}".join(genretag_list)
 
@@ -655,6 +664,11 @@ class Music_NowPlaying(commands.Cog):
                                     listener_stats.append(f"{total_scrobbles_readable} total scrobbles")
 
                                 if lfm_tags and len(lfm_genre_tag_list) > 0:
+                                    try:
+                                        if redundancy_filter == "on" and len(lfm_genre_tag_list) > 1:
+                                            lfm_genre_tag_list = util.filter_tagredundancies(lfm_genre_tag_list)
+                                    except Exception as e:
+                                        print("Error while trying to remove redundancies from tag list:", e)
                                     genre_tags["lastfm"] = f"{self.tagseparator}".join(lfm_genre_tag_list)
 
                         elif tagservice == "musicbrainz":
@@ -672,6 +686,12 @@ class Music_NowPlaying(commands.Cog):
                                 checktags = False
                             cooldown = False
                             mbid, genretag_list, year, area = await self.fetch_musicbrainz_tags(ctx, mbid, artist, album, song, checkyear, checkarea, checktags, cooldown)
+
+                            try:
+                                if redundancy_filter == "on" and len(genretag_list) > 1:
+                                    genretag_list = util.filter_tagredundancies(genretag_list)
+                            except Exception as e:
+                                print("Error while trying to remove redundancies from tag list:", e)
 
                             if len(genretag_list) > 0:
                                 genre_tags["musicbrainz"] = f"{self.tagseparator}".join(genretag_list)
@@ -693,6 +713,12 @@ class Music_NowPlaying(commands.Cog):
                         listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
                         lfm_fetch_client = "api"
 
+                        try:
+                            if redundancy_filter == "on" and len(lfm_genre_tag_list) > 1:
+                                lfm_genre_tag_list = util.filter_tagredundancies(lfm_genre_tag_list)
+                        except Exception as e:
+                            print("Error while trying to remove redundancies from tag list:", e)
+
                         if len(lfm_genre_tag_list) > 0:
                             genre_tags["lastfm"] = f"{self.tagseparator}".join(lfm_genre_tag_list)
                             #print(genre_tags["lastfm"])
@@ -705,6 +731,12 @@ class Music_NowPlaying(commands.Cog):
                         checktags = True
                         cooldown = False
                         mbid, genretag_list, year, area = await self.fetch_musicbrainz_tags(ctx, mbid, artist, album, song, checkyear, checkarea, checktags, cooldown)
+
+                        try:
+                            if redundancy_filter == "on" and len(genretag_list) > 1:
+                                genretag_list = util.filter_tagredundancies(genretag_list)
+                        except Exception as e:
+                            print("Error while trying to remove redundancies from tag list:", e)
 
                         if len(genretag_list) > 0:
                             genre_tags["musicbrainz"] = f"{self.tagseparator}".join(genretag_list)
