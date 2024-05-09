@@ -375,7 +375,8 @@ class Music_Info(commands.Cog):
             similarartist_text = "Error while trying to fetch similar artists."
             await ctx.send(f"Error while trying to fetch similar artists.\n{e}")
 
-        await message.remove_reaction("<a:catloading:970311103630417971>", mdmbot)
+        emoji = util.emoji("load")
+        await message.remove_reaction(emoji, mdmbot)
         await message.add_reaction("ℹ️")
         await message.add_reaction("💽")
         await message.add_reaction("👥")
@@ -940,16 +941,526 @@ class Music_Info(commands.Cog):
     ##############                          RATE YOUR MUSIC                              ##############
     ###################################################################################################
 
+
+    async def rym_info_scrape(self, ctx, args):
+        """decide whether to fetch artist, album or a genre"""
+
+        arguments = ' '.join(args)
+
+        if arguments.strip() == "":
+            await ctx.send("You need to provide an artist or a hyphen-separated `artist - album` pair.\nOr start with argument `genre:` to search for a genre.")
+
+        elif arguments.startswith("genre:"):
+            genrename_raw = util.cleantext2(arguments.split("genre:",1)[1])
+            genre_word_list = []
+            for word in genrename_raw.split():
+                if word.strip() != "":
+                    genre_word_list.append(word.lower().strip())
+            genrename = "-".join(genre_word_list)
+            await self.rym_genre_scrape(ctx, genrename)
+
+        elif " - " in arguments:
+            arg_list = []
+            for arg in args:
+                element = ''.join(x for x in arg if arg.isalnum())
+                if element != "":
+                    arg_list.append(element)
+            arg_string = ' '.join(arg_list)
+
+            await self.rym_album_scrape(ctx, arg_string)
+
+        else:
+            if ";" in arguments:
+                artist = arguments.split(";")[1]
+                extrainfo = arguments.split(";")[0]
+
+            else:
+                artist = arguments
+                extrainfo = ""
+
+            await self.rym_artist_scrape(ctx, artist, extrainfo)
+
+
+
+    async def rym_artist_scrape(self, ctx, artist, extrainfo):
+        """fetch artist, but if additionally semicolon + country or genre is provided use search"""
+
+        try:
+            # GET LINK TO ARTIST
+
+            if extrainfo.strip() != "":
+                search_url = f"https://rateyourmusic.com:443/search?searchterm={artist}&searchtype=a"
+
+                burp0_url = "?"
+
+                await asyncio.sleep(1)
+
+            else:
+                artist_in_url = artist.replace(" ", "-").lower()
+                burp0_url = f"https://rateyourmusic.com:443/artist/{artist_in_url}"
+
+            session = requests.session()
+            burp0_headers = {"Sec-Ch-Ua": "\"Not-A.Brand\";v=\"99\", \"Chromium\";v=\"124\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.60 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate, br", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Priority": "u=0, i", "Connection": "close"}
+            response = session.get(burp0_url, headers=burp0_headers)
+
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            # GET META DATA 
+
+            artistname = []
+            for h1 in soup.find_all("h1"):
+                try:
+                    h1_class = h1.get("class")
+
+                    if str(h1_class[0]) == "artist_name_hdr":
+                        artistname.append(str(h1.getText())).strip()
+                except:
+                    pass
+
+            # GET GENRES AND RELEASES
+            location = []
+            genres = []
+            albums = []
+            i = -1 # album counter
+            found_live = False
+            for div in soup.find_all("div"):
+                try:
+                    div_class = div.get("class")
+
+                    # BREAK WHEN "APPEARS ON"-PART IS REACHED
+
+                    if str(div_class[0]) == "disco_header_top":
+                        try:
+                            h3 = div.find('h3')
+                            innertext = str(h3.getText()).strip()
+                        except:
+                            innertext = ""
+
+                        if "Live Album" in str(div):
+                            found_live = True
+
+                        if innertext == "Appears On":
+                            break
+
+                    # GET LOCATION AND GENRES
+
+                    if str(div_class[0]) == "info_content":
+                        for a in div.find_all("a"):
+                            a_class = str(a.get("class")[0])
+
+                            if a_class.lower() == "location":
+                                location_name = str(a.getText()).strip()
+                                location.append(location_name)
+
+                            elif a_class.lower() == "genre":
+                                genre_name = str(a.getText()).strip()
+                                genres.append(genre_name)
+
+                    # ORGANIZE RELEASE ENTRIES
+
+                    if str(div_class[0]).startswith("disco_release"):
+                        albums.append([])
+                        i += 1
+
+                    elif str(div_class[0]).startswith("disco_avg_rating"):
+                        albums[i].append(div.getText())
+
+                    elif str(div_class[0]) == "disco_ratings":
+                        albums[i].append(div.getText())
+
+                    elif str(div_class[0]) == "disco_reviews":
+                        albums[i].append(div.getText())
+
+                    elif str(div_class[0]) == "disco_mainline":
+                        a = div.find('a')
+                        title = a.getText()
+                        url = a.get("href")
+                        albums[i].append(title)
+                        albums[i].append(str(url))
+                        try:
+                            release_type = str(url).split("/release/")[1].split("/")[0]
+                            if found_live and release_type.lower() == "album":
+                                albums[i].append("live album")
+                            else:
+                                albums[i].append(release_type)
+                        except:
+                            albums[i].append("")
+
+                    elif str(div_class[0]) == "disco_subline":
+                        span = div.find('span')
+                        year = span.getText()
+                        albums[i].append(year)
+
+                except Exception as e:
+                    pass
+
+            # SANITY CHECK
+
+            if len(artistname) == 0 and len(albums) == 0:
+                emoji = util.emoji("disappointed")
+                await ctx.send(f"Could not find artist. {emoji}")
+                return
+
+            # COMPOSE EMBED
+
+            title = "RateYourMusic Artist Info"
+            description = ""
+
+            try:
+                description += f"**{artistname[0]}**\n"
+            except:
+                description += f"`{artist.lower()}`\n"
+
+            if len(location) > 0:
+                description += "Location: " + ', '.join(location) + "\n"
+
+            if len(genres) > 0:
+                description += "Genres: " +  ', '.join(genres) + "\n\n"
+
+            release_count = {}
+            if len(albums) > 0:
+                #description += "**Discography:**\n"
+                previous_type = ""
+                i = 0
+                for item in albums:
+                    avg_rating = item[0]
+                    num_ratings = item[1]
+                    num_reviews = item[2]
+                    album_title = item[3]
+                    album_url = item[4]
+                    release_type = item[5]
+                    release_year = item[6]
+
+                    if release_type in release_count:
+                        release_count[release_type] += 1
+                    else:
+                        release_count[release_type] = 1
+
+                    if release_type.lower() in ["single", "musicvideo", "live album"]:
+                        continue
+
+                    if release_type != previous_type:
+                        if release_type.lower() != "album" and i > 14:
+                            continue
+                        if release_type == "ep":
+                            description += "**" + release_type.upper() + "(s):**\n"
+                        else:
+                            description += "**" + release_type.capitalize() + "(s):**\n"
+
+                    albumtitleurl = album_title.strip()
+                    if release_type.lower() == "album":
+                        albumtitleurl = "**" + albumtitleurl + "**"
+                    if url.strip() != "":
+                        albumtitleurl = "[" + albumtitleurl + "](https://rateyourmusic.com/" + url.strip() + ")"
+
+                    if avg_rating.strip() != "":
+                        description += albumtitleurl + f" {release_year} : `{avg_rating}` ({num_ratings})\n"
+                    else:
+                        description += albumtitleurl + f" {release_year} : `?` ({num_ratings})\n"
+
+                    previous_type = release_type
+                    i += 1
+
+                if i == 0:
+                    description += "*no Albums or EPs found*"
+
+            embed = discord.Embed(title=title, description=description[:4096], url=burp0_url, color = 0x1C6FB6)
+
+            footer_list = []
+            for key in release_count:
+                footer_list.append(str(release_count[key]) + f" {key}(s)")
+            embed.set_footer(text=', '.join(footer_list))
+            await ctx.send(embed=embed)
+
+
+        except Exception as e:
+            await ctx.send(f"Error: {e}")
+
+
+
+    async def rym_album_scrape(self, ctx, arguments):
+        """use search to find album, then fetch data from release page"""
+
+        # SEARCH ALBUM
+
+        search_url = f"https://rateyourmusic.com/search?searchterm={arguments}&searchtype=l"
+        session = requests.session()
+        burp0_headers = {"Sec-Ch-Ua": "\"Not-A.Brand\";v=\"99\", \"Chromium\";v=\"124\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.118 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate, br", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Priority": "u=0, i", "Connection": "close"}
+        response = session.get(search_url, headers=burp0_headers)
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        album_url = ""
+
+        for a in soup.find_all("a"):
+            a_class = a.get("class")
+
+            if str(a_class[0]).strip() == "searchpage":
+                album_url = a.get("href")
+                break
+
+        else:
+            await ctx.send("Could not find release on RateYourMusic.")
+            return
+
+        # FETCH ALBUM PAGE
+
+        #await asyncio.sleep(0.5)
+
+        burp0_url = f"https://rateyourmusic.com:443{album_url}"
+        response = session.get(burp0_url, headers=burp0_headers)
+
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        rating_value = []
+        rating_count = []
+        artist_name = []
+        album_name = []
+        album_cover = []
+        release_date = []
+        primary_genres = []
+        secondary_genres = []
+        descriptors = []
+
+        for div in soup.find_all("div"):
+            try:
+                div_id = div.get("id")
+
+                if str(div_id.strip()).startswith("media_link_button_container"):
+                    artist = div.get("data-artists")
+                    album = div.get("data-albums")
+
+                    artist_name.append(str(artist).strip())
+                    album_name.append(str(album).strip())
+            except:
+                pass
+
+
+        for img in soup.find_all("img"):
+            try:
+                img_alt = img.get("alt")
+                    
+                try:
+                    img_src = img.get("src")
+                    if img_src is None or str(img_src).strip() == "":
+                        raise ValueError("img tag has no attribute src")
+                    for link in str(img_src).split(","):
+                        if link.strip().endswith(".jpg") or link.strip().endswith(".png") or link.strip().endswith(".webp"):
+                            album_cover.append(link.strip())
+                except:
+                    img_srcset = img.get("srcset")
+                    for link in str(img_srcset).split(","):
+                        if link.strip().endswith(".jpg") or link.strip().endswith(".png") or link.strip().endswith(".webp"):
+                            album_cover.append(link.strip())
+            except:
+                pass
+
+
+        for meta in soup.find_all("meta"):
+            try:
+                meta_itemprop = meta.get("itemprop")
+
+                if str(meta_itemprop.strip()) == "ratingValue":
+                    content = meta.get("content")
+                    rating_value.append(str(content))
+
+                if str(meta_itemprop.strip()) == "ratingCount":
+                    content = meta.get("content")
+                    rating_count.append(str(content))
+
+                if str(meta_itemprop.strip()) == "name":
+                    content = meta.get("content")
+                    album_name.append(str(content))
+            except:
+                pass
+
+
+        for span in soup.find_all("span"):
+            try:
+                span_class = span.get("class")
+
+                if str(span_class[0]).startswith("issue_year"):
+                    title = span.get("title")
+                    release_date.append(str(title).strip())
+
+                if str(span_class[0]) == "release_pri_genres":
+                    for a in span.find_all("a"):
+                        text = a.getText()
+                        primary_genres.append(str(text))
+
+                if str(span_class[0]) == "release_sec_genres":
+                    for a in span.find_all("a"):
+                        text = a.getText()
+                        secondary_genres.append(str(text))
+
+                if str(span_class[0]) == "release_pri_descriptors":
+                    for text in str(span.getText()).split(","):
+                        descriptors.append(text.strip())
+            except:
+                pass
+
+        # MAKE EMBED
+        try:
+            artist = artist_name[0]
+        except:
+            artist = "???"
+        try:
+            album = album_name[0]
+        except:
+            album = "???"
+        try:
+            cover = album_cover[0]
+        except:
+            cover = ""
+        try:
+            date = release_date[0]
+        except:
+            date = ""
+        primgenres = ', '.join(primary_genres)
+        secgenres = ', '.join(secondary_genres)
+        desc = ', '.join(descriptors)
+        try:
+            ratingval = rating_value[0]
+        except:
+            ratingval = "?"
+        try:
+            ratingnum = rating_count[0]
+        except:
+            ratingnum = "?"
+
+        title = f"RateYourMusic Album Info"
+
+        description = f"**{album}**\nby {artist}\n{date}\n\n"
+
+        if len(primary_genres) > 0:
+            description += f"**Primary genres:**\n{primgenres}\n"
+        else:
+            description += "(no primary genre given)\n"
+
+        if len(secondary_genres) > 0:
+            description += f"**Secondary genres:**\n{secgenres}\n"
+        else:
+            description += "(no secondary genre given)\n"
+
+        if len(descriptors):
+            description += "\n**Descriptors:** " + desc + "\n"
+
+        description += f"\n**Rating Avg.:** `{ratingval}` "
+
+        if ratingnum == 1:
+            description += f"(rated by 1)"
+        else:
+            description += f"(rated by {ratingnum})"
+
+        try:
+            embed = discord.Embed(title=title, description=description[:4096], url=f"https://rateyourmusic.com{album_url}", color = 0x1C6FB6)
+        except:
+            embed = discord.Embed(title=title, description=description[:4096], color = 0x1C6FB6)
+        try:
+            if cover != "":
+                embed.set_thumbnail(url=f"https:{cover}")
+        except:
+            pass
+        await ctx.send(embed=embed)
+
+
+
+    async def rym_genre_scrape(self, ctx, genrename):
+        try:
+            genre_url = f"https://rateyourmusic.com/genre/{genrename}/"
+            session = requests.session()
+
+            burp0_headers = {"Sec-Ch-Ua": "\"Not-A.Brand\";v=\"99\", \"Chromium\";v=\"124\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.118 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate, br", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Priority": "u=0, i", "Connection": "close"}
+            response = session.get(genre_url, headers=burp0_headers)
+
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            detail_text = ""
+
+            for span in soup.find_all("span"):
+                try:
+                    span_class = span.get("class")
+
+                    if str(span_class[0]).strip() == "rendered_text":
+                        text = BeautifulSoup(str(span).split("<br")[0], "html.parser")
+                        detail_text = str(text.getText()).strip()
+                except:
+                    pass
+
+            top_releases = []
+
+            for div in soup.find_all("div"):
+                try:
+                    div_class = div.get("class")
+                    if str(div_class[0]).strip() == "page_section_charts_carousel_title":
+
+                        top_artist = ""
+                        top_album = ""
+                        top_url = ""
+                        
+                        for a in div.find_all("a"):
+
+                            a_href = a.get("href")
+                            a_class = a.get("class")
+
+                            if str(a_class[0]).strip() == "release":
+                                if a.getText().strip() != "":
+                                    top_album = a.getText().strip()
+
+                                if str(a_href).strip() != "":
+                                    top_url = f"https://rateyourmusic.com{str(a_href)}"
+
+                            if str(a_class[0]).strip() == "artist":
+                                if a.getText().strip() != "":
+                                    top_artist = a.getText().strip()
+
+                        if top_artist != "" and top_album != "":
+                            top_releases.append([top_artist, top_album, top_url])
+                except:
+                    pass
+
+            if len(top_releases) == 0 and detail_text.strip() == 0:
+                raise ValueError("Error: received empty response")
+
+            top_releases_string = "**Top Releases:**\n"
+            i = 0
+            for item in top_releases:
+                i += 1
+                top_releases_string += f"`{i}.` {item[0]} - [{item[1]}]({item[2]})\n"
+
+            top_releases_string = top_releases_string
+            t_length = len(top_releases_string)
+
+            # MAKE EMBED
+
+            title = f"RateYourMusic Genre Info"
+
+            if len(detail_text) > 4094-t_length:
+                detail_text[:4091-t_length] + "..."
+            description = detail_text + "\n\n" + top_releases_string.strip()
+
+            try:
+                embed = discord.Embed(title=title, description=description[:4096], url=genre_url, color = 0x1C6FB6)
+            except:
+                embed = discord.Embed(title=title, description=description[:4096], color = 0x1C6FB6)
+            await ctx.send(embed=embed)
+        except:
+            emoji = util.emoji("disappointed")
+            await ctx.send(f"Error: could not find genre. {emoji}")
+
+
+
     @commands.command(name='rym', aliases = ['rateyourmusic', 'sonemic'])
     @commands.check(util.is_active)
     async def _rym(self, ctx: commands.Context, *args):
-        """RYM info
-        
-        under construction
+        """RateYourMusic.com inforamtion
+
+        Use this command to get information for
+        1. an artist with argument `<artist>`
+        2. an album with argument `<artist> - <album>`
+        3. a genre with argument `genre: <genre name>`
         """
-        emoji1 = util.emoji("attention")
-        emoji2 = util.emoji("upset")
-        await ctx.channel.send(f'{emoji1} Waiting for rateyourmusic.com to stop being such killjoys {emoji2}')
+        async with ctx.typing():
+            await self.rym_info_scrape(ctx, args)
     @_rym.error
     async def rym_error(self, ctx, error):
         await util.error_handling(ctx, error)
