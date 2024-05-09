@@ -1499,8 +1499,12 @@ class Music_Info(commands.Cog):
         2. an album with argument `<artist> - <album>`
         3. a genre with argument `genre: <genre name>`
         """
-        async with ctx.typing():
-            await self.rym_info_scrape(ctx, args)
+        emoji = util.emoji("pensive")
+        await ctx.send(f"This command is blocked for now as RYM is being quite the killjoy smh my head {emoji}")
+        return
+
+        #async with ctx.typing():
+        #    await self.rym_info_scrape(ctx, args)
     @_rym.error
     async def rym_error(self, ctx, error):
         await util.error_handling(ctx, error)
