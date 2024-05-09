@@ -28,7 +28,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def musicbee_activity(self, ctx, member, show_tags, called_services):
+    async def musicbee_activity(self, ctx, member, show_tags, called_services, custom):
         for activity in member.activities:
             if str(activity.type) == "ActivityType.playing" and activity.name == "MusicBee":
 
@@ -80,7 +80,7 @@ class Music_NowPlaying(commands.Cog):
                 # HANDLE TAGS
                 if show_tags:
                     try:
-                        tag_string = await self.fetch_tags(ctx, "musicbee", artist, album, song, None, None, called_services)
+                        tag_string = await self.fetch_tags(ctx, "musicbee", artist, album, song, None, None, called_services, custom)
                         try:
                             embed.set_footer(text = tag_string)
                         except Exception as e:
@@ -95,7 +95,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def applemusic_activity(self, ctx, member, show_tags, called_services):
+    async def applemusic_activity(self, ctx, member, show_tags, called_services, custom):
         activity_list = []
         for activity in member.activities:
             try:
@@ -181,7 +181,7 @@ class Music_NowPlaying(commands.Cog):
                     # HANDLE TAGS
                     if show_tags:
                         try:
-                            tag_string = await self.fetch_tags(ctx, "applemusic", artist, album, song, None, None, called_services)
+                            tag_string = await self.fetch_tags(ctx, "applemusic", artist, album, song, None, None, called_services, custom)
                             try:
                                 embed.set_footer(text = tag_string)
                             except Exception as e:
@@ -197,11 +197,11 @@ class Music_NowPlaying(commands.Cog):
                     # HANDLE TAGS
                     if show_tags:
                         try:
-                            tag_string = await self.fetch_tags(ctx, "unspecified", artist, album, song, None, None, called_services)
+                            tag_string = await self.fetch_tags(ctx, "unspecified", artist, album, song, None, None, called_services, custom)
                             try:
                                 embed.set_footer(text = tag_string)
                             except Exception as e:
-                                print("Error while creating footer for applemusic np: ", e)
+                                print("Error while creating footer for unspecified player np (probably applemusic): ", e)
                         except Exception as e:
                             print("Error while trying to fetch tags:", e)
 
@@ -214,7 +214,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def lastfm_apifetch(self, ctx, member, show_tags, called_services, cooldown):
+    async def lastfm_apifetch(self, ctx, member, show_tags, called_services, cooldown, custom):
         # FETCH LFM USERNAME
 
         con = sqlite3.connect('databases/npsettings.db')
@@ -280,7 +280,7 @@ class Music_NowPlaying(commands.Cog):
 
             if show_tags:
                 try:
-                    tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, musicbrainz_ids, called_services)
+                    tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, musicbrainz_ids, called_services, custom)
                     try:
                         if tag_string != "":
                             embed.set_footer(text = tag_string)
@@ -294,12 +294,13 @@ class Music_NowPlaying(commands.Cog):
 
         except Exception as e:
             print("Error:", e)
-            message = await self.lastfm_webscrape(ctx, member, show_tags, called_services, False) # last argument for whether a cooldown is needed
+            cooldown = False
+            message = await self.lastfm_webscrape(ctx, member, show_tags, called_services, cooldown, custom) # last argument for whether a cooldown is needed
             return message
 
 
 
-    async def lastfm_webscrape(self, ctx, member, show_tags, called_services, cooldown):
+    async def lastfm_webscrape(self, ctx, member, show_tags, called_services, cooldown, custom):
 
         # FETCH LFM USERNAME
 
@@ -403,7 +404,7 @@ class Music_NowPlaying(commands.Cog):
 
         if show_tags:
             try:
-                tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, None, called_services)
+                tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, None, called_services, custom)
                 try:
                     embed.set_footer(text = tag_string)
                 except Exception as e:
@@ -416,7 +417,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def spotify_activity(self, ctx, member, show_tags, called_services):
+    async def spotify_activity(self, ctx, member, show_tags, called_services, custom):
         for activity in member.activities:
             if isinstance(activity, Spotify):
 
@@ -437,7 +438,7 @@ class Music_NowPlaying(commands.Cog):
                 # HANDLE TAGS
                 if show_tags:
                     try:
-                        tag_string = await self.fetch_tags(ctx, "spotify", artist, album, song, track_id, None, called_services)
+                        tag_string = await self.fetch_tags(ctx, "spotify", artist, album, song, track_id, None, called_services, custom)
                         try:
                             embed.set_footer(text = tag_string)
                         except Exception as e:
@@ -473,7 +474,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def fetch_tags(self, ctx, np_service, artist, album, song, spotify_track_id, musicbrainz_ids, called_services):
+    async def fetch_tags(self, ctx, np_service, artist, album, song, spotify_track_id, musicbrainz_ids, called_services, custom):
         """
             decide where to fetch genre tags from and retrieve
             return string
@@ -484,15 +485,21 @@ class Music_NowPlaying(commands.Cog):
                 mbid = musicbrainz_ids[0]
             except:
                 mbid = None
-            con = sqlite3.connect('databases/npsettings.db')
-            cur = con.cursor()
-            tagsetting_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7],item[8],item[9],item[10],item[11],item[12],item[13],item[14],item[15],item[16]] for item in cur.execute("SELECT id, name, spotify_monthlylisteners, spotify_genretags, lastfm_listeners, lastfm_total_artistplays, lastfm_artistscrobbles, lastfm_albumscrobbles, lastfm_trackscrobbles, lastfm_rank, musicbrainz_tags, musicbrainz_area , musicbrainz_date , rym_genretags, rym_albumrating, lastfm_tags, redundancy_filter FROM tagsettings WHERE id = ?", (user_id,)).fetchall()]
-            if len(tagsetting_list) == 0:
-                username = util.cleantext2(str(ctx.message.author.name))
-                cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "standard_substitute", "off", "off", "off", "off"))
-                con.commit()
-                await util.changetimeupdate()
-                tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "standard_substitute", "off", "off", "off", "off"]]
+
+            #default settings:
+            tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "off", "off", "off", "off", "standard_substitute", "on"]]
+            
+            if custom:
+                con = sqlite3.connect('databases/npsettings.db')
+                cur = con.cursor()
+                custom_tagsetting_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7],item[8],item[9],item[10],item[11],item[12],item[13],item[14],item[15],item[16]] for item in cur.execute("SELECT id, name, spotify_monthlylisteners, spotify_genretags, lastfm_listeners, lastfm_total_artistplays, lastfm_artistscrobbles, lastfm_albumscrobbles, lastfm_trackscrobbles, lastfm_rank, musicbrainz_tags, musicbrainz_area , musicbrainz_date , rym_genretags, rym_albumrating, lastfm_tags, redundancy_filter FROM tagsettings WHERE id = ?", (user_id,)).fetchall()]
+                if len(custom_tagsetting_list) == 0:
+                    username = util.cleantext2(str(ctx.message.author.name))
+                    cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "standard_substitute", "off", "off", "off", "off", "off"))
+                    con.commit()
+                    await util.changetimeupdate()
+                else:
+                    tagsetting_list = custom_tagsetting_list
 
             # CHECK WHICH TAGS TO FETCH
 
@@ -1445,11 +1452,11 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def spotify(self, ctx, args, tags):
+    async def spotify(self, ctx, args, tags, custom):
         the_member = await self.getmember(ctx, args)
         called_services = await self.parse_called_services(args)
         try:
-            message = await self.spotify_activity(ctx, the_member, tags, called_services)
+            message = await self.spotify_activity(ctx, the_member, tags, called_services, custom)
             await self.add_np_reactions(ctx, message, the_member)
         except Exception as e:
             print(e)
@@ -1462,11 +1469,11 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def musicbee(self, ctx, args, tags):
+    async def musicbee(self, ctx, args, tags, custom):
         the_member = await self.getmember(ctx, args)
         called_services = await self.parse_called_services(args)
         try:
-            message = await self.musicbee_activity(ctx, the_member, tags, called_services)
+            message = await self.musicbee_activity(ctx, the_member, tags, called_services, custom)
             await self.add_np_reactions(ctx, message, the_member)
         except:
             text = "No MusicBee status found 🐝"
@@ -1478,11 +1485,11 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def applemusic(self, ctx, args, tags):
+    async def applemusic(self, ctx, args, tags, custom):
         the_member = await self.getmember(ctx, args)
         called_services = await self.parse_called_services(args)
         try:
-            message = await self.applemusic_activity(ctx, the_member, tags, called_services)
+            message = await self.applemusic_activity(ctx, the_member, tags, called_services, custom)
             await self.add_np_reactions(ctx, message, the_member)
         except:
             text = "No Apple Music status found 🍏"
@@ -1494,14 +1501,15 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def lastfm(self, ctx, args, api_or_web, tags):
+    async def lastfm(self, ctx, args, api_or_web, tags, custom):
         the_member = await self.getmember(ctx, args)
         called_services = await self.parse_called_services(args)
         try:
+            cooldown = True
             if api_or_web.lower() == "api":
-                message = await self.lastfm_apifetch(ctx, the_member, tags, called_services, True)
+                message = await self.lastfm_apifetch(ctx, the_member, tags, called_services, cooldown, custom)
             else:
-                message = await self.lastfm_webscrape(ctx, the_member, tags, called_services, True) # last argument for whether a cooldown is needed
+                message = await self.lastfm_webscrape(ctx, the_member, tags, called_services, cooldown, custom) # last argument for whether a cooldown is needed
             await self.add_np_reactions(ctx, message, the_member)
         except Exception as e:
             if str(e) == "user has not set lastfm":
@@ -1515,20 +1523,21 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def nowplaying(self, ctx, args, tags):
+    async def nowplaying(self, ctx, args, tags, custom):
         the_member = await self.getmember(ctx, args)
         called_services = await self.parse_called_services(args)
         try:
-            message = await self.spotify_activity(ctx, the_member, tags, called_services)
+            message = await self.spotify_activity(ctx, the_member, tags, called_services, custom)
         except:
             try:
-                message = await self.musicbee_activity(ctx, the_member, tags, called_services)
+                message = await self.musicbee_activity(ctx, the_member, tags, called_services, custom)
             except:
                 try:
-                    message = await self.applemusic_activity(ctx, the_member, tags, called_services)
+                    message = await self.applemusic_activity(ctx, the_member, tags, called_services, custom)
                 except:
                     try:
-                        message = await self.lastfm_apifetch(ctx, the_member, tags, called_services, True)
+                        cooldown = True
+                        message = await self.lastfm_apifetch(ctx, the_member, tags, called_services, cooldown, custom)
                     except:
                         emoji = util.emoji("disappointed")
                         text = f"No played music found {emoji}"
@@ -1551,7 +1560,9 @@ class Music_NowPlaying(commands.Cog):
     async def _spotify_plain(self, ctx: commands.Context, *args):
         """NowPlaying for Spotify
         """
-        await self.spotify(ctx, args, False)
+        tags = True
+        custom = False
+        await self.spotify(ctx, args, tags, custom)
     @_spotify_plain.error
     async def spotify_plain_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -1561,9 +1572,11 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='spx', aliases = ['spoofyx', 'spotifyx'])
     @commands.check(util.is_active)
     async def _spotify_extra(self, ctx: commands.Context, *args):
-        """NowPlaying for Spotify with tags
+        """NowPlaying for Spotify with customisable tags
         """
-        await self.spotify(ctx, args, True)
+        tags = True
+        custom = True
+        await self.spotify(ctx, args, tags, custom)
     @_spotify_extra.error
     async def spotify_extra_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -1574,7 +1587,9 @@ class Music_NowPlaying(commands.Cog):
     @commands.check(util.is_active)
     async def _musicbee(self, ctx: commands.Context, *args):
         """NowPlaying for MusicBee"""
-        await self.musicbee(ctx, args, False)
+        tags = True
+        custom = False
+        await self.musicbee(ctx, args, tags, custom)
     @_musicbee.error
     async def musicbee_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -1584,8 +1599,10 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='mx', aliases = ['musicbeex','beex', 'mbx', 'bx'])
     @commands.check(util.is_active)
     async def _musicbee_extra(self, ctx: commands.Context, *args):
-        """NowPlaying for MusicBee with tags"""
-        await self.musicbee(ctx, args, True)
+        """NowPlaying for MusicBee with customisable tags"""
+        tags = True
+        custom = True
+        await self.musicbee(ctx, args, tags, custom)
     @_musicbee_extra.error
     async def musicbee_extra_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -1596,7 +1613,9 @@ class Music_NowPlaying(commands.Cog):
     @commands.check(util.is_active)
     async def _applemusic(self, ctx: commands.Context, *args):
         """NowPlaying for Apple Music"""
-        await self.applemusic(ctx, args, False)
+        tags = True
+        custom = False
+        await self.applemusic(ctx, args, tags, custom)
     @_applemusic.error
     async def applemusic_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -1606,8 +1625,10 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='apx', aliases = ['applemusicx', 'applex', 'amx', 'itunesx'])
     @commands.check(util.is_active)
     async def _applemusic_extra(self, ctx: commands.Context, *args):
-        """NowPlaying for Apple Music with tags"""
-        await self.applemusic(ctx, args, True)
+        """NowPlaying for Apple Music with customisable tags"""
+        tags = True
+        custom = True
+        await self.applemusic(ctx, args, tags, custom)
     @_applemusic_extra.error
     async def applemusic_extra_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -1618,7 +1639,9 @@ class Music_NowPlaying(commands.Cog):
     @commands.check(util.is_active)
     async def _lastfm(self, ctx: commands.Context, *args):
         """NowPlaying for LastFM"""
-        await self.lastfm(ctx, args, "api", False)
+        tags = True
+        custom = False
+        await self.lastfm(ctx, args, "api", tags, custom)
     @_lastfm.error
     async def lastfm_error(self, ctx, error):
         await util.error_handling(ctx, error) 
@@ -1628,8 +1651,10 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='lfmx', aliases = ['fmx', 'lastfmx'])
     @commands.check(util.is_active)
     async def _lastfm_extra(self, ctx: commands.Context, *args):
-        """NowPlaying for LastFM with tags"""
-        await self.lastfm(ctx, args, "api", True)
+        """NowPlaying for LastFM with customisable tags"""
+        tags = True
+        custom = True
+        await self.lastfm(ctx, args, "api", tags, custom)
     @_lastfm_extra.error
     async def lastfm_extra_error(self, ctx, error):
         await util.error_handling(ctx, error) 
@@ -1664,7 +1689,9 @@ class Music_NowPlaying(commands.Cog):
         """NowPlaying
 
         going through all integrated music sreaming services: Spotify, MusicBee, AppleMusic, LastFM"""
-        await self.nowplaying(ctx, args, False)
+        tags = True
+        custom = False
+        await self.nowplaying(ctx, args, tags, custom)
     @_nowplaying.error
     async def nowplaying_error(self, ctx, error):
         await util.error_handling(ctx, error) 
@@ -1674,12 +1701,29 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='npx', aliases = ['nowplayingx'])
     @commands.check(util.is_active)
     async def _nowplaying_extra(self, ctx: commands.Context, *args):
-        """NowPlaying with tags
+        """NowPlaying with customisable tags
 
         going through all integrated music sreaming services: Spotify, MusicBee, AppleMusic, LastFM"""
-        await self.nowplaying(ctx, args, True)
+        tags = True
+        custom = True
+        await self.nowplaying(ctx, args, tags, custom)
     @_nowplaying_extra.error
     async def nowplaying_extra_error(self, ctx, error):
+        await util.error_handling(ctx, error) 
+
+
+
+    @commands.command(name='nowplaying0', aliases = ['np0'])
+    @commands.check(util.is_active)
+    async def _nowplayingzero(self, ctx: commands.Context, *args):
+        """NowPlaying without any tags
+
+        going through all integrated music sreaming services: Spotify, MusicBee, AppleMusic, LastFM"""
+        tags = False
+        custom = False
+        await self.nowplaying(ctx, args, tags, custom)
+    @_nowplayingzero.error
+    async def nowplayingzero_error(self, ctx, error):
         await util.error_handling(ctx, error) 
 
 
@@ -1852,9 +1896,9 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='fakenowplaying', aliases = ['fnp', 'fakenp', 'fakeplaying', 'fake', 'fp'])
     @commands.check(util.is_active)
     async def _fakenowplaying(self, ctx: commands.Context, *args):
-        """now playing by giving artist and song, gives out embed 
+        """now playing by giving artist and song, gives out embed with tags
         """
-        tags = False
+        tags = True
         await self.fakenowplaying(ctx, args, tags)
     @_fakenowplaying.error
     async def fakenowplaying_error(self, ctx, error):
@@ -1862,15 +1906,15 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    @commands.command(name='fnpx', aliases = ['fakenowplayingx', 'fakenpx', 'fakeplayingx', 'fakex', 'fpx'])
+    @commands.command(name='fnp0', aliases = ['fakenowplaying0', 'fakenp0', 'fakeplaying0', 'fake0', 'fp0'])
     @commands.check(util.is_active)
-    async def _fakenowplaying_extra(self, ctx: commands.Context, *args):
-        """now playing by giving artist and song, gives out embed with tags
+    async def _fakenowplaying_zero(self, ctx: commands.Context, *args):
+        """now playing by giving artist and song, gives out embed without tags
         """
-        tags = True
+        tags = False
         await self.fakenowplaying(ctx, args, tags)
-    @_fakenowplaying_extra.error
-    async def fakenowplaying_extra_error(self, ctx, error):
+    @_fakenowplaying_zero.error
+    async def fakenowplaying_zero_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
