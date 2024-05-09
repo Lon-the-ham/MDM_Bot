@@ -971,11 +971,11 @@ class Music_Info(commands.Cog):
 
         else:
             if ";" in arguments:
-                artist = arguments.split(";")[1]
-                extrainfo = arguments.split(";")[0]
+                artist = arguments.split(";")[0].strip()
+                extrainfo = arguments.split(";")[1].strip()
 
             else:
-                artist = arguments
+                artist = arguments.strip()
                 extrainfo = ""
 
             await self.rym_artist_scrape(ctx, artist, extrainfo)
@@ -988,16 +988,56 @@ class Music_Info(commands.Cog):
         try:
             # GET LINK TO ARTIST
 
-            if extrainfo.strip() != "":
-                search_url = f"https://rateyourmusic.com:443/search?searchterm={artist}&searchtype=a"
+            search_url = f"https://rateyourmusic.com:443/search?searchterm={artist}&searchtype=a"
+            session = requests.session()
+            burp0_headers = {"Sec-Ch-Ua": "\"Not-A.Brand\";v=\"99\", \"Chromium\";v=\"124\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.118 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate, br", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Priority": "u=0, i", "Connection": "close"}
+            response = session.get(search_url, headers=burp0_headers)
 
-                burp0_url = "?"
+            soup = BeautifulSoup(response.text, "html.parser")
 
-                await asyncio.sleep(1)
+            if len(extrainfo.strip()) == 2:
+                extrainfo = util.isocode_to_name(extrainfo.strip()).split("of")[0].strip()
 
-            else:
-                artist_in_url = artist.replace(" ", "-").lower()
-                burp0_url = f"https://rateyourmusic.com:443/artist/{artist_in_url}"
+
+            artist_list = []
+            for table in soup.find_all("table"):
+                for tr in table.find_all("tr"):
+                    try:
+                        if str(tr.get("class")[0]) == "infobox":
+
+                            for a in tr.find_all("a"):
+
+                                try:
+                                    is_link = False
+                                    a_href = a.get("href")
+
+                                    if a_href is not None and str(a_href) != "" and str(a_href).startswith("/artist/"):
+                                        is_link = True
+                                    elif str(a_href[0]) != "" and str(a_href[0]).startswith("/artist/"):
+                                        is_link = True
+
+                                    if is_link:
+                                        if extrainfo.strip() != "":
+                                            if util.alphanum(extrainfo.lower().strip()) in util.alphanum(str(tr).lower()):
+                                                artist_list.append(f"https://rateyourmusic.com{str(a_href)}")
+                                        else:
+                                            artist_list.append(f"https://rateyourmusic.com{str(a_href)}")
+
+                                        print(str(tr))
+                                except:
+                                    pass
+                            break
+                    except:
+                        pass
+
+            if len(artist_list) == 0:
+                emoji = util.emoji("disappointed")
+                await ctx.send(f"Could not find artist. {emoji}")
+                return
+
+            # REQUEST ARTIST PAGE
+            
+            burp0_url = artist_list[0]
 
             session = requests.session()
             burp0_headers = {"Sec-Ch-Ua": "\"Not-A.Brand\";v=\"99\", \"Chromium\";v=\"124\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.60 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate, br", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Priority": "u=0, i", "Connection": "close"}
@@ -1005,7 +1045,7 @@ class Music_Info(commands.Cog):
 
             soup = BeautifulSoup(response.text, "html.parser")
 
-            # GET META DATA 
+            # GET META DATA FROM ARTIST PAGE
 
             artistname = []
             for h1 in soup.find_all("h1"):
@@ -1098,7 +1138,7 @@ class Music_Info(commands.Cog):
 
             if len(artistname) == 0 and len(albums) == 0:
                 emoji = util.emoji("disappointed")
-                await ctx.send(f"Could not find artist. {emoji}")
+                await ctx.send(f"Error while trying to fetch artist information. {emoji}")
                 return
 
             # COMPOSE EMBED
@@ -1136,7 +1176,7 @@ class Music_Info(commands.Cog):
                     else:
                         release_count[release_type] = 1
 
-                    if release_type.lower() in ["single", "musicvideo", "live album"]:
+                    if release_type.lower() in ["single", "musicvideo", "live album", "comp", "unauth"]:
                         continue
 
                     if release_type != previous_type:

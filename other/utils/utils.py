@@ -626,6 +626,43 @@ class Utils():
     def isocode(s):
         """tries to convert string to ISO country code
         can return ERROR string if no matches found"""
+        ISO3166 = Utils.isolist()
+
+        if len(s) < 4:
+            return s.upper()
+
+        for k,v in ISO3166.items():
+            if s.lower() == v.lower():
+                return k
+        else:
+            for k,v in ISO3166.items():
+                if s.lower() in v.lower():
+                    return k
+            else:
+                for k,v in ISO3166.items():
+                    if len(s) > 2 and Utils.alphanum(s,"lower") in Utils.alphanum(v,"lower"):
+                        return k
+                else:
+                    return "ERROR"
+
+
+
+    def isocode_to_name(s):
+        """tries to convert string to ISO country code
+        can return ERROR string if no matches found"""
+        if len(s) != 2:
+            return s
+
+        ISO3166 = Utils.isolist()
+
+        if s.upper() in ISO3166:
+            finding = ISO3166[s.upper()]
+
+            return finding.split("(")[0].split(",")[0].strip()
+
+
+
+    def isolist():
         ISO3166 = {
             'AD': 'Andorra',
             'AE': 'United Arab Emirates',
@@ -875,22 +912,7 @@ class Utils():
             'ZZ': 'Unknown or unspecified country',
         }
 
-        if len(s) < 4:
-            return s.upper()
-
-        for k,v in ISO3166.items():
-            if s.lower() == v.lower():
-                return k
-        else:
-            for k,v in ISO3166.items():
-                if s.lower() in v.lower():
-                    return k
-            else:
-                for k,v in ISO3166.items():
-                    if len(s) > 2 and Utils.alphanum(s,"lower") in Utils.alphanum(v,"lower"):
-                        return k
-                else:
-                    return "ERROR"
+        return ISO3166
 
 
 
