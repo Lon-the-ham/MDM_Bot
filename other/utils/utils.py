@@ -74,7 +74,22 @@ class Utils():
             else:
                 raise commands.CheckFailure("inactive")
                 return False
-                
+
+
+
+    def is_host(ctx):
+        try:
+            host_id = int(os.getenv("host_user_id"))
+        except:
+            return False
+
+        if ctx.author.id == host_id:
+            return True
+
+        else:
+            return False
+
+
 
     async def error_handling(ctx, error):
         if isinstance(error, commands.MissingPermissions):
@@ -289,16 +304,17 @@ class Utils():
         """converts place name to flag"""
         emoji = ""
         
-        area_icon_dict = {
-            "germany": "🇩🇪",
-            "japan": "🇯🇵",
-            # under construction
-        }
+        countrycode_icon_dict = {'??': '❓', 'AD': '🇦🇩', 'AE': '🇦🇪', 'AF': '🇦🇫', 'AG': '🇦🇬', 'AI': '🇦🇮', 'AL': '🇦🇱', 'AM': '🇦🇲', 'AO': '🇦🇴', 'AQ': '🇦🇶', 'AR': '🇦🇷', 'AS': '🇦🇸', 'AT': '🇦🇹', 'AU': '🇦🇺', 'AW': '🇦🇼', 'AX': '🇦🇽', 'AZ': '🇦🇿', 'BA': '🇧🇦', 'BB': '🇧🇧', 'BD': '🇧🇩', 'BE': '🇧🇪', 'BF': '🇧🇫', 'BG': '🇧🇬', 'BH': '🇧🇭', 'BI': '🇧🇮', 'BJ': '🇧🇯', 'BL': '🇧🇱', 'BM': '🇧🇲', 'BN': '🇧🇳', 'BO': '🇧🇴', 'BQ': '🇧🇶', 'BR': '🇧🇷', 'BS': '🇧🇸', 'BT': '🇧🇹', 'BV': '🇧🇻', 'BW': '🇧🇼', 'BY': '🇧🇾', 'BZ': '🇧🇿', 'CA': '🇨🇦', 'CC': '🇨🇨', 'CD': '🇨🇩', 'CF': '🇨🇫', 'CG': '🇨🇬', 'CH': '🇨🇭', 'CI': '🇨🇮', 'CK': '🇨🇰', 'CL': '🇨🇱', 'CM': '🇨🇲', 'CN': '🇨🇳', 'CO': '🇨🇴', 'CR': '🇨🇷', 'CU': '🇨🇺', 'CV': '🇨🇻', 'CW': '🇨🇼', 'CX': '🇨🇽', 'CY': '🇨🇾', 'CZ': '🇨🇿', 'DE': '🇩🇪', 'DJ': '🇩🇯', 'DK': '🇩🇰', 'DM': '🇩🇲', 'DO': '🇩🇴', 'DZ': '🇩🇿', 'EC': '🇪🇨', 'EE': '🇪🇪', 'EG': '🇪🇬', 'EH': '🇪🇭', 'ER': '🇪🇷', 'ES': '🇪🇸', 'ET': '🇪🇹', 'EU': '🇪🇺', 'FI': '🇫🇮', 'FJ': '🇫🇯', 'FK': '🇫🇰', 'FM': '🇫🇲', 'FO': '🇫🇴', 'FR': '🇫🇷', 'GA': '🇬🇦', 'GB': '🇬🇧', 'GB-CYM': '🏴\U000e0067\U000e0062\U000e0077\U000e006c\U000e0073\U000e007f', 'GB-ENG': '🏴\U000e0067\U000e0062\U000e0065\U000e006e\U000e0067\U000e007f', 'GB-NIR': '🏴\U000e0067\U000e0062\U000e006e\U000e0069\U000e0072\U000e007f', 'GB-SCT': '🏴\U000e0067\U000e0062\U000e0073\U000e0063\U000e0074\U000e007f', 'GD': '🇬🇩', 'GE': '🇬🇪', 'GF': '🇬🇫', 'GG': '🇬🇬', 'GH': '🇬🇭', 'GI': '🇬🇮', 'GL': '🇬🇱', 'GM': '🇬🇲', 'GN': '🇬🇳', 'GP': '🇬🇵', 'GQ': '🇬🇶', 'GR': '🇬🇷', 'GS': '🇬🇸', 'GT': '🇬🇹', 'GU': '🇬🇺', 'GW': '🇬🇼', 'GY': '🇬🇾', 'HK': '🇭🇰', 'HM': '🇭🇲', 'HN': '🇭🇳', 'HR': '🇭🇷', 'HT': '🇭🇹', 'HU': '🇭🇺', 'ID': '🇮🇩', 'IE': '🇮🇪', 'IL': '🇮🇱', 'IM': '🇮🇲', 'IN': '🇮🇳', 'IO': '🇮🇴', 'IQ': '🇮🇶', 'IR': '🇮🇷', 'IS': '🇮🇸', 'IT': '🇮🇹', 'JE': '🇯🇪', 'JM': '🇯🇲', 'JO': '🇯🇴', 'JP': '🇯🇵', 'KE': '🇰🇪', 'KG': '🇰🇬', 'KH': '🇰🇭', 'KI': '🇰🇮', 'KM': '🇰🇲', 'KN': '🇰🇳', 'KP': '🇰🇵', 'KR': '🇰🇷', 'KW': '🇰🇼', 'KY': '🇰🇾', 'KZ': '🇰🇿', 'LA': '🇱🇦', 'LB': '🇱🇧', 'LC': '🇱🇨', 'LI': '🇱🇮', 'LK': '🇱🇰', 'LR': '🇱🇷', 'LS': '🇱🇸', 'LT': '🇱🇹', 'LU': '🇱🇺', 'LV': '🇱🇻', 'LY': '🇱🇾', 'MC': '🇲🇨', 'MD': '🇲🇩', 'ME': '🇲🇪', 'MF': '🇲🇫', 'MG': '🇲🇬', 'MH': '🇲🇭', 'MK': '🇲🇰', 'ML': '🇲🇱', 'MM': '🇲🇲', 'MN': '🇲🇳', 'MO': '🇲🇴', 'MP': '🇲🇵', 'MQ': '🇲🇶', 'MR': '🇲🇷', 'MS': '🇲🇦', 'MT': '🇲🇹', 'MU': '🇲🇺', 'MV': '🇲🇻', 'MW': '🇲🇼', 'MX': '🇲🇽', 'MY': '🇲🇾', 'MZ': '🇲🇿', 'NA': '🇳🇦', 'NC': '🇳🇨', 'NE': '🇳🇪', 'NF': '🇳🇫', 'NG': '🇳🇬', 'NI': '🇳🇮', 'NL': '🇳🇱', 'NO': '🇳🇴', 'NP': '🇳🇵', 'NR': '🇳🇷', 'NU': '🇳🇺', 'NZ': '🇳🇿', 'OM': '🇴🇲', 'PA': '🇵🇦', 'PE': '🇵🇪', 'PF': '🇵🇫', 'PG': '🇵🇬', 'PH': '🇵🇭', 'PK': '🇵🇰', 'PL': '🇵🇱', 'PM': '🇵🇲', 'PN': '🇵🇳', 'PR': '🇵🇷', 'PS': '🇵🇸', 'PT': '🇵🇹', 'PW': '🇵🇼', 'PY': '🇵🇾', 'QA': '🇶🇦', 'RE': '🇷🇪', 'RO': '🇷🇴', 'RS': '🇷🇸', 'RU': '🇷🇺', 'RW': '🇷🇼', 'SA': '🇸🇦', 'SB': '🇸🇧', 'SC': '🇸🇨', 'SD': '🇸🇩', 'SE': '🇸🇪', 'SG': '🇸🇬', 'SH': '🇸🇭', 'SI': '🇸🇮', 'SJ': '🇸🇯', 'SK': '🇸🇰', 'SL': '🇸🇱', 'SM': '🇸🇲', 'SN': '🇸🇳', 'SO': '🇸🇴', 'SR': '🇸🇷', 'SS': '🇸🇸', 'ST': '🇸🇹', 'SV': '🇸🇻', 'SX': '🇸🇽', 'SY': '🇸🇾', 'SZ': '🇸🇿', 'TC': '🇹🇨', 'TD': '🇹🇩', 'TF': '🇹🇫', 'TG': '🇹🇬', 'TH': '🇹🇭', 'TJ': '🇹🇯', 'TK': '🇹🇰', 'TL': '🇹🇱', 'TM': '🇹🇲', 'TN': '🇹🇳', 'TO': '🇹🇴', 'TR': '🇹🇷', 'TT': '🇹🇹', 'TV': '🇹🇻', 'TW': '🇹🇼', 'TZ': '🇹🇿', 'UA': '🇺🇦', 'UG': '🇺🇬', 'UM': '🇺🇲', 'US': '🇺🇸', 'UY': '🇺🇾', 'UZ': '🇺🇿', 'VA': '🇻🇦', 'VC': '🇻🇨', 'VE': '🇻🇪', 'VG': '🇻🇬', 'VI': '🇻🇮', 'VN': '🇻🇳', 'VU': '🇻🇺', 'WF': '🇼🇫', 'WS': '🇼🇸', 'XK': '🇽🇰', 'YE': '🇾🇪', 'YT': '🇾🇹', 'ZA': '🇿🇦', 'ZM': '🇿🇲', 'ZW': '🇿🇼', 'int': '🇺🇳'}
 
-        if area_name.lower() in area_icon_dict:
+        if area_name.upper() in countrycode_icon_dict:
             return area_icon_dict[area_name.lower()]
         else:
-            return ""
+            country_name_code_dict = {'AFGHANISTAN': 'AF', 'ÅLAND ISLANDS': 'AX', 'ALAND ISLANDS': 'AX', 'ALBANIA': 'AL', 'ALGERIA': 'DZ', 'AMERICAN SAMOA': 'AS', 'ANDORRA': 'AD', 'ANGOLA': 'AO', 'ANGUILLA': 'AI', 'ANTARCTICA': 'AQ', 'ANTIGUA AND BARBUDA': 'AG', 'ARGENTINA': 'AR', 'ARMENIA': 'AM', 'ARUBA': 'AW', 'AUSTRALIA': 'AU', 'AUSTRIA': 'AT', 'AZERBAIJAN': 'AZ', 'BAHAMAS': 'BS', 'BAHRAIN': 'BH', 'BANGLADESH': 'BD', 'BARBADOS': 'BB', 'BELARUS': 'BY', 'BELGIUM': 'BE', 'BELIZE': 'BZ', 'BENIN': 'BJ', 'BERMUDA': 'BM', 'BHUTAN': 'BT', 'BOLIVIA': 'BO', 'BONAIRE, SINT EUSTATIUS AND SABA': 'BQ', 'BOSNIA AND HERZEGOVINA': 'BA', 'BOTSWANA': 'BW', 'BOUVET ISLAND': 'BV', 'BRAZIL': 'BR', 'BRITISH INDIAN OCEAN TERRITORY': 'IO', 'BRUNEI': 'BN', 'BULGARIA': 'BG', 'BURKINA FASO': 'BF', 'BURUNDI': 'BI', 'CAMBODIA': 'KH', 'CAMEROON': 'CM', 'CANADA': 'CA', 'CAPE VERDE': 'CV', 'CAYMAN ISLANDS': 'KY', 'CENTRAL AFRICAN REPUBLIC': 'CF', 'CHAD': 'TD', 'CHILE': 'CL', 'CHINA': 'CN', 'CHRISTMAS ISLAND': 'CX', 'COCOS (KEELING) ISLANDS': 'CC', 'COLOMBIA': 'CO', 'COMOROS': 'KM', 'CONGO, DEMOCRATIC REPUBLIC OF': 'CD', 'CONGO, REPUBLIC OF': 'CG', 'COOK ISLANDS': 'CK', 'COSTA RICA': 'CR', "CÔTE D'IVOIRE": 'CI', 'CROATIA': 'HR', 'CUBA': 'CU', 'CURAÇAO': 'CW', 'CYPRUS': 'CY', 'CZECHIA': 'CZ', 'DENMARK': 'DK', 'DJIBOUTI': 'DJ', 'DOMINICA': 'DM', 'DOMINICAN REPUBLIC': 'DO', 'EAST TIMOR': 'TL', 'ECUADOR': 'EC', 'EGYPT': 'EG', 'EL SALVADOR': 'SV', 'EQUATORIAL GUINEA': 'GQ', 'ERITREA': 'ER', 'ESTONIA': 'EE', 'ESWATINI': 'SZ', 'ETHIOPIA': 'ET', 'FALKLAND ISLANDS': 'FK', 'FAROE ISLANDS': 'FO', 'FIJI': 'FJ', 'FINLAND': 'FI', 'FRANCE': 'FR', 'FRENCH GUIANA': 'GF', 'FRENCH POLYNESIA': 'PF', 'FRENCH SOUTHERN TERRITORIES': 'TF', 'GABON': 'GA', 'GAMBIA': 'GM', 'GEORGIA': 'GE', 'GERMANY': 'DE', 'GHANA': 'GH', 'GIBRALTAR': 'GI', 'GREECE': 'GR', 'GREENLAND': 'GL', 'GRENADA': 'GD', 'GUADELOUPE': 'GP', 'GUAM': 'GU', 'GUATEMALA': 'GT', 'GUERNSEY': 'GG', 'GUINEA': 'GN', 'GUINEA-BISSAU': 'GW', 'GUYANA': 'GY', 'HAITI': 'HT', 'HEARD AND MCDONALD ISLANDS': 'HM', 'HONDURAS': 'HN', 'HONG KONG': 'HK', 'HUNGARY': 'HU', 'ICELAND': 'IS', 'INDIA': 'IN', 'INDONESIA': 'ID', 'INTERNATIONAL': 'int', 'IRAN': 'IR', 'IRAQ': 'IQ', 'IRELAND': 'IE', 'ISLE OF MAN': 'IM', 'ISRAEL': 'IL', 'ITALY': 'IT', 'JAMAICA': 'JM', 'JAPAN': 'JP', 'JERSEY': 'JE', 'JORDAN': 'JO', 'KAZAKHSTAN': 'KZ', 'KENYA': 'KE', 'KIRIBATI': 'KI', 'KOREA, NORTH': 'KP', 'KOREA, SOUTH': 'KR', 'KUWAIT': 'KW', 'KYRGYZSTAN': 'KG', 'LAOS': 'LA', 'LATVIA': 'LV', 'LEBANON': 'LB', 'LESOTHO': 'LS', 'LIBERIA': 'LR', 'LIBYA': 'LY', 'LIECHTENSTEIN': 'LI', 'LITHUANIA': 'LT', 'LUXEMBOURG': 'LU', 'MACAU': 'MO', 'MADAGASCAR': 'MG', 'MALAWI': 'MW', 'MALAYSIA': 'MY', 'MALDIVES': 'MV', 'MALI': 'ML', 'MALTA': 'MT', 'MARSHALL ISLANDS': 'MH', 'MARTINIQUE': 'MQ', 'MAURITANIA': 'MR', 'MAURITIUS': 'MU', 'MAYOTTE': 'YT', 'MEXICO': 'MX', 'MICRONESIA, FEDERATED STATES OF': 'FM', 'MOLDOVA': 'MD', 'MONACO': 'MC', 'MONGOLIA': 'MN', 'MONTENEGRO': 'ME', 'MONTSERRAT': 'MS', 'MOROCCO': 'MS', 'MOZAMBIQUE': 'MZ', 'MYANMAR': 'MM', 'NAMIBIA': 'NA', 'NAURU': 'NR', 'NEPAL': 'NP', 'NETHERLANDS': 'NL', 'NEW CALEDONIA': 'NC', 'NEW ZEALAND': 'NZ', 'NICARAGUA': 'NI', 'NIGER': 'NE', 'NIGERIA': 'NG', 'NIUE': 'NU', 'NORFOLK ISLAND': 'NF', 'NORTH MACEDONIA': 'MK', 'NORTHERN MARIANA ISLANDS': 'MP', 'NORWAY': 'NO', 'OMAN': 'OM', 'PAKISTAN': 'PK', 'PALAU': 'PW', 'PALESTINE': 'PS', 'PANAMA': 'PA', 'PAPUA NEW GUINEA': 'PG', 'PARAGUAY': 'PY', 'PERU': 'PE', 'PHILIPPINES': 'PH', 'PITCAIRN ISLAND': 'PN', 'POLAND': 'PL', 'PORTUGAL': 'PT', 'PUERTO RICO': 'PR', 'QATAR': 'QA', 'REUNION': 'RE', 'ROMANIA': 'RO', 'RUSSIA': 'RU', 'RWANDA': 'RW', 'SAINT BARTHÉLEMY': 'BL', 'SAINT KITTS & NEVIS': 'KN', 'SAINT LUCIA': 'LC', 'SAINT MARTIN (FRENCH PART)': 'MF', 'SAINT PIERRE AND MIQUELON': 'PM', 'SAINT VINCENT AND THE GRENADINES': 'VC', 'SAMOA': 'WS', 'SAN MARINO': 'SM', 'SAO TOME AND PRINCIPE': 'ST', 'SAUDI ARABIA': 'SA', 'SENEGAL': 'SN', 'SERBIA': 'RS', 'SEYCHELLES': 'SC', 'SIERRA LEONE': 'SL', 'SINGAPORE': 'SG', 'SINT MAARTEN (DUTCH PART)': 'SX', 'SLOVAKIA': 'SK', 'SLOVENIA': 'SI', 'SOLOMON ISLANDS': 'SB', 'SOMALIA': 'SO', 'SOUTH AFRICA': 'ZA', 'SOUTH GEORGIA & SOUTH SANDWICH ISLANDS': 'GS', 'SOUTH SUDAN': 'SS', 'SPAIN': 'ES', 'SRI LANKA': 'LK', 'ST HELENA, ASCENSION & TRISTAN DA CUNHA': 'SH', 'SUDAN': 'SD', 'SURINAME': 'SR', 'SVALBARD': 'SJ', 'SWEDEN': 'SE', 'SWITZERLAND': 'CH', 'SYRIA': 'SY', 'TAIWAN': 'TW', 'TAJIKISTAN': 'TJ', 'TANZANIA': 'TZ', 'THAILAND': 'TH', 'TOGO': 'TG', 'TOKELAU': 'TK', 'TONGA': 'TO', 'TRINIDAD AND TOBAGO': 'TT', 'TUNISIA': 'TN', 'TÜRKIYE': 'TR', 'TURKMENISTAN': 'TM', 'TURKS AND CAICOS ISLANDS': 'TC', 'TUVALU': 'TV', 'U.S. MINOR OUTLYING ISLANDS': 'UM', 'UGANDA': 'UG', 'UKRAINE': 'UA', 'UNITED ARAB EMIRATES': 'AE', 'UNITED KINGDOM': 'GB', 'UNITED STATES': 'US', 'UNKNOWN': '??', 'URUGUAY': 'UY', 'UZBEKISTAN': 'UZ', 'VANUATU': 'VU', 'VATICAN CITY': 'VA', 'VENEZUELA': 'VE', 'VIETNAM': 'VN', 'VIRGIN ISLANDS (BRITISH)': 'VG', 'VIRGIN ISLANDS (US)': 'VI', 'WALLIS AND FUTUNA': 'WF', 'WESTERN SAHARA': 'EH', 'YEMEN': 'YE', 'ZAMBIA': 'ZM', 'ZIMBABWE': 'ZW', 'KOSOVO': 'XK', 'ENGLAND': 'GB-ENG', 'SCOTLAND': 'GB-SCT', 'WALES': 'GB-CYM', 'NORTHERN IRELAND': 'GB-NIR', 'EUROPE': 'EU'}
+            if area_name.upper() in country_name_code_dict:
+                code = country_name_code_dict[area_name.upper()]
+                return countrycode_icon_dict[code]
+            else:
+                return ""
 
 
 
@@ -1426,6 +1442,32 @@ class Utils():
 
 
 
+    def urlfriendlytext(string):
+
+        if string[0] != "(" and "(" in string and ")" in string.split("(",1)[1]:
+            filtered_string = string.split("(",1)[0]
+        elif string[0] != "[" and "[" in string and "]" in string.split("[",1)[1]:
+            filtered_string = string.split("[",1)[0]
+        else:
+            filtered_string = string
+
+        new_string = " "
+        i = 0
+        for c in filtered_string:
+            if c.isalnum():
+                new_string += c.lower()
+                i += 1
+            else:
+                if new_string[i] == "":
+                    pass
+                else:
+                    new_string += " "
+                    i += 1
+
+        return new_string.strip()          
+
+
+
     def us_state_code(s):
         us_state_to_abbrev = {
             "Alabama": "AL",
@@ -1832,7 +1874,7 @@ class Utils():
                 # hard type cooldown: break
 
                 if long_counter >= long_limit_amount or short_counter > 0:
-                    curC.execute("DELETE FROM userrequests LOWER(service) = ? AND userid = ? AND time_stamp = ?", (service.lower(), str(ctx.message.author.id)), str(invoketime))
+                    curC.execute("DELETE FROM userrequests WHERE LOWER(service) = ? AND userid = ? AND time_stamp = ?", (service.lower(), str(ctx.message.author.id), str(invoketime)))
                     conC.commit()
                     raise ValueError(f"rate limited")
                     return
@@ -1868,18 +1910,20 @@ class Utils():
 
     async def cooldown_exception(ctx, exception, service):
         print(exception)
-        if exception == "rate limited":
+        if str(exception) == "rate limited":
             emoji = Utils.emoji("shy")
             await ctx.send(f"We are being rate limited ({service}). {emoji}")
-        elif exception == "request abuse":
+        elif str(exception) == "request abuse":
             emoji = Utils.emoji("ban")
             try:
                 await ctx.message.reply(f"Request abuse: You are temporarily banned from using 3rd party requests. {emoji}")
             except:
                 await ctx.send(f"Request abuse: You are temporarily banned from using 3rd party requests. {emoji}")
         else:
+            print(traceback.format_exc())
             emoji = Utils.emoji("panic")
             await ctx.send(f"Error with 3rd party service request: unforeseen exception. {emoji}")
+
 
 
     async def customtextparse(text_preparse, userid):
