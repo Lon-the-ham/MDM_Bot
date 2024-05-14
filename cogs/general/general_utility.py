@@ -1403,15 +1403,15 @@ class General_Utility(commands.Cog):
         """Sets a reminder
 
         First needs to specify a time, which can be either given by `in` and a time period
-        i.e. `-remind in 5 hours blablabla`
-        or a given time in the future in UNIX timestamp format
-        i.e. `-remind at 2023668360 blablabla`
+        i.e. 
+        > `-remind in 5 hours blablabla`
+        or an `at` and a given time in the future in UNIX timestamp format
+        i.e. 
+        > `-remind at 2023668360 blablabla`
         the rest is considered part of the reminder content.
 
-        has subcommand
-        ```
-        🔒recurring
-        ```
+        has subcommand:
+        🔒`recurring`
         """
 
         user_perms = [p for p in ctx.author.guild_permissions]
@@ -2721,7 +2721,7 @@ class General_Utility(commands.Cog):
         else:
             text += f"Wind: {wind_direction(wind_degree)} @ {speed_string(wind_speed)}\n"
 
-        if city_name != "" and util.alphanum(city_name,"lower") != util.alphanum(name,"lower"):
+        if city_name != "" and util.alphanum(city_name,"lower") != util.alphanum(name,"lower") and f"({name})" not in city_name:
             name = city_name + f" ({name})"
 
         embed=discord.Embed(title=header, description=text.strip(), color=0xEA6D4A)
@@ -2864,7 +2864,12 @@ class General_Utility(commands.Cog):
             API_KEY = os.getenv("google_search_key")
             if API_KEY is None:
                 emoji = util.emoji("disappointed")
-                raise ValueError(f"No API key provided. {emoji}\n||(Ask mods to get an API key from developers.google.com)||")
+                raise ValueError(f"No API key provided. {emoji}\n||(Ask mods to get an API key + Search Engine ID from developers.google.com)||")
+
+            Search_Engine_ID = os.getenv("google_search_engine_id")
+            if Search_Engine_ID is None:
+                emoji = util.emoji("disappointed")
+                raise ValueError(f"No Search Engine ID provided. {emoji}\n||(Ask mods to get an API key + Search Engine ID from developers.google.com)||")
         except Exception as e:
             await ctx.send(f"Error: {e}")
             return
@@ -2888,7 +2893,7 @@ class General_Utility(commands.Cog):
 
         payload = {
             'key': API_KEY,
-            'cx': '144bb367d0fc4439e',
+            'cx': Search_Engine_ID,
             'hl': 'lang_en',
             'q':  string,
             'safe': 'active',
@@ -2917,6 +2922,19 @@ class General_Utility(commands.Cog):
     async def imagesearch_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
+
+
+    @commands.command(name='calc', aliases = ['calculate'])
+    @commands.check(util.is_active)
+    async def _calculate(self, ctx: commands.Context, *args):
+        """Calculate stuff
+        """
+        await ctx.send("Command is under construction.")
+    @_calculate.error
+    async def calculate_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+        
 
 
 async def setup(bot: commands.bot) -> None:
