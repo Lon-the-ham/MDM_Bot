@@ -1959,7 +1959,7 @@ class Music_NowPlaying(commands.Cog):
                 elif tags == "custom":
                     try:
                         custom = True
-                        tag_string = await self.fetch_tags(ctx, "unspecified", artist, album, song, None, [mbid], [], custom)
+                        tag_string = await self.fetch_tags(ctx, "unspecified", artist, album, track, None, [mbid,None,None], [], custom)
                     except Exception as e:
                         print("Unable to fetch tags:", e)
                         print(traceback.format_exc())
@@ -1983,7 +1983,7 @@ class Music_NowPlaying(commands.Cog):
                     embed.set_thumbnail(url=albumart)
                 except Exception as e:
                     print(e)
-                if tags == True:
+                if tags == True or tags == "custom":
                     embed.set_footer(text=tag_string[:2048])
 
                 message = await ctx.send(embed=embed)
