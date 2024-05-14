@@ -16,7 +16,7 @@ Makre sure to add the key to your `.env` file as follows:
 
 ### Google Image Search
 
-If you want to be able to search out image results via the google API with `-img`, you can head over to https://developers.google.com/custom-search/v1/overview and get an API key for that. Then continue to https://programmablesearchengine.google.com/u/1/controlpanel/all and create a search engine and get the ID. Then add key and ID to your `.env` file as follows
+If you want to be able to search out image results via the google API with `-img`, you can head over to https://developers.google.com/custom-search/v1/overview and get an API key for that. Then continue to https://programmablesearchengine.google.com/u/1/controlpanel/all , create a search engine, enable "image search", "search the entire web" and perhaps also "safe search", and get the ID. Then add key and ID to your `.env` file as follows
 
 > google_search_key = `api key`
 
