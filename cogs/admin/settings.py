@@ -3818,6 +3818,7 @@ class Administration_of_Settings(commands.Cog):
         curA = conA.cursor()
         curA.execute('''CREATE TABLE IF NOT EXISTS activity (name text, value text)''')
         curA.execute('''CREATE TABLE IF NOT EXISTS version (name text, value text)''')
+        curA.execute('''CREATE TABLE IF NOT EXISTS hostdata (name text, value text, details text, etc text)''')
         activity_list = [item[0] for item in curA.execute("SELECT value FROM activity WHERE name = ?", ("activity",)).fetchall()]
         if len(activity_list) == 0:
             curA.execute("INSERT INTO activity VALUES (?,?)", ("activity", "inactive"))
@@ -3830,7 +3831,14 @@ class Administration_of_Settings(commands.Cog):
             if activity_list[0] == "inactive":
                 print("instance inactive")
                 return
-
+        hostdata_rym_list = [item[0] for item in curA.execute("SELECT value FROM activity WHERE name = ?", ("rym scraping",)).fetchall()]
+        if len(hostdata_rym_list) == 0:
+            curA.execute("INSERT INTO hostdata VALUES (?,?,?,?)", ("rym scraping", "off", "", ""))
+            conA.commit()
+            print("Updated hostdata table")
+        else:
+            if len(hostdata_rym_list) > 1:
+                print("Warning: Multiple rym scraping entries in activity.db")
         await ctx.send(f"Starting update of MDM Bot (instance: {bot_instance})...")
 
         async with ctx.typing():
@@ -4476,14 +4484,18 @@ class Administration_of_Settings(commands.Cog):
             curC.execute('''CREATE TABLE IF NOT EXISTS cooldowns (service text, last_used text, limit_seconds text, limit_type text, long_limit_seconds text, long_limit_amount text)''') # soft limit type: delay, hard limit type: stop request
 
             cooldown_db_list = [item[0] for item in curC.execute("SELECT service FROM cooldowns").fetchall()]
-            cooldowns = ["applemusic", "metallum", "musicbrainz", "lastfm", "openweathermap", "spotify"]
-            cooldowns_crit = ["googlesearch", "rym"]
-            for cd in cooldowns:
+            cooldowns_light = ["applemusic", "metallum", "musicbrainz", "lastfm", "openweathermap", "spotify"]
+            cooldowns_medium = ["googlesearch"]
+            cooldowns_critical = ["rym"]
+            for cd in cooldowns_light:
                 if cd not in cooldown_db_list:
                     curC.execute("INSERT INTO cooldowns VALUES (?, ?, ?, ?, ?, ?)", (cd, "0", "1", "soft", "20", "10"))
-            for cd in cooldowns_crit:
+            for cd in cooldowns_medium:
                 if cd not in cooldown_db_list:
                     curC.execute("INSERT INTO cooldowns VALUES (?, ?, ?, ?, ?, ?)", (cd, "0", "3", "hard", "30", "5"))
+            for cd in cooldowns_critical:
+                if cd not in cooldown_db_list:
+                    curC.execute("INSERT INTO cooldowns VALUES (?, ?, ?, ?, ?, ?)", (cd, "0", "20", "hard", "150", "5"))
             conC.commit()
 
             curC.execute('''CREATE TABLE IF NOT EXISTS userrequests (service text, userid text, username text, time_stamp text)''')
@@ -5396,6 +5408,44 @@ class Administration_of_Settings(commands.Cog):
 
     @_botsetup.error
     async def botsetup_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name="hostsetting", aliases = ["hostset"], pass_context=True)
+    @commands.check(util.is_host)
+    @commands.check(util.is_active)
+    async def _hostsetting(self, ctx, *args):
+        """Settings only for the host of this bot
+
+        arguments needs to be one of the following:
+        - `rym scraping` 
+        with 2nd arg `on` or `off`
+        """
+        if len(args) < 2:
+            return
+
+        conA = sqlite3.connect(f'databases/activity.db')
+        curA = conA.cursor()
+
+        argument1 = ' '.join(args[:-1]).replace("_", " ").strip().lower()
+        argument2 = args[-1].strip().lower()
+
+        if argument2 not in ["on", "off"]:
+            await ctx.send(f"Error: 2nd arg needs to be `on` or `off`.")
+
+        hostdata_rym_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", (argument1,)).fetchall()]
+        if len(hostdata_rym_list) == 0:
+            await ctx.send(f"Error: No such hostdata setting.")
+            return
+
+        curA.execute("UPDATE hostdata SET value = ? WHERE name = ?", (argument2, argument1))
+        conA.commit()
+
+        await ctx.send(f"Set {argument1} to {argument2}.")
+
+    @_hostsetting.error
+    async def hostsetting_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
