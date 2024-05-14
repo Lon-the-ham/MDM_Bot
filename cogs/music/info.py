@@ -9,6 +9,7 @@ import requests
 import json
 from bs4 import BeautifulSoup
 from discord import Spotify
+import sqlite3
 
 
 class Music_Info(commands.Cog):
@@ -565,7 +566,7 @@ class Music_Info(commands.Cog):
 
 
 
-    async def input_from_nowplaying(self, ctx):
+    async def input_from_nowplaying(self, ctx, fetch_album):
         input_string = ""
         try:
             # CHECK ACTIVITIES FOR SPOTIFY
@@ -573,6 +574,11 @@ class Music_Info(commands.Cog):
             for activity in user.activities:
                 if isinstance(activity, Spotify):
                     input_string = str(activity.artist)
+                    if fetch_album:
+                        if "(" in str(activity.album) and str(activity.album)[0]:
+                            input_string += " - " + str(activity.album).split("(")[0]
+                        else:
+                            input_string += " - " + str(activity.album)
                     primaryinput = input_string
                     specification = ""
                     break
@@ -586,27 +592,43 @@ class Music_Info(commands.Cog):
                             else:
                                 details = activity.details.split("-", 1)
                             input_string = util.cleantext2(details[0].strip()) # artist
+                            if fetch_album:
+                                try:
+                                    input_string += " - " + util.cleantext2(details[1].strip()) # album
+                                except:
+                                    input_string = util.cleantext2(str(activity.details))
                             break
                 else:
                     # CHECK FOR APPLE MUSIC
                     activity_list = []
-                    for activity in member.activities:
+                    for activity in user.activities:
                         try:
                             activity_list.append(str(activity.name))
                         except:
                             pass
                     for activity in user.activities:
-                        if str(activity.type) == "ActivityType.playing" and activity.name == "Music" and "iTunes Rich Presence for Discord" in activity_list:
-                            try:
-                                input_string = util.cleantext2(activity.state.split("💿")[0].replace("👤","").strip()) # artist
-                                break
-                            except:
-                                pass
+                        if str(activity.type) == "ActivityType.playing" and (activity.name == "Apple Music" or (activity.name == "Music" and "iTunes Rich Presence for Discord" in activity_list)):
+                            if activity.name == "Apple Music":
+                                try:
+                                    input_string = util.cleantext2(activity.details.split(" - ", 1)[0].strip()) # artist
+                                    if fetch_album:
+                                        input_string += " - " + util.cleantext2(activity.state.split("on ", 1)[1].strip()) # album
+                                    break
+                                except:
+                                    pass
+                            elif activity.name == "Music":
+                                try:
+                                    input_string = util.cleantext2(activity.state.split("💿")[0].replace("👤","").strip()) # artist
+                                    if fetch_album:
+                                        input_string += " - " + util.cleantext2(activity.state.split("💿")[1].strip()) # album
+                                    break
+                                except:
+                                    pass
                     else:
                         # CHECK LASTFM
                         conNP = sqlite3.connect('databases/npsettings.db')
                         curNP = conNP.cursor()
-                        lfm_list = [[item[0],item[1]] for item in curNP.execute("SELECT lfm_name, lfm_link FROM lastfm WHERE id = ?", (str(member.id),)).fetchall()]
+                        lfm_list = [[item[0],item[1]] for item in curNP.execute("SELECT lfm_name, lfm_link FROM lastfm WHERE id = ?", (str(user.id),)).fetchall()]
 
                         if len(lfm_list) == 0:
                             raise ValueError(f"could bot find any artist")
@@ -621,12 +643,18 @@ class Music_Info(commands.Cog):
                                 'user': lfm_name,
                                 'limit': "1",
                             }
-                            response = await util.lastfm_get(ctx, payload)
+                            cooldown = True
+                            response = await util.lastfm_get(ctx, payload, cooldown)
                             if response == "rate limit":
                                 raise ValueError(f"could bot find any artist")
                             rjson = response.json()
                             tjson = rjson['recenttracks']['track'][0] # track json
                             input_string = tjson['artist']['#text'] # artist
+                            if fetch_album:
+                                try:
+                                    input_string += " - " + tjson['album']['#text'] # album
+                                except:
+                                    pass
                         except Exception as e:
                             print(f"Error while trying to fetch information via LastFM API: {e}")
         except Exception as e:
@@ -663,7 +691,8 @@ class Music_Info(commands.Cog):
                 specification = ""
 
             if input_string == "":
-                input_string, primaryinput, specification = await self.input_from_nowplaying(ctx)
+                fetch_album = False
+                input_string, primaryinput, specification = await self.input_from_nowplaying(ctx, fetch_album)
 
             if input_string == "":
                 emoji = util.emoji("load")
@@ -942,13 +971,23 @@ class Music_Info(commands.Cog):
     ###################################################################################################
 
 
+
     async def rym_info_scrape(self, ctx, args):
         """decide whether to fetch artist, album or a genre"""
 
         arguments = ' '.join(args)
 
         if arguments.strip() == "":
-            await ctx.send("You need to provide an artist or a hyphen-separated `artist - album` pair.\nOr start with argument `genre:` to search for a genre.")
+            try:
+                fetch_album = True
+                dummystring1, arguments, dummystring2 = await self.input_from_nowplaying(ctx, fetch_album)
+                if " - " in arguments and len(arguments.split(" - ")[0].strip()) > 0 and len(arguments.split(" - ")[1].strip()) > 0:
+                    await self.rym_album_scrape(ctx, arguments)
+                else:
+                    await ctx.send(f"Could not find album: {arguments}")
+            except Exception as e:
+                print("Error:", e)
+                await ctx.send("You need to provide an artist or a hyphen-separated `artist - album` pair.\nOr start with argument `genre:` to search for a genre.")
 
         elif arguments.startswith("genre:"):
             genrename_raw = util.cleantext2(arguments.split("genre:",1)[1])
@@ -984,6 +1023,12 @@ class Music_Info(commands.Cog):
 
     async def rym_artist_scrape(self, ctx, artist, extrainfo):
         """fetch artist, but if additionally semicolon + country or genre is provided use search"""
+        try: # cooldown to not trigger actual rate limits or IP blocks
+            await util.cooldown(ctx, "rym")
+        except Exception as e:
+            print(e)
+            await util.cooldown_exception(ctx, e, "rym")
+            return
 
         try:
             # GET LINK TO ARTIST
@@ -1022,8 +1067,6 @@ class Music_Info(commands.Cog):
                                                 artist_list.append(f"https://rateyourmusic.com{str(a_href)}")
                                         else:
                                             artist_list.append(f"https://rateyourmusic.com{str(a_href)}")
-
-                                        print(str(tr))
                                 except:
                                     pass
                             break
@@ -1221,6 +1264,13 @@ class Music_Info(commands.Cog):
     async def rym_album_scrape(self, ctx, arguments):
         """use search to find album, then fetch data from release page"""
 
+        try: # cooldown to not trigger actual rate limits or IP blocks
+            await util.cooldown(ctx, "rym")
+        except Exception as e:
+            print(e)
+            await util.cooldown_exception(ctx, e, "rym")
+            return
+
         # SEARCH ALBUM
 
         search_url = f"https://rateyourmusic.com/search?searchterm={arguments}&searchtype=l"
@@ -1405,6 +1455,12 @@ class Music_Info(commands.Cog):
 
 
     async def rym_genre_scrape(self, ctx, genrename):
+        try: # cooldown to not trigger actual rate limits or IP blocks
+            await util.cooldown(ctx, "rym")
+        except Exception as e:
+            print(e)
+            await util.cooldown_exception(ctx, e, "rym")
+            return
         try:
             genre_url = f"https://rateyourmusic.com/genre/{genrename}/"
             session = requests.session()
@@ -1498,13 +1554,20 @@ class Music_Info(commands.Cog):
         1. an artist with argument `<artist>`
         2. an album with argument `<artist> - <album>`
         3. a genre with argument `genre: <genre name>`
-        """
-        emoji = util.emoji("pensive")
-        await ctx.send(f"This command is blocked for now as RYM is being quite the killjoy smh my head {emoji}")
-        return
 
-        #async with ctx.typing():
-        #    await self.rym_info_scrape(ctx, args)
+        Note: RateYourMusic is quite touchy when it comes to machine fetching information from their site and is quite quick in blocking network adresses outright, so hosts may decide to disable this command instead of setting a higher rate limit.
+        """
+        conA = sqlite3.connect(f'databases/activity.db')
+        curA = conA.cursor()
+        rymsetting_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", ("rym scraping",)).fetchall()]
+
+        if len(rymsetting_list) == 0 or rymsetting_list[0] != "on":
+            emoji = util.emoji("pensive")
+            await ctx.send(f"This command is currently disabled. {emoji}")
+            return
+
+        async with ctx.typing():
+            await self.rym_info_scrape(ctx, args)
     @_rym.error
     async def rym_error(self, ctx, error):
         await util.error_handling(ctx, error)
