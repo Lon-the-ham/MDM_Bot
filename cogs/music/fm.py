@@ -5,6 +5,7 @@ import datetime
 import pytz
 from other.utils.utils import Utils as util
 import os
+import sys
 import asyncio
 import requests
 import json
@@ -150,6 +151,10 @@ class Music_NowPlaying(commands.Cog):
                 else:
                     continue
 
+                # Correct Album Title
+
+                if len(album.strip()) > 5 and album.endswith(" - EP"):
+                    album = album[:-5]
 
                 # EMBED THINGS
 
@@ -169,7 +174,7 @@ class Music_NowPlaying(commands.Cog):
                     except Exception as e:
                         print("Error while trying to fetch album cover from Apple Music", e)
                         try:
-                            embed.set_thumbnail(url=activity.large_image_url) # under construction: fetch image from elsewhere?
+                            embed.set_thumbnail(url=activity.large_image_url)
                         except Exception as e:
                             print(e)
                             try:
@@ -193,7 +198,16 @@ class Music_NowPlaying(commands.Cog):
                     color = 0x808080
                     embed = discord.Embed(description=description, color = color)
                     embed.set_author(name=f"{member.display_name}'s unspecified player" , icon_url=member.avatar)
-                    embed.set_thumbnail(url="https://i.imgur.com/0Djj7I6.jpg")
+                    try:
+                        embed.set_thumbnail(url=activity.large_image_url) 
+                    except Exception as e:
+                        print(e)
+                        try:
+                            embed.set_thumbnail(url=activity.small_image_url)
+                        except Exception as e:
+                            embed.set_thumbnail(url="https://i.imgur.com/0Djj7I6.jpg")
+                            print(f"could not find image: {e}")
+
                     # HANDLE TAGS
                     if show_tags:
                         try:
@@ -487,7 +501,7 @@ class Music_NowPlaying(commands.Cog):
                 mbid = None
 
             #default settings:
-            tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "off", "off", "off", "off", "standard_substitute", "on"]]
+            tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "off", "off", "off", "off", "standard_substitute", "off"]]
             
             if custom:
                 con = sqlite3.connect('databases/npsettings.db')
@@ -495,7 +509,7 @@ class Music_NowPlaying(commands.Cog):
                 custom_tagsetting_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7],item[8],item[9],item[10],item[11],item[12],item[13],item[14],item[15],item[16]] for item in cur.execute("SELECT id, name, spotify_monthlylisteners, spotify_genretags, lastfm_listeners, lastfm_total_artistplays, lastfm_artistscrobbles, lastfm_albumscrobbles, lastfm_trackscrobbles, lastfm_rank, musicbrainz_tags, musicbrainz_area , musicbrainz_date , rym_genretags, rym_albumrating, lastfm_tags, redundancy_filter FROM tagsettings WHERE id = ?", (user_id,)).fetchall()]
                 if len(custom_tagsetting_list) == 0:
                     username = util.cleantext2(str(ctx.message.author.name))
-                    cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "standard_substitute", "off", "off", "off", "off", "off"))
+                    cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "standard_substitute", "off", "off", "off", "off", "on"))
                     con.commit()
                     await util.changetimeupdate()
                 else:
@@ -538,9 +552,9 @@ class Music_NowPlaying(commands.Cog):
                                 #"redundancy_filter": redundancy_filter,
                                 }
             tag_services_dict = {
-                                "spotify": False, 
                                 "lastfm": False, 
                                 "musicbrainz": False, 
+                                "spotify": False, 
                                 "rym": False,
                                 }
 
@@ -655,7 +669,7 @@ class Music_NowPlaying(commands.Cog):
                                 else:
                                     cooldown = True
                                 try:
-                                    listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
+                                    listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, song, cooldown)
                                     lfm_fetch_client = "api"
                                 except Exception as e:
                                     print(f"Probably no Last.fm API credentials, switching to Web Scraping information.\n(Exception message: {e})")
@@ -705,6 +719,8 @@ class Music_NowPlaying(commands.Cog):
 
                         elif tagservice == "rym":
                             #under construction
+                            # rym genre tags are blocked
+                            # rym ratings from import
                             pass
 
                         else:
@@ -717,7 +733,7 @@ class Music_NowPlaying(commands.Cog):
                 for setting in substitute_tags:
                     if setting == "lastfm":
                         cooldown = False
-                        listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
+                        listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, song, cooldown)
                         lfm_fetch_client = "api"
 
                         try:
@@ -752,7 +768,13 @@ class Music_NowPlaying(commands.Cog):
                                 break
 
                     elif setting == "spotify":
-                        pass # under construction
+                        g_tags = True
+                        listenertags = False
+                        spotify_track_id = await self.fetch_spotify_track_id(artist, album, song)
+                        genretag_list, ml_string = await self.fetch_spotify_tags(spotify_track_id, g_tags, listenertags)
+                        if len(genretag_list) > 0:
+                            genre_tags["spotify"] = f"{self.tagseparator}".join(genretag_list)
+                            break
 
                     elif setting == "rym":
                         pass # under construction
@@ -1019,7 +1041,7 @@ class Music_NowPlaying(commands.Cog):
                         if len(content) > 2:
                             for i in range(len(content)-2):
                                 if content[i+1] == "monthly" and "listener" in content[i+2]:
-                                    print(content[i])
+                                    #print(content[i])
                                     monthly_listeners = content[i]
                                     break
                 if monthly_listeners == "?":
@@ -1039,14 +1061,36 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def fetch_lastfm_data_via_api(self, ctx, musicbrainz_id, artistname, cooldown):
+    async def fetch_lastfm_data_via_api(self, ctx, musicbrainz_id, artistname, songname, cooldown):
         """fetch lastfm genre tags and total scrobbles"""
 
         payload = {'method': 'artist.getInfo'}
 
         if musicbrainz_id is None or musicbrainz_id.strip() == "":
-            payload['artist'] = artistname
-            print("artist:", artistname)
+            print("try to get mbid...")
+            payload_prefetch = {
+                    'method': 'track.getInfo',
+                    'track': songname,
+                    'artist': artistname,
+                }
+            cooldown_prefetch = False
+            try:
+                response = await util.lastfm_get(ctx, payload_prefetch, cooldown_prefetch)
+                if response == "rate limit":
+                    print("rate limit")
+                    return
+                try:
+                    rjson = response.json()
+                    mbid = rjson['track']['artist']['mbid']
+                    payload['mbid'] = mbid
+                except Exception as e:
+                    print(f"Could not find mbid: {e}\n{rjson}")
+                    #payload['artist'] = artistname
+                    mbid = None
+            except Exception as e:
+                print(f"Error while trying to fetch MBID from LastFM: {e}")
+                payload['artist'] = artistname
+                print("using plain artist name instead")
         else:
             payload['mbid'] = musicbrainz_id
             print("artist mbid:", musicbrainz_id)
@@ -1058,14 +1102,20 @@ class Music_NowPlaying(commands.Cog):
 
         try: # just a check, e.g. some artists return error message
             artist = rjson['artist']
-            stats = artist['stats']
         except:
             print(rjson)
+            raise ValueError(f"Error: Response did not contain artist information. {rjson}")
+            #return "", "", []
 
-        LFM_listeners = rjson['artist']['stats']['listeners']
-        LFM_playcount = rjson['artist']['stats']['playcount']
-        #print("LFM listeners:", LFM_listeners)
-        #print("LFM playcount:", LFM_playcount)
+        try:
+            stats = rjson['artist']['stats']
+            LFM_listeners = stats['listeners']
+            LFM_playcount = stats['playcount']
+            #print("LFM listeners:", LFM_listeners)
+            #print("LFM playcount:", LFM_playcount)
+        except:
+            # no stats
+            pass
 
         genre_tags = []
         tag_json = rjson['artist']['tags']['tag']
@@ -1093,9 +1143,9 @@ class Music_NowPlaying(commands.Cog):
 
         if cooldown:
             try: 
-                await Utils.cooldown(ctx, "lastfm")
+                await util.cooldown(ctx, "lastfm")
             except Exception as e:
-                await Utils.cooldown_exception(ctx, e, "LastFM")
+                await util.cooldown_exception(ctx, e, "LastFM")
                 return "rate limit"
 
         listeners = ""
@@ -1157,7 +1207,7 @@ class Music_NowPlaying(commands.Cog):
                 return
 
         try:
-            version = Utils.get_version().replace("version","v").replace(" ","").strip()
+            version = util.get_version().replace("version","v").replace(" ","").strip()
         except:
             version = "v_X"
 
@@ -1175,6 +1225,33 @@ class Music_NowPlaying(commands.Cog):
         tags = []
         year = ""
         area = ""
+        mbid_mismatch = False
+
+        song = util.urlfriendlytext(song)
+        album = util.urlfriendlytext(album)
+        artist = util.urlfriendlytext(artist)
+
+        # GET MBID
+        if mbid is None or mbid == "":
+            print("try to get mbid...")
+            payload_lastfm = {
+                    'method': 'track.getInfo',
+                    'track': song,
+                    'artist': artist,
+                }
+            cooldown = False
+            try:
+                response = await util.lastfm_get(ctx, payload_lastfm, cooldown)
+                if response == "rate limit":
+                    print("rate limit")
+                    return
+                try:
+                    rjson = response.json()
+                    mbid = rjson['track']['artist']['mbid']
+                except:
+                    mbid = None
+            except Exception as e:
+                print(f"Error while trying to fetch MBID from LastFM: {e}")
 
         # GET YEAR
 
@@ -1186,19 +1263,37 @@ class Music_NowPlaying(commands.Cog):
 
                 if album != "" and song != "":
                     url = f"http://musicbrainz.org/ws/2/recording"
-                    payload['query'] = f"recording:{song}%20AND%20artist:{artist}%20AND%20releasegroup:{album}"
+                    if album != "":
+                        payload['query'] = f"recording:{song}%20AND%20artist:{artist}%20AND%20releasegroup:{album}"
+                    else:
+                        payload['query'] = f"recording:{song}%20AND%20artist:{artist}"
                     response = requests.get(url, headers=headers, params=payload)
-                    rjson = response.json()['recordings'][0]
+                    try:
+                        rjson = response.json()
+                        rjson = rjson['recordings'][0]
+                        #print("Found recording:", rjson)
+                    except:
+                        raise ValueError("Could not find recording. Response:", response)
                 elif album != "":
                     url = f"http://musicbrainz.org/ws/2/release-group"
                     payload['query'] = f"releasegroup:{album}%20AND%20artist:{artist}"
                     response = requests.get(url, headers=headers, params=payload)
-                    rjson = response.json()['release-groups'][0]
+                    try:
+                        rjson = response.json()
+                        rjson = rjson['release-groups'][0]
+                        #print("Found release group:", rjson)
+                    except:
+                        raise ValueError("Could not find release group. Response:", response)
                 elif song != "":
                     url = f"http://musicbrainz.org/ws/2/recording"
                     payload['query'] = f"recording:{song}%20AND%20artist:{artist}"
                     response = requests.get(url, headers=headers, params=payload)
-                    rjson = response.json()['recordings'][0]
+                    try:
+                        rjson = response.json()
+                        rjson = rjson['recordings'][0]
+                        #print("Found recording:", rjson)
+                    except:
+                        raise ValueError("Could not find recording. Response:", response)
                 else:
                     return mbid, tags, year, area
 
@@ -1216,15 +1311,17 @@ class Music_NowPlaying(commands.Cog):
                         print(f"Found date: {year}")
                     #tags.append(disambiguation) # add disambiguation to tags?
                 else:
+                    mbid_mismatch = True
                     print("Error: the found artist on musicbrainz doesn't match the provided mbid")
             except Exception as e: 
-                print("Error:", e)
+                print("Error while checking year/mbid:", e)
+                #print(traceback.format_exc())
 
         # GET AREA
 
         payload = {"fmt": "json"}
 
-        if checkarea:
+        if checkarea and (mbid != None and mbid != "") and not mbid_mismatch:
             print("check area...")
             try:
                 url = f"https://musicbrainz.org/ws/2/artist/{mbid}"
@@ -1234,7 +1331,7 @@ class Music_NowPlaying(commands.Cog):
 
                 area = util.areaicon(area_name)
             except Exception as e:
-                print("Error:", e)
+                print("Error while checking area:", e)
 
         # GET TAGS
 
@@ -1282,7 +1379,7 @@ class Music_NowPlaying(commands.Cog):
                     if i > 9: # maximum of 10 tags
                         break
             except Exception as e:
-                print("Error:", e)
+                print("Error while checking tags:", e)
 
         tags = util.filter_genretags(tags)
 
@@ -1541,11 +1638,11 @@ class Music_NowPlaying(commands.Cog):
                     except:
                         emoji = util.emoji("disappointed")
                         text = f"No played music found {emoji}"
-                        if the_member.id == ctx.message.author.id:
-                            footer = "Make sure to check that your music streaming service (Spotify/MusicBee/AppleMusic) is properly connected to Discord, and that your status is not set to 'invisible'."
-                        else:
-                            footer = f"{the_member.name} is either not using any music streaming service at the moment, it's not properly connected to discord or their status is set to 'invisible'."
-                        footer += f"\nYou can also use '{self.prefix}fmset <username>' to set your lastfm username to display your current/last track on LFM, whenever none of the other services are connected."
+                        #if the_member.id == ctx.message.author.id:
+                        #    footer = "Make sure to check that your music streaming service (Spotify/MusicBee/AppleMusic) is properly connected to Discord, and that your status is not set to 'invisible'."
+                        #else:
+                        #    footer = f"{the_member.name} is either not using any music streaming service at the moment, it's not properly connected to discord or their status is set to 'invisible'."
+                        footer += f"\nUse '{self.prefix}fmset <username>' to set your lastfm username to display your current/last track on LFM."
                         await self.error_embed(ctx, text, footer)
                         return
 
@@ -1803,7 +1900,7 @@ class Music_NowPlaying(commands.Cog):
                     return
 
                 tag_string = ""
-                if tags:
+                if tags == True:
                     try:
                         # FETCH TRACK TAGS
 
@@ -1825,7 +1922,7 @@ class Music_NowPlaying(commands.Cog):
                         # FETCH ARTIST TAGS
 
                         cooldown = False
-                        listeners, total_scrobbles, artist_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, cooldown)
+                        listeners, total_scrobbles, artist_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, track, cooldown)
                         genre_tag_list = util.filter_genretags(artist_genre_tag_list + track_genre_tags)
 
                         if len(genre_tag_list) > 0:
@@ -1858,6 +1955,15 @@ class Music_NowPlaying(commands.Cog):
                         tag_string += f"\n{genre_tag_string}"
                     except Exception as e:
                         print("Error while trying to fetch tags:", e)
+
+                elif tags == "custom":
+                    try:
+                        custom = True
+                        tag_string = await self.fetch_tags(ctx, "unspecified", artist, album, song, None, [mbid], [], custom)
+                    except Exception as e:
+                        print("Unable to fetch tags:", e)
+                        print(traceback.format_exc())
+
             except Exception as e:
                 print("Error:", e)
                 await ctx.send(f"Error while trying to retrieve data from LastFM.")
@@ -1877,7 +1983,7 @@ class Music_NowPlaying(commands.Cog):
                     embed.set_thumbnail(url=albumart)
                 except Exception as e:
                     print(e)
-                if tags:
+                if tags == True:
                     embed.set_footer(text=tag_string[:2048])
 
                 message = await ctx.send(embed=embed)
@@ -1916,6 +2022,21 @@ class Music_NowPlaying(commands.Cog):
     @_fakenowplaying_zero.error
     async def fakenowplaying_zero_error(self, ctx, error):
         await util.error_handling(ctx, error)
+        
+
+
+
+    @commands.command(name='fnpx', aliases = ['fakenowplayingx', 'fakenpx', 'fakeplayingx', 'fakex', 'fpx'])
+    @commands.check(util.is_active)
+    async def _fakenowplaying_zero(self, ctx: commands.Context, *args):
+        """now playing by giving artist and song, gives out embed without tags
+        """
+        tags = "custom"
+        await self.fakenowplaying(ctx, args, tags)
+    @_fakenowplaying_zero.error
+    async def fakenowplaying_zero_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
 
 
 
@@ -2474,6 +2595,10 @@ class Music_NowPlaying(commands.Cog):
 
 
 
+    ####################################################################################################################################
+
+
+
     @commands.command(name='tagban', aliases = ['bantag', 'bantags', 'blocktag', 'blocktags'])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
@@ -2583,6 +2708,7 @@ class Music_NowPlaying(commands.Cog):
                         tag_list.remove(item)
                         i += 1
 
+        await util.changetimeupdate()
         await ctx.send(f"Removed {i} tag(s) from unwanted tags database.")
 
     @_unbantag.error
@@ -2621,6 +2747,7 @@ class Music_NowPlaying(commands.Cog):
             
         curNP.execute("INSERT INTO unwantedtags_regex VALUES (?, ?, ?)", (str(num), argument, ""))
         conNP.commit()
+        await util.changetimeupdate()
         await ctx.send(f"Banned regular expression.```{argument}```")
 
     @_bantagregex.error
@@ -2654,12 +2781,12 @@ class Music_NowPlaying(commands.Cog):
         curNP.execute("DELETE FROM unwantedtags_regex WHERE regex = ?", (argument,))
         conNP.commit()
 
+        await util.changetimeupdate()
         await ctx.send(f"This regular expression was removed from database!```{argument}```")
 
     @_unbantagregex.error
     async def unbantagregex_error(self, ctx, error):
         await util.error_handling(ctx, error)
-
 
 
 
@@ -2705,6 +2832,189 @@ class Music_NowPlaying(commands.Cog):
     async def testgenretags_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
+
+
+    async def tagbanimport(self, ctx, bantype):
+        user_id = str(ctx.author.id)
+        user_name = str(ctx.author.name)
+        the_message = ctx.message
+        if not the_message.attachments:
+            await ctx.send("No attachment found. Needs a .txt file with one tag per line.")
+            return
+
+        split_v1 = str(the_message.attachments).split("filename='")[1]
+        filename = str(split_v1).split("' ")[0]
+
+        if filename.endswith(".txt"):
+            await the_message.attachments[0].save(fp=f"temp/tagban_{bantype}_import_{user_id}.txt")
+
+            conNP = sqlite3.connect('databases/npsettings.db')  
+            curNP = conNP.cursor()
+
+            # OPEN FILE AND CHECK SIZE
+            with open(f'{sys.path[0]}/temp/tagban_{bantype}_import_{user_id}.txt', 'r') as txtfile:
+                row_count = sum(1 for line in txtfile)
+                if row_count > 10000:
+                    await ctx.send("Error: File is too large for the tagban functionality.")
+                    continuing = False
+
+            # OPEN FILE AND ADD ITEMS
+            with open(f'{sys.path[0]}/temp/tagban_{bantype}_import_{user_id}.txt', 'r') as txtfile:
+
+                # PARSE AND WRITE INTO DATABASE
+                if bantype == "tag":
+                    item_list = [item[0] for item in curNP.execute("SELECT tagname FROM unwantedtags WHERE bantype = ?", ("tag",)).fetchall()]
+                elif bantype == "phrase":
+                    item_list = [item[0] for item in curNP.execute("SELECT tagname FROM unwantedtags WHERE bantype = ?", ("phrase",)).fetchall()]
+                elif bantype == "regex":
+                    item_list = [item[0] for item in curNP.execute("SELECT regex FROM unwantedtags_regex").fetchall()]
+                    num_list = [util.forceinteger(item[0]) for item in curNP.execute("SELECT id FROM unwantedtags_regex").fetchall()]
+                    if len(num_list) == 0:
+                        num = 0
+                    else:
+                        num = max(num_list)
+
+                counter = 0
+                for line in txtfile:
+                    argument = line.strip()
+
+                    if bantype == "tag":
+                        argument = argument.lower()
+                        if argument in item_list:
+                            continue
+                        curNP.execute("INSERT INTO unwantedtags VALUES (?, ?, ?)", (argument, "tag", ""))
+                    
+                    elif bantype == "phrase":
+                        argument = argument.lower()
+                        if argument in item_list:
+                            continue
+                        curNP.execute("INSERT INTO unwantedtags VALUES (?, ?, ?)", (argument, "phrase", ""))
+                    
+                    elif bantype == "regex":
+                        if argument in item_list:
+                            continue
+                        num += 1
+                        curNP.execute("INSERT INTO unwantedtags_regex VALUES (?, ?, ?)", (str(num), argument, ""))
+
+                    counter += 1
+                conNP.commit()
+
+            if counter == 0:
+                await ctx.send(f"No items added to tagban database ({bantype})...")
+            else:
+                await util.changetimeupdate()
+                await ctx.send(f"Added {counter} items to the tagban database ({bantype}).")
+            os.remove(f"{sys.path[0]}/temp/tagban_{bantype}_import_{user_id}.txt")
+
+
+
+    @commands.group(name='tagbanimport', pass_context=True, invoke_without_command=True)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _tagbanimport(self, ctx: commands.Context, *args):
+        """🔒 import .txt file with tags to ban
+        
+        Put one tag per line. And then use command with file attachment.
+        
+        Use subcommand `p` to import as phrase block.
+        Use subcommand `regex` to import as regex block.
+        """
+
+        await self.tagbanimport(ctx, "tag")
+
+    @_tagbanimport.error
+    async def tagbanimport_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_tagbanimport.command(name="regex", pass_context=True)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _tagbanimport_regex(self, ctx: commands.Context, *args):
+        """🔒 import .txt file with tags to ban as regex
+
+        Put one expression per line. And then use command with file attachment."""
+
+        await self.tagbanimport(ctx, "regex")
+
+    @_tagbanimport_regex.error
+    async def tagbanimport_regex_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_tagbanimport.command(name="p", aliases = ["phrase"], pass_context=True)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _tagbanimport_phrase(self, ctx: commands.Context, *args):
+        """🔒 import .txt file with tags to ban as phrase
+
+        Put one phrase per line. And then use command with file attachment."""
+
+        await self.tagbanimport(ctx, "phrase")
+
+    @_tagbanimport_phrase.error
+    async def tagbanimport_phrase_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='tagbanexport', aliases = ["phrase"])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _tagbanexport(self, ctx: commands.Context, *args):
+        """🔒 export .txt files with tags to ban
+        """
+
+        timestamp_utc = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        conNP = sqlite3.connect('databases/npsettings.db')  
+        curNP = conNP.cursor()
+
+        with open(f"temp/tagban_norm_{str(timestamp_utc)}.txt", 'w') as f:
+            item_list = [item[0] for item in curNP.execute("SELECT tagname FROM unwantedtags WHERE bantype = ?", ("tag",)).fetchall()]
+            item_list.sort()
+
+            for item in item_list:
+                f.write(f"{item.strip().lower()}\n")
+
+        with open(f"temp/tagban_phrases_{str(timestamp_utc)}.txt", 'w') as f:
+            item_list = [item[0] for item in curNP.execute("SELECT tagname FROM unwantedtags WHERE bantype = ?", ("phrase",)).fetchall()]
+            item_list.sort()
+
+            for item in item_list:
+                f.write(f"{item.strip().lower()}\n")
+
+        with open(f"temp/tagban_regex_{str(timestamp_utc)}.txt", 'w') as f:
+            item_list = [item[0] for item in curNP.execute("SELECT regex FROM unwantedtags_regex").fetchall()]
+
+            for item in item_list:
+                f.write(f"{item.strip().lower()}\n")
+
+        my_files = [
+                        discord.File(f'temp/tagban_norm_{str(timestamp_utc)}.txt'),
+                        discord.File(f'temp/tagban_phrases_{str(timestamp_utc)}.txt'),
+                        discord.File(f'temp/tagban_regex_{str(timestamp_utc)}.txt'),
+                    ]
+
+        textmessage = f"Here are the full lists of banned tags, banned phrases and regex match exclusions for last.fm and musicbrainz tags."
+        await ctx.send(textmessage, files=my_files)
+        os.remove(f"{sys.path[0]}/temp/tagban_norm_{str(timestamp_utc)}.txt")
+        os.remove(f"{sys.path[0]}/temp/tagban_phrases_{str(timestamp_utc)}.txt")
+        os.remove(f"{sys.path[0]}/temp/tagban_regex_{str(timestamp_utc)}.txt")
+
+    @_tagbanexport.error
+    async def tagbanexport_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    ####################################################################################################################################
 
             
 
