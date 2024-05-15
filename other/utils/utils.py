@@ -630,6 +630,42 @@ class Utils():
 
 
 
+    def int_to_numemoji(number, *fill):
+        emojinum_dict = {
+                "0": "0️⃣",
+                "1": "1️⃣",
+                "2": "2️⃣",
+                "3": "3️⃣",
+                "4": "4️⃣",
+                "5": "5️⃣",
+                "6": "6️⃣",
+                "7": "7️⃣",
+                "8": "8️⃣",
+                "9": "9️⃣",
+            }
+        string = str(number)
+        emoji_string = ""
+
+        count = 0
+        for c in string:
+            if c in emojinum_dict:
+                emoji_string += emojinum_dict[c]
+                count += 1
+
+        try:
+            if len(fill) > 0:
+                digits = int(fill[0])
+
+                while digits > count:
+                    emoji_string = emojinum_dict["0"] + emoji_string
+                    count += 1
+        except Exception as e:
+            print(e)
+
+        return emoji_string
+
+
+
     def is_url_image(image_url):
         burp0_headers = {"Sec-Ch-Ua": "\"Chromium\";v=\"121\", \"Not A(Brand\";v=\"99\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.6167.160 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate, br", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Priority": "u=0, i", "Connection": "close"}      
         image_formats = ("image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif")
