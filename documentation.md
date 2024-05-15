@@ -12,6 +12,8 @@ To let users be able to use the `-calc` command and receive computation results 
 
 > wolframalpha_id = `app ID`
 
+Note that the API has a monthly limit of 2000 queries.
+
 
 ### Currency Exchange Rate Conversion
 
@@ -29,7 +31,7 @@ If you want to be able to search out image results via the google API with `-img
 
 > google_search_engine_id = `search engine ID`
 
-Just keep in mind that there is a daily limit of 100 queries. 
+Keep in mind that there is a daily limit of 100 queries. 
 
 
 ### LastFM
