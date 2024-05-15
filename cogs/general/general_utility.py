@@ -2304,7 +2304,7 @@ class General_Utility(commands.Cog):
             return
 
         try:
-            version = Utils.get_version().replace("version","v").replace(" ","").strip()
+            version = util.get_version().replace("version","v").replace(" ","").strip()
         except:
             version = "v_X"
         USER_AGENT = f'MDM_Bot_{version}'
@@ -2512,7 +2512,209 @@ class General_Utility(commands.Cog):
                 raise ValueError("Place not found.")
         except:
             pass
-        return rjson, city_string
+        return rjson, city_string, latitude, longitude
+
+
+
+    def temperature_string(self, kelvin1, *kelvin2args):
+        celsius1 = round(kelvin1-273.15,1)
+        fahrenheit1 = round((kelvin1-273.15) * 9/5 + 32,1)
+
+        if len(kelvin2args) == 0:
+            temperature = f"{celsius1}°C ({fahrenheit1}°F)"
+        else:
+            kelvin2 = float(kelvin2args[0])
+            celsius2 = round(kelvin2-273.15,1)
+            fahrenheit2 = round((kelvin2-273.15) * 9/5 + 32,1)
+            temperature = f"{celsius1}°C - {celsius2}°C ({fahrenheit1}°F - {fahrenheit2}°F)"
+        return temperature
+
+
+
+    def wind_direction(self, deg):
+        direction_dict = OrderedDict()
+        direction_dict[0]     = "N"
+        direction_dict[22.5]  = "NNE"
+        direction_dict[45]    = "NE"
+        direction_dict[67.5]  = "ENE"
+        direction_dict[90]    = "E"
+        direction_dict[112.5] = "ESE"
+        direction_dict[135]   = "SE"
+        direction_dict[157.5] = "SSE"
+        direction_dict[180]   = "S"
+        direction_dict[202.5] = "SSW"
+        direction_dict[225]   = "SW"
+        direction_dict[247.5] = "WSW"
+        direction_dict[270]   = "W"
+        direction_dict[292.5] = "WNW"
+        direction_dict[315]   = "NW"
+        direction_dict[337.5] = "NNW"
+        direction_dict[360]   = "N"
+        direction = "?"
+        for d in direction_dict:
+            if deg > d - 11.25:
+                direction = direction_dict[d]
+            else:
+                break
+        return direction
+
+
+
+    def speed_string(self, x):
+        """convert x from m/s"""
+        kmh = int(round(3.6 * x, 0))
+        mph = int(round(2.236936 * x, 0))
+        speed = f"{kmh}km/h ({mph}mp/h)"
+        return speed
+
+
+
+    def weatheremoji(self, s): # also adds a gap
+        emoji_dict = {
+                # CLEAR
+                "clear sky": " ☀️",
+                # CLOUDS
+                "few clouds": " 🌤️",
+                "scattered clouds": " ⛅",
+                "broken clouds": " 🌥️",
+                "overcast clouds": " ☁️",
+                # RAIN
+                "shower rain": " 🌧️",
+                "rain": " 🌧️",
+                "light intensity drizzle": " 🌦️",
+                "drizzle": " 🌦️",
+                "heavy intensity drizzle": " 🌦️",
+                "light intensity drizzle rain": " 🌦️",
+                "drizzle rain": " 🌦️",
+                "heavy intensity drizzle rain": " 🌦️",
+                "shower rain and drizzle": " 🌦️",
+                "heavy shower rain and drizzle": " 🌦️",
+                "shower drizzle": " 🌦️",
+                "light rain": " 🌧️",
+                "moderate rain": " 🌧️",
+                "heavy intensity rain": " 🌧️",
+                "very heavy rain": " 🌧️",
+                "extreme rain": " 🌧️",
+                "freezing rain": " 🌧️",
+                "light intensity shower rain": " 🌧️",
+                "shower rain": " 🌧️",
+                "heavy intensity shower rain": " 🌧️",
+                "ragged shower rain": " 🌧️",
+                # THUNDER
+                "thunderstorm ": " 🌩️",
+                "thunderstorm with light rain": " ⛈️",
+                "thunderstorm with rain": " ⛈️",
+                "thunderstorm with heavy rain": " ⛈️",
+                "light thunderstorm": " 🌩️",
+                "heavy thunderstorm": " 🌩️",
+                "ragged thunderstorm": " 🌩️",
+                "thunderstorm with light drizzle": " ⛈️",
+                "thunderstorm with drizzle": " ⛈️",
+                "thunderstorm with heavy drizzle": " ⛈️",
+                "": "",
+                # SNOW
+                "snow": " ❄️",
+                "light snow": " ❄️",
+                "heavy snow": " ❄️",
+                "sleet": " 🌨️",
+                "light shower sleet": " 🌨️",
+                "shower sleet": " 🌨️",
+                "light rain and snow": " 🌨️",
+                "rain and snow": " 🌨️",
+                "light shower snow": " 🌨️",
+                "shower snow": " 🌨️",
+                "heavy shower snow": " 🌨️",
+                # ATMOSPHERE
+                "mist": " 🌫️",
+                "smoke": " 🌫️",
+                "haze": " 🌫️",
+                "sand/dust whirls": " 🌫️",
+                "fog": " 🌫️",
+                "sand": " 🌫️",
+                "dust": " 🌫️",
+                "volcanic ash": " 🌋",
+                "squalls": " 💨",
+                "tornado": " 🌪️",
+            }
+
+        if s.lower().strip() in emoji_dict:
+            return emoji_dict[s.lower().strip()]
+        else:
+            return ""
+
+
+
+    async def get_forecast(self, ctx, latitude, longitude):
+        # INITIALISE API DATA
+        try:
+            API_KEY = os.getenv("openweathermap_key")
+            if API_KEY is None:
+                raise ValueError("No OpenWeatherMap API Key")
+        except Exception as e:
+            print("Error while fetching OpenWeatherMap API Key", e)
+            return ""
+
+        try:
+            version = util.get_version().replace("version","v").replace(" ","").strip()
+        except:
+            version = "v_X"
+        USER_AGENT = f'MDM_Bot_{version}'
+        headers = {'user-agent': USER_AGENT}
+
+        string = ""
+
+        # GET WEATHER DATA
+        url = 'https://api.openweathermap.org/data/2.5/forecast'
+        payload = {
+                'lat': latitude,
+                'lon': longitude,
+                'appid': API_KEY,
+            }
+        payload['format'] = 'json'
+        response = requests.get(url, headers=headers, params=payload)
+        rjson = response.json()
+        try:
+            error_code = rjson['cod']
+            msg = rjson['message']
+            if error_code == '404' or msg == 'city not found':
+                raise ValueError("Place not found.")
+        except:
+            pass
+
+        try:
+            forecast_list = rjson['list']
+            string_list = []
+            hours = 0
+
+            for item in forecast_list:
+                hours += 3
+                try:
+                    dt = item['dt']
+                    temp = item['main']['temp']
+                    humidity = item['main']['humidity']
+                    weather_list = item['weather']
+                    weather_string = ', '.join([x['description'] + self.weatheremoji(x['description']) for x in weather_list])
+                    pop = item['pop'] # probability of precipitation
+
+                    string_list.append(f"**{hours}h** {weather_string} `{self.temperature_string(temp)}` Precipitation: {round(pop*100)}%\n")
+                except Exception as e:
+                    print("Error:", e)
+
+            if len(string_list) > 0:
+                string += "\n**Forecast:** \n"
+                i = 0
+                for forecast in string_list:
+                    string += forecast
+                    i += 1
+
+                    if i > 7:
+                        break
+
+        except Exception as e:
+            print("Error while parsing forecast data:", e)
+
+        return string
+
 
 
 
@@ -2528,7 +2730,7 @@ class General_Utility(commands.Cog):
         """
 
         try:
-            rjson, city_name = await self.get_geodata(ctx, args)
+            rjson, city_name, latitude, longitude = await self.get_geodata(ctx, args)
         except:
             await ctx.send(f"Error: {e}")
             return
@@ -2570,75 +2772,21 @@ class General_Utility(commands.Cog):
 
 
 
-    @commands.group(name="weather", aliases = ["w"], pass_context=True, invoke_without_command=True)
-    @commands.check(util.is_active)
-    async def _weather_by_location(self, ctx, *args):
-        """Show weather of given location
-
-        Give argument `<city>` or `<city>, <country>` or `<city>, <state>, <country>`.
-        You can also use `<zip code>, <country>`
-
-        You can also set your location with `-w set <location>` and remove it with `-w remove`.
-        """
-
-        # FUNCTIONS
-
-        def temperature_string(kelvin1, *kelvin2args):
-            celsius1 = round(kelvin1-273.15,1)
-            fahrenheit1 = round((kelvin1-273.15) * 9/5 + 32,1)
-
-            if len(kelvin2args) == 0:
-                temperature = f"{celsius1}°C ({fahrenheit1}°F)"
-            else:
-                kelvin2 = float(kelvin2args[0])
-                celsius2 = round(kelvin2-273.15,1)
-                fahrenheit2 = round((kelvin2-273.15) * 9/5 + 32,1)
-                temperature = f"{celsius1}°C - {celsius2}°C ({fahrenheit1}°F - {fahrenheit2}°F)"
-            return temperature
-
-        def wind_direction(deg):
-            direction_dict = OrderedDict()
-            direction_dict[0]     = "N"
-            direction_dict[22.5]  = "NNE"
-            direction_dict[45]    = "NE"
-            direction_dict[67.5]  = "ENE"
-            direction_dict[90]    = "E"
-            direction_dict[112.5] = "ESE"
-            direction_dict[135]   = "SE"
-            direction_dict[157.5] = "SSE"
-            direction_dict[180]   = "S"
-            direction_dict[202.5] = "SSW"
-            direction_dict[225]   = "SW"
-            direction_dict[247.5] = "WSW"
-            direction_dict[270]   = "W"
-            direction_dict[292.5] = "WNW"
-            direction_dict[315]   = "NW"
-            direction_dict[337.5] = "NNW"
-            direction_dict[360]   = "N"
-            direction = "?"
-            for d in direction_dict:
-                if deg > d - 11.25:
-                    direction = direction_dict[d]
-                else:
-                    break
-            return direction
-
-        def speed_string(x):
-            """convert x from m/s"""
-            kmh = int(round(3.6 * x, 0))
-            mph = int(round(2.236936 * x, 0))
-            speed = f"{kmh}km/h ({mph}mp/h)"
-            return speed
-
-        # EXECUTED CODE
-
+    async def weather_command(self, ctx, args, forecast):
         try:
-            rjson, city_name = await self.get_geodata(ctx, args)
+            rjson, city_name, latitude, longitude = await self.get_geodata(ctx, args)
         except Exception as e:
             await ctx.send(f"Error: {e}")
             return
 
         print(rjson)
+
+        forecast_data = ""
+        if forecast:
+            try:
+                forecast_data = await self.get_forecast(ctx, latitude, longitude)
+            except Exception as e:
+                print("Error while trying to fetch forecast:", e)
 
         try:
             country = rjson['sys']['country']
@@ -2663,15 +2811,15 @@ class General_Utility(commands.Cog):
             except:
                 weather_list = []
         try:
-            temperature = temperature_string(rjson['main']['temp'])
+            temperature = self.temperature_string(rjson['main']['temp'])
         except:
             temperature = "?"
         try:
-            temperature_feels = temperature_string(rjson['main']['feels_like'])
+            temperature_feels = self.temperature_string(rjson['main']['feels_like'])
         except:
             temperature_feels = "?"
         try:
-            temperature_span = temperature_string(rjson['main']['temp_min'], rjson['main']['temp_max'])
+            temperature_span = self.temperature_string(rjson['main']['temp_min'], rjson['main']['temp_max'])
         except:
             temperature_span = "?"
 
@@ -2692,6 +2840,7 @@ class General_Utility(commands.Cog):
         except:
             wind_degree = "?"
 
+
         # STRING TEMP/WIND DATA
 
         if len(weather_list) == 0:
@@ -2703,7 +2852,7 @@ class General_Utility(commands.Cog):
 
             descriptions = []
             for weather in weather_list:
-                descriptions.append(weather[1])
+                descriptions.append(f"{weather[1]}{self.weatheremoji(weather[1])}")
             header = ', '.join(descriptions)
 
         if temperature == "?":
@@ -2722,7 +2871,10 @@ class General_Utility(commands.Cog):
         if wind_speed == "?" or wind_degree == "?":
             pass
         else:
-            text += f"Wind: {wind_direction(wind_degree)} @ {speed_string(wind_speed)}\n"
+            text += f"Wind: {self.wind_direction(wind_degree)} @ {self.speed_string(wind_speed)}\n"
+
+        if forecast_data != "":
+            text += forecast_data
 
         if city_name != "" and util.alphanum(city_name,"lower") != util.alphanum(name,"lower") and f"({name})" not in city_name:
             name = city_name + f" ({name})"
@@ -2732,8 +2884,42 @@ class General_Utility(commands.Cog):
         embed.set_footer(text=f"{name}, {country}")
         await ctx.send(embed=embed)
 
+
+
+    @commands.group(name="weather", aliases = ["w"], pass_context=True, invoke_without_command=True)
+    @commands.check(util.is_active)
+    async def _weather_by_location(self, ctx, *args):
+        """Show weather of given location
+
+        Give argument `<city>` or `<city>, <country>` or `<city>, <state>, <country>`.
+        You can also use `<zip code>, <country>`
+
+        You can also set your location with `-w set <location>` and remove it with `-w remove`.
+        """
+        forecast = False
+        await self.weather_command(ctx, args, forecast)
+
     @_weather_by_location.error
     async def weather_by_location_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name="weatherforecast", aliases = ["wf"], pass_context=True, invoke_without_command=True)
+    @commands.check(util.is_active)
+    async def _weatherforecast_by_location(self, ctx, *args):
+        """Show weather forecast of given location
+
+        Give argument `<city>` or `<city>, <country>` or `<city>, <state>, <country>`.
+        You can also use `<zip code>, <country>`
+
+        You can also set your location with `-w set <location>` and remove it with `-w remove`.
+        """
+        forecast = True
+        await self.weather_command(ctx, args, forecast)
+
+    @_weatherforecast_by_location.error
+    async def weatherforecast_by_location_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
@@ -2854,6 +3040,10 @@ class General_Utility(commands.Cog):
 
 
 
+    ################################################################################################################################
+
+
+
     @commands.command(name='img', aliases = ['image'])
     @commands.check(util.is_active)
     async def _imagesearch(self, ctx: commands.Context, *args):
@@ -2884,7 +3074,7 @@ class General_Utility(commands.Cog):
             return
 
         try:
-            version = Utils.get_version().replace("version","v").replace(" ","").strip()
+            version = util.get_version().replace("version","v").replace(" ","").strip()
         except:
             version = "v_X"
         USER_AGENT = f'MDM_Bot_{version}'
@@ -2951,7 +3141,7 @@ class General_Utility(commands.Cog):
             return
 
         try:
-            version = Utils.get_version().replace("version","v").replace(" ","").strip()
+            version = util.get_version().replace("version","v").replace(" ","").strip()
         except:
             version = "v_X"
         USER_AGENT = f'MDM_Bot_{version}'
