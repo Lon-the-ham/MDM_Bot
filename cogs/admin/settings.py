@@ -4484,7 +4484,7 @@ class Administration_of_Settings(commands.Cog):
             curC.execute('''CREATE TABLE IF NOT EXISTS cooldowns (service text, last_used text, limit_seconds text, limit_type text, long_limit_seconds text, long_limit_amount text)''') # soft limit type: delay, hard limit type: stop request
 
             cooldown_db_list = [item[0] for item in curC.execute("SELECT service FROM cooldowns").fetchall()]
-            cooldowns_light = ["applemusic", "metallum", "musicbrainz", "lastfm", "openweathermap", "spotify"]
+            cooldowns_light = ["applemusic", "metallum", "musicbrainz", "lastfm", "openweathermap", "spotify", "wolframalpha"]
             cooldowns_medium = ["googlesearch"]
             cooldowns_critical = ["rym"]
             for cd in cooldowns_light:
@@ -5423,6 +5423,7 @@ class Administration_of_Settings(commands.Cog):
         with 2nd arg `on` or `off`
         """
         if len(args) < 2:
+            await ctx.send("Too few arguments.")
             return
 
         conA = sqlite3.connect(f'databases/activity.db')

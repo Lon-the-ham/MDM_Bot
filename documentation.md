@@ -6,6 +6,13 @@
 Some features use external APIs and won't work or only partly if you don't create an account and put the api key you receive into the environment file. Don't worry, all APIs that are used here are free services.
 
 
+### Algebaric Computation
+
+To let users be able to use the `-calc` command and receive computation results you need to connect the bot to WolframAlpha. For that create an account on WolframAlpha and then get on https://developer.wolframalpha.com/access an App ID. Add that to your `.env` file as follows:
+
+> wolframalpha_id = `app ID`
+
+
 ### Currency Exchange Rate Conversion
 
 With the `-con` command you can not only convert metres to miles or fahrenheit to celsius, but also different currencies using daily updated exchange rates. If you only stick to the few most prominent currencies in the world such as the US Dollar, Euro or Yen, then the implemented web scraper will probably suffice, but if you want to be able to convert all kinds of currencies you can get an api key for the ExchangeRate-API here: https://www.exchangerate-api.com/ 

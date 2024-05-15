@@ -671,7 +671,10 @@ class General_Utility(commands.Cog):
 
                 await ctx.send(responsetext[:2000])
             except Exception as e:
-                await ctx.send(f'`An error ocurred:` {e}')
+                if str(e).strip() == "'NoneType' object has no attribute 'group'":
+                    await ctx.send(f'`An error ocurred:` Probably wrong googletranslate package.\nHost should try```pip uninstall googletrans```and then```pip install googletrans==3.1.0a0```in console.')
+                else:
+                    await ctx.send(f'`An error ocurred:` {e}')
 
 
 
@@ -2924,12 +2927,59 @@ class General_Utility(commands.Cog):
 
 
 
-    @commands.command(name='calc', aliases = ['calculate'])
+    @commands.command(name='calc', aliases = ['calculate', "wolframalpha", "woa", "query", "tellme", "mirrormirroronthewall"])
     @commands.check(util.is_active)
     async def _calculate(self, ctx: commands.Context, *args):
-        """Calculate stuff
+        """Computation via WolframAlpha
+
+        This command can be used to make simple calculations, but also to query other things that WolframAlpha can handle such as "How far is Tokio from Osaka".
         """
-        await ctx.send("Command is under construction.")
+        # INITIALISE API DATA
+        try:
+            API_KEY = os.getenv("wolframalpha_id")
+            if API_KEY is None:
+                emoji = util.emoji("disappointed")
+                raise ValueError(f"No API key provided. {emoji}\n||(Ask mods to get an API key from https://developer.wolframalpha.com/access)||")
+        except Exception as e:
+            await ctx.send(f"Error: {e}")
+            return
+
+        try: # cooldown to not trigger actual rate limits or IP blocks
+            await util.cooldown(ctx, "wolframalpha")
+        except Exception as e:
+            await util.cooldown_exception(ctx, e, "wolframalpha")
+            return
+
+        try:
+            version = Utils.get_version().replace("version","v").replace(" ","").strip()
+        except:
+            version = "v_X"
+        USER_AGENT = f'MDM_Bot_{version}'
+        headers = {'user-agent': USER_AGENT}
+
+        # PARSE ARGUMENTS
+
+        string = ' '.join(args)
+
+        if string.strip() == "":
+            await ctx.send("Command needs arguments.")
+            return
+
+        async with ctx.typing():
+            payload = {
+                'appid': API_KEY,
+                'i': string,
+            }
+
+            # GET WOLFRAM ALPHA DATA
+            try:
+                url = 'http://api.wolframalpha.com/v1/result'
+                response = requests.get(url, headers=headers, params=payload)
+                text = util.cleantext2(response.text)
+                await ctx.send(f"`Result:` {text}")
+            except Exception as e:
+                print(e)
+                await ctx.send(f"`WolframAlpha Error:` {e}")
     @_calculate.error
     async def calculate_error(self, ctx, error):
         await util.error_handling(ctx, error)
