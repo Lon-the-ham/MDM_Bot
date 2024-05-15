@@ -81,12 +81,14 @@ class Utils():
         try:
             host_id = int(os.getenv("host_user_id"))
         except:
+            raise commands.CheckFailure("Failed to load host id from environment. This is a bot host-only command.")
             return False
 
         if ctx.author.id == host_id:
             return True
 
         else:
+            raise commands.CheckFailure("Permssion denied, this is a host-only command.")
             return False
 
 
