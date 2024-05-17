@@ -2696,7 +2696,8 @@ class General_Utility(commands.Cog):
                     weather_string = ', '.join([x['description'] + self.weatheremoji(x['description']) for x in weather_list])
                     pop = item['pop'] # probability of precipitation
 
-                    string_list.append(f"**{hours}h** {weather_string} `{self.temperature_string(temp)}` Precipitation: {round(pop*100)}%\n")
+                    #string_list.append(f"<t:{dt}:t> {weather_string} `{self.temperature_string(temp)}` Precipitation: {round(pop*100)}%\n")
+                    string_list.append(f"<t:{dt}:t> {weather_string} `{self.temperature_string(temp)}` 💧: {round(pop*100)}%\n")
                 except Exception as e:
                     print("Error:", e)
 
@@ -2880,7 +2881,8 @@ class General_Utility(commands.Cog):
             name = city_name + f" ({name})"
 
         embed=discord.Embed(title=header, description=text.strip(), color=0xEA6D4A)
-        embed.set_thumbnail(url=icon_url)
+        if not forecast:
+            embed.set_thumbnail(url=icon_url)
         embed.set_footer(text=f"{name}, {country}")
         await ctx.send(embed=embed)
 
