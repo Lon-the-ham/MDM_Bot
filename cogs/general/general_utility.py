@@ -600,7 +600,8 @@ class General_Utility(commands.Cog):
         languages_extra_dict = {
                         "ch": 'zh-cn',
                         "zh": 'zh-cn',
-                        "jp": 'ja'
+                        "jp": 'ja',
+                        "gr": 'el',
                         }           
 
         languagedict = {}   
@@ -678,7 +679,7 @@ class General_Utility(commands.Cog):
 
 
 
-    @commands.command(name='translate', aliases = ['tr'])
+    @commands.group(name="translate", aliases = ["tr"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _translate(self, ctx, *args):
         """translate
@@ -698,7 +699,7 @@ class General_Utility(commands.Cog):
 
 
 
-    @commands.command(name='trx', aliases = ['translatex'])
+    @commands.group(name="trx", aliases = ["translatex"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _translate_x(self, ctx, *args):
         """translate (with detection info)
@@ -717,14 +718,8 @@ class General_Utility(commands.Cog):
         await util.error_handling(ctx, error)
 
 
-    
-    @commands.command(name='languages', aliases = ['language'])
-    @commands.check(util.is_active)
-    async def _translate_languages(self, ctx, *args):
-        """list of supported translation languages
 
-        Use with arg `detailed` to get language names alongside language abbreviations."""
-
+    async def show_language_list(self, ctx, args):
         short = True
         for arg in args:
             if arg.lower() in ["detail", "details", "detailed"]:
@@ -754,6 +749,43 @@ class General_Utility(commands.Cog):
             response_text = response_text[:-2]
 
         await ctx.send(response_text[:2000])
+
+
+    
+    @commands.command(name='languages', aliases = ['language'])
+    @commands.check(util.is_active)
+    async def _translate_languages(self, ctx, *args):
+        """list of supported translation languages
+
+        Use with arg `detailed` to get language names alongside language abbreviations."""
+        await self.show_language_list(ctx, args)
+    @_translate_languages.error
+    async def translate_languages_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_translate.command(name="languages", aliases = ['language'], pass_context=True)
+    @commands.check(util.is_active)
+    async def _translate_languages_subcommand(self, ctx, *args):
+        """list of supported translation languages
+        Use with arg `detailed` to get language names alongside language abbreviations."""
+        await self.show_language_list(ctx, args)
+    @_translate_languages_subcommand.error
+    async def translate_languages_subcommand_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_translate_x.command(name="languages", aliases = ['language'], pass_context=True)
+    @commands.check(util.is_active)
+    async def _translatex_languages_subcommand(self, ctx, *args):
+        """list of supported translation languages
+        Use with arg `detailed` to get language names alongside language abbreviations."""
+        await self.show_language_list(ctx, args)
+    @_translatex_languages_subcommand.error
+    async def translatex_languages_subcommand_error(self, ctx, error):
+        await util.error_handling(ctx, error)
 
 
 
@@ -1967,6 +1999,21 @@ class General_Utility(commands.Cog):
     @_reminders_recurring.error
     async def reminders_recurring_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name="schedule", aliases = ["scheduling"])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_active)
+    @commands.check(util.is_main_server)
+    async def _schedule(self, ctx, *args):
+        """🔒 Schedule a message
+        """
+        await ctx.send("Under construction.")
+
+    @_schedule.error
+    async def schedule_error(self, ctx, error):
+        await util.error_handling(ctx, error)
         
 
 
@@ -2684,10 +2731,8 @@ class General_Utility(commands.Cog):
         try:
             forecast_list = rjson['list']
             string_list = []
-            hours = 0
 
             for item in forecast_list:
-                hours += 3
                 try:
                     dt = item['dt']
                     temp = item['main']['temp']
@@ -2933,8 +2978,8 @@ class General_Utility(commands.Cog):
         # FETCH INFO FROM API
 
         try:
-            rjson, city_name = await self.get_geodata(ctx, args)
-        except:
+            rjson, city_name, latitude, longitude = await self.get_geodata(ctx, args)
+        except Exception as e:
             await ctx.send(f"Error: {e}")
             return
 
