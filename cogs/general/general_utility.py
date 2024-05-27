@@ -2186,7 +2186,7 @@ class General_Utility(commands.Cog):
 
 
 
-    @commands.group(name="calendar", aliases = ["c", "kalender", "showcalendar"], pass_context=True, invoke_without_command=True)
+    @commands.group(name="calendar", aliases = ["kalender", "showcalendar"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _calendar(self, ctx):
         """Calendar functionality 
@@ -2742,7 +2742,7 @@ class General_Utility(commands.Cog):
                     pop = item['pop'] # probability of precipitation
 
                     #string_list.append(f"<t:{dt}:t> {weather_string} `{self.temperature_string(temp)}` Precipitation: {round(pop*100)}%\n")
-                    string_list.append(f"<t:{dt}:t> {weather_string} `{self.temperature_string(temp)}` 💧: {round(pop*100)}%\n")
+                    string_list.append(f"<t:{dt}:t> {weather_string} `{self.temperature_string(temp)}` 💧{round(pop*100)}%\n")
                 except Exception as e:
                     print("Error:", e)
 
