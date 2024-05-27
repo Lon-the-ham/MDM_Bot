@@ -2154,6 +2154,7 @@ class Memo(commands.Cog):
 
     @commands.command(name='showcats', aliases = ["sc", "showc", "showcat", "catlist", "catslist", 'blshowcats', 'blsc'])
     @commands.check(MemoCheck.backlog_enabled)
+    @commands.check(util.is_active)
     async def _showcategories(self, ctx, *args):
         """Show categories
         
@@ -2170,6 +2171,7 @@ class Memo(commands.Cog):
 
     @_backlog.command(name='showcats', aliases = ["sc", "showc", "showcat", "catlist", "catslist"], pass_context=True)
     @commands.check(MemoCheck.backlog_enabled)
+    @commands.check(util.is_active)
     async def _backlog_showcategories(self, ctx, *args):
         """Show categories
         
