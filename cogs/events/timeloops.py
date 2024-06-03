@@ -117,7 +117,7 @@ class TimeLoops(commands.Cog):
 
 
 
-    ############### CALENDAR ###########################################################################################################################
+    ############### CALENDAR & LFM UPDATES ###########################################################################################################################
 
 
 
@@ -136,10 +136,18 @@ class TimeLoops(commands.Cog):
         except Exception as e:
             await self.timeloop_error(e, "hourly_check:calendar_notif")
 
+        await asyncio.sleep(180)
+        # update lastfm
+        try:
+            await self.lastfm_update()
+        except Exception as e:
+            await self.timeloop_error(e, "hourly_check:lastfm_update")
+
     @hourly_check.before_loop
     async def before_hourly_check(self):
         await self.bot.wait_until_ready()
         await asyncio.sleep(20.4)
+
 
 
 
@@ -638,6 +646,86 @@ class TimeLoops(commands.Cog):
         pass
         # under construction
 
+
+
+    # lastfm scrobble update
+
+    async def lastfm_update(self):
+        # first check if auto-update is enabled
+        conB = sqlite3.connect('databases/botsettings.db')
+        curB = conB.cursor()
+        scrobblefeature_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("scrobbling functionality",)).fetchall()]
+        scrobbleautoupdate_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("scrobbling update automation",)).fetchall()]
+
+        if len(scrobbleautoupdate_list) == 0 or len(scrobblefeature_list) == 0:
+            print("No scrobble updating setting in database. Use update command first.")
+            return
+
+        scrobblefeature = scrobblefeature_list[0].lower().strip()
+        scrobbleautoupdate = scrobbleautoupdate_list[0].lower().strip()
+
+        if scrobblefeature != "on" or scrobbleautoupdate != "on":
+            print("No scrobble auto-updating: Either scrobbling functionality or scrobbling auto update are disabled.")
+            return
+
+        # check if update pipeline is in use or free
+
+        cooldown_list = util.check_active_scrobbleupdate()
+        if len(cooldown_list) > 0:
+            print("Skipping scrobble auto-update. Update pipe in use:", cooldown_list)
+            return
+
+        util.block_scrobbleupdate(None)
+
+        # do the updating
+        try:
+            conNP = sqlite3.connect('databases/npsettings.db')
+            curNP = conNP.cursor()
+            lfm_list = [[item[0],item[1],item[2]] for item in curNP.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
+
+            member_id_list = []
+            for guild in self.bot.guilds:
+                for member in guild.members:
+                    if member.id not in member_id_list:
+                        member_id_list.append(member.id)
+
+            for item in lfm_list:
+                try:
+                    user_id = int(item[0])
+                    lfm_name = item[1]
+                    status = item[2] # ignore: scrobble_banned ; # proceed with: NULL, "", inactive, wk_banned, crown_banned
+
+                    if status.startswith("scrobble_banned"):
+                        continue
+                except Exception as e:
+                    print("Error in scrobble update time loop:", e)
+                    continue
+
+                if user_id not in member_id_list:
+                    continue
+
+                allow_from_scratch = False
+                await util.scrobble_update(lfm_name, allow_from_scratch)
+                #await asyncio.sleep(1)
+
+            util.unblock_scrobbleupdate()
+            print("finished updating scrobble data")
+
+        except Exception as e:
+            util.unblock_scrobbleupdate()
+            await self.timeloop_notification("Scrobble Update", f"```{e}```", False)
+
+
+
+    # check for users without any role
+
+    async def missed_welcome_check(self):
+        # triggers if access wall or auto-role is enabled, but a user does not have any role
+        pass
+        # under construction
+
+
+
     #######################################################################################################################################################
     #######################################################################################################################################################
     #######################################################################################################################################################
@@ -1127,6 +1215,23 @@ class TimeLoops(commands.Cog):
             try:
                 await user.edit(roles=[inactivity_role])
                 new_inactives_mention_list.append(f"<@{str(user.id)}>")
+
+                try:
+                    # NPsettings change to inactive
+                    conNP = sqlite3.connect('databases/npsettings.db')
+                    curNP = conNP.cursor()
+                    lfm_list = [[item[0],item[1].lower().strip()] for item in curNP.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (str(user.id),)).fetchall()]
+
+                    if len(lfm_list) > 0:
+                        status = lfm_list[0][1].strip()
+                        if status == "":
+                            new_status = "inactive"
+                        else:
+                            new_status = status + "_inactive"
+                        curNP.execute("UPDATE lastfm SET details = ? WHERE id = ?", (new_status, str(user.id)))
+                        conNP.commit()
+                except Exception as e:
+                    print(f"Error with changing NP settings ({user.name}):", e)
             except Exception as e:
                 error_count += 1
                 error_users.append(f"<@{user.id}>")
