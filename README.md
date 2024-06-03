@@ -46,6 +46,9 @@ Next you need to install a few packages that the applications uses:
 
 > pip install beautifulsoup4
 
+> pip install dropbox
+
+
 ### Create a discord application
 
 Visit https://discord.com/developers/applications and create an account for your application. Make sure to note down the `application ID` as well as the `token` somewhere, you will need them later. Also make sure to disable the check on "Public Bot", while enabling all "Privileged Gateway Intents", i.e. enable all 3: Presence Intent, Server Members Intent, Message Content Intent.
