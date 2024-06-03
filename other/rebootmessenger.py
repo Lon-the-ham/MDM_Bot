@@ -526,6 +526,8 @@ async def get_temporary_dropbox_token(ctx, bot):
                 return
         try:
             channel = bot.get_channel(botspamchannel_id)
+            if channel is None:
+                channel = await bot.fetch_channel(botspamchannel_id)
         except Exception as e:
             print("Error in util.get_temporary_dropbox_token():", e)
             return
@@ -557,14 +559,17 @@ async def get_temporary_dropbox_token(ctx, bot):
         curB = conB.cursor()
         app_id_list = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("app id",)).fetchall()]
 
-        async for msg in channel.history(limit=100):
-            if "`token:`" in msg.content and str(msg.author.id) in app_id_list:
-                try:
-                    the_message = msg
-                    found = True
-                    break
-                except Exception as e:
-                    print(e)
+        try:
+            async for msg in channel.history(limit=100):
+                if "`token:`" in msg.content and str(msg.author.id) in app_id_list:
+                    try:
+                        the_message = msg
+                        found = True
+                        break
+                    except Exception as e:
+                        print(e)
+        except Exception as e:
+            print("Error:", e)
 
         if found:
             try:
