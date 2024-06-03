@@ -81,7 +81,7 @@ class Music_NowPlaying(commands.Cog):
                 # HANDLE TAGS
                 if show_tags:
                     try:
-                        tag_string = await self.fetch_tags(ctx, "musicbee", artist, album, song, None, None, called_services, custom)
+                        tag_string = await self.fetch_tags(ctx, "musicbee", artist, album, song, None, None, called_services, custom, str(member.id))
                         try:
                             embed.set_footer(text = tag_string)
                         except Exception as e:
@@ -186,7 +186,7 @@ class Music_NowPlaying(commands.Cog):
                     # HANDLE TAGS
                     if show_tags:
                         try:
-                            tag_string = await self.fetch_tags(ctx, "applemusic", artist, album, song, None, None, called_services, custom)
+                            tag_string = await self.fetch_tags(ctx, "applemusic", artist, album, song, None, None, called_services, custom, str(member.id))
                             try:
                                 embed.set_footer(text = tag_string)
                             except Exception as e:
@@ -211,7 +211,7 @@ class Music_NowPlaying(commands.Cog):
                     # HANDLE TAGS
                     if show_tags:
                         try:
-                            tag_string = await self.fetch_tags(ctx, "unspecified", artist, album, song, None, None, called_services, custom)
+                            tag_string = await self.fetch_tags(ctx, "unspecified", artist, album, song, None, None, called_services, custom, str(member.id))
                             try:
                                 embed.set_footer(text = tag_string)
                             except Exception as e:
@@ -294,7 +294,7 @@ class Music_NowPlaying(commands.Cog):
 
             if show_tags:
                 try:
-                    tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, musicbrainz_ids, called_services, custom)
+                    tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, musicbrainz_ids, called_services, custom, str(member.id))
                     try:
                         if tag_string != "":
                             embed.set_footer(text = tag_string)
@@ -418,7 +418,7 @@ class Music_NowPlaying(commands.Cog):
 
         if show_tags:
             try:
-                tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, None, called_services, custom)
+                tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, None, called_services, custom, str(member.id))
                 try:
                     embed.set_footer(text = tag_string)
                 except Exception as e:
@@ -452,7 +452,7 @@ class Music_NowPlaying(commands.Cog):
                 # HANDLE TAGS
                 if show_tags:
                     try:
-                        tag_string = await self.fetch_tags(ctx, "spotify", artist, album, song, track_id, None, called_services, custom)
+                        tag_string = await self.fetch_tags(ctx, "spotify", artist, album, song, track_id, None, called_services, custom, str(member.id))
                         try:
                             embed.set_footer(text = tag_string)
                         except Exception as e:
@@ -488,7 +488,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    async def fetch_tags(self, ctx, np_service, artist, album, song, spotify_track_id, musicbrainz_ids, called_services, custom):
+    async def fetch_tags(self, ctx, np_service, artist, album, song, spotify_track_id, musicbrainz_ids, called_services, custom, np_user_id):
         """
             decide where to fetch genre tags from and retrieve
             return string
@@ -500,16 +500,16 @@ class Music_NowPlaying(commands.Cog):
             except:
                 mbid = None
 
-            #default settings:
-            tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "off", "off", "off", "off", "standard_substitute", "off"]]
+            #default settings: (last 3 added later)
+            tagsetting_list = [["", "", "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "off", "off", "off", "off", "standard_substitute", "off", "off"]]
             
             if custom:
                 con = sqlite3.connect('databases/npsettings.db')
                 cur = con.cursor()
-                custom_tagsetting_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7],item[8],item[9],item[10],item[11],item[12],item[13],item[14],item[15],item[16]] for item in cur.execute("SELECT id, name, spotify_monthlylisteners, spotify_genretags, lastfm_listeners, lastfm_total_artistplays, lastfm_artistscrobbles, lastfm_albumscrobbles, lastfm_trackscrobbles, lastfm_rank, musicbrainz_tags, musicbrainz_area , musicbrainz_date , rym_genretags, rym_albumrating, lastfm_tags, redundancy_filter FROM tagsettings WHERE id = ?", (user_id,)).fetchall()]
+                custom_tagsetting_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7],item[8],item[9],item[10],item[11],item[12],item[13],item[14],item[15],item[16],item[17]] for item in cur.execute("SELECT id, name, spotify_monthlylisteners, spotify_genretags, lastfm_listeners, lastfm_total_artistplays, lastfm_artistscrobbles, lastfm_albumscrobbles, lastfm_trackscrobbles, lastfm_rank, musicbrainz_tags, musicbrainz_area , musicbrainz_date , rym_genretags, rym_albumrating, lastfm_tags, redundancy_filter, crown FROM tagsettings WHERE id = ?", (user_id,)).fetchall()]
                 if len(custom_tagsetting_list) == 0:
                     username = util.cleantext2(str(ctx.message.author.name))
-                    cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "off", "off", "off", "off", "standard_substitute", "standard_substitute", "off", "off", "off", "off", "on"))
+                    cur.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (user_id, username, "standard", "standard", "standard", "standard", "on", "on", "on", "on", "standard_substitute", "standard_substitute", "off", "off", "on", "off", "on", "on"))
                     con.commit()
                     await util.changetimeupdate()
                 else:
@@ -533,23 +533,25 @@ class Music_NowPlaying(commands.Cog):
             rym_albumrating = tagsettings[14].lower().strip() 
             lastfm_tags = tagsettings[15].lower().strip() # added later
             redundancy_filter = tagsettings[16].lower().strip() # added later
+            crown = tagsettings[17].lower().strip() # added later
 
-            tag_settings_dict = {
+            tag_settings_dict = { # only needs those that fetch from API
                                 "spotify_monthlylisteners": spotify_monthlylisteners, 
                                 "spotify_genretags": spotify_genretags, 
                                 "lastfm_listeners": lastfm_listeners, 
                                 "lastfm_total_artistplays": lastfm_total_artistplays, 
-                                "lastfm_artistscrobbles": lastfm_artistscrobbles, 
-                                "lastfm_albumscrobbles": lastfm_albumscrobbles, 
-                                "lastfm_trackscrobbles": lastfm_trackscrobbles, 
-                                "lastfm_rank": lastfm_rank, 
+                                #"lastfm_artistscrobbles": lastfm_artistscrobbles, 
+                                #"lastfm_albumscrobbles": lastfm_albumscrobbles, 
+                                #"lastfm_trackscrobbles": lastfm_trackscrobbles, 
+                                #"lastfm_rank": lastfm_rank, 
                                 "lastfm_tags": lastfm_tags,
                                 "musicbrainz_tags": musicbrainz_tags, 
                                 "musicbrainz_area": musicbrainz_area, 
                                 "musicbrainz_date": musicbrainz_date, 
                                 "rym_genretags": rym_genretags, 
-                                "rym_albumrating": rym_albumrating,
+                                #"rym_albumrating": rym_albumrating,
                                 #"redundancy_filter": redundancy_filter,
+                                #"crown": crown,
                                 }
             tag_services_dict = {
                                 "lastfm": False, 
@@ -600,12 +602,13 @@ class Music_NowPlaying(commands.Cog):
             print("Fetching tags (primary):", tag_services_dict)
             print("Fetching tags (secondary):", substitute_tags)
 
-            # FETCH TAGS
+            # FETCH TAGS FROM APIs
 
             genre_tags = {}
             listener_stats = []
             year = ""
             area = ""
+            user_stats = ""
 
             for tagservice in tag_services_dict:
                 if tag_services_dict[tagservice]:
@@ -717,10 +720,8 @@ class Music_NowPlaying(commands.Cog):
                             if len(genretag_list) > 0:
                                 genre_tags["musicbrainz"] = f"{self.tagseparator}".join(genretag_list)
 
-                        elif tagservice == "rym":
-                            #under construction
-                            # rym genre tags are blocked
-                            # rym ratings from import
+                        elif tagservice == "rym": # for genre tags
+                            #under construction: hopefully when RYM provides an API or isn't so block-happy when scraping
                             pass
 
                         else:
@@ -819,7 +820,98 @@ class Music_NowPlaying(commands.Cog):
                     if genre_tags[service].strip() == "":
                         genre_tag_string = "\nno genre tags found" # only do that if there actually was a service that looked for tags
 
-            # FINISH UP
+            # USER STATS
+
+            conFM = sqlite3.connect('databases/scrobbledata.db')
+            curFM = conFM.cursor()
+
+            conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+            curFM2 = conFM2.cursor()
+
+            conSS = sqlite3.connect('databases/scrobblestats.db')
+            curSS = conSS.cursor()
+
+            if np_user_id == None:
+                np_user_id == user_id
+
+            lfm_name, scrobble_status = util.get_lfmname(np_user_id)
+
+            if lfm_name != None:
+                rank = None
+                crown_holder = None
+                artistcount = None
+                albumcount = None
+                trackcount = None
+
+                if crown == "on" or lastfm_rank == "on":
+                    rank, crown_holder = util.get_rank(ctx, lfm_name, artist)
+
+                if crown == "on":
+                    if lfm_name == crown_holder and scrobble_status not in ["wk_banned", "crown_banned"]:
+                        emoji = util.emoji("crown")
+                        if emoji.strip() == "":
+                            emoji = "♕"
+                        user_stats += f"{emoji} "
+
+                if lastfm_artistscrobbles == "on":
+                    result = curFM2.execute(f"SELECT SUM(count) FROM {lfm_name} WHERE artist_name = ?", (util.compactnamefilter(artist),))
+                    rtuple = result.fetchone()
+                    try:
+                        artistcount = int(rtuple[0])
+                    except:
+                        artistcount = 0
+
+                    if artistcount == 1:
+                        user_stats += f"{artistcount} artist play "
+                    else:
+                        user_stats += f"{artistcount} artist plays "
+                        
+                if lastfm_albumscrobbles == "on" and album.strip() != "":
+                    result = curFM2.execute(f"SELECT count FROM {lfm_name} WHERE artist_name = ? AND album_name = ?", (util.compactnamefilter(artist),util.compactnamefilter(album)))
+                    rtuple = result.fetchone()
+                    try:
+                        albumcount = int(rtuple[0])
+                    except:
+                        albumcount = 0
+
+                    if artistcount is None:
+                        if albumcount == 1:
+                            user_stats += f"{albumcount} album play "  
+                        else:
+                            user_stats += f"{albumcount} album plays "
+                    else:
+                        if lastfm_trackscrobbles == "on":
+                            user_stats += f"(album: {albumcount}, "
+                        else:
+                            user_stats += f"(album: {albumcount}) "
+
+                if lastfm_trackscrobbles == "on":
+                    result = curFM.execute(f"SELECT COUNT(id) FROM {lfm_name} WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (artist,song))
+                    rtuple = result.fetchone()
+                    try:
+                        trackcount = int(rtuple[0])
+                    except:
+                        trackcount = 0
+
+                    if artistcount is None and albumcount is None:
+                        if trackcount == 1:
+                            user_stats += f"{trackcount} track play "  
+                        else:
+                            user_stats += f"{trackcount} track plays "
+                    else:
+                        if lastfm_albumscrobbles == "on" and album.strip() != "":
+                            user_stats += f"track: {trackcount}) "
+                        else:
+                            user_stats += f"(track: {trackcount}) "
+
+                if lastfm_rank == "on":
+                    user_stats += rank
+
+            if rym_albumrating == "on":
+                # rym import under construction
+                pass
+
+            # PUTTING TOGETHER INFORMATION
 
             art_info = []
             if area.strip() != "":
@@ -830,9 +922,16 @@ class Music_NowPlaying(commands.Cog):
 
             if genre_tag_string.strip() == "" and (tag_settings_dict["spotify_genretags"] == "on" or tag_settings_dict["musicbrainz_tags"] == "on" or tag_settings_dict["rym_genretags"] == "on" or tag_settings_dict["lastfm_tags"] == "on" or len(substitute_tags) > 0):
                 genre_tag_string = "\nno genre tags found"
-            tag_string = listener_stats_string + genre_tag_string
+
+            if user_stats.strip() == "":
+                user_stats = ""
+            else:
+                user_stats = user_stats.strip() + "\n"
+
+            tag_string = user_stats + listener_stats_string + genre_tag_string
             if len(tag_string) > 2048:
                 tag_string = tag_string[:2045] + "..."
+
             return tag_string[:2048]
 
 
@@ -1706,7 +1805,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    @commands.command(name='applemusic', aliases = ['apple', 'am', 'ap', 'itunes'])
+    @commands.command(name='applemusic', aliases = ['apple', 'am', 'itunes'])
     @commands.check(util.is_active)
     async def _applemusic(self, ctx: commands.Context, *args):
         """NowPlaying for Apple Music"""
@@ -1922,7 +2021,14 @@ class Music_NowPlaying(commands.Cog):
                         # FETCH ARTIST TAGS
 
                         cooldown = False
-                        listeners, total_scrobbles, artist_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, track, cooldown)
+                        try:
+                            listeners, total_scrobbles, artist_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, track, cooldown)
+                        except Exception as e:
+                            print("Error, while trying to fetch artist data from lastfm API:", e)
+                            listeners = ""
+                            total_scrobbles = ""
+                            artist_genre_tag_list = []
+
                         genre_tag_list = util.filter_genretags(artist_genre_tag_list + track_genre_tags)
 
                         if len(genre_tag_list) > 0:
@@ -1959,7 +2065,7 @@ class Music_NowPlaying(commands.Cog):
                 elif tags == "custom":
                     try:
                         custom = True
-                        tag_string = await self.fetch_tags(ctx, "unspecified", artist, album, track, None, [mbid,None,None], [], custom)
+                        tag_string = await self.fetch_tags(ctx, "unspecified", artist, album, track, None, [mbid,None,None], [], custom, str(ctx.author.id))
                     except Exception as e:
                         print("Unable to fetch tags:", e)
                         print(traceback.format_exc())
@@ -1995,7 +2101,6 @@ class Music_NowPlaying(commands.Cog):
             await self.add_np_reactions(ctx, message, member)
         except Exception as e:
             print("Error while trying to add NP reactions:", e)
-
 
 
 
@@ -2411,12 +2516,27 @@ class Music_NowPlaying(commands.Cog):
 
         if len(lfm_list) == 0:
             cur.execute("INSERT INTO lastfm VALUES (?, ?, ?, ?, ?)", (user_id, user_name, new_lfm_name, new_lfm_link, details))
+            textmessage = f"Added your LastFM account: `{new_lfm_name}`!"
         else:
-            cur.execute("UPDATE lastfm SET lfm_name = ?, lfm_link = ? WHERE id = ?", (new_lfm_name, new_lfm_link, user_id))
+            if new_lfm_name.lower() == lfm_list[0][0].lower().strip():
+                textmessage = f"That's already your lastfm account."
+
+            #else if new_lfm_name.lower() in [item[0] for item in cur.execute("SELECT lfm_name FROM lastfm").fetchall()]:
+            #    textmessage = f"That's someone else's lastfm account... If this is not a mistake ask mods to make the changes." # deprecated for now to allow users to add the same lfm account to multiple discord accounts
+
+            else:
+                text = "You are about to change your lastfm account."
+                response = await util.are_you_sure_msg(ctx, self.bot, text)
+                if response == False:
+                    return
+                cur.execute("UPDATE lastfm SET lfm_name = ?, lfm_link = ? WHERE id = ?", (new_lfm_name, new_lfm_link, user_id))
+                textmessage = f"Changed your LastFM account to `{new_lfm_name}`."
+
+                # under construction: change also details (from inactive to active?)
         con.commit()
         await util.changetimeupdate()
 
-        await ctx.send(f"Changed your LastFM account to `{new_lfm_name}`.")
+        await ctx.send(textmessage)
     @_setfm.error
     async def setfm_error(self, ctx, error):
         await util.error_handling(ctx, error) 
@@ -3010,6 +3130,24 @@ class Music_NowPlaying(commands.Cog):
 
     @_tagbanexport.error
     async def tagbanexport_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='removefm', aliases = ["delfm"])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _removefm(self, ctx: commands.Context, *args):
+        """🔒 removes someone's fm account
+
+        e.g. when someone loses access to their discord account and rejoins with a new one remove the lastfm account from the first discord account.
+        """
+
+        await ctx.send("under construction")
+
+    @_removefm.error
+    async def removefm_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
