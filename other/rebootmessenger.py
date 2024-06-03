@@ -552,6 +552,7 @@ async def get_temporary_dropbox_token(ctx, bot):
         # check botspam messages
         the_message = None
         found = False
+        could_parse_token = False
         try:
             conB = sqlite3.connect(f'databases/botsettings.db')
         except:
