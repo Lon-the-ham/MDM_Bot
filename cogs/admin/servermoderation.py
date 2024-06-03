@@ -1143,7 +1143,7 @@ class Administration_of_Server(commands.Cog):
                                     else:
                                         print("...clearing space and retrieving files")
                                         for filename in os.listdir(f"{sys.path[0]}/temp/"):
-                                            if filename != ".gitignore":
+                                            if filename.endswith(".db"): # gitignore and other things that might be happening in parallel
                                                 os.remove(f"{sys.path[0]}/temp/{filename}")
                                         split_v1 = str(the_message.attachments).split("filename='")[1]
                                         filename = str(split_v1).split("' ")[0]
@@ -1185,14 +1185,14 @@ class Administration_of_Server(commands.Cog):
                                                                 reached_end = True
 
                                             for filename in os.listdir(f"{sys.path[0]}/temp/"):   
-                                                if filename != ".gitignore":             
+                                                if filename.endswith(".db"): # gitignore and other things that might be happening in parallel            
                                                     os.remove(f"{sys.path[0]}/temp/{filename}")
 
                             except Exception as e:
                                 print("Error with backup:", e)
 
                     for filename in os.listdir(f"{sys.path[0]}/temp/"):   
-                        if filename != ".gitignore":             
+                        if filename.endswith(".db"):          
                             os.remove(f"{sys.path[0]}/temp/{filename}")
 
                     if len(broken_files) > 0:
