@@ -16,6 +16,18 @@ from bs4 import BeautifulSoup
 import json
 from emoji import UNICODE_EMOJI
 from calendar import monthrange
+# cloud stuff
+import contextlib
+import six
+import time
+import unicodedata
+import dropbox
+import functools
+import typing
+import base64
+import string
+
+
 
 class Utils():
 
@@ -157,6 +169,103 @@ class Utils():
             }
         return unit_seconds
 
+
+
+    ############################################### ASYNC REQUESTS
+
+
+
+    def run_async(callback):
+        def inner(func):
+            def wrapper(*args, **kwargs):
+                def __exec():
+                    out = func(*args, **kwargs)
+                    callback(out)
+                    return out
+
+                return asyncio.get_event_loop().run_in_executor(None, __exec)
+
+            return wrapper
+
+        return inner
+
+
+    def _callback(*args):
+        if len(args) > 0:
+            if str(args[0]).strip() == "<Response [200]>":
+                #print("good response")
+                pass
+            else:
+                print(f"Error: {str(args[0])}")
+        else:
+            print("Asyncio: No callback?")
+
+
+    # Must provide a callback function, callback func will be executed after the func completes execution !!
+    @run_async(_callback)
+    def asyncrequest_get(url, headers, params):
+        return requests.get(url, headers=headers, params=params)
+
+
+
+
+    def to_thread(func: typing.Callable) -> typing.Coroutine:
+        """wrapper for blocking functions, seems to not properly work though"""
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            return await asyncio.to_thread(func, *args, **kwargs)
+        return wrapper
+
+
+
+    async def run_blocking(bot, blocking_func: typing.Callable, *args, **kwargs) -> typing.Any:
+        """Runs a blocking function in a non-blocking way"""
+        func = functools.partial(blocking_func, *args, **kwargs) # `run_in_executor` doesn't support kwargs, `functools.partial` does
+        return await bot.loop.run_in_executor(None, func)
+
+
+    ###############################################
+
+
+    def encode(key, clear):
+        enc = []
+        for i in range(len(clear)):
+            key_c = key[i % len(key)]
+            enc_c = chr((ord(clear[i]) + ord(key_c)) % 256)
+            enc.append(enc_c)
+        return base64.urlsafe_b64encode("".join(enc).encode()).decode()
+
+    def decode(key, enc):
+        dec = []
+        enc = base64.urlsafe_b64decode(enc).decode()
+        for i in range(len(enc)):
+            key_c = key[i % len(key)]
+            dec_c = chr((256 + ord(enc[i]) - ord(key_c)) % 256)
+            dec.append(dec_c)
+        return "".join(dec)
+
+    def get_random_string(length):
+        characters = string.ascii_letters + string.digits + string.punctuation
+        result_str = ''.join(random.choice(characters) for i in range(length))
+        return result_str
+
+    def get_enc_key():
+        key = os.getenv('encryption_key')
+
+        if key is None:
+            con = sqlite3.connect(f'databases/activity.db')
+            cur = con.cursor()
+            key_list = [item[0] for item in cur.execute("SELECT value FROM hostdata WHERE name = ?", ("encryption key",)).fetchall()]
+
+            if len(key_list) > 0:
+                key = key_list[0]
+            else:
+                i = random.randint(100, 200)
+                key = Utils.get_random_string(i)
+                cur.execute("INSERT INTO hostdata VALUES (?,?,?,?)", ("encryption key", key, "", ""))
+                con.commit()
+
+        return key
 
 
     ############################################### GENERAL UTILITY FUNCTIONS (sorted alphabetically)
@@ -320,11 +429,6 @@ class Utils():
 
 
 
-    def confirmation_check(ctx, message): # checking if it's the same user and channel
-            return ((message.author == ctx.author) and (message.channel == ctx.channel))
-
-
-
     def cleantext(s):
         ctxt = str(s).replace("`","'").replace('"',"'").replace("´","'").replace("‘","'").replace("’","'").replace("“","'").replace("”","'")
         return ctxt
@@ -335,6 +439,88 @@ class Utils():
         ctxt = Utils.cleantext(str(s))
         ctxt2 = ctxt.replace("*","\*").replace("_","\_").replace("#","\#").replace("\n> ","\n\> ")
         return ctxt2
+
+
+
+    def compact_sql(string):
+        return f"""REPLACE(REPLACE(REPLACE(REPLACE(UPPER({string}), " ", ""), "-", ""), "_", ""), "'", "")"""
+        #return f"""UPPER({string})"""
+
+
+
+    def compactnamefilter(input_string):
+        # https://en.wikipedia.org/wiki/List_of_Latin-script_letters
+        # get rid of bracket info
+        intermediate_string = input_string
+        if "(" in intermediate_string and not intermediate_string.startswith("("):
+            intermediate_string = intermediate_string.split("(",1)[0]
+        if "[" in intermediate_string and not intermediate_string.startswith("["):
+            intermediate_string = intermediate_string.split("[",1)[0]
+
+        # get rid of non-alphanumeric
+        intermediate_string = ''.join([x for x in intermediate_string.upper() if x.isalnum()])
+
+        # adapt accents
+        diacritics = {
+            ord("Æ"): "AE",
+            ord("Ã"): "A",
+            ord("Å"): "A",
+            ord("Ā"): "A",
+            ord("Ä"): "A",
+            ord("Â"): "A",
+            ord("À"): "A",
+            ord("Á"): "A",
+            ord("Å"): "A",
+            ord("Ầ"): "A",
+            ord("Ấ"): "A",
+            ord("Ẫ"): "A",
+            ord("Ẩ"): "A",
+            ord("Ç"): "C",
+            ord("Č"): "C",
+            ord("Ď"): "D",
+            ord("Ė"): "E",
+            ord("Ê"): "E",
+            ord("Ë"): "E",
+            ord("È"): "E",
+            ord("É"): "E",
+            ord("Ě"): "E",
+            ord("Ğ"): "G",
+            ord("Í"): "I",
+            ord("İ"): "I",
+            ord("Ñ"): "N",
+            ord("Ń"): "N",
+            ord("Ň"): "N",
+            ord("Ō"): "O",
+            ord("Ø"): "O",
+            ord("Õ"): "O",
+            ord("Œ"): "OE",
+            ord("Ó"): "O",
+            ord("Ò"): "O",
+            ord("Ô"): "O",
+            ord("Ö"): "O",
+            ord("Ř"): "R",
+            ord("Š"): "S",
+            ord("ẞ"): "SS",
+            ord("Ś"): "S",
+            ord("Š"): "S",
+            ord("Ş"): "S",
+            ord("Ť"): "T",
+            ord("Ū"): "U",
+            ord("Ù"): "U",
+            ord("Ú"): "U",
+            ord("Û"): "U",
+            ord("Ü"): "U",
+            ord("Ů"): "U",
+            ord("Ý"): "Y",
+            ord("Ž"): "Z",
+        }
+        new_string = intermediate_string.translate(diacritics)
+        return new_string
+
+
+
+    def confirmation_check(ctx, message): # checking if it's the same user and channel
+        return ((message.author == ctx.author) and (message.channel == ctx.channel))
 
 
 
@@ -544,6 +730,159 @@ class Utils():
         except:
             i = 0
         return i
+
+
+
+    def get_lfmname(user_id):
+        try:
+            conNP = sqlite3.connect('databases/npsettings.db')
+            curNP = conNP.cursor()
+            lfm_list = [[item[0],item[1].lower().strip()] for item in curNP.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (str(user_id),)).fetchall()]
+
+            if len(lfm_list) == 0:
+                return None, None
+
+            lfm_name = lfm_list[0][0]
+            status = lfm_list[0][1]
+
+            if status.startswith("scrobble_banned") or status.endswith("inactive"):
+                return None, None
+
+            return lfm_name, status # ""/NULL or wk_banned or crown_banned
+
+        except Exception as e:
+            print(f"Error in util.get_lfm_name(): {e}")
+            return None, None
+
+
+
+    def get_rank(ctx, ctx_lfm_name, artist):
+        try:
+            conNP = sqlite3.connect('databases/npsettings.db')
+            curNP = conNP.cursor()
+            lfm_list = [[item[0],item[1],item[2].lower().strip()] for item in curNP.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
+
+            conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+            curFM2 = conFM2.cursor()
+
+            now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+
+            discordname_dict = {}
+            lfmname_dict = {}
+            count_list = []
+            crownbanned = []
+            total_plays = 0
+
+            server_member_ids = [x.id for x in ctx.guild.members]
+
+            # FILTER BY USER STATUS
+
+            for useritem in lfm_list:
+                try:
+                    user_id = int(useritem[0])
+                except Exception as e:
+                    print("Error:", e)
+                    continue
+
+                lfm_name = useritem[1]
+                status = useritem[2]
+
+                if status.startswith(("wk_banned", "scrobble_banned")) or (status.endswith("inactive") and str(ctx.guild.id) == str(os.getenv("guild_id"))):
+                    continue
+                elif status.startswith("crown_banned"):
+                    crownbanned.append(user_id)
+
+                if user_id not in server_member_ids:
+                    continue
+
+                lfmname_dict[user_id] = lfm_name
+
+                # GET COUNT
+
+                try:
+                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM {lfm_name} WHERE artist_name = ?", (Utils.compactnamefilter(artist),))
+
+                    try:
+                        rtuple = result.fetchone()
+                        try:
+                            count = int(rtuple[0])
+                        except:
+                            count = 0
+                        try:
+                            last = int(rtuple[1])
+                        except:
+                            last = now
+                            if user_id == ctx.author.id:
+                                last -= 1
+                    except:
+                        count = 0
+                        last = now
+                        if user_id == ctx.author.id:
+                            last -= 1
+
+                except Exception as e:
+                    if str(e).startswith("no such table"):
+                        pass
+                    else:
+                        print("Error:", e)
+                    count = 0
+                    last = now
+                    if user_id == ctx.author.id:
+                        last -= 1
+
+                count_list.append([user_id, count, last])
+                total_plays += count
+
+            # FETCH SERVER NAMES
+
+            for member in ctx.guild.members:
+                if member.id in lfmname_dict:
+                    discordname_dict[member.id] = str(member.name)
+
+            # GET RANK
+
+            ctx_rank = -1
+            posuser_counter = 0
+
+            count_list.sort(key=lambda x: x[2])
+            count_list.sort(key=lambda x: x[1], reverse=True)
+
+            for listitem in count_list:
+                user_id = listitem[0]
+                playcount = listitem[1]
+                lastplay = listitem[2]
+
+                if user_id not in discordname_dict:
+                    continue
+
+                if playcount > 0:
+                    posuser_counter += 1
+
+                    if ctx_lfm_name == lfmname_dict[user_id]:
+                        ctx_rank = posuser_counter
+
+            if ctx_rank != -1:
+                ctx_rank_string = f"[{ctx_rank}/{posuser_counter}]"
+            else:
+                ctx_rank_string = ""
+
+            # GET CROWN HOLDER
+
+            crown_user = None
+
+            try:
+                conSS = sqlite3.connect('databases/scrobblestats.db')
+                curSS = conSS.cursor()
+                crowns_list = [item[0] for item in curSS.execute(f"SELECT crown_holder FROM crowns_{ctx.guild.id} WHERE UPPER(artist) = ?", (artist.upper(),)).fetchall()]
+                crown_user = crowns_list[0]
+            except:
+                pass
+
+            return ctx_rank_string, crown_user
+
+        except Exception as e:
+            print(f"Error in util.get_rank(): {e}")
+            return "", None
 
 
 
@@ -978,6 +1317,26 @@ class Utils():
         except:
             text = json.dumps(obj.json(), sort_keys=True, indent=4)
             print(text)
+
+
+
+    def last_scrobble_time_in_db():
+        lasttime = 0
+        con = sqlite3.connect(f'databases/scrobbledata_releasewise.db')
+        cur = con.cursor()  
+        table_list = [item[0] for item in cur.execute("SELECT name FROM sqlite_master WHERE type = ?", ("table",)).fetchall()]
+        #print(table_list)
+        for table in table_list:
+            try:
+                result = con.execute(f'SELECT MAX(last_time) FROM {table}')
+                rtuple = result.fetchone()
+                if int(rtuple[0]) > lasttime:
+                    lasttime = int(rtuple[0])
+            except Exception as e:
+                print(f"Skipping table {table}:", e)
+                continue
+
+        return lasttime
 
 
 
@@ -1835,18 +2194,20 @@ class Utils():
         invoketime = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
         curC.execute("DELETE FROM userrequests WHERE cast(time_stamp as integer) < ?", (invoketime - 3600,))
         conC.commit()
-        userrequest_list = [item[0] for item in curC.execute("SELECT time_stamp FROM userrequests WHERE LOWER(service) = ? AND userid = ?", (service.lower(), str(ctx.message.author.id))).fetchall()]
-        temp_ban = [item[0] for item in curC.execute("SELECT time_stamp FROM userrequests WHERE LOWER(service) = ? AND userid = ?", ("ban", str(ctx.message.author.id))).fetchall()]
 
-        if len(userrequest_list) > 5 or len(temp_ban) > 0:
-            curC.execute("INSERT INTO userrequests VALUES (?, ?, ?, ?)", ("ban", str(ctx.message.author.id), str(ctx.message.author.name), str(invoketime)))
+        if ctx != None:
+            userrequest_list = [item[0] for item in curC.execute("SELECT time_stamp FROM userrequests WHERE LOWER(service) = ? AND userid = ?", (service.lower(), str(ctx.message.author.id))).fetchall()]
+            temp_ban = [item[0] for item in curC.execute("SELECT time_stamp FROM userrequests WHERE LOWER(service) = ? AND userid = ?", ("ban", str(ctx.message.author.id))).fetchall()]
+
+            if len(userrequest_list) > 5 or len(temp_ban) > 0:
+                curC.execute("INSERT INTO userrequests VALUES (?, ?, ?, ?)", ("ban", str(ctx.message.author.id), str(ctx.message.author.name), str(invoketime)))
+                conC.commit()
+                print("request abuse: 1 hour temporary ban from web requests")
+                raise ValueError(f"request abuse")
+                return
+
+            curC.execute("INSERT INTO userrequests VALUES (?, ?, ?, ?)", (service, str(ctx.message.author.id), str(ctx.message.author.name), str(invoketime)))
             conC.commit()
-            print("request abuse: 1 hour temporary ban from web requests")
-            raise ValueError(f"request abuse")
-            return
-
-        curC.execute("INSERT INTO userrequests VALUES (?, ?, ?, ?)", (service, str(ctx.message.author.id), str(ctx.message.author.name), str(invoketime)))
-        conC.commit()
 
         # INITIALISE SERVICE PARAMETERS
 
@@ -1912,8 +2273,9 @@ class Utils():
                 # hard type cooldown: break
 
                 if long_counter >= long_limit_amount or short_counter > 0:
-                    curC.execute("DELETE FROM userrequests WHERE LOWER(service) = ? AND userid = ? AND time_stamp = ?", (service.lower(), str(ctx.message.author.id), str(invoketime)))
-                    conC.commit()
+                    if ctx != None:
+                        curC.execute("DELETE FROM userrequests WHERE LOWER(service) = ? AND userid = ? AND time_stamp = ?", (service.lower(), str(ctx.message.author.id), str(invoketime)))
+                        conC.commit()
                     raise ValueError(f"rate limited")
                     return
 
@@ -1924,7 +2286,10 @@ class Utils():
                 # soft type cooldown: delay
 
                 if long_counter >= long_limit_amount or short_counter > 0:
-                    async with ctx.typing():
+                    if ctx != None:
+                        async with ctx.typing():
+                            await asyncio.sleep(1)
+                    else:
                         await asyncio.sleep(1)
 
                 else:
@@ -1938,8 +2303,9 @@ class Utils():
             relevant_last_used_str.append(str(item))
         new_last_used = ','.join(relevant_last_used_str + [str(now)])
         curC.execute("UPDATE cooldowns SET last_used = ? WHERE LOWER(service) = ?", (new_last_used, service))
-        curC.execute("DELETE FROM userrequests WHERE cast(time_stamp as integer) < ?", (invoketime - 3600,))
-        curC.execute("DELETE FROM userrequests WHERE LOWER(service) = ? AND userid = ? AND time_stamp = ?", (service.lower(), str(ctx.message.author.id), str(invoketime)))
+        if ctx != None:
+            curC.execute("DELETE FROM userrequests WHERE cast(time_stamp as integer) < ?", (invoketime - 3600,))
+            curC.execute("DELETE FROM userrequests WHERE LOWER(service) = ? AND userid = ? AND time_stamp = ?", (service.lower(), str(ctx.message.author.id), str(invoketime)))
         conC.commit()
         conC.close()
         await Utils.changetimeupdate()
@@ -1948,19 +2314,20 @@ class Utils():
 
     async def cooldown_exception(ctx, exception, service):
         print(exception)
-        if str(exception) == "rate limited":
-            emoji = Utils.emoji("shy")
-            await ctx.send(f"We are being rate limited ({service}). {emoji}")
-        elif str(exception) == "request abuse":
-            emoji = Utils.emoji("ban")
-            try:
-                await ctx.message.reply(f"Request abuse: You are temporarily banned from using 3rd party requests. {emoji}")
-            except:
-                await ctx.send(f"Request abuse: You are temporarily banned from using 3rd party requests. {emoji}")
-        else:
-            print(traceback.format_exc())
-            emoji = Utils.emoji("panic")
-            await ctx.send(f"Error with 3rd party service request: unforeseen exception. {emoji}")
+        if ctx != None:
+            if str(exception) == "rate limited":
+                emoji = Utils.emoji("shy")
+                await ctx.send(f"We are being rate limited ({service}). {emoji}")
+            elif str(exception) == "request abuse":
+                emoji = Utils.emoji("ban")
+                try:
+                    await ctx.message.reply(f"Request abuse: You are temporarily banned from using 3rd party requests. {emoji}")
+                except:
+                    await ctx.send(f"Request abuse: You are temporarily banned from using 3rd party requests. {emoji}")
+            else:
+                print(traceback.format_exc())
+                emoji = Utils.emoji("panic")
+                await ctx.send(f"Error with 3rd party service request: unforeseen exception. {emoji}")
 
 
 
@@ -2370,10 +2737,16 @@ class Utils():
 
 
 
-    async def lastfm_get(ctx, payload, cooldown):
+    async def lastfm_get(ctx, payload, cooldown, *args):
         if cooldown:
+            cooldown_slot = "lastfm"
+
+            if len(args) > 0:
+                if args[0].lower() == "userupdate":
+                    cooldown_slot = "lastfm_update"
+
             try: 
-                await Utils.cooldown(ctx, "lastfm")
+                await Utils.cooldown(ctx, cooldown_slot)
             except Exception as e:
                 await Utils.cooldown_exception(ctx, e, "LastFM")
                 return "rate limit"
@@ -2411,7 +2784,8 @@ class Utils():
         payload['api_key'] = API_KEY
         payload['format'] = 'json'
 
-        response = requests.get(url, headers=headers, params=payload)
+        #response = requests.get(url, headers=headers, params=payload)
+        response = await Utils.asyncrequest_get(url, headers=headers, params=payload)
         return response
         
 
@@ -2687,6 +3061,199 @@ class Utils():
 
 
 
+    async def scrobble_update(lfm_name, allow_from_scratch):
+        async def get_userscrobbles_from_page(lfm_name, page):
+            try:
+                payload = {
+                    'method': 'user.getRecentTracks',
+                    'user': lfm_name,
+                    'limit': "200",
+                    'page': page,
+                }
+                cooldown = True
+                response = await Utils.lastfm_get(None, payload, cooldown, "userupdate")
+                if response == "rate limit":
+                    raise ValueError("Hit internal lastfm rate limit.")
+                try:
+                    rjson = response.json()
+                    total_pages = rjson['recenttracks']['@attr']['totalPages']
+                    page = rjson['recenttracks']['@attr']['page']
+                    total = rjson['recenttracks']['@attr']['total']
+                    tracklist = rjson['recenttracks']['track']
+                    return tracklist, total_pages, total
+                except:
+                    try:
+                        raise ValueError(f"```{str(response.json())}```")
+                    except:
+                        raise ValueError(f"{str(response)}")
+            except Exception as e:
+                print("Error:", e)
+                raise ValueError(f"while trying to fetch user information: {e}.")
+
+        def parse_scrobbled_track(trackdata):
+            try:
+                artist_name = trackdata['artist']['#text']
+            except:
+                artist_name = ""
+            try:
+                album_name = trackdata['album']['#text']
+            except:
+                album_name = ""
+            try:
+                track_name = trackdata['name']
+            except:
+                track_name = ""
+            try:
+                date_uts = trackdata['date']['uts']
+            except:
+                date_uts = 0
+            return (artist_name, album_name, track_name, date_uts)
+            
+        def releasewise_insert(lfm_name, item_dict):
+            conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+            curFM2 = conFM2.cursor()
+            curFM2.execute(f"CREATE TABLE IF NOT EXISTS {lfm_name} (artist_name text, album_name text, count integer, last_time integer)")
+
+            for k,v in item_dict.items():
+                artist = k[0]
+                album  = k[1]
+                try:
+                    count = int(v[0])
+                except:
+                    count = 0
+                try:
+                    now_time = int(v[1])
+                except:
+                    now_time = 0
+                
+                try:
+                    result = curFM2.execute(f"SELECT count, last_time FROM {lfm_name} WHERE artist_name = ? AND album_name = ?", (artist, album))
+                    rtuple = result.fetchone()
+                    prev_count = int(rtuple[0])
+                    try:
+                        prev_time = int(rtuple[1])
+                    except:
+                        prev_time = 0
+                except:
+                    prev_count = 0
+                    prev_time = 0
+
+                if prev_count == 0:
+                    curFM2.execute(f"INSERT INTO {lfm_name} VALUES (?, ?, ?, ?)", (artist, album, count, now_time))
+
+                else:
+                    new_count = prev_count + count
+                    if prev_time < now_time:
+                        time = now_time
+                    else:
+                        time = prev_time
+                    curFM2.execute(f"UPDATE {lfm_name} SET count = ?, last_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, artist, album))
+            conFM2.commit()
+            #print("inserted into secondary database as well")
+
+        ### actual function
+
+        conFM = sqlite3.connect('databases/scrobbledata.db')
+        curFM = conFM.cursor()
+        curFM.execute(f"CREATE TABLE IF NOT EXISTS {lfm_name} (id integer, artist_name text, album_name text, track_name text, date_uts integer)")
+
+        try:
+            lasttime = int([item[0] for item in curFM.execute(f"SELECT MAX(date_uts) FROM {lfm_name}").fetchall()][0])
+        except Exception as e:
+            lasttime = 0
+
+        if lasttime == 0 and allow_from_scratch == False:
+            return
+
+        page_int = 0
+        total_pages_int = 1
+        continue_loop = True
+        count = 0
+        i = -1
+
+        try:
+            item_dict = {}
+            previous_item = None
+            while page_int < total_pages_int:
+                if not continue_loop:
+                    break
+                page_int += 1
+                page_string = str(page_int)
+
+                for t in [5,10,15]:
+                    try:
+                        tracklist, total_pages, total = await get_userscrobbles_from_page(lfm_name, page_string)
+                        break
+                    except Exception as e:
+                        print(f"Waiting {t} seconds... ({e})")
+                        await asyncio.sleep(t)
+                        print("continue...")
+                else:
+                    print("Cancelled action.")
+
+                if i == -1: # first page
+                    i = int(total)
+
+                total_pages_int = int(total_pages)
+
+                # PARSE PAGE ENTRIES
+                for trackdata in tracklist:
+                    item = parse_scrobbled_track(trackdata)
+                    uts = int(item[-1])
+                    if uts == 0: #print("skipping currently listened to track")
+                        continue
+                    elif uts <= lasttime:
+                        continue_loop = False
+                        break
+                    if previous_item == item: 
+                        print("skipping double entry")
+                        continue
+                    elif previous_item != None and uts > int(previous_item[-1]):
+                        print("skipping entry with time anomaly")
+                        continue
+
+                    # add item to scrobble DB
+                    item_indexed = (i,) + item
+                    curFM.execute(f"INSERT INTO {lfm_name} VALUES (?, ?, ?, ?, ?)", item_indexed)  
+                    count += 1
+                    i -= 1
+
+                    # prepare for inserting into releasewise DB
+                    artist_filtername = Utils.compactnamefilter(item[0]) #''.join([x for x in item[0].upper() if x.isalnum()])
+                    album_filtername = Utils.compactnamefilter(item[1]) #''.join([x for x in item[1].upper() if x.isalnum()])
+                    
+                    if (artist_filtername, album_filtername) in item_dict:
+                        release = item_dict[(artist_filtername, album_filtername)]
+                        try:
+                            releasecount = int(release[0])
+                        except:
+                            releasecount = 0
+                        try:
+                            releaselastprev = int(release[1])
+                        except:
+                            releaselastprev = 0
+
+                        item_dict[(artist_filtername, album_filtername)] = (releasecount + 1, releaselastprev)
+                    else:
+                        try:
+                            releaselast = int(item[3])
+                        except:
+                            releaselast = 0
+                        item_dict[(artist_filtername, album_filtername)] = (1, releaselast)
+
+                    # next iteration
+                    previous_item = item
+            if count > 0:
+                print(f"updated scrobble data of {lfm_name} : ({count} entries)")
+            conFM.commit()
+            releasewise_insert(lfm_name, item_dict)
+            await Utils.changetimeupdate()
+        except Exception as e:
+            print("Error:", e)
+
+
+
+
     async def setup_msg(ctx, bot, text):
         def check(m): # checking if it's the same user and channel
             return ((m.author == ctx.author) and (m.channel == ctx.channel))
@@ -2877,5 +3444,674 @@ class Utils():
 
         con.close()
         await Utils.changetimeupdate()
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    ######################################################## CLOUD STUFF ###################################################################
+
+
+
+    def dropbox_list_folder(dbx, folder, subfolder):
+        """List a folder.
+
+        Return a dict mapping unicode filenames to
+        FileMetadata|FolderMetadata entries.
+        """
+        path = '/%s/%s' % (folder, subfolder.replace(os.path.sep, '/'))
+        while '//' in path:
+            path = path.replace('//', '/')
+        path = path.rstrip('/')
+        try:
+            with Utils.stopwatch('list_folder'):
+                res = dbx.files_list_folder(path)
+        except dropbox.exceptions.ApiError as err:
+            print('Folder listing failed for', path, '-- assumed empty:', err)
+            return {}
+        else:
+            rv = {}
+            for entry in res.entries:
+                rv[entry.name] = entry
+            return rv
+
+
+
+    def dropbox_download(dbx, folder, subfolder, name):
+        """Download a file.
+
+        Return the bytes of the file, or None if it doesn't exist.
+        """
+        path = '/%s/%s/%s' % (folder, subfolder.replace(os.path.sep, '/'), name)
+        while '//' in path:
+            path = path.replace('//', '/')
+        with Utils.stopwatch('download'):
+            try:
+                md, res = dbx.files_download(path)
+            except dropbox.exceptions.HttpError as err:
+                print('*** HTTP error', err)
+                return None
+        data = res.content
+        print(len(data), 'bytes; md:', md)
+        return data
+
+
+
+    def dropbox_upload(dbx, fullname, folder, subfolder, name, overwrite=False):
+        """Upload a file.
+
+        Return the request response, or None in case of error.
+        """
+        path = '/%s/%s/%s' % (folder, subfolder.replace(os.path.sep, '/'), name)
+        while '//' in path:
+            path = path.replace('//', '/')
+        mode = (dropbox.files.WriteMode.overwrite
+                if overwrite
+                else dropbox.files.WriteMode.add)
+        mtime = os.path.getmtime(fullname)
+        with open(fullname, 'rb') as f:
+            data = f.read()
+        with Utils.stopwatch('upload %d bytes' % len(data)):
+            try:
+                res = dbx.files_upload(data, path, mode, client_modified=datetime(*time.gmtime(mtime)[:6]), mute=True)
+            except dropbox.exceptions.ApiError as err:
+                print('*** API error', err)
+                return None
+        try:
+            print('uploaded as', res.name.encode('utf-8'))
+        except Exception as e:
+            pass
+        return res
+
+
+    @contextlib.contextmanager
+    def stopwatch(message):
+        """Context manager to print how long a block of code took."""
+        t0 = time.time()
+        try:
+            yield
+        finally:
+            t1 = time.time()
+            print('Total elapsed time for %s: %.3f' % (message, t1 - t0))
+
+
+
+    async def get_temporary_dropbox_token(ctx, bot):
+        if ctx == None:
+            try:
+                con = sqlite3.connect(f'databases/botsettings.db')
+                cur = con.cursor()
+                botspamchannel_id = int([item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("botspam channel id",)).fetchall()][0])
+            except:
+                print("Bot spam/notification channel ID in database is faulty.")
+                try:
+                    botspamchannel_id = int(os.getenv("bot_channel_id"))
+                    if botspamchannel_id is None:
+                        raise ValueError("No botspamchannel id provided in .env file")
+                except Exception as e:
+                    print(f"Error in util.get_temporary_dropbox_token():", e)
+                    return
+            try:
+                channel = bot.get_channel(botspamchannel_id)
+            except Exception as e:
+                print("Error in util.get_temporary_dropbox_token():", e)
+                return
+        else:
+            channel = ctx.channel
+
+        con = sqlite3.connect(f'databases/activity.db')
+        cur = con.cursor()
+        token_list = [[item[0],item[1]] for item in cur.execute("SELECT value, details FROM hostdata WHERE name = ?", ("dropbox token",)).fetchall()]
+        now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+
+        # first check database
+        if len(token_list) > 0 and Utils.represents_integer(token_list[0][1]) and now < int(token_list[0][1]) - 120:
+            temp_token = str(token_list[0][0]).strip()
+            expiration_time = int(token_list[0][1])
+            print("using token saved in database")
+
+        else:
+            # check botspam messages
+            the_message = None
+            found = False
+            conB = sqlite3.connect(f'databases/botsettings.db')
+            curB = conB.cursor()
+            app_id_list = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("app id",)).fetchall()]
+
+            async for msg in channel.history(limit=100):
+                if "`token:`" in msg.content and str(msg.author.id) in app_id_list:
+                    try:
+                        the_message = msg
+                        found = True
+                        break
+                    except Exception as e:
+                        print(e)
+
+            could_parse_token = False
+
+            if found:
+                try:
+                    encrypted_thingy = str(the_message.content).split('`token:` ')[1].split('\n`expires:`')[0]
+                    temp_token = Utils.decode(Utils.get_enc_key(), encrypted_thingy)
+                    expiration_time = int(the_message.content.split('\n`expires:` ')[1].strip())
+
+                    if now > int(expiration_time) - 120:
+                        raise ValueError("old token")
+                    print("using token from discord share")
+
+                    could_parse_token = True
+                except Exception as e:
+                    print("Issue:", e)
+                    could_parse_token = False
+            
+            if not could_parse_token:
+                # receive new temporary token
+
+                refresh_token = os.getenv('dropbox_refresh_token')
+                client_id = os.getenv('dropbox_key')
+                client_secret = os.getenv('dropbox_secret')
+
+                url = f"https://api.dropbox.com/oauth2/token"
+                payload = {
+                    'refresh_token': refresh_token,
+                    'grant_type': 'refresh_token',
+                    'client_id': client_id,
+                    'client_secret': client_secret,
+                }
+                response = requests.post(url, data=payload)
+
+                try:
+                    temp_token = response.json()['access_token']
+                except:
+                    temp_token = str(response.text).split('"access_token": "',1)[1].split('", "',1)[0].strip()
+                try:
+                    duration = int(response.json()['expires_in'])
+                except:
+                    duration = int(str(response.text).split('"expires_in":',1)[1].split('}',1)[0].strip())
+
+                encoded_key = Utils.encode(Utils.get_enc_key(), temp_token)
+                expiration_time = now + duration
+                print("using fresh token")
+
+                await channel.send(f"`token:` {encoded_key}\n`expires:` {expiration_time}")
+
+        if len(token_list) > 0:
+            cur.execute("UPDATE hostdata SET value = ?, details = ? WHERE name = ?", (temp_token, str(expiration_time), "dropbox token"))
+        else:
+            cur.execute("INSERT INTO hostdata VALUES (?,?,?,?)", ("dropbox token", temp_token, str(expiration_time), ""))
+        con.commit()
+
+        return temp_token, expiration_time
+
+
+
+    async def cloud_upload_scrobble_backup(bot, ctx, app_id):
+        # ZIP ALL DATABASES
+        con = sqlite3.connect(f'databases/botsettings.db')
+        cur = con.cursor()
+        app_list = [item[0] for item in cur.execute("SELECT details FROM botsettings WHERE name = ? AND value = ?", ("app id", app_id)).fetchall()]
+        try:
+            instance = app_list[0]
+        except:
+            instance = f"unknown{app_id}"
+
+        # FETCH DROPBOX AUTH INFO
+
+        client_id = os.getenv('dropbox_key')
+        client_secret = os.getenv('dropbox_secret')
+        refresh_token = os.getenv('dropbox_refresh_token')
+        redirect_uri = "https://localhost"
+
+        rootdir = f"{sys.path[0]}/databases"
+        folder = f'backups_instance_{instance}'
+
+        if client_id is None or client_secret is None or refresh_token is None:
+            scrobblefeature_list = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("scrobbling functionality",)).fetchall()]
+            if len(scrobblefeature_list) == 0 or scrobblefeature_list[0] != "on":
+                pass
+            else:
+                await ctx.send(f"(No backup for scrobble databases made. You need to add dropbox cloud service to this application for that.)")
+            return
+
+        # CHECKING IF FILES ARE CORRUPTED
+
+        all_files_good = True
+
+        for filename in ['scrobbledata.db', 'scrobbledata_releasewise.db', 'scrobblestats.db', 'scrobblegenres.db']:
+            try:
+                con = sqlite3.connect(f'databases/{filename}')
+                cur = con.cursor()  
+                table_list = [item[0] for item in cur.execute("SELECT name FROM sqlite_master WHERE type = ?", ("table",)).fetchall()]
+                #print(table_list)
+                try:
+                    for table in table_list:
+                        cursor = con.execute(f'SELECT * FROM {table}')
+                        column_names = list(map(lambda x: x[0], cursor.description))
+                        #print(column_names)
+                        try:
+                            item_list = [item[0] for item in cur.execute(f"SELECT * FROM {table} ORDER BY {column_names[0]} ASC LIMIT 1").fetchall()]
+                            #print(item_list)
+                        except Exception as e:
+                            print(f"Error with {filename} table {table} query:", e)
+                            all_files_good = False
+                except Exception as e:
+                    print(f"Error with {filename} table {table} structure:", e)
+                    all_files_good = False
+            except Exception as e:
+                print(f"Error with {filename}:", e)
+                all_files_good = False
+
+        if not all_files_good:
+            await ctx.send(f"Cloud backup skipped. Corrupted file among scrobble databases found.\nUse `{self.prefix}troubleshoot` and delete troublesome databases. Then retrieve backup from cloud.")
+            return
+
+        # CONNECT TO DROPBOX
+
+        await ctx.send("Starting backup for scrobble databases. Saving to cloud. ☁️")
+
+        TOKEN, expiration_time = await Utils.get_temporary_dropbox_token(ctx, None)
+
+        dbx = dropbox.Dropbox(TOKEN)
+
+        # UPLOAD FILES
+
+        for dn, dirs, files in os.walk(rootdir):
+            subfolder = dn[len(rootdir):].strip(os.path.sep)
+            listing = Utils.dropbox_list_folder(dbx, folder, subfolder)
+            print('Descending into', subfolder, '...')
+
+            # First do all the files.
+            for name in files:
+                if not (name.startswith('scrobble') and name.endswith('.db')):
+                    continue
+
+                fullname = os.path.join(dn, name)
+                try:
+                    if not isinstance(name, six.text_type):
+                        name = name.decode('utf-8')
+                    nname = unicodedata.normalize('NFC', name)
+                except:
+                    nname = name
+                if name.startswith('.'):
+                    print('Skipping dot file:', name)
+                elif name.startswith('@') or name.endswith('~'):
+                    print('Skipping temporary file:', name)
+                elif name.endswith('.pyc') or name.endswith('.pyo'):
+                    print('Skipping generated file:', name)
+                elif nname in listing:
+                    md = listing[nname]
+                    mtime = os.path.getmtime(fullname)
+                    mtime_dt = datetime(*time.gmtime(mtime)[:6])
+                    size = os.path.getsize(fullname)
+                    if (isinstance(md, dropbox.files.FileMetadata) and
+                            mtime_dt == md.client_modified and size == md.size):
+                        print(name, 'is already synced [stats match]')
+                    else:
+                        #print(name, 'exists with different stats, downloading')
+                        #res = Utils.dropbox_download(dbx, folder, subfolder, name)
+                        #with open(fullname) as f:
+                        #    data = f.read()
+                        #if res == data:
+                        #    print(name, 'is already synced [content match]')
+                        #else:
+                        #    print(name, 'has changed since last sync')
+                        await Utils.run_blocking(bot, Utils.dropbox_upload, dbx, fullname, folder, subfolder, name, overwrite=True)
+                else:
+                    await Utils.run_blocking(bot, Utils.dropbox_upload, dbx, fullname, folder, subfolder, name)
+
+            # Then choose which subdirectories to traverse.
+            keep = []
+            for name in dirs:
+                if name.startswith('.'):
+                    print('Skipping dot directory:', name)
+                elif name.startswith('@') or name.endswith('~'):
+                    print('Skipping temporary directory:', name)
+                elif name == '__pycache__':
+                    print('Skipping generated directory:', name)
+                elif yesno('Descend into %s' % name, True, args):
+                    print('Keeping directory:', name)
+                    keep.append(name)
+                else:
+                    print('OK, skipping directory:', name)
+            dirs[:] = keep
+
+        # CREATE TXT FILE WITH LATEST UPDATE DATE
+
+        try:
+            lasttime = Utils.last_scrobble_time_in_db()
+
+            newdir = f"{sys.path[0]}/temp"
+            with open(f"{newdir}/time.txt", "w") as file:
+                file.write(f"{lasttime}")
+            try:
+                # UPLOAD TXT FILE
+
+                for dn, dirs, files in os.walk(newdir):
+                    subfolder = dn[len(newdir):].strip(os.path.sep)
+                    listing = Utils.dropbox_list_folder(dbx, folder, subfolder)
+
+                    for name in files:
+                        if not name == f"time.txt":
+                            continue
+
+                        fullname = os.path.join(dn, name)
+                        try:
+                            if not isinstance(name, six.text_type):
+                                name = name.decode('utf-8')
+                            nname = unicodedata.normalize('NFC', name)
+                        except:
+                            nname = name
+                        if name.startswith('.'):
+                            print('Skipping dot file:', name)
+                        elif name.startswith('@') or name.endswith('~'):
+                            print('Skipping temporary file:', name)
+                        elif name.endswith('.pyc') or name.endswith('.pyo'):
+                            print('Skipping generated file:', name)
+                        elif nname in listing:
+                            md = listing[nname]
+                            mtime = os.path.getmtime(fullname)
+                            mtime_dt = datetime(*time.gmtime(mtime)[:6])
+                            size = os.path.getsize(fullname)
+                            if (isinstance(md, dropbox.files.FileMetadata) and
+                                    mtime_dt == md.client_modified and size == md.size):
+                                print(name, 'is already synced [stats match]')
+                            else:
+                                await Utils.run_blocking(bot, Utils.dropbox_upload, dbx, fullname, folder, subfolder, name, overwrite=True)
+                        else:
+                            await Utils.run_blocking(bot, Utils.dropbox_upload, dbx, fullname, folder, subfolder, name)
+            except Exception as e:
+                print("Error while trying to save last time stamp in cloud:", e)
+
+            os.remove(f"{newdir}/time.txt")
+        except Exception as e:
+            print("Error while trying to set last time stamp:", e)
+
+        dbx.close()
+        print("done")
+
+
+
+    def check_active_scrobbleupdate():
+        conC = sqlite3.connect('databases/cooldowns.db')
+        curC = conC.cursor()
+        cooldown_list = [[item[0],item[1],item[2]] for item in curC.execute("SELECT userid, username, time_stamp FROM scrobbleupdate").fetchall()]
+        return cooldown_list
+
+
+
+    def block_scrobbleupdate(ctx):
+        now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+
+        if ctx is None:
+            userid = "bot"
+            username = "auto-update"
+        elif type(ctx) == str:
+            userid = "mod"
+            username = str(ctx)
+        else:
+            userid = ctx.author.id
+            username = ctx.author.name
+
+        conC = sqlite3.connect('databases/cooldowns.db')
+        curC = conC.cursor()
+        curC.execute("INSERT INTO scrobbleupdate VALUES (?, ?, ?)", (str(userid), str(username), str(now)))
+        conC.commit()
+
+
+
+    def unblock_scrobbleupdate():
+        conC = sqlite3.connect('databases/cooldowns.db')
+        curC = conC.cursor()
+        curC.execute("DELETE FROM scrobbleupdate")
+        conC.commit()
+
+
+
+    async def cloud_download_scrobble_backup(ctx, called_from):
+        """gets the latest scrobble databases"""
+
+        cooldown_list = Utils.check_active_scrobbleupdate()
+        if len(cooldown_list) > 0:
+            user_string = ""
+            for item in cooldown_list:
+                userid = item[0]
+                username = item[1]
+                time_stamp = item[2]
+
+                if Utils.represents_integer(userid):
+                    # user update
+                    user_string += f"{username} <@{userid}> <t:{time_stamp}:R> "
+                else:
+                    # bot's auto-update
+                    user_string += f"bot's auto-update <t:{time_stamp}:R> "
+
+            await ctx.send(f"Scrobbling database is being updated at the moment. Will not fetch data from cloud.\nUpdated by: {user_string}"[:2000])
+            return
+
+        Utils.block_scrobbleupdate("cloud download")
+
+        try:
+            local_lasttime = Utils.last_scrobble_time_in_db()
+        except Exception as e:
+            await ctx.send(f"Error while trying to read out local scrobble databases: {e}")
+            Utils.unblock_scrobbleupdate()
+            return
+
+        lateststatus_dict = {
+                "local": local_lasttime,
+        }
+
+        # CHECKING UPDATE TIMES
+
+        try:
+            print("connecting to dropbox...")
+            TOKEN, expiration_time = await Utils.get_temporary_dropbox_token(ctx, None)
+
+            dbx = dropbox.Dropbox(TOKEN)
+
+            con = sqlite3.connect(f'databases/botsettings.db')
+            cur = con.cursor()
+            instances = [item[0] for item in cur.execute("SELECT details FROM botsettings WHERE name = ?", ("app id",)).fetchall()]
+
+            subfolder = f"{sys.path[0]}/temp"
+            names = ["scrobbledata.db", "scrobbledata_releasewise.db",  "scrobblestats.db", "scrobblegenres.db"]
+            filepathes = {}
+
+            for instance in instances:
+                folder = f'backups_instance_{instance}'
+                try:
+                    try:
+                        files = dbx.files_list_folder(f"/{folder}/").entries
+                        print(f"Fetching metadata from folder of instance {instance}.")
+                    except Exception as e:
+                        print(f"Did not find folder of instance {instance}:", e)
+                        continue 
+
+                    for file in files:
+                        if file.name == "time.txt":
+                            try:
+                                # clean up temp folder
+                                os.remove(f"{subfolder}/time_{instance}.txt")
+                            except:
+                                pass
+                            try:
+                                # download timestamp file
+                                dbx.files_download_to_file(f"{subfolder}/time_{instance}.txt", file.path_display)
+                                f = open(f"{subfolder}/time_{instance}.txt", "r")
+
+                                # read out time
+                                try:
+                                    utc_time = str(f.read()).strip()
+                                    lateststatus_dict[f"instance_{instance}"] = int(utc_time)
+                                except Exception as e:
+                                    print(f"Error while trying to read time_{instance}.txt", e)
+
+                                # remove timestamp file
+                                os.remove(f"{subfolder}/time_{instance}.txt")
+                            except Exception as e:
+                                print(f"Error while checking time_{instance}.txt", e)
+                        else:
+                            if file.name in names:
+                                filepathes[file.name] = file.path_display
+                except Exception as e:
+                    print('Error getting list of files from Dropbox:', e)
+
+            print("Saves and last time updated:", lateststatus_dict)
+
+            if len(lateststatus_dict) <= 1:
+                await ctx.send(f"Could not find any valid cloud backups to draw from.")
+                Utils.unblock_scrobbleupdate()
+                return
+
+            # GETTING STORAGE PLACE OF NEWEST VERSION
+
+            overall_lasttime = local_lasttime
+            device = "local"
+
+            for k, v in lateststatus_dict.items():
+                if v > overall_lasttime:
+                    device = k
+                    overall_lasttime = v
+
+            if device == "local":
+                await ctx.send("Already latest version stored locally.")
+                Utils.unblock_scrobbleupdate()
+                return
+
+            # DOWNLOADING LATEST VERSION
+
+            for filename in names: # move local files
+                try:
+                    os.replace(f"{sys.path[0]}/databases/{filename}", f"{sys.path[0]}/temp/{filename}.bak")
+                except Exception as e:
+                    print(f"Error while trying to move {filename}", e)
+                    await ctx.send("Error while trying to move local files:", e)
+                    Utils.unblock_scrobbleupdate()
+                    return
+
+            print("downloading files...")
+
+            try: # download new files
+                for filename in names:
+                    print(f"...downloading {filename}")
+                    dbx.files_download_to_file(f"databases/{filename}", filepathes[filename])
+                    try:
+                        con = sqlite3.connect(f'databases/{filename}')
+                        cur = con.cursor()  
+                        table_list = [item[0] for item in cur.execute("SELECT name FROM sqlite_master WHERE type = ?", ("table",)).fetchall()]
+                        try:
+                            for table in table_list:
+                                cursor = con.execute(f'SELECT * FROM {table}')
+                                column_names = list(map(lambda x: x[0], cursor.description))
+                                try:
+                                    item_list = [item[0] for item in cur.execute(f"SELECT * FROM {table} ORDER BY {column_names[0]} ASC LIMIT 1").fetchall()]
+                                except Exception as e:
+                                    print(f"Error with {filename} table {table} query:", e)
+                                    raise ValueError(f"{filename} file check : query error - {e}")
+                        except Exception as e:
+                            print(f"Error with {filename} table {table} structure:", e)
+                            raise ValueError(f"{filename} file check : structure error - {e}")
+                    except Exception as e:
+                        print(f"Error with {filename}:", e)
+                        raise ValueError(f"{filename} file check : general error - {e}")
+            except Exception as e_dl:
+                print("-----------------------------")
+                print("SEVERE ERROR")
+                print("-----------------------------")
+                print("reverse changes...")
+                # if download fails reverse things
+                for filename in names:
+                    try:
+                        os.remove(f"{subfolder}/{filename}")
+                    except:
+                        pass
+                    try:
+                        os.replace(f"{sys.path[0]}/temp/{filename}.bak", f"{sys.path[0]}/databases/{filename}")
+                    except Exception as e:
+                        print(f"Error while trying to put {filename} back", e)
+                        emoji = Utils.emoji("panic")
+                        await ctx.send(f"SEVERE ERROR: Scrobble databases might got damaged. {emoji}\nLet host manually replace scrobble databases and disable scrobbling functionality in the mean time.")
+                        #Utils.unblock_scrobbleupdate()
+                        return
+
+                await ctx.send(f"Error while trying to download backup files: {e_dl}")
+                Utils.unblock_scrobbleupdate()
+                return
+
+            print("removing temporaries...")
+
+            # success: delete old files in temp folder
+            for filename in names:
+                try:
+                    os.remove(f"{sys.path[0]}/temp/{filename}.bak")
+                except:
+                    pass
+
+            print("done!")
+            await ctx.send(f"Successfully updated scrobbledatabases!\nLast scrobble time in DB: <t:{overall_lasttime}:f>")
+            Utils.unblock_scrobbleupdate()
+
+        except Exception as e:
+            Utils.unblock_scrobbleupdate()
+            await ctx.send(f"Error: {e}")
 
 
