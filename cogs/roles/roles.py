@@ -630,6 +630,32 @@ class Roles(commands.Cog):
 
 
 
+    @commands.command(name='whohasnorole', aliases=['whohasnorank'])
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _whohasnorole(self, ctx, *args):
+        """Users without any role"""
+        memberlist = ctx.guild.members
+        members_without_roles = []
+        for member in memberlist:
+            if len([r for r in member.roles]) <= 1:
+                members_without_roles.append(util.cleantext2(member.name))
+        members_without_roles.sort()
+        header = f"Members without any role are:"
+
+        msg = '\n'.join(members_without_roles)
+        if len(msg) > 4096:
+            msg = msg[:4092] + "\n..."
+
+        embed = discord.Embed(title=header, description=msg, color=0xFF8C00)
+        embed.set_footer(text = f"found {len(members_without_roles)} members")
+        await ctx.send(embed=embed)
+    @_whohasnorole.error
+    async def whohasnorole_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
     @commands.command(name='userperms', aliases=['memberperms', 'userpermissions', 'memberpermissions'])
     @commands.has_permissions(manage_guild=True, manage_roles=True)
     @commands.check(util.is_main_server)
@@ -1727,6 +1753,20 @@ class Roles(commands.Cog):
 
 
 
+    def mark_active_in_np_settings(self, user_id):
+        # NPsettings change back to active
+        conNP = sqlite3.connect('databases/npsettings.db')
+        curNP = conNP.cursor()
+        lfm_list = [[item[0],item[1].lower().strip()] for item in curNP.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (str(user_id),)).fetchall()]
+
+        if len(lfm_list) > 0:
+            new_status = lfm_list[0][1].replace("inactive", "")
+            if new_status[-1] == "_":
+                new_status = new_status[:-1]
+            curNP.execute("UPDATE lastfm SET details = ? WHERE id = ?", (new_status, str(user_id)))
+            conNP.commit()
+
+
 
     @commands.command(name='letmeout', aliases = ['imactive', 'illbeactiveipromise'])
     @commands.check(util.is_active) 
@@ -1741,7 +1781,7 @@ class Roles(commands.Cog):
 
         inactivityrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]        
         if len(inactivityrole_list) == 0 or not util.represents_integer(inactivityrole_list[0]):
-            print("Error: You need to set an inactivity role!")
+            print("Error: Mods need to set an inactivity role!")
             return
         else:
             if len(inactivityrole_list) > 1:
@@ -1765,6 +1805,7 @@ class Roles(commands.Cog):
 
         if inactivity_role not in user.roles:
             await ctx.send("According to my check book you aren't marked as inactive.\nIf this is an error contact the mods.")
+            self.mark_active_in_np_settings(str(user.id))
             return
 
         # FETCH PREVIOUS ROLES
@@ -1821,6 +1862,8 @@ class Roles(commands.Cog):
         curUA.execute("UPDATE useractivity SET last_active = ? WHERE userid = ?", (str(now), str(user.id)))
         conUA.commit()
         await util.changetimeupdate()
+
+        self.mark_active_in_np_settings(str(user.id))
         
     @_recoverfrominactivity.error
     async def recoverfrominactivity_error(self, ctx, error):
