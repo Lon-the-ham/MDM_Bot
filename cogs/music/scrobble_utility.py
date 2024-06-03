@@ -716,7 +716,7 @@ class Music_Scrobbling(commands.Cog):
 
         con = sqlite3.connect('databases/npsettings.db')
         cur = con.cursor()
-        lfm_list = [[item[0],item[1],item[2].lower().strip()] for item in cur.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
+        lfm_list = [[item[0],item[1],str(item[2]).lower().strip()] for item in cur.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
 
         if wk_type == "artist":
             artist, thumbnail, tags = await self.wk_artist_match(ctx, argument)
@@ -937,7 +937,7 @@ class Music_Scrobbling(commands.Cog):
 
         con = sqlite3.connect('databases/npsettings.db')
         cur = con.cursor()
-        lfm_list = [[item[0],item[1],item[2].lower().strip()] for item in cur.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
+        lfm_list = [[item[0],item[1],str(item[2]).lower().strip()] for item in cur.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
 
         if wk_type == "artist":
             artist, thumbnail, tags = await self.wk_artist_match(ctx, argument)
