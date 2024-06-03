@@ -847,7 +847,7 @@ class Music_NowPlaying(commands.Cog):
                     rank, crown_holder = util.get_rank(ctx, lfm_name, artist)
 
                 if crown == "on":
-                    if lfm_name == crown_holder and scrobble_status not in ["wk_banned", "crown_banned"]:
+                    if lfm_name.upper().strip() == crown_holder.upper().strip() and scrobble_status not in ["wk_banned", "crown_banned"]:
                         emoji = util.emoji("crown")
                         if emoji.strip() == "":
                             emoji = "♕"

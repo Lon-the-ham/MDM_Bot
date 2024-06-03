@@ -726,9 +726,12 @@ class Utils():
 
     def forceinteger(s):
         try:
-            i = int(s.strip())
+            i = int(s)
         except:
-            i = 0
+            try:
+                i = int(s.strip())
+            except:
+                i = 0
         return i
 
 
@@ -795,6 +798,9 @@ class Utils():
                 if user_id not in server_member_ids:
                     continue
 
+                if lfm_name in lfmname_dict:
+                    continue
+
                 lfmname_dict[user_id] = lfm_name
 
                 # GET COUNT
@@ -858,7 +864,7 @@ class Utils():
                 if playcount > 0:
                     posuser_counter += 1
 
-                    if ctx_lfm_name == lfmname_dict[user_id]:
+                    if ctx_lfm_name.upper().strip() == lfmname_dict[user_id].upper().strip():
                         ctx_rank = posuser_counter
 
             if ctx_rank != -1:
