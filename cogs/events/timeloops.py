@@ -695,7 +695,7 @@ class TimeLoops(commands.Cog):
                     lfm_name = item[1]
                     status = item[2] # ignore: scrobble_banned ; # proceed with: NULL, "", inactive, wk_banned, crown_banned
 
-                    if status.startswith("scrobble_banned"):
+                    if type(status) == str and status.startswith("scrobble_banned"):
                         continue
                 except Exception as e:
                     print("Error in scrobble update time loop:", e)
@@ -1224,7 +1224,7 @@ class TimeLoops(commands.Cog):
 
                     if len(lfm_list) > 0:
                         status = lfm_list[0][1].strip()
-                        if status == "":
+                        if status == "" or status is None:
                             new_status = "inactive"
                         else:
                             new_status = status + "_inactive"

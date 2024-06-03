@@ -770,9 +770,9 @@ class Music_Scrobbling(commands.Cog):
             lfm_name = useritem[1]
             status = useritem[2]
 
-            if status.startswith(("wk_banned", "scrobble_banned")) or (status.endswith("inactive") and str(ctx.guild.id) == str(os.getenv("guild_id"))):
+            if type(status) == str and (status.startswith(("wk_banned", "scrobble_banned")) or (status.endswith("inactive") and str(ctx.guild.id) == str(os.getenv("guild_id")))):
                 continue
-            elif status.startswith("crown_banned"):
+            elif type(status) == str and status.startswith("crown_banned"):
                 crownbanned.append(user_id)
 
             if user_id not in server_member_ids:
@@ -980,7 +980,7 @@ class Music_Scrobbling(commands.Cog):
             lfm_name = useritem[1]
             status = useritem[2]
 
-            if status.startswith(("wk_banned", "scrobble_banned")) or (status.endswith("inactive") and str(ctx.guild.id) == str(os.getenv("guild_id"))):
+            if type(status) == str and (status.startswith(("wk_banned", "scrobble_banned")) or (status.endswith("inactive") and str(ctx.guild.id) == str(os.getenv("guild_id")))):
                 continue
 
             if user_id not in server_member_ids:
@@ -1096,7 +1096,7 @@ class Music_Scrobbling(commands.Cog):
         argument = ' '.join(args)
         status = lfm_list[0][2]
 
-        if status.startswith("scrobble_banned"):
+        if type(status) == str and status.startswith("scrobble_banned"):
             await ctx.reply(f"You are unfortunately scrobble banned.")
             return
 
@@ -1519,7 +1519,7 @@ class Music_Scrobbling(commands.Cog):
                         status = item[2]
                         break
 
-                if status.strip().lower() not in ['crown_banned', 'crown_banned_inactive']:
+                if type(status) == str and status.strip().lower() not in ['crown_banned', 'crown_banned_inactive']:
                     text = f"user <@{user_id}> is not crown banned. No action taken."
                     embed = discord.Embed(title="", description=text, color=0x000000)
                     await ctx.send(embed=embed)

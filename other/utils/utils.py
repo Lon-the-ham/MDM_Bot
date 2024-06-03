@@ -745,7 +745,7 @@ class Utils():
             lfm_name = lfm_list[0][0]
             status = lfm_list[0][1]
 
-            if status.startswith("scrobble_banned") or status.endswith("inactive"):
+            if type(status) == str and (status.startswith("scrobble_banned") or status.endswith("inactive")):
                 return None, None
 
             return lfm_name, status # ""/NULL or wk_banned or crown_banned
@@ -787,9 +787,9 @@ class Utils():
                 lfm_name = useritem[1]
                 status = useritem[2]
 
-                if status.startswith(("wk_banned", "scrobble_banned")) or (status.endswith("inactive") and str(ctx.guild.id) == str(os.getenv("guild_id"))):
+                if type(status) == str and (status.startswith(("wk_banned", "scrobble_banned")) or (status.endswith("inactive") and str(ctx.guild.id) == str(os.getenv("guild_id")))):
                     continue
-                elif status.startswith("crown_banned"):
+                elif type(status) == str and status.startswith("crown_banned"):
                     crownbanned.append(user_id)
 
                 if user_id not in server_member_ids:
