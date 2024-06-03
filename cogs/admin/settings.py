@@ -4,7 +4,6 @@
 # MEMO to devs:
 # every new setting needs to be not only added as
 #     > a @_set.command() subcommand
-# (for on/off commands it just needs to be added to the async function for all on/off commands)
 # but also
 #     > added to showsettings command (and appended to at least one of the "desctext_..." lists)
 #     > listed in the dictionary of the set (group) command 
@@ -473,6 +472,29 @@ class Administration_of_Settings(commands.Cog):
         desctext_general.append(f"Reaction role system: `{reactionroles}` (sorting: `{sorting}`)")
         desctext_features.append(f"Reaction role system: `{reactionroles}` (sorting: `{sorting}`)")
 
+        scrobbling_list = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("scrobbling functionality",)).fetchall()]
+        if len(scrobbling_list) == 0:
+            scrobblefeature = "error⚠️"
+            print("Error: no scrobble feature on/off in database")
+        else:
+            if len(scrobbling_list) > 1:
+                print("Warning: there are multiple scrobble feature on/off entries in the database")
+            scrobblefeature = scrobbling_list[0]
+        desctext_general.append(f"Scrobble commands: `{scrobblefeature}`")
+        desctext_features.append(f"Scrobble commands: `{scrobblefeature}`")
+
+        if scrobblefeature.lower().strip() == "on":
+            scrobblingautoupdate_list = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("scrobbling update automation",)).fetchall()]
+            if len(scrobblingautoupdate_list) == 0:
+                scrobbleautoupdatefeature = "error⚠️"
+                print("Error: no scrobble feature on/off in database")
+            else:
+                if len(scrobblingautoupdate_list) > 1:
+                    print("Warning: there are multiple scrobble feature on/off entries in the database")
+                scrobbleautoupdatefeature = scrobblingautoupdate_list[0]
+            desctext_general.append(f"Scrobble autoupdate: `{scrobbleautoupdatefeature}`")
+            desctext_features.append(f"Scrobble autoupdate: `{scrobbleautoupdatefeature}`")
+
         timeout_list = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("timeout system",)).fetchall()]
         if len(timeout_list) == 0:
             timeout = "error⚠️"
@@ -891,6 +913,7 @@ class Administration_of_Settings(commands.Cog):
         except:
             desctext_keys.append("Spotify Client Secret: none 🚫")
 
+        # under construction
 
 
         #################################################### SELF-ASSIGNABLE ROLES
@@ -1116,6 +1139,8 @@ class Administration_of_Settings(commands.Cog):
             "welcome": "feature on/off switches", 
             "penaltynotifier": "feature on/off switches", 
             "inactivityfilter": "feature on/off switches", 
+            "scrobbling": "feature on/off switches", 
+            "scrobblingautoupdate": "feature on/off switches",
             # on/off notifications
             "joinleavenotification": "notification on/off switches", 
             "channelnotification": "notification on/off switches", 
@@ -2457,10 +2482,12 @@ class Administration_of_Settings(commands.Cog):
             "pingable interests functionality": "Pingable interest feature",
             "reaction roles": "Reaction role feature",
             "reminder functionality": "Custom reminder feature",
+            "scrobbling functionality": "Scrobbling commands",
+            "scrobbling update automation": "Scrobbling Auto-Update",
             "timeout system": "Timeout feature",
             "turing test": "Turing test feature",
-            "user mute/ban/kick notification": "User penalty notifier",
             "turing ban message": "TuringTest ban message",
+            "user mute/ban/kick notification": "User penalty notifier",
             "welcome message": "Welcoming feature",
             #
             "assign role notification": "Role (assign/unassign) notification",
@@ -2918,6 +2945,47 @@ class Administration_of_Settings(commands.Cog):
         await ctx.send(f"Set the trigger time of the user inactivity filter to {str(number)} days!")
     @_set_inactivityfilter_days.error
     async def set_inactivityfilter_days_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_set.command(name="scrobbling", aliases = ["scrobbles", "scrobble"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_scrobbling(self, ctx, *args):
+        """Enable/disable scrobbling
+
+        1st arg needs to be `on` or `off`.
+
+        If this feature is enabled users can invoke all kinds of commands involving their scrobbles.
+        See `-help Music_Scrobbling` for info on the commands.
+        """
+        await self.database_on_off_switch(ctx, args, "scrobbling functionality")
+
+        if len(args) > 0 and args[0].lower() == "on":
+            await ctx.send("Heads-Up: The scrobble databases will become comparably large, so they won't be included in the regular backup. If you want to have this bot to make backups of the scobbling data as well [check the documentation](https://github.com/Lon-the-ham/MDM_Bot/blob/main/documentation.md) how to enable cloud service.")
+    @_set_scrobbling.error
+    async def set_scrobbling_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_set.command(name="scrobbleautoupdate", aliases = ["scrobblingautoupdate", "lfmautoupdate", "lastfmautoupdate", "scrobbleautoupdating", "scrobblingautoupdating"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_scrobbling_autoupdate(self, ctx, *args):
+        """Enable/disable scrobbling auto-update
+
+        1st arg needs to be `on` or `off`.
+
+        If this feature is enabled (and scrobbling is enabled as well) then users will have their scrobbling on last.fm automatically updated, once they have done `-u` once.
+        """
+        await self.database_on_off_switch(ctx, args, "scrobbling update automation")
+        
+    @_set_scrobbling_autoupdate.error
+    async def set_scrobbling_autoupdate_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
@@ -3532,7 +3600,7 @@ class Administration_of_Settings(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     async def _inactivitycheck(self, ctx: commands.Context, *args):
-        """Check for users who haven't been active in x days.
+        """🔒 Check for users who haven't been active in x days.
 
         Only when inactivity filter is active.
         You can provide an integer argument to make the bot check for that many days."""
@@ -3734,6 +3802,23 @@ class Administration_of_Settings(commands.Cog):
 
                         try:
                             await user.edit(roles=[inactivity_role])
+
+                            try:
+                                # NPsettings change to inactive
+                                conNP = sqlite3.connect('databases/npsettings.db')
+                                curNP = conNP.cursor()
+                                lfm_list = [[item[0],item[1].lower().strip()] for item in curNP.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (str(user.id),)).fetchall()]
+
+                                if len(lfm_list) > 0:
+                                    status = lfm_list[0][1].strip()
+                                    if status == "":
+                                        new_status = "inactive"
+                                    else:
+                                        new_status = status + "_inactive"
+                                    curNP.execute("UPDATE lastfm SET details = ? WHERE id = ?", (new_status, str(user.id)))
+                                    conNP.commit()
+                            except Exception as e:
+                                print(f"Error while trying to set NP setting of {user.name} to inactive:", e)
                         except Exception as e:
                             await ctx.send(f"Could not change roles for {user.name}.")
 
@@ -3831,14 +3916,24 @@ class Administration_of_Settings(commands.Cog):
             if activity_list[0] == "inactive":
                 print("instance inactive")
                 return
-        hostdata_rym_list = [item[0] for item in curA.execute("SELECT value FROM activity WHERE name = ?", ("rym scraping",)).fetchall()]
+
+        hostdata_reboot_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", ("reboot time",)).fetchall()]
+        if len(hostdata_reboot_list) == 0:
+            curA.execute("INSERT INTO hostdata VALUES (?,?,?,?)", ("reboot time", "none", "", ""))
+            conA.commit()
+            print("Updated hostdata table: reboot time")
+        else:
+            if len(hostdata_reboot_list) > 1:
+                print("Warning: Multiple reboot time entries in activity.db")
+        hostdata_rym_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", ("rym scraping",)).fetchall()]
         if len(hostdata_rym_list) == 0:
             curA.execute("INSERT INTO hostdata VALUES (?,?,?,?)", ("rym scraping", "off", "", ""))
             conA.commit()
-            print("Updated hostdata table")
+            print("Updated hostdata table: rym scraping")
         else:
             if len(hostdata_rym_list) > 1:
                 print("Warning: Multiple rym scraping entries in activity.db")
+
         await ctx.send(f"Starting update of MDM Bot (instance: {bot_instance})...")
 
         async with ctx.typing():
@@ -4169,8 +4264,24 @@ class Administration_of_Settings(commands.Cog):
                 curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("reminder functionality", "on", "", ""))
                 conB.commit()
                 print("Updated serversettings table: reminder functionality")
-            elif len(penaltynotifier_list) > 1:
+            elif len(reminderfeature_list) > 1:
                 print("Warning: Multiple reminder functionality entries in serversettings table (botsettings.db)")
+
+            scrobblefeature_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("scrobbling functionality",)).fetchall()]
+            if len(scrobblefeature_list) == 0:
+                curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("scrobbling functionality", "off", "", ""))
+                conB.commit()
+                print("Updated serversettings table: scrobbling functionality")
+            elif len(scrobblefeature_list) > 1:
+                print("Warning: Multiple scrobbling functionality entries in serversettings table (botsettings.db)")
+
+            scrobbleautoupdate_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("scrobbling update automation",)).fetchall()]
+            if len(scrobbleautoupdate_list) == 0:
+                curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("scrobbling update automation", "off", "", ""))
+                conB.commit()
+                print("Updated serversettings table: scrobbling auto update")
+            elif len(scrobbleautoupdate_list) > 1:
+                print("Warning: Multiple scrobbling auto update entries in serversettings table (botsettings.db)")
 
             # on/off notification
 
@@ -4487,6 +4598,7 @@ class Administration_of_Settings(commands.Cog):
             cooldowns_light = ["applemusic", "metallum", "musicbrainz", "lastfm", "openweathermap", "spotify", "wolframalpha"]
             cooldowns_medium = ["googlesearch"]
             cooldowns_critical = ["rym"]
+            cooldowns_update = ["lastfm_update"]
             for cd in cooldowns_light:
                 if cd not in cooldown_db_list:
                     curC.execute("INSERT INTO cooldowns VALUES (?, ?, ?, ?, ?, ?)", (cd, "0", "1", "soft", "20", "10"))
@@ -4496,10 +4608,17 @@ class Administration_of_Settings(commands.Cog):
             for cd in cooldowns_critical:
                 if cd not in cooldown_db_list:
                     curC.execute("INSERT INTO cooldowns VALUES (?, ?, ?, ?, ?, ?)", (cd, "0", "20", "hard", "150", "5"))
+            for cd in cooldowns_update:
+                if cd not in cooldown_db_list:
+                    curC.execute("INSERT INTO cooldowns VALUES (?, ?, ?, ?, ?, ?)", (cd, "0", "1", "soft", "1", "10"))
             conC.commit()
 
             curC.execute('''CREATE TABLE IF NOT EXISTS userrequests (service text, userid text, username text, time_stamp text)''')
             curC.execute("DELETE FROM userrequests")
+            conC.commit()
+
+            curC.execute('''CREATE TABLE IF NOT EXISTS scrobbleupdate (userid text, username text, time_stamp text)''')
+            curC.execute("DELETE FROM scrobbleupdate")
             conC.commit()
 
             # Currency ExchangeRates
@@ -4511,6 +4630,24 @@ class Administration_of_Settings(commands.Cog):
                 response, success = await util.scrape_exchangerates()
             except Exception as e:
                 print("Error while trying to get exchange rates via webscrape:", e)
+
+            # SCROBBLE DATA
+
+            conFM = sqlite3.connect('databases/scrobbledata.db')
+            curFM = conFM.cursor()
+            conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+            curFM2 = conFM2.cursor()
+
+            conSS = sqlite3.connect('databases/scrobblestats.db')
+            curSS = conSS.cursor()
+            curSS.execute('''CREATE TABLE IF NOT EXISTS artistinfo (artist text, thumbnail text, tags_lfm text, tags_other text, last_update integer, filtername text, filteralias text)''')
+
+            for guild in self.bot.guilds:
+                curSS.execute(f'''CREATE TABLE IF NOT EXISTS crowns_{guild.id} (artist text, crown_holder text, discord_name text, playcount integer)''')
+
+            conSG = sqlite3.connect('databases/scrobblegenres.db')
+            curSG = conSS.cursor()
+
 
             # SHENANIGANS
 
@@ -4604,14 +4741,17 @@ class Administration_of_Settings(commands.Cog):
                 cursorNP.close()
                 column_number = len(column_names)
                 
-                if column_number <= 16: # tag redundancy filter missing (17)
+                if column_number <= 17:
                     print("Renewing Tag Settings Table in NP settings database")
                     tagsetting_list_old = [item for item in curNP.execute("SELECT * FROM tagsettings").fetchall()]
                     curNP.close()
                     tagsetting_list_new = []
 
                     for item in tagsetting_list_old:
-                        tagsetting_list_new.append(item + ("off",))
+                        user_id = item[0]
+                        username = item[1]
+                        new_item = (user_id, username, "standard", "standard", "standard", "standard", "on", "on", "on", "on", "standard_substitute", "standard_substitute", "off", "off", "on", "off", "on", "on")
+                        tagsetting_list_new.append(new_item)
 
                     await asyncio.sleep(1)
 
@@ -4620,9 +4760,9 @@ class Administration_of_Settings(commands.Cog):
                     curNP.execute("DROP TABLE IF EXISTS tagsettings")
                     conNP.commit()
 
-                    curNP.execute('''CREATE TABLE IF NOT EXISTS tagsettings (id text, name text, spotify_monthlylisteners text, spotify_genretags text, lastfm_listeners text, lastfm_total_artistplays text, lastfm_artistscrobbles text, lastfm_albumscrobbles text, lastfm_trackscrobbles text, lastfm_rank text, lastfm_tags text, musicbrainz_tags text, musicbrainz_area text, musicbrainz_date text, rym_genretags text, rym_albumrating text, redundancy_filter text)''')
-                    for item in tagsetting_list_new:
-                        curNP.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", item)
+                    curNP.execute('''CREATE TABLE IF NOT EXISTS tagsettings (id text, name text, spotify_monthlylisteners text, spotify_genretags text, lastfm_listeners text, lastfm_total_artistplays text, lastfm_artistscrobbles text, lastfm_albumscrobbles text, lastfm_trackscrobbles text, lastfm_rank text, lastfm_tags text, musicbrainz_tags text, musicbrainz_area text, musicbrainz_date text, rym_genretags text, rym_albumrating text, redundancy_filter text, crown text)''')
+                    for new_item in tagsetting_list_new:
+                        curNP.execute("INSERT INTO tagsettings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", new_item)
                     conNP.commit()
 
             except Exception as e:
@@ -5419,8 +5559,9 @@ class Administration_of_Settings(commands.Cog):
         """Settings only for the host of this bot
 
         arguments needs to be one of the following:
-        - `rym scraping` 
-        with 2nd arg `on` or `off`
+        - `reboot time` with 2nd arg `<hour>:<minute>` (colon, no spaces) or `none`
+        - `rym scraping` with 2nd arg `on` or `off`
+        
         """
         if len(args) < 2:
             await ctx.send("Too few arguments.")
@@ -5432,12 +5573,37 @@ class Administration_of_Settings(commands.Cog):
         argument1 = ' '.join(args[:-1]).replace("_", " ").strip().lower()
         argument2 = args[-1].strip().lower()
 
-        if argument2 not in ["on", "off"]:
-            await ctx.send(f"Error: 2nd arg needs to be `on` or `off`.")
+        if argument1 in ["reboot time"]:
+            if argument2 == "none":
+                pass
+
+            else:
+                try:
+                    hour = int(argument2.split(":")[0])
+                    minute = int(argument2.split(":")[1])
+
+                    if hour < 0 or hour > 23:
+                        raise ValueError("invalid hour")
+                    if minute < 0 or minute > 59:
+                        raise ValueError("invalid minute")
+                except Exception as e:
+                    await ctx.send(f"Input error: {e}")
+                    return
+
+                argument2 = f"{hour}:{minute}"
+
+        elif argument2 in ["rym scraping"]:
+            if argument2 not in ["on", "off"]:
+                await ctx.send(f"Error: 2nd arg needs to be `on` or `off`.")
+                return
+
+        else:
+            await ctx.send(f"Error: No such hostdata setting.")
+            return
 
         hostdata_rym_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", (argument1,)).fetchall()]
         if len(hostdata_rym_list) == 0:
-            await ctx.send(f"Error: No such hostdata setting.")
+            await ctx.send(f"Error: No such hostdata setting. Use `{self.prefix}update`.")
             return
 
         curA.execute("UPDATE hostdata SET value = ? WHERE name = ?", (argument2, argument1))
