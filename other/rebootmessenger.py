@@ -15,6 +15,10 @@ import unicodedata
 import dropbox
 import functools
 import typing
+import requests
+import random
+import string
+import base64
 
 
 load_dotenv()
@@ -131,17 +135,19 @@ async def sendit(string, d_client):
                 os.remove(f"../temp/backup_{date}_{instance}.zip")
 
             # UPLOAD scrobble data to cloud
-            try: # put delay per instance
-                app_list = [item[0] for item in cur.execute("SELECT details FROM botsettings WHERE name = ? AND value = ?", ("app id", app_id)).fetchall()]
-                instance = app_list[0]
-                waitingtime = max(int(instance.strip()) - 1, 0) * 30
-            except:
-                waitingtime = random.randint(120, 210)
-            try:
-                print(f"waiting {waitingtime} seconds")
-                await asyncio.sleep(waitingtime)
-            except:
-                pass
+
+            #try: # put delay per instance
+            #    app_list = [item[0] for item in cur.execute("SELECT details FROM botsettings WHERE name = ? AND value = ?", ("app id", app_id)).fetchall()]
+            #    instance = app_list[0]
+            #    waitingtime = max(int(instance.strip()) - 1, 0) * 30
+            #except:
+            #    waitingtime = random.randint(120, 210)
+            #try:
+            #    print(f"waiting {waitingtime} seconds")
+            #    await asyncio.sleep(waitingtime)
+            #except:
+            #    pass
+
             await cloud_upload_scrobble_backup()
 
     except Exception as e:
@@ -193,7 +199,7 @@ def get_enc_key():
             key = key_list[0]
         else:
             i = random.randint(100, 200)
-            key = Utils.get_random_string(i)
+            key = get_random_string(i)
             cur.execute("INSERT INTO hostdata VALUES (?,?,?,?)", ("encryption key", key, "", ""))
             con.commit()
 
@@ -293,6 +299,8 @@ def stopwatch(message):
 
 async def cloud_upload_scrobble_backup():
     # ZIP ALL DATABASES
+    #app_id = os.getenv(application_id)
+
     try:
         con = sqlite3.connect(f'databases/botsettings.db')
         rootdir = f"{sys.path[0]}/databases"
