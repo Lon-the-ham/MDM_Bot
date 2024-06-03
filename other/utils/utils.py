@@ -3612,6 +3612,8 @@ class Utils():
                     return
             try:
                 channel = bot.get_channel(botspamchannel_id)
+                if channel is None:
+                    channel = await bot.fetch_channel(botspamchannel_id)
             except Exception as e:
                 print("Error in util.get_temporary_dropbox_token():", e)
                 return
