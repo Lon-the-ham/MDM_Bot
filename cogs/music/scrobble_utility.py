@@ -896,7 +896,7 @@ class Music_Scrobbling(commands.Cog):
                     prev_discord_name = results[0][1]
                     prev_playcount  = results[0][2]
 
-                    if prev_crownholder == lfmname_dict[crown_user]:
+                    if prev_crownholder.upper().strip() == lfmname_dict[crown_user].upper().strip():
                         # keeping the crown
                         pass
                     else:
@@ -1299,6 +1299,178 @@ class Music_Scrobbling(commands.Cog):
 
 
 
+    @commands.command(name='crowns', aliases = ["crown"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _crowns(self, ctx: commands.Context, *args):
+        """Shows crowns of user
+        """
+
+        # FETCH USER ID
+        user_id = str(ctx.author.id)
+        color = 0x9d2933
+
+        if len(args) > 0:
+            try:
+                object_id, rest = await util.fetch_id_from_args("user", "first", args)
+                if util.represents_integer(object_id) and len(object_id) > 15:
+                    user_id = str(object_id)
+            except:
+                pass
+
+        # FETCH LASTFM NAME
+
+        conNP = sqlite3.connect('databases/npsettings.db')
+        curNP = conNP.cursor()
+
+        try:
+            result = curNP.execute("SELECT lfm_name FROM lastfm WHERE id = ?", (user_id,))
+            lfm_name = result.fetchone()[0]
+        except Exception as e:
+            print(e)
+            text = f"Error: Could not find lastfm user name of <@{user_id}>."
+            embed = discord.Embed(title="", description=text, color=0x000000)
+            await ctx.send(embed=embed)
+            return
+
+        # FETCH CROWNS
+
+        conSS = sqlite3.connect('databases/scrobblestats.db')
+        curSS = conSS.cursor()
+        crowns_list = [[item[0],util.forceinteger(item[1])] for item in curSS.execute(f"SELECT artist, playcount FROM crowns_{str(ctx.guild.id)} WHERE crown_holder = ?", (lfm_name,)).fetchall()]
+        crowns_list.sort(key=lambda x: x[1], reverse = True)
+        num_crowns = len(crowns_list)
+
+        # CREATE STRING LIST
+
+        emoji = util.emoji("crown")
+        header = f"{emoji} crowns of {lfm_name} on {ctx.guild.name}"
+        footer = f"{num_crowns} crowns in total"
+
+        contents = [""]
+        i = 0 #indexnumber
+        j = 0 #item on this page
+        k = 0 #pagenumber
+        for item in crowns_list:
+            i += 1
+            j += 1
+            artist = item[0].strip()[:100]
+            playcount = item[1]
+            crowninfo = f"`{i}.` {artist} - **{playcount}** plays"
+
+            if j <= 15:    
+                contents[k] = contents[k] + "\n" + crowninfo 
+            else:
+                k = k+1
+                j = 0
+                contents.append(crowninfo)
+
+        # SEND EMBED MESSAGE
+
+        await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer)
+
+    @_crowns.error
+    async def crowns_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='servercrowns', aliases = ["servercrown", "crownleaderboard"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _servercrowns(self, ctx: commands.Context, *args):
+        """Shows leaderboard of crowns per user
+        """
+
+        # FETCH LASTFM NAMES
+
+        conNP = sqlite3.connect('databases/npsettings.db')
+        curNP = conNP.cursor()
+        name_list = [[item[0],item[1]] for item in curNP.execute("SELECT id, lfm_name FROM lastfm WHERE details = ? OR details = ?", ("", None)).fetchall()]
+        lfm_dict = {}
+
+        for item in name_list:
+            user_id = item[0]
+            lfm_name = item[1]
+
+            if user_id in lfm_dict:
+                continue
+
+            lfm_dict[user_id] = lfm_name
+
+        servermembers = []
+        crowns_list = []
+        discord_dict = {}
+
+        for member in ctx.guild.members:
+            # is_inactive = await self.check_for_inactivity_role(str(member.id), only)
+            if str(member.id) in lfm_dict:
+                servermembers.append(str(member.id))
+                discord_dict[str(member.id)] = str(member.name)
+
+
+        # FETCH CROWN NUMBER
+
+        conSS = sqlite3.connect('databases/scrobblestats.db')
+        curSS = conSS.cursor()
+
+        for user_id in servermembers:
+            try:
+                lfm_name = lfm_dict[user_id]
+                result = curSS.execute(f"SELECT COUNT(artist) FROM crowns_{str(ctx.guild.id)} WHERE crown_holder = ?", (lfm_name,))
+                num_crowns = int(result.fetchone()[0])
+
+                crowns_list.append([user_id, lfm_name, num_crowns])
+            except Exception as e:
+                print("Error:", e)
+                continue
+
+        crowns_list.sort(key=lambda x: x[2], reverse = True)
+
+        # CREATE STRING LIST
+
+        emoji = util.emoji("crown")
+        header = f"{emoji} crowns on {ctx.guild.name}"
+        crowns_total = 0
+
+        contents = [""]
+        i = 0 #indexnumber
+        j = 0 #item on this page
+        k = 0 #pagenumber
+        for item in crowns_list:
+            user_id = item[0]
+            discord_name = discord_dict[user_id]
+            lfm_name = item[1]
+            num_crowns = item[2]
+
+            if num_crowns <= 0:
+                continue
+            i += 1
+            j += 1
+            crowninfo = f"`{i}.` [{discord_name}](https://www.last.fm/user/{lfm_name}) - **{num_crowns}** crowns"
+
+            crowns_total += num_crowns
+
+            if j <= 15:    
+                contents[k] = contents[k] + "\n" + crowninfo 
+            else:
+                k = k+1
+                j = 0
+                contents.append(crowninfo)
+
+        footer = f"{crowns_total} crowns in total"
+        color = 0x9d2933
+
+        # SEND EMBED MESSAGE
+
+        await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer)
+
+    @_servercrowns.error
+    async def servercrowns_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
     @commands.command(name='chart', aliases = ["c"])
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
@@ -1343,7 +1515,7 @@ class Music_Scrobbling(commands.Cog):
 
     async def check_for_inactivity_role(self, user_id, only):
         try:
-            user, color, rest_list = await util.fetch_member_and_color(ctx, user_id.strip())
+            user, color, rest_list = await util.fetch_member_and_color(ctx, str(user_id).strip())
             conB = sqlite3.connect('databases/botsettings.db')
             curB = conB.cursor()
 
