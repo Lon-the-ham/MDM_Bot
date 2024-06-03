@@ -2366,7 +2366,7 @@ class General_Utility(commands.Cog):
             curU = conU.cursor()
             loc_list = [[item[0],item[1],item[2]] for item in curU.execute("SELECT longitude, latitude, city FROM location WHERE user_id = ?", (str(ctx.author.id),)).fetchall()]
             if len(loc_list) == 0:
-                raise ValueError(f"No location was set.\nUse `{self.prefix}w set <city>, <country>` to set location.")
+                raise ValueError(f"No location was set.\nUse `{self.prefix}w set <city>, <country>` to set location.\n\n(If you meant to use the *whoknows* command that'd be `{self.prefix}wk`)")
                 return
 
             longitude = loc_list[0][0]
@@ -2764,7 +2764,7 @@ class General_Utility(commands.Cog):
 
 
 
-    @commands.group(name="time", aliases = ["t","tz","timezone"], pass_context=True, invoke_without_command=True)
+    @commands.group(name="tz", aliases = ["time","timezone"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _timezone_by_location(self, ctx, *args):
         """Show time of given location
@@ -2772,7 +2772,7 @@ class General_Utility(commands.Cog):
         Give argument `<city>, <country>` or to be more precise `<city>, <state>, <country>`.
         You can also use `<zip code>, <country>`
 
-        You can also set your location with `-t set <location>` and remove it with `-t remove`.
+        You can also set your location with `-tz set <location>` and remove it with `-tz remove`.
         """
 
         try:
@@ -2822,7 +2822,7 @@ class General_Utility(commands.Cog):
         try:
             rjson, city_name, latitude, longitude = await self.get_geodata(ctx, args)
         except Exception as e:
-            await ctx.send(f"Error: {e}")
+            await ctx.send(f"Error: {e}\n(In case you meant the *whoknows* command use `{self.prefix}wk` instead)")
             return
 
         print(rjson)
@@ -2845,7 +2845,7 @@ class General_Utility(commands.Cog):
                 name = "unnamed place"
             except Exception as e2:
                 print(f"Error while trying to fetch country and city:\n>{e1}\n>{e2}")
-                await ctx.send("Error: Place not found.")
+                await ctx.send(f"Error: Place not found.\n(If you meant to use the *whoknows* command that'd be `{self.prefix}wk`)")
                 return
 
         # PARSE FROM RESPONSE
@@ -3147,6 +3147,7 @@ class General_Utility(commands.Cog):
 
         bad_urls = [
             "https://lookaside.", # facebook and instagram pictures
+            "https://cdn." # does not embed somehow
         ]
 
         try:
