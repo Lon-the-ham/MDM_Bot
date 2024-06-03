@@ -46,7 +46,7 @@ class YataBot(commands.Bot):
             "cogs.music.exchanges",
             "cogs.music.fm",
             "cogs.music.info",
-            #"cogs.music.scrobble_utility", ❌
+            "cogs.music.scrobble_utility",
             "cogs.roles.roles",
             "cogs.roles.reactionroles",
             "cogs.userown.memo",
@@ -147,9 +147,12 @@ class YataBot(commands.Bot):
                     conC = sqlite3.connect('databases/cooldowns.db')
                     curC = conC.cursor()
                     curC.execute("DELETE FROM userrequests")
+                    curC.execute("DELETE FROM scrobbleupdate")
                     conC.commit()
                 except Exception as e:
                     print(f"Error while trying to clear cooldown database - user requests table: {e}")
+
+                # under construction: clear info wheather updating process is taking place at the moment
 
                 # CLEAR TEMP FOLDER
 
