@@ -1,6 +1,7 @@
 import os
 import zipfile
 import sys
+import traceback
 # COG for management of different bot instances
 # relevant if this application is hosted on multiple bot accounts for redundancy
 # otherwise probably only the backup function is important
@@ -15,6 +16,14 @@ from discord.ext import commands
 import re
 from other.utils.utils import Utils as util
 
+# cloud stuff
+import contextlib
+import six
+import time
+import unicodedata
+import dropbox
+
+
 
 class Administration_of_Bot_Instance(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -24,7 +33,7 @@ class Administration_of_Bot_Instance(commands.Cog):
 
     # FUNCTIONS
 
-    async def synchronise_databases(self, ctx, location):
+    async def synchronise_databases(self, ctx, location): # ONLY LOCAL FILES NOT CLOUD
         if location == "server backup":
             try:
                 con = sqlite3.connect(f'databases/botsettings.db')
@@ -51,7 +60,7 @@ class Administration_of_Bot_Instance(commands.Cog):
                 if found:
                     await ctx.send("...clearing space and retrieving files")
                     for filename in os.listdir(f"{sys.path[0]}/temp/"):
-                        if filename != ".gitignore":
+                        if filename.endswith(".db"):
                             os.remove(f"{sys.path[0]}/temp/{filename}")
                     
                     if str(the_message.attachments) == "[]":
@@ -68,10 +77,10 @@ class Administration_of_Bot_Instance(commands.Cog):
                             with zipfile.ZipFile(f"{sys.path[0]}/temp/re_{filename}", 'r') as zip_ref:
                                 filename_list = zip_ref.namelist()
                                 for name in filename_list:
-                                    if name.endswith(".db") or name.endswith(".txt"):
+                                    if name.endswith(".db"):
                                         pass
                                     else:
-                                        await ctx.send("Error with backup .zip: File must not contain anything but `.db` and `.txt` files!")
+                                        await ctx.send("Error with backup .zip: File must not contain anything but `.db` files!")
                                         continue_with_this = False
                                         break
 
@@ -81,11 +90,11 @@ class Administration_of_Bot_Instance(commands.Cog):
 
                             # REPLACE FILES
                             if continue_with_this:
-                                await ctx.send("...syncing")
+                                await ctx.send("...syncing local files")
 
                                 for filename in os.listdir(f"{sys.path[0]}/temp/"):
                                     if filename.endswith(".db"):
-                                        if filename == "activity.db":
+                                        if filename in ["activity.db", "scrobbledata.db", "scrobbledata_releasewise.db",  "scrobblestats.db", "scrobblegenres.db"]:
                                             pass 
                                         else:
                                             dbExist = os.path.exists(f"{sys.path[0]}/databases/{filename}")
@@ -96,7 +105,7 @@ class Administration_of_Bot_Instance(commands.Cog):
 
                             # REMOVE TEMPORARIES
                             for filename in os.listdir(f"{sys.path[0]}/temp/"):          
-                                if filename != ".gitignore":      
+                                if filename.endswith(".db"):    
                                     os.remove(f"{sys.path[0]}/temp/{filename}")
                         else:
                             await ctx.send("Error with backup attachment: File not in `.zip` format.")
@@ -111,7 +120,7 @@ class Administration_of_Bot_Instance(commands.Cog):
             if the_message.attachments:
                 await ctx.send("...clearing space and retrieving attachment")
                 for filename in os.listdir(f"{sys.path[0]}/temp/"):
-                    if filename != ".gitignore":
+                    if filename.endswith(".db"):
                         os.remove(f"{sys.path[0]}/temp/{filename}")
 
                 split_v1 = str(the_message.attachments).split("filename='")[1]
@@ -125,10 +134,10 @@ class Administration_of_Bot_Instance(commands.Cog):
 
                         # CHECK FILE EXTENSIONS
                         for name in filename_list:
-                            if name.endswith(".db") or name.endswith(".txt"):
+                            if name.endswith(".db"):
                                 pass
                             else:
-                                await ctx.send("Error: File must not contain anything but `.db` and `.txt` files!")
+                                await ctx.send("Error: File must not contain anything but `.db` files!")
                                 continue_with_this = False
                                 break
 
@@ -138,11 +147,11 @@ class Administration_of_Bot_Instance(commands.Cog):
 
                     # REPLACE FILES
                     if continue_with_this:
-                        await ctx.send("...syncing")
+                        await ctx.send("...syncing local files")
 
                         for filename in os.listdir(f"{sys.path[0]}/temp/"):
                             if filename.endswith(".db"):
-                                if filename == "activity.db":
+                                if filename in ["activity.db", "scrobbledata.db", "scrobbledata_releasewise.db",  "scrobblestats.db", "scrobblegenres.db"]:
                                     pass 
                                 else:
                                     dbExist = os.path.exists(f"{sys.path[0]}/databases/{filename}")
@@ -153,18 +162,17 @@ class Administration_of_Bot_Instance(commands.Cog):
 
                     # REMOVE TEMPORARIES
                     for filename in os.listdir(f"{sys.path[0]}/temp/"):           
-                        if filename != ".gitignore":     
+                        if filename.endswith(".db"):    
                             os.remove(f"{sys.path[0]}/temp/{filename}")
 
                     if not continue_with_this:
-                        raise ValueError("Error: File must not contain anything but `.db` and `.txt` files!")
+                        raise ValueError("Error: File must not contain anything but `.db` files!")
                 else:
                     await ctx.send("Attachment must be a `.zip` file with `.db` files in it.")
             else:
                 await ctx.send("No attachment found.")
 
 
-    # COMMANDS
 
     async def create_backups(self, ctx, last_activity):
         #print(sys.path[0])
@@ -177,6 +185,16 @@ class Administration_of_Bot_Instance(commands.Cog):
         if len(app_list) == 0:
             print("error: no app with this id in database")
         else:
+            # fetch bostpam channel
+            try:
+                botspam_channel_id = int([item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("botspam channel id",)).fetchall()][-1])      
+            except:
+                botspam_channel_id = int(os.getenv("bot_channel_id"))
+            channel = await self.bot.fetch_channel(botspam_channel_id)
+
+            await channel.send("...creating zip file") # this message content is important for the switch and sync commands
+
+            # make backup zip
             instance = app_list[0]
             date = datetime.today().strftime('%Y-%m-%d_%H-%M-%S')
 
@@ -186,10 +204,13 @@ class Administration_of_Bot_Instance(commands.Cog):
             lastedited = 0
             lastchanged = 0
             for filename in os.listdir(db_directory):
-                if str(filename).endswith(".db") or str(filename).endswith(".txt"):
+                if str(filename).endswith(".db"):
+                    if ("activity.db" in str(filename)) or ("scrobbledata.db" in str(filename)) or ("scrobbledata_releasewise.db" in str(filename)) or ("scrobblestats.db" in str(filename)) or ("scrobblegenres.db" in str(filename)):
+                        continue
+                        
                     zf.write(os.path.join(db_directory, filename), filename)
                     edittime = int(os.path.getmtime(os.path.join(db_directory, filename)))
-                    if (edittime > lastedited) and ("activity.db" not in str(filename)):
+                    if (edittime > lastedited) and ("activity.db" not in str(filename)) and ("scrobbledata.db" not in str(filename)) and ("scrobbledata_releasewise.db" not in str(filename)) and ("scrobblestats.db" not in str(filename)) and ("scrobblegenres.db" not in str(filename)):
                         lastedited = edittime
                     if str(filename) == "aftermostchange.db":
                         try:
@@ -212,13 +233,29 @@ class Administration_of_Bot_Instance(commands.Cog):
             else:
                 textmessage += f"\n(no last change date found)"
 
-            try:
-                botspam_channel_id = int([item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("botspam channel id",)).fetchall()][-1])      
-                channel = await self.bot.fetch_channel(botspam_channel_id)
-                await channel.send(textmessage, file=discord.File(rf"temp/backup_{date}_{instance}.zip"))
-            except:
-                print("Error while trying to send backup file.")
+            await channel.send(textmessage, file=discord.File(rf"temp/backup_{date}_{instance}.zip"))
             os.remove(f"temp/backup_{date}_{instance}.zip")
+
+            # Cloud stuff
+
+            try:
+                waitingtime = max(int(instance.strip()) - 1, 0) * 3
+            except:
+                waitingtime = random.randint(8, 20)
+            try:
+                await asyncio.sleep(waitingtime)
+            except:
+                pass
+            
+            try:
+                #async with ctx.typing():
+                print("Starting scrobble db backup:")
+                await util.cloud_upload_scrobble_backup(self.bot, ctx, app_id)
+                await channel.send("Finished backup.")
+            except Exception as e:
+                await channel.send(f"Cloud error: {e}")
+                print(traceback.format_exc())
+            
 
 
 
@@ -262,6 +299,62 @@ class Administration_of_Bot_Instance(commands.Cog):
                 print("Bot sidebar display role switch disabled.")
         else:
             print("error: could not find bot's member object")
+
+
+
+    async def cloud_sync_wait_and_download(self, ctx, reference_time, called_from):
+        """note: only call this function after backup function was called"""
+
+        # first check if scrobbling is enabled
+        conB = sqlite3.connect('databases/botsettings.db')
+        curB = conB.cursor()
+        scrobblefeature_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("scrobbling functionality",)).fetchall()]
+
+        if len(scrobblefeature_list) > 0 and scrobblefeature_list[0].lower().strip() == "on":
+            # remember apps that are syncing as well
+            sync_list = []
+            app_id_list = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("app id",)).fetchall()]
+
+            try:
+                botspam_channel_id = int([item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("botspam channel id",)).fetchall()][-1])      
+            except:
+                botspam_channel_id = int(os.getenv("bot_channel_id"))
+            channel = await self.bot.fetch_channel(botspam_channel_id)
+            async for msg in channel.history(limit=100):
+                if msg.created_at < reference_time:
+                    break
+
+                if "...creating zip file" in msg.content and str(msg.author.id) in app_id_list:
+                    if str(msg.author.id) not in sync_list:
+                        sync_list.append(str(msg.author.id))
+
+            # wait until all apps have uploaded to cloud, or when 2 minutes passed
+            all_apps_have_uploaded = False
+
+            for t in range(60):
+                async for msg in ctx.channel.history(limit=100):
+                    if msg.created_at < reference_time:
+                        break
+
+                    if ("Finished backup." in msg.content or "Cloud error: " in msg.content) and str(msg.author.id) in sync_list:
+                        while str(msg.author.id) in sync_list:
+                            sync_list.remove(str(msg.author.id))
+
+                if len(sync_list) == 0:
+                    break
+
+                await asyncio.sleep(2)
+
+            # syncing
+            await ctx.send("...cloud sync: downloading scrobble databases")
+            await util.cloud_download_scrobble_backup(ctx, called_from)
+
+        else:
+            await ctx.send("(skipping cloud sync as scrobbling features disabled)")
+
+
+
+    ################################################################## COMMANDS ############################################################################
 
 
 
@@ -390,8 +483,15 @@ class Administration_of_Bot_Instance(commands.Cog):
                             await ctx.send("cancelled action")
                             return
 
-                        # rest of your code
-                        await ctx.send(f"...starting switch")
+                        # START ACTUAL SWITCH STUFF
+
+                        reference_message   = await ctx.send(f"...starting switch") # time to check back in order to decide when cloud backup can be loaded
+                        reference_time      = reference_message.created_at             
+
+                        # remember whether to sync or not
+                        syncing = True
+                        if len(args) > 1 and args[1].lower() in ["nosync","nosynchronisation","nonsync","nosynch","nosynchro","nosynchronization"]:
+                            syncing = False
 
                         async with ctx.typing():
                             # remember activity status for later
@@ -404,21 +504,30 @@ class Administration_of_Bot_Instance(commands.Cog):
                             curA.execute("UPDATE activity SET value = ? WHERE name = ?", ("inactive", "activity"))
                             conA.commit()
 
-                            # then synchronise databases
+                            # then synchronise LOCAL databases
                             await ctx.send("...creating backups")
                             await asyncio.sleep(1)
                             await self.create_backups(ctx, this_instances_activity)
 
                             if this_instances_activity == "active":
                                 await ctx.send("...awaiting")
-                                await asyncio.sleep(2)
+                                if syncing:
+                                    await asyncio.sleep(2)
                             else:
-                                if len(args) > 1 and args[1].lower() in ["nosync","nosynchronisation","nonsync","nosynch","nosynchro","nosynchronization"]:
+                                if syncing == False:
                                     await ctx.send("...skipping synchronisation")
                                 else:
                                     await ctx.send("...start synchronisation process")
                                     await self.synchronise_databases(ctx, "server backup")
 
+                            # then sync CLOUD databases
+
+                            if syncing:
+                                try:
+                                    called_from = "switch"
+                                    await self.cloud_sync_wait_and_download(ctx, reference_time, called_from)
+                                except Exception as e:
+                                    await ctx.send(f"Error while trying to sync with cloud data: {e}")
 
                             # then set the correct app to active
                             if app_id == str(self.application_id):
@@ -448,6 +557,7 @@ class Administration_of_Bot_Instance(commands.Cog):
         await util.error_handling(ctx, error)       
 
 
+
     @commands.command(name='synchronise', aliases = ["synchronize"])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
@@ -467,9 +577,14 @@ class Administration_of_Bot_Instance(commands.Cog):
             conA.commit()
 
             # then synchronise databases
-            await asyncio.sleep(1)
+            reference_message   = await ctx.send(f"...starting sync") # time to check back in order to decide when cloud backup can be loaded
+            reference_time      = reference_message.created_at   
+            await asyncio.sleep(1) 
+
             await self.create_backups(ctx, this_instances_activity)
             await self.synchronise_databases(ctx, "server backup")
+            called_from = "synchronise"
+            await self.cloud_sync_wait_and_download(ctx, reference_time, called_from)
 
             # set activity back
             if this_instances_activity == "active":
@@ -482,13 +597,18 @@ class Administration_of_Bot_Instance(commands.Cog):
         await util.error_handling(ctx, error)
 
 
+
     @commands.command(name='backup', aliases = ["makebackup", "makebackups", "savebackup", "savebackups", "backups"])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     async def _make_backups(self, ctx):
         """🔒 Backup of all databases
 
-        Makes a .zip of all .db files and puts them into the botspam channel.
+        Makes a .zip of all .db files (except scrobble data) and puts them into the botspam channel.
+        If scrobbling is enabled and a dropbox API token is provided then scrobble data will be uploaded to cloud as well.
+
+        Warning: This is a blocking function that will prevent the bot from executing any other code while it's running.
+
         """    
         conA = sqlite3.connect(f'databases/activity.db')
         curA = conA.cursor()
@@ -511,6 +631,7 @@ class Administration_of_Bot_Instance(commands.Cog):
     @_make_backups.error
     async def make_backups_error(self, ctx, error):
         await util.error_handling(ctx, error)
+        
 
 
     @commands.command(name='loadbackup', aliases = ["loaddatabases"])
@@ -523,7 +644,7 @@ class Administration_of_Bot_Instance(commands.Cog):
         Use command by attaching such .zip-file.
 
         In case you only want to replace *some* of the files upload a .zip with only the .db files you want to replace, and the other old files will stay.
-        (activity.db is the only database that will never be replaced)
+        (activity.db and all the scrobble databases are the only files that will never be replaced)
         """    
         conA = sqlite3.connect(f'databases/activity.db')
         curA = conA.cursor()
@@ -552,6 +673,20 @@ class Administration_of_Bot_Instance(commands.Cog):
         await util.error_handling(ctx, error)
 
 
+
+    @commands.command(name='loadcloud', aliases = ["cloudload"])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _load_cloud_backups(self, ctx):
+        """🔒 Retrieves newest files from cloud"""
+
+        async with ctx.typing():
+            called_from = "loadcloud"
+            await util.cloud_download_scrobble_backup(ctx, called_from)
+
+    @_load_cloud_backups.error
+    async def load_cloud_backups_error(self, ctx, error):
+        await util.error_handling(ctx, error)
 
 
 
