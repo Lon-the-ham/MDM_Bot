@@ -1761,7 +1761,7 @@ class Roles(commands.Cog):
 
         if len(lfm_list) > 0:
             new_status = lfm_list[0][1].replace("inactive", "")
-            if new_status[-1] == "_":
+            if type(new_status) == str and len(new_status) > 0 and new_status[-1] == "_":
                 new_status = new_status[:-1]
             curNP.execute("UPDATE lastfm SET details = ? WHERE id = ?", (new_status, str(user_id)))
             conNP.commit()
@@ -1769,6 +1769,7 @@ class Roles(commands.Cog):
 
 
     @commands.command(name='letmeout', aliases = ['imactive', 'illbeactiveipromise'])
+    @commands.check(util.inactivity_filter_enabled)
     @commands.check(util.is_active) 
     async def _recoverfrominactivity(self, ctx):
         """break out from inactivity channel
