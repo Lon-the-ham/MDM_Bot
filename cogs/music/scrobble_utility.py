@@ -140,7 +140,7 @@ class Music_Scrobbling(commands.Cog):
     def releasewise_insert(self, lfm_name, item_dict):
         conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
         curFM2 = conFM2.cursor()
-        curFM2.execute(f"CREATE TABLE IF NOT EXISTS {lfm_name} (artist_name text, album_name text, count integer, last_time integer)")
+        curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer)")
 
         for k,v in item_dict.items():
             artist = k[0]
@@ -155,7 +155,7 @@ class Music_Scrobbling(commands.Cog):
                 now_time = 0
             
             try:
-                result = curFM2.execute(f"SELECT count, last_time FROM {lfm_name} WHERE artist_name = ? AND album_name = ?", (artist, album))
+                result = curFM2.execute(f"SELECT count, last_time FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (artist, album))
                 rtuple = result.fetchone()
                 prev_count = int(rtuple[0])
                 try:
@@ -167,7 +167,7 @@ class Music_Scrobbling(commands.Cog):
                 prev_time = 0
 
             if prev_count == 0:
-                curFM2.execute(f"INSERT INTO {lfm_name} VALUES (?, ?, ?, ?)", (artist, album, count, now_time))
+                curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?)", (artist, album, count, now_time))
 
             else:
                 new_count = prev_count + count
@@ -175,7 +175,7 @@ class Music_Scrobbling(commands.Cog):
                     time = now_time
                 else:
                     time = prev_time
-                curFM2.execute(f"UPDATE {lfm_name} SET count = ?, last_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, artist, album))
+                curFM2.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, artist, album))
         conFM2.commit()
         #print("inserted into secondary database as well")
 
@@ -188,15 +188,15 @@ class Music_Scrobbling(commands.Cog):
 
         conFM = sqlite3.connect('databases/scrobbledata.db')
         curFM = conFM.cursor()
-        curFM.execute(f"CREATE TABLE IF NOT EXISTS {lfm_name} (id integer, artist_name text, album_name text, track_name text, date_uts integer)")
+        curFM.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (id integer, artist_name text, album_name text, track_name text, date_uts integer)")
 
         if argument.strip() == "--force":
-            curFM.execute(f"DELETE FROM {lfm_name}")
+            curFM.execute(f"DELETE FROM [{lfm_name}]")
             conFM.commit()
             print(f"deleted all of {lfm_name}'s scrobble information")
 
         try:
-            lasttime = int([item[0] for item in curFM.execute(f"SELECT MAX(date_uts) FROM {lfm_name}").fetchall()][0])
+            lasttime = int([item[0] for item in curFM.execute(f"SELECT MAX(date_uts) FROM [{lfm_name}]").fetchall()][0])
         except Exception as e:
             lasttime = 0
 
@@ -237,6 +237,8 @@ class Music_Scrobbling(commands.Cog):
                         print("continue...")
                 else:
                     print("Cancelled action.")
+                    await ctx.send(f"Error: {e}")
+                    continue
 
                 if i == -1: # first page
                     i = int(total)
@@ -263,7 +265,7 @@ class Music_Scrobbling(commands.Cog):
 
                     #insert into scrobble database
                     item_indexed = (i,) + item
-                    curFM.execute(f"INSERT INTO {lfm_name} VALUES (?, ?, ?, ?, ?)", item_indexed)
+                    curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)
                     count += 1
                     i -= 1
 
@@ -327,12 +329,12 @@ class Music_Scrobbling(commands.Cog):
         for lfm_name in lfm_namelist:
             print(f"Try reloading {lfm_name} data")
             try:
-                curFM.execute(f"CREATE TABLE IF NOT EXISTS {lfm_name} (id integer, artist_name text, album_name text, track_name text, date_uts integer)")
-                curFM2.execute(f"CREATE TABLE IF NOT EXISTS {lfm_name} (artist_name text, album_name text, count integer, last_time integer)")
-                curFM2.execute(f"DELETE FROM {lfm_name}")
+                curFM.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (id integer, artist_name text, album_name text, track_name text, date_uts integer)")
+                curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer)")
+                curFM2.execute(f"DELETE FROM [{lfm_name}]")
                 conFM2.commit()
 
-                scrobbles = [[util.compactnamefilter(item[0]),util.compactnamefilter(item[1]),item[2]] for item in curFM.execute(f"SELECT artist_name, album_name, date_uts FROM {lfm_name}").fetchall()]
+                scrobbles = [[util.compactnamefilter(item[0]),util.compactnamefilter(item[1]),item[2]] for item in curFM.execute(f"SELECT artist_name, album_name, date_uts FROM [{lfm_name}]").fetchall()]
 
                 release_dict = {}
 
@@ -364,7 +366,7 @@ class Music_Scrobbling(commands.Cog):
                     album = k[1]
                     count = v[0]
                     time = v[1]
-                    curFM2.execute(f"INSERT INTO {lfm_name} VALUES (?, ?, ?, ?)", (artist, album, count, time))
+                    curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?)", (artist, album, count, time))
                 conFM2.commit()
                 print("done")
 
@@ -722,6 +724,11 @@ class Music_Scrobbling(commands.Cog):
             artist, thumbnail, tags = await self.wk_artist_match(ctx, argument)
             header = f"{artist}"
 
+            if util.compactnamefilter(artist) == "":
+                emoji = util.emoji("shrug")
+                await ctx.send(f"oof... what's this artist name?? ping dev to do something about it, i'm out {emoji}")
+                return
+
         elif wk_type == "album":
             artist, album, thumbnail, tags = await self.wk_album_match(ctx, argument)
             header = f"{artist} - {album}"
@@ -787,13 +794,13 @@ class Music_Scrobbling(commands.Cog):
 
             try:
                 if wk_type == "artist":
-                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM {lfm_name} WHERE artist_name = ?", (util.compactnamefilter(artist),))
+                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM [{lfm_name}] WHERE artist_name = ?", (util.compactnamefilter(artist),))
 
                 elif wk_type == "album":
-                    result = curFM2.execute(f"SELECT count, last_time FROM {lfm_name} WHERE artist_name = ? AND album_name = ?", (util.compactnamefilter(artist),util.compactnamefilter(album)))
+                    result = curFM2.execute(f"SELECT count, last_time FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (util.compactnamefilter(artist),util.compactnamefilter(album)))
 
                 elif wk_type == "track":
-                    result = curFM.execute(f"SELECT COUNT(id), MAX(date_uts) FROM {lfm_name} WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (artist,track))
+                    result = curFM.execute(f"SELECT COUNT(id), MAX(date_uts) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (artist,track))
 
                 try:
                     rtuple = result.fetchone()
@@ -890,24 +897,26 @@ class Music_Scrobbling(commands.Cog):
             # CROWN update: only for artists
 
             if crown_user != None:            
-                results = [[item[0],item[1],item[2]] for item in curSS.execute(f"SELECT crown_holder, discord_name, playcount FROM crowns_{ctx.guild.id} WHERE artist = ?", (artist,)).fetchall()]
+                results = [[item[0],item[1],item[2]] for item in curSS.execute(f"SELECT crown_holder, discord_name, playcount FROM crowns_{ctx.guild.id} WHERE alias = ? OR alias2 = ?", (util.compactnamefilter(artist), util.compactnamefilter(artist))).fetchall()]
                 if len(results) > 0:
                     prev_crownholder = results[0][0]
                     prev_discord_name = results[0][1]
-                    prev_playcount  = results[0][2]
+                    prev_playcount = results[0][2]
 
                     if prev_crownholder.upper().strip() == lfmname_dict[crown_user].upper().strip():
                         # keeping the crown
-                        pass
+                        if crown_count > util.forceinteger(prev_playcount):
+                            stonks = util.emoji("stonks")
+                            description += f"\n(Updated crown playcount from {prev_playcount} to {crown_count}. {stonks})"
                     else:
                         emoji = util.emoji("unleashed")
-                        description += f"\n{discordname_dict[crown_user]} yoinked crown from {prev_discord_name} ({prev_playcount} plays)! {emoji}"
-                    curSS.execute(f"UPDATE crowns_{ctx.guild.id} SET crown_holder = ?, discord_name = ?, playcount = ? WHERE artist = ?", (lfmname_dict[crown_user],discordname_dict[crown_user],crown_count,artist))
+                        description += f"\n{discordname_dict[crown_user]} yoinked crown (with {crown_count} plays) from {prev_discord_name} ({prev_playcount} plays)! {emoji}"
+                    curSS.execute(f"UPDATE crowns_{ctx.guild.id} SET crown_holder = ?, discord_name = ?, playcount = ? WHERE alias = ? OR alias2 = ?", (lfmname_dict[crown_user], discordname_dict[crown_user], crown_count, util.compactnamefilter(artist), util.compactnamefilter(artist)))
                     conSS.commit()
                 else:
                     emoji = util.emoji("thumbs_up")
-                    description += f"\nCrown claimed by {discordname_dict[crown_user]}! {emoji}"
-                    curSS.execute(f"INSERT INTO crowns_{ctx.guild.id} VALUES (?, ?, ?, ?)", (artist,lfmname_dict[crown_user],discordname_dict[crown_user],crown_count))
+                    description += f"\nCrown claimed by {discordname_dict[crown_user]} with {crown_count} plays! {emoji}"
+                    curSS.execute(f"INSERT INTO crowns_{ctx.guild.id} VALUES (?, ?, ?, ?, ?, ?)", (artist, util.compactnamefilter(artist), "", lfmname_dict[crown_user],discordname_dict[crown_user],crown_count))
                     conSS.commit()
 
         embed = discord.Embed(title=header[:256], description=description[:4096], color=0x800000)
@@ -996,13 +1005,13 @@ class Music_Scrobbling(commands.Cog):
 
             try:
                 if wk_type == "artist":
-                    result = curFM.execute(f"SELECT MIN(date_uts) FROM {lfm_name} WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')}", (artist,))
+                    result = curFM.execute(f"SELECT MIN(date_uts) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')}", (artist,))
 
                 elif wk_type == "album":
-                    result = curFM.execute(f"SELECT MIN(date_uts) FROM {lfm_name} WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('album_name')} = {util.compact_sql('?')}", (artist,album))
+                    result = curFM.execute(f"SELECT MIN(date_uts) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('album_name')} = {util.compact_sql('?')}", (artist,album))
 
                 elif wk_type == "track":
-                    result = curFM.execute(f"SELECT MIN(date_uts) FROM {lfm_name} WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (artist,track))
+                    result = curFM.execute(f"SELECT MIN(date_uts) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (artist,track))
 
                 try:
                     rtuple = result.fetchone()
@@ -1304,6 +1313,8 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(util.is_active)
     async def _crowns(self, ctx: commands.Context, *args):
         """Shows crowns of user
+
+        You can also put a user id or mention as first argument to show their crowns.
         """
 
         # FETCH USER ID
@@ -1504,8 +1515,11 @@ class Music_Scrobbling(commands.Cog):
         await util.error_handling(ctx, error) 
 
 
+    # under construction: stats command
 
     # under construction: streak command
+
+    # under construction: pace command
 
 
 
