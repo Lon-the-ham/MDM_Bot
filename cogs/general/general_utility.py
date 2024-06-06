@@ -2822,7 +2822,7 @@ class General_Utility(commands.Cog):
         try:
             rjson, city_name, latitude, longitude = await self.get_geodata(ctx, args)
         except Exception as e:
-            await ctx.send(f"Error: {e}\n(In case you meant the *whoknows* command use `{self.prefix}wk` instead)")
+            await ctx.send(f"Error: {e}")
             return
 
         print(rjson)
