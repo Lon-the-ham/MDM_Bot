@@ -105,6 +105,35 @@ class Utils():
 
 
 
+    def inactivity_filter_enabled(ctx):
+        conB = sqlite3.connect('databases/botsettings.db')
+        curB = conB.cursor()
+
+        # check if feature is enabled
+        inactivityfilter_list = [[item[0], item[1]] for item in curB.execute("SELECT value, details FROM serversettings WHERE name = ?", ("inactivity filter",)).fetchall()]
+        if len(inactivityfilter_list) == 0:
+            raise ValueError("inactivity filter not enabled")
+        else:
+            inactivityfilter = inactivityfilter_list[0][0]
+            if inactivityfilter.lower().strip() != "on":
+                raise ValueError("inactivity filter not enabled")
+
+        # check for role id
+        inactivityrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]        
+        if len(inactivityrole_list) == 0 or not Utils.represents_integer(inactivityrole_list[0]):
+            raise ValueError("inactivity role not set")
+        else:
+            inactivity_role_id = int(inactivityrole_list[0])
+
+        inactivity_role = ctx.guild.get_role(inactivity_role_id)
+
+        if inactivity_role is None:
+            raise ValueError("provided inactivity role ID is faulty")
+
+        return True
+
+
+
     async def error_handling(ctx, error):
         if isinstance(error, commands.MissingPermissions):
             await ctx.send(f'Sorry, you do not have permissions to do this!')
@@ -283,11 +312,11 @@ class Utils():
             try: #1) ADAPT TIME
                 new_link += Utils.adapt_time(keyword)
             except Exception as e:
-                print("Error in util.adapt_link():", e)
+                print("Error in utils.adapt_link():", e)
                 try: #2) ?
                     error = int("error")  # just a place holder for potential next function
                 except Exception as e:
-                    #print("Error in util.adapt_link():", e)
+                    #print("Error in utils.adapt_link():", e)
                     raise ValueError("Bracket block in provided link contained syntax error.")
 
             followtext = followtext.split("[",1)[1].split("]",1)[1]
@@ -391,8 +420,8 @@ class Utils():
         try:
             return return_dict[date_unit][order_specifier][time_frame]
         except:
-            print("Issue with provided link: util.adapt_time() could not parse time")
-            raise ValueError("Issue with provided link: util.adapt_time() could not parse time")
+            print("Issue with provided link: utils.adapt_time() could not parse time")
+            raise ValueError("Issue with provided link: utils.adapt_time() could not parse time")
 
 
 
@@ -754,7 +783,7 @@ class Utils():
             return lfm_name, status # ""/NULL or wk_banned or crown_banned
 
         except Exception as e:
-            print(f"Error in util.get_lfm_name(): {e}")
+            print(f"Error in utils.get_lfm_name(): {e}")
             return None, None
 
 
@@ -806,7 +835,7 @@ class Utils():
                 # GET COUNT
 
                 try:
-                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM {lfm_name} WHERE artist_name = ?", (Utils.compactnamefilter(artist),))
+                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM [{lfm_name}] WHERE artist_name = ?", (Utils.compactnamefilter(artist),))
 
                     try:
                         rtuple = result.fetchone()
@@ -887,7 +916,7 @@ class Utils():
             return ctx_rank_string, crown_user
 
         except Exception as e:
-            print(f"Error in util.get_rank(): {e}")
+            print(f"Error in utils.get_rank(): {e}")
             return "", None
 
 
@@ -2162,7 +2191,7 @@ class Utils():
                 if botspamchannel_id is None:
                     raise ValueError("No botspamchannel id provided in .env file")
             except Exception as e:
-                print(f"Error in util.bot_spam_send() ({title}):", e)
+                print(f"Error in utils.bot_spam_send() ({title}):", e)
                 return
         try:
             botspamchannel = bot.get_channel(botspamchannel_id) 
@@ -2585,7 +2614,7 @@ class Utils():
 
                 return object_ids, rest
         else:
-            raise ValueError(f"Error in util.fetch_id_from_args: search scope not found")
+            raise ValueError(f"Error in utils.fetch_id_from_args: search scope not found")
             return 
 
 
@@ -3118,7 +3147,7 @@ class Utils():
         def releasewise_insert(lfm_name, item_dict):
             conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
             curFM2 = conFM2.cursor()
-            curFM2.execute(f"CREATE TABLE IF NOT EXISTS {lfm_name} (artist_name text, album_name text, count integer, last_time integer)")
+            curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer)")
 
             for k,v in item_dict.items():
                 artist = k[0]
@@ -3133,7 +3162,7 @@ class Utils():
                     now_time = 0
                 
                 try:
-                    result = curFM2.execute(f"SELECT count, last_time FROM {lfm_name} WHERE artist_name = ? AND album_name = ?", (artist, album))
+                    result = curFM2.execute(f"SELECT count, last_time FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (artist, album))
                     rtuple = result.fetchone()
                     prev_count = int(rtuple[0])
                     try:
@@ -3145,7 +3174,7 @@ class Utils():
                     prev_time = 0
 
                 if prev_count == 0:
-                    curFM2.execute(f"INSERT INTO {lfm_name} VALUES (?, ?, ?, ?)", (artist, album, count, now_time))
+                    curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?)", (artist, album, count, now_time))
 
                 else:
                     new_count = prev_count + count
@@ -3153,7 +3182,7 @@ class Utils():
                         time = now_time
                     else:
                         time = prev_time
-                    curFM2.execute(f"UPDATE {lfm_name} SET count = ?, last_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, artist, album))
+                    curFM2.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, artist, album))
             conFM2.commit()
             #print("inserted into secondary database as well")
 
@@ -3161,10 +3190,10 @@ class Utils():
 
         conFM = sqlite3.connect('databases/scrobbledata.db')
         curFM = conFM.cursor()
-        curFM.execute(f"CREATE TABLE IF NOT EXISTS {lfm_name} (id integer, artist_name text, album_name text, track_name text, date_uts integer)")
+        curFM.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (id integer, artist_name text, album_name text, track_name text, date_uts integer)")
 
         try:
-            lasttime = int([item[0] for item in curFM.execute(f"SELECT MAX(date_uts) FROM {lfm_name}").fetchall()][0])
+            lasttime = int([item[0] for item in curFM.execute(f"SELECT MAX(date_uts) FROM [{lfm_name}]").fetchall()][0])
         except Exception as e:
             lasttime = 0
 
@@ -3220,7 +3249,7 @@ class Utils():
 
                     # add item to scrobble DB
                     item_indexed = (i,) + item
-                    curFM.execute(f"INSERT INTO {lfm_name} VALUES (?, ?, ?, ?, ?)", item_indexed)  
+                    curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)  
                     count += 1
                     i -= 1
 
@@ -3614,14 +3643,14 @@ class Utils():
                     if botspamchannel_id is None:
                         raise ValueError("No botspamchannel id provided in .env file")
                 except Exception as e:
-                    print(f"Error in util.get_temporary_dropbox_token():", e)
+                    print(f"Error in utils.get_temporary_dropbox_token():", e)
                     return
             try:
                 channel = bot.get_channel(botspamchannel_id)
                 if channel is None:
                     channel = await bot.fetch_channel(botspamchannel_id)
             except Exception as e:
-                print("Error in util.get_temporary_dropbox_token():", e)
+                print("Error in utils.get_temporary_dropbox_token():", e)
                 return
         else:
             channel = ctx.channel
