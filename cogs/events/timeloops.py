@@ -705,7 +705,17 @@ class TimeLoops(commands.Cog):
                     continue
 
                 allow_from_scratch = False
-                await util.scrobble_update(lfm_name, allow_from_scratch)
+                try:
+                    await util.scrobble_update(lfm_name, allow_from_scratch)
+                except Exception as e:
+                    print(f"Error while fetching info from {lfm_name}: {e}")
+                    try:
+                        h = datetime.datetime.utcnow().hour
+                        if h in [0]:
+                            await self.timeloop_notification("Scrobble Update", f"Error while trying to update newest scrobbles of [{lfm_name}](https://www.last.fm/user/{lfm_name})```{e}```(semi-caught)", False)
+                    except Exception as e:
+                        print("Another error:", e)
+
                 #await asyncio.sleep(1)
 
             util.unblock_scrobbleupdate()
