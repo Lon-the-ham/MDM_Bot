@@ -341,17 +341,17 @@ async def cloud_upload_scrobble_backup():
             #print(table_list)
             try:
                 for table in table_list:
-                    cursor = con.execute(f'SELECT * FROM {table}')
+                    cursor = con.execute(f'SELECT * FROM [{table}]')
                     column_names = list(map(lambda x: x[0], cursor.description))
                     #print(column_names)
                     try:
-                        item_list = [item[0] for item in cur.execute(f"SELECT * FROM {table} ORDER BY {column_names[0]} ASC LIMIT 1").fetchall()]
+                        item_list = [item[0] for item in cur.execute(f"SELECT * FROM [{table}] ORDER BY {column_names[0]} ASC LIMIT 1").fetchall()]
                         #print(item_list)
                     except Exception as e:
-                        print(f"Error with {filename} table {table} query:", e)
+                        print(f"Error with {filename} table [{table}] query:", e)
                         all_files_good = False
             except Exception as e:
-                print(f"Error with {filename} table {table} structure:", e)
+                print(f"Error with {filename} table [{table}] structure:", e)
                 all_files_good = False
         except Exception as e:
             print(f"Error with {filename}:", e)
@@ -434,15 +434,14 @@ async def cloud_upload_scrobble_backup():
         lasttime = last_scrobble_time_in_db()
 
         try:
-            con = sqlite3.connect(f'databases/botsettings.db')
             newdir = f"{sys.path[0]}/temp"
+            with open(f"{newdir}/time.txt", "w") as file:
+                file.write(f"{lasttime}")
         except:
-            con = sqlite3.connect(f'../databases/botsettings.db')
             newdir = f"{str(sys.path[0]).rsplit('/',1)[0]}/temp"
-        cur = con.cursor()  
+            with open(f"{newdir}/time.txt", "w") as file:
+                file.write(f"{lasttime}")
 
-        with open(f"{newdir}/time.txt", "w") as file:
-            file.write(f"{lasttime}")
         try:
             # UPLOAD TXT FILE
 
@@ -502,7 +501,7 @@ def last_scrobble_time_in_db():
     #print(table_list)
     for table in table_list:
         try:
-            result = con.execute(f'SELECT MAX(last_time) FROM {table}')
+            result = con.execute(f'SELECT MAX(last_time) FROM [{table}]')
             rtuple = result.fetchone()
             if int(rtuple[0]) > lasttime:
                 lasttime = int(rtuple[0])
