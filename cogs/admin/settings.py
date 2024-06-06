@@ -2964,7 +2964,7 @@ class Administration_of_Settings(commands.Cog):
         await self.database_on_off_switch(ctx, args, "scrobbling functionality")
 
         if len(args) > 0 and args[0].lower() == "on":
-            await ctx.send("Heads-Up: The scrobble databases will become comparably large, so they won't be included in the regular backup. If you want to have this bot to make backups of the scobbling data as well [check the documentation](https://github.com/Lon-the-ham/MDM_Bot/blob/main/documentation.md) how to enable cloud service.")
+            await ctx.send(f"2 Notes:\n:one: If you want the bot to automatically update scrobbles of users every hour also use `{self.prefix}set scrobbleautoupdate on`.\n:two: The scrobble databases will become comparably large, so they won't be included in the regular backup. If you want to have this bot to make backups of the scobbling data as well [check the documentation](https://github.com/Lon-the-ham/MDM_Bot/blob/main/documentation.md) how to enable cloud service.")
     @_set_scrobbling.error
     async def set_scrobbling_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -4505,6 +4505,7 @@ class Administration_of_Settings(commands.Cog):
                             "mute" : "🙊",
                             "nice" : "😀",
                             "no" : "🙅",
+                            "no_stonks" : "📉",
                             "note" : "📝",
                             "ohh" : "😮",
                             "pain" : "💀",
@@ -4520,6 +4521,7 @@ class Administration_of_Settings(commands.Cog):
                             "sleep" : "😴",
                             "smug" : "👀",
                             "sob" : "😭",
+                            "stonks": "📈",
                             "surprised" : "😮",
                             "surprised2" : "😮",
                             "think" : "🤔",
@@ -4643,7 +4645,7 @@ class Administration_of_Settings(commands.Cog):
             curSS.execute('''CREATE TABLE IF NOT EXISTS artistinfo (artist text, thumbnail text, tags_lfm text, tags_other text, last_update integer, filtername text, filteralias text)''')
 
             for guild in self.bot.guilds:
-                curSS.execute(f'''CREATE TABLE IF NOT EXISTS crowns_{guild.id} (artist text, crown_holder text, discord_name text, playcount integer)''')
+                curSS.execute(f'''CREATE TABLE IF NOT EXISTS crowns_{guild.id} (artist text, alias text, alias2 text, crown_holder text, discord_name text, playcount integer)''')
 
             conSG = sqlite3.connect('databases/scrobblegenres.db')
             curSG = conSS.cursor()
@@ -4768,6 +4770,50 @@ class Administration_of_Settings(commands.Cog):
             except Exception as e:
                 print("Error:", e)
                 print(traceback.format_exc())
+
+
+            # fix scrobble stats
+
+            for guild in self.bot.guilds:
+                conSS = sqlite3.connect('databases/scrobblestats.db')
+                curSS = conSS.cursor()
+                cursorSS = conSS.execute(f'SELECT * FROM crowns_{guild.id}')
+                column_names = list(map(lambda x: x[0], cursorSS.description))
+                cursorSS.close()
+                column_number = len(column_names)
+
+                if column_number < 6:
+                    print(f"Renewing Crown Table in scrobble stats database for server {guild.name}")
+                    crown_list_old = [item for item in curSS.execute(f'SELECT * FROM crowns_{guild.id}').fetchall()]
+                    curSS.close()
+                    crown_list_new = []
+
+                    for item in crown_list_old:
+                        artist = item[0]
+                        crown_holder = item[1]
+                        discord_name = item[2]
+                        playcount = item[3]
+
+                        alias = util.compactnamefilter(artist)
+                        alias2 = ""
+
+                        new_item = (artist, alias, alias2, crown_holder, discord_name, playcount)
+                        crown_list_new.append(new_item)
+
+                    await asyncio.sleep(1)
+
+                    conSS = sqlite3.connect('databases/scrobblestats.db')
+                    curSS = conSS.cursor()
+                    curSS.execute(f"DROP TABLE IF EXISTS crowns_{guild.id}")
+                    conSS.commit()
+
+                    curSS.execute(f'''CREATE TABLE IF NOT EXISTS crowns_{guild.id} (artist text, alias text, alias2 text, crown_holder text, discord_name text, playcount integer)''')
+                    for new_item in crown_list_new:
+                        curSS.execute(f"INSERT INTO crowns_{guild.id} VALUES (?, ?, ?, ?, ?, ?)", new_item)
+                    conSS.commit()
+
+
+                curSS.execute(f'''CREATE TABLE IF NOT EXISTS crowns_{guild.id} (artist text, crown_holder text, discord_name text, playcount integer)''')
 
 
             ############# CONFIRMATION
