@@ -477,10 +477,18 @@ class Utils():
 
 
 
-    def compactnamefilter(input_string):
+    def compactnamefilter(input_string, *info):
         # https://en.wikipedia.org/wiki/List_of_Latin-script_letters
         # get rid of bracket info
         intermediate_string = input_string
+
+        if info == ("artist"):
+            if input_string.endswith(" - Topic"):
+                intermediate_string = input_string.replace(" - Topic", "")
+        elif info == ("album"):
+            if input_string.endswith(" - EP"):
+                intermediate_string = input_string.replace(" - EP", "")
+
         if "(" in intermediate_string and not intermediate_string.startswith("("):
             intermediate_string = intermediate_string.split("(",1)[0]
         if "[" in intermediate_string and not intermediate_string.startswith("["):
