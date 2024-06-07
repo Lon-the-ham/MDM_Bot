@@ -560,6 +560,11 @@ class Music_NowPlaying(commands.Cog):
                                 "rym": False,
                                 }
 
+            if ";" in artist and artist[0] != ";":
+                subst_artist = artist.split(";",1)[0]
+            else:
+                subst_artist = artist
+
             substitute_tags = []
             for setting in tag_settings_dict:
                 service = setting.split("_")[0]
@@ -672,11 +677,11 @@ class Music_NowPlaying(commands.Cog):
                                 else:
                                     cooldown = True
                                 try:
-                                    listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, song, cooldown)
+                                    listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, subst_artist, song, cooldown)
                                     lfm_fetch_client = "api"
                                 except Exception as e:
                                     print(f"Probably no Last.fm API credentials, switching to Web Scraping information.\n(Exception message: {e})")
-                                    listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_web(ctx, artist, cooldown)
+                                    listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_web(ctx, subst_artist, cooldown)
                                     lfm_fetch_client = "web"
 
                                 if listeners.strip() != "" and lfm_listeners:
@@ -709,7 +714,7 @@ class Music_NowPlaying(commands.Cog):
                             else:
                                 checktags = False
                             cooldown = False
-                            mbid, genretag_list, year, area = await self.fetch_musicbrainz_tags(ctx, mbid, artist, album, song, checkyear, checkarea, checktags, cooldown)
+                            mbid, genretag_list, year, area = await self.fetch_musicbrainz_tags(ctx, mbid, subst_artist, album, song, checkyear, checkarea, checktags, cooldown)
 
                             try:
                                 if redundancy_filter == "on" and len(genretag_list) > 1:
@@ -734,9 +739,19 @@ class Music_NowPlaying(commands.Cog):
                 for setting in substitute_tags:
                     if setting == "lastfm":
                         cooldown = False
-                        listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, artist, song, cooldown)
-                        lfm_fetch_client = "api"
 
+                        try:
+                            listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_api(ctx, mbid, subst_artist, song, cooldown)
+                            lfm_fetch_client = "api"
+                        except Exception as e:
+                            try:
+                                print(f"Probably no Last.fm API credentials, switching to Web Scraping information.\n(Exception message: {e})")
+                                listeners, total_scrobbles, lfm_genre_tag_list = await self.fetch_lastfm_data_via_web(ctx, subst_artist, cooldown)
+                                lfm_fetch_client = "web"
+                            except Exception as e:
+                                print("Error while trying to fetch subst. tags from lastfm:", e)
+                                continue
+                                
                         try:
                             if redundancy_filter == "on" and len(lfm_genre_tag_list) > 1:
                                 lfm_genre_tag_list = util.filter_tagredundancies(lfm_genre_tag_list)
@@ -754,7 +769,12 @@ class Music_NowPlaying(commands.Cog):
                         checkarea = False
                         checktags = True
                         cooldown = False
-                        mbid, genretag_list, year, area = await self.fetch_musicbrainz_tags(ctx, mbid, artist, album, song, checkyear, checkarea, checktags, cooldown)
+
+                        try:
+                            mbid, genretag_list, year, area = await self.fetch_musicbrainz_tags(ctx, mbid, subst_artist, album, song, checkyear, checkarea, checktags, cooldown)
+                        except Exception as e:
+                            print("Error while trying to fetch subst. tags from musicbrainz:", e)
+                            continue
 
                         try:
                             if redundancy_filter == "on" and len(genretag_list) > 1:
@@ -771,8 +791,11 @@ class Music_NowPlaying(commands.Cog):
                     elif setting == "spotify":
                         g_tags = True
                         listenertags = False
-                        spotify_track_id = await self.fetch_spotify_track_id(artist, album, song)
-                        genretag_list, ml_string = await self.fetch_spotify_tags(spotify_track_id, g_tags, listenertags)
+                        try:
+                            spotify_track_id = await self.fetch_spotify_track_id(subst_artist, album, song)
+                            genretag_list, ml_string = await self.fetch_spotify_tags(spotify_track_id, g_tags, listenertags)
+                        except Exception as e:
+                            print("Error while trying to fetch subst. tags from spotify:", e)
                         if len(genretag_list) > 0:
                             genre_tags["spotify"] = f"{self.tagseparator}".join(genretag_list)
                             break
@@ -834,7 +857,12 @@ class Music_NowPlaying(commands.Cog):
             if np_user_id == None:
                 np_user_id == user_id
 
-            lfm_name, scrobble_status = util.get_lfmname(np_user_id)
+            try:
+                lfm_name, scrobble_status = util.get_lfmname(np_user_id)
+            except Exception as e:
+                print("Error while calling util.get_lfmname():", e)
+                lfm_name = None
+                scrobble_status = None
 
             if lfm_name != None:
                 rank = None
@@ -844,7 +872,12 @@ class Music_NowPlaying(commands.Cog):
                 trackcount = None
 
                 if crown == "on" or lastfm_rank == "on":
-                    rank, crown_holder = util.get_rank(ctx, lfm_name, artist)
+                    try:
+                        rank, crown_holder = util.get_rank(ctx, lfm_name, subst_artist)
+                    except Exception as e:
+                        print("Error while calling util.get_rank():", e)
+                        rank = ""
+                        crown_holder = None
 
                 if crown == "on":
                     if ((type(crown_holder) is str) and (str(lfm_name).upper().strip() == crown_holder.upper().strip())) and (scrobble_status not in ["wk_banned", "crown_banned"]):
@@ -854,57 +887,69 @@ class Music_NowPlaying(commands.Cog):
                         user_stats += f"{emoji} "
 
                 if lastfm_artistscrobbles == "on":
-                    result = curFM2.execute(f"SELECT SUM(count) FROM {lfm_name} WHERE artist_name = ?", (util.compactnamefilter(artist),))
-                    rtuple = result.fetchone()
                     try:
-                        artistcount = int(rtuple[0])
-                    except:
-                        artistcount = 0
+                        result = curFM2.execute(f"SELECT SUM(count) FROM [{lfm_name}] WHERE artist_name = ?", (util.compactnamefilter(subst_artist),))
+                        rtuple = result.fetchone()
+                        try:
+                            artistcount = int(rtuple[0])
+                        except:
+                            artistcount = 0
 
-                    if artistcount == 1:
-                        user_stats += f"{artistcount} artist play "
-                    else:
-                        user_stats += f"{artistcount} artist plays "
-                        
+                        if artistcount == 1:
+                            user_stats += f"{artistcount} artist play "
+                        else:
+                            user_stats += f"{artistcount} artist plays "
+                    except Exception as e:
+                        print("Error while trying to fetch artist plays:", e)
+                        lastfm_artistscrobbles = "off"
+                
                 if lastfm_albumscrobbles == "on" and album.strip() != "":
-                    result = curFM2.execute(f"SELECT count FROM {lfm_name} WHERE artist_name = ? AND album_name = ?", (util.compactnamefilter(artist),util.compactnamefilter(album)))
-                    rtuple = result.fetchone()
                     try:
-                        albumcount = int(rtuple[0])
-                    except:
-                        albumcount = 0
+                        result = curFM2.execute(f"SELECT count FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (util.compactnamefilter(subst_artist),util.compactnamefilter(album)))
+                        rtuple = result.fetchone()
+                        try:
+                            albumcount = int(rtuple[0])
+                        except:
+                            albumcount = 0
 
-                    if artistcount is None:
-                        if albumcount == 1:
-                            user_stats += f"{albumcount} album play "  
+                        if artistcount is None:
+                            if albumcount == 1:
+                                user_stats += f"{albumcount} album play "  
+                            else:
+                                user_stats += f"{albumcount} album plays "
                         else:
-                            user_stats += f"{albumcount} album plays "
-                    else:
-                        if lastfm_trackscrobbles == "on":
-                            user_stats += f"(album: {albumcount}, "
-                        else:
-                            user_stats += f"(album: {albumcount}) "
+                            if lastfm_trackscrobbles == "on":
+                                user_stats += f"(album: {albumcount}, "
+                            else:
+                                user_stats += f"(album: {albumcount}) "
+                    except Exception as e:
+                        print("Error while trying to fetch album plays:", e)
 
                 if lastfm_trackscrobbles == "on":
-                    result = curFM.execute(f"SELECT COUNT(id) FROM {lfm_name} WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (artist,song))
-                    rtuple = result.fetchone()
                     try:
-                        trackcount = int(rtuple[0])
-                    except:
-                        trackcount = 0
+                        result = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (subst_artist,song))
+                        rtuple = result.fetchone()
+                        try:
+                            trackcount = int(rtuple[0])
+                        except:
+                            trackcount = 0
 
-                    if artistcount is None and albumcount is None:
-                        if trackcount == 1:
-                            user_stats += f"{trackcount} track play "  
+                        if artistcount is None and albumcount is None:
+                            if trackcount == 1:
+                                user_stats += f"{trackcount} track play "  
+                            else:
+                                user_stats += f"{trackcount} track plays "
                         else:
-                            user_stats += f"{trackcount} track plays "
-                    else:
-                        if lastfm_albumscrobbles == "on" and album.strip() != "":
-                            user_stats += f"track: {trackcount}) "
-                        else:
-                            user_stats += f"(track: {trackcount}) "
+                            if lastfm_albumscrobbles == "on" and album.strip() != "" and "(album:" in user_stats:
+                                user_stats += f"track: {trackcount}) "
+                            else:
+                                user_stats += f"(track: {trackcount}) "
+                    except Exception as e:
+                        print("Error while trying to fetch track plays:", e)
+                        if "(album:" in user_stats and user_stats.endswith(", "):
+                            user_stats = user_stats[:-2] + ") "
 
-                if lastfm_rank == "on":
+                if lastfm_rank == "on" and type(rank) == str:
                     user_stats += rank
 
             if rym_albumrating == "on":
@@ -1330,6 +1375,8 @@ class Music_NowPlaying(commands.Cog):
         album = util.urlfriendlytext(album)
         artist = util.urlfriendlytext(artist)
 
+        disambiguation = None
+
         # GET MBID
         if mbid is None or mbid == "":
             print("try to get mbid...")
@@ -1468,6 +1515,9 @@ class Music_NowPlaying(commands.Cog):
                             maximal_count = votecount
                     except:
                         pass
+
+                #if type(disambiguation) == str and disambiguation.strip() != "":
+                #    tags.append(disambiguation.lower().strip())
 
                 i = 0
                 for tag in tag_dict:
