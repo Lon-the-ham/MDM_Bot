@@ -193,6 +193,13 @@ class Music_Scrobbling(commands.Cog):
         if argument.strip() == "--force":
             curFM.execute(f"DELETE FROM [{lfm_name}]")
             conFM.commit()
+
+            conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+            curFM2 = conFM2.cursor()
+            curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer)")
+            curFM2.execute(f"DELETE FROM [{lfm_name}]")
+            conFM2.commit()
+
             print(f"deleted all of {lfm_name}'s scrobble information")
 
         try:
@@ -307,10 +314,81 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    async def run_scrobbledata_sanitycheck(self):
-        # remove duplicates from scrobbledata.db
-        pass
-        # under construction
+    async def run_scrobbledata_sanitycheck(self, lfm_name):
+        conFM = sqlite3.connect('databases/scrobbledata.db')
+        curFM = conFM.cursor()
+
+        scrobbles = [[item[0],item[1],item[2],item[3]] for item in curFM.execute(f"SELECT artist_name, album_name, track_name, date_uts FROM [{lfm_name}] ORDER BY date_uts ASC").fetchall()]
+        print("previous number of items:", len(scrobbles))
+
+        prev_artist = ""
+        prev_album = ""
+        prev_track = ""
+        prev_uts = ""
+
+        new_scrobbles = []
+        i = 0
+        sus = 0
+        release_dict = {}
+
+        for item in scrobbles:
+            artist = item[0]
+            album = item[1]
+            track = item[2]
+            uts = item[3]
+
+            if (artist == prev_artist) and (album == prev_album) and (track == prev_track) and (abs(uts - prev_uts) < 5) and uts > 999999999:
+                print(f"Removing: {artist} - {track} ({album}) scrobbled at {uts}")
+                continue
+
+            if uts == prev_uts:
+                sus += 1
+
+            i += 1
+            new_scrobbles.append((i, artist, album, track, uts))
+
+            artist_compact = util.compactnamefilter(artist)
+            album_compact = util.compactnamefilter(album)
+
+            if (artist_compact,album_compact) in release_dict:
+                entry = release_dict[(artist_compact,album_compact)]
+                prev_count = entry[0]
+                prev_time = entry[1]
+
+                if prev_time > uts:
+                    release_dict[(artist_compact,album_compact)] = (prev_count + 1, prev_time)
+                else:
+                    release_dict[(artist_compact,album_compact)] = (prev_count + 1, uts)
+            else:
+                release_dict[(artist_compact,album_compact)] = (1, uts)
+
+            # assign for next itereration
+            prev_artist = artist
+            prev_album = album
+            prev_track = track
+            prev_uts = uts
+
+        print("new number of itmes:", len(new_scrobbles))
+
+        curFM.execute(f"DELETE FROM [{lfm_name}]")
+        for item in new_scrobbles:
+            curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item)
+        conFM.commit()
+
+        conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+        curFM2 = conFM2.cursor()
+        curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer)")
+        curFM2.execute(f"DELETE FROM [{lfm_name}]")
+        for k,v in release_dict.items():
+            artist = k[0]
+            album = k[1]
+            count = v[0]
+            time = v[1]
+            curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?)", (artist, album, count, time))
+        conFM2.commit()
+
+        return len(scrobbles), len(new_scrobbles), sus
+
 
 
 
@@ -513,6 +591,9 @@ class Music_Scrobbling(commands.Cog):
             db_entry_exists = False
 
             try:
+                if artist_fltr == "":
+                    print("WARNING: Compact conversion turns provided artist name into empty string. Wtf is this name even lol.")
+
                 result = curSS.execute(f"SELECT artist, thumbnail, tags_lfm, tags_other, last_update FROM artistinfo WHERE filtername = ? OR filteralias = ?", (artist_fltr,artist_fltr))
                 rtuple = result.fetchone()
                 #print("DB finding:", rtuple)
@@ -1005,13 +1086,13 @@ class Music_Scrobbling(commands.Cog):
 
             try:
                 if wk_type == "artist":
-                    result = curFM.execute(f"SELECT MIN(date_uts) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')}", (artist,))
+                    result = curFM.execute(f"SELECT MIN(date_uts) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND date_uts > ?", (artist, 1000000000))
 
                 elif wk_type == "album":
-                    result = curFM.execute(f"SELECT MIN(date_uts) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('album_name')} = {util.compact_sql('?')}", (artist,album))
+                    result = curFM.execute(f"SELECT MIN(date_uts) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('album_name')} = {util.compact_sql('?')} AND date_uts > ?", (artist, album, 1000000000))
 
                 elif wk_type == "track":
-                    result = curFM.execute(f"SELECT MIN(date_uts) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (artist,track))
+                    result = curFM.execute(f"SELECT MIN(date_uts) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')} AND date_uts > ?", (artist, track, 1000000000))
 
                 try:
                     rtuple = result.fetchone()
@@ -1145,7 +1226,7 @@ class Music_Scrobbling(commands.Cog):
                     new_embed = discord.Embed(title="", description=f"Done! Updated {count} entries. {emoji}", color=0x00A36C)
 
         await message.edit(embed=new_embed)
-        await self.run_scrobbledata_sanitycheck()
+        #await self.run_scrobbledata_sanitycheck()
 
     @_scrobble_update.error
     async def scrobble_update_error(self, ctx, error):
@@ -1833,6 +1914,37 @@ class Music_Scrobbling(commands.Cog):
     @_crownseed.error
     async def crownseed_error(self, ctx, error):
         await util.error_handling(ctx, error) 
+
+
+
+    #@commands.command(name='scrobblefilter')
+    #@commands.has_permissions(manage_guild=True)
+    #@commands.check(util.is_main_server)
+    #@commands.check(ScrobblingCheck.scrobbling_enabled)
+    #@commands.check(util.is_active)
+    #async def _scrobblefilter(self, ctx: commands.Context, *args):
+    #    """🔒 filters out double scrobbles and re-indexes entries
+
+    #    command has some issues. for one, spotify caches plays and sends them in bulks, so if people genuinely listen to the same track repeatedly it might show as double scrobble regardless.
+    #    """
+
+    #    lfm_name = ' '.join(args)
+    #    len_before, len_after, sus = await self.run_scrobbledata_sanitycheck(lfm_name)
+
+    #    text = f"Filtered and re-indexed scrobbles of {lfm_name}."
+    #    if (len_before != len_after):
+    #        text += f"\nCount was reduced from {len_before} to {len_after}. (Diff: {len_before - len_after})"
+    #    else:
+    #        text += f"\nCount remains unchanged. (Diff: 0)"
+
+        #if sus > 0:
+        #    emoji = util.emoji("think")
+        #    text += f"\n\n(Furthermore, {sus} many scrobbles that happened at the same second. So many Napalm Death type cases? {emoji})"
+        #await ctx.send(text)
+
+    #@_scrobblefilter.error
+    #async def scrobblefilter_error(self, ctx, error):
+    #    await util.error_handling(ctx, error)
 
 
 
