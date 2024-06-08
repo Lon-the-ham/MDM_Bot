@@ -1073,11 +1073,11 @@ class Administration_of_Server(commands.Cog):
                 #print(table_list)
                 try:
                     for table in table_list:
-                        cursor = con.execute(f'SELECT * FROM {table}')
+                        cursor = con.execute(f'SELECT * FROM [{table}]')
                         column_names = list(map(lambda x: x[0], cursor.description))
                         #print(column_names)
                         try:
-                            item_list = [item[0] for item in cur.execute(f"SELECT * FROM {table} ORDER BY {column_names[0]} ASC LIMIT 1").fetchall()]
+                            item_list = [item[0] for item in cur.execute(f"SELECT * FROM [{table}] ORDER BY {column_names[0]} ASC LIMIT 1").fetchall()]
                             #print(item_list)
                         except Exception as e:
                             print(f"Error with {filename} table {table} query:", e)
