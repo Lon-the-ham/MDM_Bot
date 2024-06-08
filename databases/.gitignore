@@ -11,6 +11,7 @@ roles.db
 scrobbledata.db
 scrobbledata_releasewise.db
 scrobblegenres.db
+scrobblemeta.db
 scrobblestats.db
 shenanigans.db
 timetables.db
