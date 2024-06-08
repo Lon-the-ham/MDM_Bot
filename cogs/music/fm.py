@@ -1959,7 +1959,7 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    @commands.command(name='nowplaying0', aliases = ['np0'])
+    @commands.command(name='np0', aliases = ['nowplaying0'])
     @commands.check(util.is_active)
     async def _nowplayingzero(self, ctx: commands.Context, *args):
         """NowPlaying without any tags
