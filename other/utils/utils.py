@@ -480,79 +480,84 @@ class Utils():
     def compactnamefilter(input_string, *info):
         # https://en.wikipedia.org/wiki/List_of_Latin-script_letters
         # get rid of bracket info
-        intermediate_string = input_string
+        try:
+            intermediate_string = input_string
 
-        if info == ("artist"):
-            if input_string.endswith(" - Topic"):
-                intermediate_string = input_string.replace(" - Topic", "")
-        elif info == ("album"):
-            if input_string.endswith(" - EP"):
-                intermediate_string = input_string.replace(" - EP", "")
+            if info == ("artist"):
+                if input_string.endswith(" - Topic"):
+                    intermediate_string = input_string.replace(" - Topic", "")
+            elif info == ("album"):
+                if input_string.endswith(" - EP"):
+                    intermediate_string = input_string.replace(" - EP", "")
 
-        if "(" in intermediate_string and not intermediate_string.startswith("("):
-            intermediate_string = intermediate_string.split("(",1)[0]
-        if "[" in intermediate_string and not intermediate_string.startswith("["):
-            intermediate_string = intermediate_string.split("[",1)[0]
+            if "(" in intermediate_string and not intermediate_string.startswith("("):
+                intermediate_string = intermediate_string.split("(",1)[0]
+            if "[" in intermediate_string and not intermediate_string.startswith("["):
+                intermediate_string = intermediate_string.split("[",1)[0]
 
-        # get rid of non-alphanumeric
-        intermediate_string = ''.join([x for x in intermediate_string.upper() if x.isalnum()])
+            # get rid of non-alphanumeric
+            intermediate_string = ''.join([x for x in intermediate_string.upper() if x.isalnum()])
 
-        # adapt accents
-        diacritics = {
-            ord("Æ"): "AE",
-            ord("Ã"): "A",
-            ord("Å"): "A",
-            ord("Ā"): "A",
-            ord("Ä"): "A",
-            ord("Â"): "A",
-            ord("À"): "A",
-            ord("Á"): "A",
-            ord("Å"): "A",
-            ord("Ầ"): "A",
-            ord("Ấ"): "A",
-            ord("Ẫ"): "A",
-            ord("Ẩ"): "A",
-            ord("Ç"): "C",
-            ord("Č"): "C",
-            ord("Ď"): "D",
-            ord("Ė"): "E",
-            ord("Ê"): "E",
-            ord("Ë"): "E",
-            ord("È"): "E",
-            ord("É"): "E",
-            ord("Ě"): "E",
-            ord("Ğ"): "G",
-            ord("Í"): "I",
-            ord("İ"): "I",
-            ord("Ñ"): "N",
-            ord("Ń"): "N",
-            ord("Ň"): "N",
-            ord("Ō"): "O",
-            ord("Ø"): "O",
-            ord("Õ"): "O",
-            ord("Œ"): "OE",
-            ord("Ó"): "O",
-            ord("Ò"): "O",
-            ord("Ô"): "O",
-            ord("Ö"): "O",
-            ord("Ř"): "R",
-            ord("Š"): "S",
-            ord("ẞ"): "SS",
-            ord("Ś"): "S",
-            ord("Š"): "S",
-            ord("Ş"): "S",
-            ord("Ť"): "T",
-            ord("Ū"): "U",
-            ord("Ù"): "U",
-            ord("Ú"): "U",
-            ord("Û"): "U",
-            ord("Ü"): "U",
-            ord("Ů"): "U",
-            ord("Ý"): "Y",
-            ord("Ž"): "Z",
-        }
-        new_string = intermediate_string.translate(diacritics)
-        return new_string
+            # adapt accents
+            diacritics = {
+                ord("Æ"): "AE",
+                ord("Ã"): "A",
+                ord("Å"): "A",
+                ord("Ā"): "A",
+                ord("Ä"): "A",
+                ord("Â"): "A",
+                ord("À"): "A",
+                ord("Á"): "A",
+                ord("Å"): "A",
+                ord("Ầ"): "A",
+                ord("Ấ"): "A",
+                ord("Ẫ"): "A",
+                ord("Ẩ"): "A",
+                ord("Ç"): "C",
+                ord("Č"): "C",
+                ord("Ď"): "D",
+                ord("Ė"): "E",
+                ord("Ê"): "E",
+                ord("Ë"): "E",
+                ord("È"): "E",
+                ord("É"): "E",
+                ord("Ě"): "E",
+                ord("Ğ"): "G",
+                ord("Í"): "I",
+                ord("İ"): "I",
+                ord("Ñ"): "N",
+                ord("Ń"): "N",
+                ord("Ň"): "N",
+                ord("Ō"): "O",
+                ord("Ø"): "O",
+                ord("Õ"): "O",
+                ord("Œ"): "OE",
+                ord("Ó"): "O",
+                ord("Ò"): "O",
+                ord("Ô"): "O",
+                ord("Ö"): "O",
+                ord("Ř"): "R",
+                ord("Š"): "S",
+                ord("ẞ"): "SS",
+                ord("Ś"): "S",
+                ord("Š"): "S",
+                ord("Ş"): "S",
+                ord("Ť"): "T",
+                ord("Ū"): "U",
+                ord("Ù"): "U",
+                ord("Ú"): "U",
+                ord("Û"): "U",
+                ord("Ü"): "U",
+                ord("Ů"): "U",
+                ord("Ý"): "Y",
+                ord("Ž"): "Z",
+            }
+            new_string = intermediate_string.translate(diacritics)
+            return new_string
+
+        except Exception as e:
+            print(f"Error: {e}")
+            return intermediate_string
 
 
 
