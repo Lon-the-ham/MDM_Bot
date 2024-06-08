@@ -1,11 +1,9 @@
 import os
 import sys
 import datetime
-import asyncpraw
 import discord
 from discord.ext import commands
 import asyncio
-import asyncprawcore
 import re
 import csv
 import time
