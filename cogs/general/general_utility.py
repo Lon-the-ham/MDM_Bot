@@ -3310,7 +3310,8 @@ class General_Utility(commands.Cog):
                   ]
                 )
 
-                print(completion.choices[0].message)
+                await ctx.send(str(completion.choices[0].message))
+                
             except Exception as e:
                 try:
                     error_code = str(e).split(" - {")[0].strip()
