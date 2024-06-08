@@ -42,7 +42,7 @@ This is essentially a pay-walled feature for those who have an OpenAI account wi
 
 Additionally you may need to install 2 packages:
 
-> pip install googletrans-py
+> pip uninstall googletrans-py
 
 > pip install --upgrade openai
 
