@@ -34,6 +34,29 @@ If you want to be able to search out image results via the google API with `-img
 Keep in mind that there is a daily limit of 100 queries. 
 
 
+### GPT
+
+This is essentially a pay-walled feature for those who have an OpenAI account with API credits. (Sometimes OpenAI also gives out promotional free plans, but generally their services for applications are pay-locked.) Now, if you have such a plan, you can go to https://platform.openai.com/api-keys and create a `secret key` and add it to your `.env` file like
+
+> openai_secret_key = `secret key`
+
+Additionally you may need to install 2 packages:
+
+> pip install googletrans-py
+
+> pip install --upgrade openai
+
+The googletranslate python package described in the read.md is an older one that is compatible with more devices. This other one causes problems on some devices, but is compatible with newer httpx that is required for openai. Test installing both these packages and test if you are still able to use `-tr` (as well as `-gpt`). If both work, good, if not, you may need to decide which feature you want to keep and if you decide pro-translator then 
+
+> pip uninstall openai
+
+> pip uninstall googletrans-py
+
+> pip install googletrans
+
+> pip install googletrans==3.1.0a0
+
+
 ### LastFM
 
 To fetch information from people's last.fm via `-fm` or `-fmx` you don't necessarily need the API, because the bot has an integrated web scrape, that may be a bit slower but is still able to fetch information. To fully use it's potential (also in terms of fetching tags), use `-fakenowplaying` or all kinds of stats commands regarding users scrobble data like `-whoknows`, you may want to create an last.fm API account here:
@@ -87,6 +110,7 @@ Visit https://developer.spotify.com/documentation/web-api/tutorials/getting-star
 > Spotify_ClientID = `client ID`
 
 > Spotify_ClientSecret = `client secret`
+
 
 ### Weather
 
