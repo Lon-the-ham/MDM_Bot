@@ -37,6 +37,7 @@ class Music_Scrobbling(commands.Cog):
         self.bot = bot
         self.prefix = os.getenv("prefix")
         self.tagseparator = " ‧ "
+        self.loadingbar_width = 16
 
 
 
@@ -221,7 +222,7 @@ class Music_Scrobbling(commands.Cog):
             description = f"Fetching scrobble information {emoji}\n\n"
 
         progress = 0
-        loadingbar = util.get_loadingbar(20, progress)
+        loadingbar = util.get_loadingbar(self.loadingbar_width, progress)
         embed = discord.Embed(title="", description=description+loadingbar+f" 0%", color=0x000000)
         message = await ctx.reply(embed=embed, mention_author=False)
 
@@ -314,7 +315,7 @@ class Music_Scrobbling(commands.Cog):
                         new_progress = int(int(page_int) / int(total_pages_int) * 100)
 
                         if new_progress > progress and new_now > old_now + 2:
-                            loadingbar = util.get_loadingbar(20, new_progress)
+                            loadingbar = util.get_loadingbar(self.loadingbar_width, new_progress)
                             embed = discord.Embed(title="", description=description+loadingbar+f" {new_progress}%", color=0x000000)
                             await message.edit(embed=embed)
                             progress = new_progress
@@ -416,7 +417,8 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    async def reload_releasewise_database(self):
+    async def reload_releasewise_database(self, reindex):
+        """re-indexes if reindex == True"""
         con = sqlite3.connect('databases/npsettings.db')
         cur = con.cursor()
         lfm_namelist = [item[0] for item in cur.execute("SELECT lfm_name FROM lastfm").fetchall()]
@@ -429,7 +431,16 @@ class Music_Scrobbling(commands.Cog):
         i = 0
 
         for lfm_name in lfm_namelist:
-            print(f"Try reloading {lfm_name} data")
+            print(f"++++ {lfm_name} ++++")
+
+            if reindex:
+                try:
+                    len_before, len_after, sus = await self.run_scrobbledata_sanitycheck(lfm_name, 0)
+                    print(f"re-indexed scrobbles of {lfm_name} (removed {len_before-len_after} duplicate entries)")
+                except Exception as e:
+                    print(f"Error while trying to re-index {lfm_name} table")
+
+            print(f"Try summarising {lfm_name} data")
             try:
                 curFM.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (id integer, artist_name text, album_name text, track_name text, date_uts integer)")
                 curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer)")
@@ -475,6 +486,7 @@ class Music_Scrobbling(commands.Cog):
             except Exception as e:
                 print(f"Error with reloading {lfm_name} data: {e}")
 
+        print("++++DONE+++")
         return i
 
 
@@ -1361,7 +1373,7 @@ class Music_Scrobbling(commands.Cog):
                 print(traceback.format_exc())
                 return
 
-            loadingbar = util.get_loadingbar(20, 100)
+            loadingbar = util.get_loadingbar(self.loadingbar_width, 100)
             if count == 0:
                 new_embed = discord.Embed(title="", description=f"No new scrobbles to add to database.\n\n{loadingbar} 100%", color=0x00A36C)
             else:
@@ -1371,7 +1383,8 @@ class Music_Scrobbling(commands.Cog):
                 else:
                     new_embed = discord.Embed(title="", description=f"Done! Updated {count} entries. {emoji}\n\n{loadingbar} 100%", color=0x00A36C)
 
-        await self.run_scrobbledata_sanitycheck(lfm_name, 0)
+        if count >= 200:
+            await self.run_scrobbledata_sanitycheck(lfm_name, 0)
         await message.edit(embed=new_embed)
         util.unblock_scrobbleupdate()
 
@@ -1387,28 +1400,40 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
     async def _fullyreload_releasewise_database(self, ctx: commands.Context, *args):
-        """🔒 reload releasewise database for lfm scrobbles"""
-        
-        cooldown_list = util.check_active_scrobbleupdate()
-        if len(cooldown_list) > 0:
-            print("Skipping scrobble auto-update. Update pipe in use:", cooldown_list)
-            usernames = []
-            for item in cooldown_list:
-                usernames.append(item[1])
-            usernamestring = ', '.join(usernames)
-            await ctx.send(f"Update pipe is currently in use ({usernamestring}). Please try again later.")
-            return
+        """🔒 reload releasewise database for lfm scrobbles
 
-        util.block_scrobbleupdate(ctx)
+        this command may block all other bot activity
 
-        try:
-            i = await self.reload_releasewise_database()
-            await ctx.send(f"Done! {i} items were (re)loaded from the scrobble database.")
-        except Exception as e:
+        use with arg `full` to also re-index entries in scrobbledata.db"""
+
+        if len(args) > 0 and args[0].lower() == "full":
+            reindex = True
+        else:
+            reindex = False
+
+        async with ctx.typing():
+            await ctx.send("Warning: Bot functionality might be blocked until finished.")
+
+            cooldown_list = util.check_active_scrobbleupdate()
+            if len(cooldown_list) > 0:
+                print("Skipping scrobble auto-update. Update pipe in use:", cooldown_list)
+                usernames = []
+                for item in cooldown_list:
+                    usernames.append(item[1])
+                usernamestring = ', '.join(usernames)
+                await ctx.send(f"Update pipe is currently in use ({usernamestring}). Please try again later.")
+                return
+
+            util.block_scrobbleupdate("mod action")
+
+            try:
+                i = await self.reload_releasewise_database(reindex)
+                await ctx.send(f"Done! {i} items were (re)loaded from the scrobble database.")
+            except Exception as e:
+                util.unblock_scrobbleupdate()
+                await ctx.send(f"Error: {e}")
+
             util.unblock_scrobbleupdate()
-            await ctx.send(f"Error: {e}")
-
-        util.unblock_scrobbleupdate()
 
     @_fullyreload_releasewise_database.error
     async def fullyreload_releasewise_database_error(self, ctx, error):
