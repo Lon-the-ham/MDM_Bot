@@ -8,6 +8,7 @@ import sqlite3
 import requests
 import json
 from bs4 import BeautifulSoup
+import random
 
 import traceback
 
@@ -179,7 +180,7 @@ class Music_Scrobbling(commands.Cog):
         conFM2.commit()
         #print("inserted into secondary database as well")
 
-
+        
 
     async def fetch_scrobbles(self, ctx, lfm_name, argument):
         cooldown = True
@@ -215,11 +216,16 @@ class Music_Scrobbling(commands.Cog):
 
         emoji = util.emoji("load")
         if argument.strip() == "--force":
-            description = f"Forcing update from scratch...\nFetching scrobble information {emoji}"
+            description = f"Forcing update from scratch...\nFetching scrobble information {emoji}\n\n"
         else:
-            description = f"Fetching scrobble information {emoji}"
-        embed = discord.Embed(title="", description=description, color=0x000000)
+            description = f"Fetching scrobble information {emoji}\n\n"
+
+        progress = 0
+        loadingbar = util.get_loadingbar(20, progress)
+        embed = discord.Embed(title="", description=description+loadingbar+f" 0%", color=0x000000)
         message = await ctx.reply(embed=embed, mention_author=False)
+
+        new_now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
         # FETCH NEW DATA
 
@@ -301,6 +307,21 @@ class Music_Scrobbling(commands.Cog):
 
                     # for next iteration
                     previous_item = item
+
+                    # loading bar
+                    try:
+                        new_now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                        new_progress = int(int(page_int) / int(total_pages_int))
+
+                        if new_progress > progress and new_now > old_now + 2:
+                            loadingbar = util.get_loadingbar(20, new_progress)
+                            embed = discord.Embed(title="", description=description+loadingbar+f" {new_progress}%", color=0x000000)
+                            await message.edit(embed=embed)
+                            progress = new_progress
+                            old_now = new_now
+                    except Exception as e:
+                        print("Error:", e)
+
             conFM.commit()
             self.releasewise_insert(lfm_name, item_dict)
             await util.changetimeupdate()
@@ -314,7 +335,10 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    async def run_scrobbledata_sanitycheck(self, lfm_name):
+    async def run_scrobbledata_sanitycheck(self, lfm_name, leeway):
+        if type(leeway) == str:
+            leeway = int(leeway)
+
         conFM = sqlite3.connect('databases/scrobbledata.db')
         curFM = conFM.cursor()
 
@@ -337,7 +361,7 @@ class Music_Scrobbling(commands.Cog):
             track = item[2]
             uts = item[3]
 
-            if (artist == prev_artist) and (album == prev_album) and (track == prev_track) and (abs(uts - prev_uts) < 5) and uts > 999999999:
+            if (artist == prev_artist) and (album == prev_album) and (track == prev_track) and (abs(uts - prev_uts) < (leeway+1)) and uts > 999999999:
                 print(f"Removing: {artist} - {track} ({album}) scrobbled at {uts}")
                 continue
 
@@ -660,8 +684,28 @@ class Music_Scrobbling(commands.Cog):
                     return artist, thumbnail, tags
 
                 except Exception as e:
-                    print(f"Error: {str(rjson)} - {e}")
-                    return argument, "", []
+                    try:
+                        # emergency fetch from database
+                        result = curSS.execute(f"SELECT artist, thumbnail, tags_lfm, tags_other, last_update FROM artistinfo WHERE filtername = ? OR filteralias = ?", (artist_fltr,artist_fltr))
+                        rtuple = result.fetchone()
+                        db_entry_exists = True
+
+                        artist = str(rtuple[0])
+                        thumbnail = str(rtuple[1])
+                        rawtags = str(rtuple[2]).split(";") + str(rtuple[3]).split(";")
+                        last_update = int(rtuple[4])
+
+                        tags = []
+                        for tag in rawtags:
+                            tag_filtered = tag.lower().strip()
+                            if tag_filtered != "":
+                                tags.append(tag_filtered)
+
+                        return artist, thumbnail, tags
+
+                    except:
+                        print(f"Error: {str(rjson)} - {e}")
+                        return argument, "", []
 
 
 
@@ -1160,6 +1204,109 @@ class Music_Scrobbling(commands.Cog):
 
 
 
+    async def lastfm_error_handler(self, ctx, e):
+        if "'message': '" in str(e):
+            try:
+                errormessage = str(e).split("'message': '")[1].split("'")[0].strip()
+                errorcode = ""
+                if "'error': " in str(e):
+                    errorcode = "error code: " + str(e).split("'error': ")[1].split("}")[0].strip()
+                    if "," in errorcode:
+                        errorcode = errorcode.split(",")[0].strip()
+
+                emoji = util.emoji("attention")
+                output_string = f"{emoji} **Last.fm error:**\nAPI call got response message:```{errormessage}```{errorcode}"
+                embed = discord.Embed(title="", description=output_string[:4096], color=0x800000)
+            except Exception as e2:
+                print(e2)
+                await ctx.send(f"Error: {e}")
+        else:
+            await ctx.send(f"Error: {e}")
+            print(traceback.format_exc())
+
+
+
+    async def get_albumcover(self, ctx, artist, album, *track):
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+        curSM.execute('''CREATE TABLE IF NOT EXISTS albuminfo (artist text, artist_filtername text, album text, album_filtername text, tags text, cover_url text, last_update integer)''')
+        albuminfo = [[item[0],item[1],item[2],item[3]] for item in curSM.execute("SELECT artist, album, tags, cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (util.compactnamefilter(artist), util.compactnamefilter(album))).fetchall()]
+
+        if len(albuminfo) > 0:
+            cover_url = albuminfo[0][3]
+            if cover_url.strip() != "":
+                return cover_url
+
+        # FETCH FROM API
+
+        try:
+            if album.strip() != "":
+                payload = {
+                    'method': 'album.getInfo',
+                    'album': album,
+                    'artist': artist,
+                }
+                cooldown = True
+
+                response = await util.lastfm_get(ctx, payload, cooldown)
+                if response == "rate limit":
+                    print("Error: Rate limit.")
+                    return ""
+
+                rjson = response.json()
+
+                artist_name = rjson['album']['artist']
+                album_name = rjson['album']['name']
+                thumbnail = rjson['album']['image'][-1]['#text']
+                tags = []
+                try:
+                    for tag in rjson['album']['tags']['tag']:
+                        try:
+                            tagname = tag['name'].lower()
+                            tags.append(tagname)
+                        except Exception as e:
+                            print("Tag error:", e)
+                except:
+                    pass
+
+            else:
+                payload = {
+                    'method': 'track.getInfo',
+                    'track': track[0],
+                    'artist': artist,
+                }
+                cooldown = True
+
+                response = await util.lastfm_get(ctx, payload, cooldown)
+                if response == "rate limit":
+                    print("Error: Rate limit.")
+                    return ""
+
+                rjson = response.json()
+                artist_name = rjson['track']['artist']['name']
+                track_name = rjson['track']['name']
+                thumbnail = rjson['track']['album']['image'][-1]['#text']
+
+                tags = []
+                try:
+                    for tag in rjson['track']['toptags']['tag']:
+                        try:
+                            tagname = tag['name'].lower()
+                            tags.append(tagname)
+                        except Exception as e:
+                            print("Tag error:", e)
+                except:
+                    pass
+
+            # under construction: insert into scrobblemeta.db
+
+            return thumbnail
+        except Exception as e:
+            print("Error in get_albumcover():", e)
+            return ""
+
+
+
     ##################################################### COMMANDS #################################################################
 
 
@@ -1214,19 +1361,19 @@ class Music_Scrobbling(commands.Cog):
                 print(traceback.format_exc())
                 return
 
-            util.unblock_scrobbleupdate()
-
+            loadingbar = util.get_loadingbar(20, 100)
             if count == 0:
-                new_embed = discord.Embed(title="", description=f"No new scrobbles to add to database.", color=0x00A36C)
+                new_embed = discord.Embed(title="", description=f"No new scrobbles to add to database.\n\n{loadingbar} 100%", color=0x00A36C)
             else:
                 emoji = util.emoji("yay")
                 if count == 1:
-                    new_embed = discord.Embed(title="", description=f"Done! Updated {count} entry. {emoji}", color=0x00A36C)
+                    new_embed = discord.Embed(title="", description=f"Done! Updated {count} entry. {emoji}\n\n{loadingbar} 100%", color=0x00A36C)
                 else:
-                    new_embed = discord.Embed(title="", description=f"Done! Updated {count} entries. {emoji}", color=0x00A36C)
+                    new_embed = discord.Embed(title="", description=f"Done! Updated {count} entries. {emoji}\n\n{loadingbar} 100%", color=0x00A36C)
 
+        await self.run_scrobbledata_sanitycheck(lfm_name, 0)
         await message.edit(embed=new_embed)
-        #await self.run_scrobbledata_sanitycheck()
+        util.unblock_scrobbleupdate()
 
     @_scrobble_update.error
     async def scrobble_update_error(self, ctx, error):
@@ -1280,8 +1427,7 @@ class Music_Scrobbling(commands.Cog):
                 argument = ' '.join(args)
                 await self.whoknows(ctx, argument, "artist")
         except Exception as e:
-            await ctx.send(f"Error: {e}")
-            print(traceback.format_exc())
+            await self.lastfm_error_handler(ctx, e)
 
     @_whoknowsartist.error
     async def whoknowsartist_error(self, ctx, error):
@@ -1300,8 +1446,7 @@ class Music_Scrobbling(commands.Cog):
                 argument = ' '.join(args)
                 await self.whoknows(ctx, argument, "album")
         except Exception as e:
-            await ctx.send(f"Error: {e}")
-            print(traceback.format_exc())
+            await self.lastfm_error_handler(ctx, e)
 
     @_whoknowsalbum.error
     async def whoknowsalbum_error(self, ctx, error):
@@ -1320,8 +1465,7 @@ class Music_Scrobbling(commands.Cog):
                 argument = ' '.join(args)
                 await self.whoknows(ctx, argument, "track")
         except Exception as e:
-            await ctx.send(f"Error: {e}")
-            print(traceback.format_exc())
+            await self.lastfm_error_handler(ctx, e)
 
     @_whoknowstrack.error
     async def whoknowstrack_error(self, ctx, error):
@@ -1340,8 +1484,7 @@ class Music_Scrobbling(commands.Cog):
                 argument = ' '.join(args)
                 await self.first_scrobbler(ctx, argument, "artist")
         except Exception as e:
-            await ctx.send(f"Error: {e}")
-            print(traceback.format_exc())
+            await self.lastfm_error_handler(ctx, e)
 
     @_firstartist.error
     async def firstartist_error(self, ctx, error):
@@ -1360,8 +1503,7 @@ class Music_Scrobbling(commands.Cog):
                 argument = ' '.join(args)
                 await self.first_scrobbler(ctx, argument, "album")
         except Exception as e:
-            await ctx.send(f"Error: {e}")
-            print(traceback.format_exc())
+            await self.lastfm_error_handler(ctx, e)
 
     @_firstalbum.error
     async def firstalbum_error(self, ctx, error):
@@ -1380,8 +1522,7 @@ class Music_Scrobbling(commands.Cog):
                 argument = ' '.join(args)
                 await self.first_scrobbler(ctx, argument, "track")
         except Exception as e:
-            await ctx.send(f"Error: {e}")
-            print(traceback.format_exc())
+            await self.lastfm_error_handler(ctx, e)
 
     @_firsttrack.error
     async def firsttrack_error(self, ctx, error):
@@ -1586,21 +1727,264 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _milestone(self, ctx: commands.Context, *args):
-        """Shows scrobble at given index
-        """
+        """Shows scrobble milestone
 
-        await ctx.send("Under construction")
+        Use without argument to show last milestone.
+        Use with index argument `<n>` to get n-th scrobble.
+        Use arg `last` to get last scrobble.
+        Use arg `rand` to get random scrobble.
+        """
+        user_id = str(ctx.author.id)
+        color = 0x9d2933
+        index_int = 0
+
+        if len(args) == 0:
+            index_number = "last_ms"
+        elif args[0].lower() == "last":
+            index_number = "last"
+        elif args[0].lower() in ["rand", "rando", "random"]:
+            index_number = "random"
+        else:
+            index_number = args[0]
+            if util.represents_integer:
+                index_int = int(index_number)
+                if index_int < 1:
+                    index_int = 1
+            else:
+                index_number = "last_ms"
+
+        # FETCH LASTFM NAME
+
+        conNP = sqlite3.connect('databases/npsettings.db')
+        curNP = conNP.cursor()
+
+        try:
+            result = curNP.execute("SELECT lfm_name FROM lastfm WHERE id = ?", (user_id,))
+            lfm_name = result.fetchone()[0]
+        except Exception as e:
+            print(e)
+            await ctx.send(f"Error: Could not find your lastfm username. {emoji}\nUse `{self.prefix}setfm` to set your username first, and then use `{self.prefix}u` to load your scrobbles into the bot's database.")
+            return
+
+        # FETCH MILESTONE
+
+        conFM = sqlite3.connect('databases/scrobbledata.db')
+        curFM = conFM.cursor()
+
+        scrobbles = [[item[0],item[1],item[2],item[3]] for item in curFM.execute(f"SELECT artist_name, album_name, track_name, date_uts FROM [{lfm_name}] ORDER BY date_uts ASC").fetchall()]
+        footer = ""
+        if index_number == "last_ms":
+            milestone_list = [1]
+            for x in [1,2,3,4,5,6,7,8,9]:
+                for y in [1,2,3,4,5,6,7,8,9]:
+                    milestone = (10 ** x) * y
+                    milestone_list.append(milestone)
+                    if x == 5:
+                        milestone += (10 ** (x-1)) * 5
+                        milestone_list.append(milestone)
+                    if x > 5:
+                        for z in range(9):
+                            milestone += (10 ** (x-1)) * z
+                            milestone_list.append(milestone)
+            index_int = 1
+            for i in milestone_list:
+                if i <= len(scrobbles):
+                    index_int = i
+                else:
+                    break
+        elif index_number == "random":
+            index_int = random.randint(1, len(scrobbles))
+
+        elif index_number == "last" or index_int > len(scrobbles):
+            index_int = len(scrobbles)
+            if index_int > len(scrobbles):
+                footer = f"{len(scrobbles)}? you don't have that many scrobbles... yet"
+
+        item = scrobbles[index_int - 1]
+
+        artist = item[0]
+        album = item[1]
+        track = item[2]
+        uts = item[3]
+
+        text = f"**{track}**\nby {artist}"
+        if album.strip() != "":
+            text += f" | {album}"
+
+        text += f"\n\nPlayed at <t:{uts}:f>"
+
+        embed = discord.Embed(title="", description=text, color=ctx.author.color)
+
+        try:
+            embed.set_author(name=f"{ctx.author.name}'s scrobble no. {index_int}", icon_url=ctx.author.avatar)
+        except Exception as e:
+            print("Error:", e)
+
+        try:
+            albumart = await self.get_albumcover(ctx, artist, album, track)
+            embed.set_thumbnail(url=albumart)
+        except Exception as e:
+            print("Error:", e)
+
+        if footer.strip() != "":
+            embed.set_footer(text=footer.strip())
+
+        await ctx.send(embed=embed)
 
     @_milestone.error
     async def milestone_error(self, ctx, error):
         await util.error_handling(ctx, error) 
 
 
-    # under construction: stats command
+    
+    @commands.command(name='stats', aliases = ["stat"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _stats(self, ctx: commands.Context, *args):
+        """Shows lastfm stats
+        """
 
-    # under construction: streak command
+        await ctx.send("Under construction")
 
-    # under construction: pace command
+    @_stats.error
+    async def stats_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='streak', aliases = ["str"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _streak(self, ctx: commands.Context, *args):
+        """Shows current lastfm streak
+        """
+
+        await ctx.send("Under construction")
+
+    @_streak.error
+    async def streak_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='pace', aliases = ["pc"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _pace(self, ctx: commands.Context, *args):
+        """Shows lastfm pace
+        """
+
+        await ctx.send("Under construction")
+
+    @_pace.error
+    async def pace_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='aa', aliases = ["artistalbums"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _artistalbums(self, ctx: commands.Context, *args):
+        """
+        """
+
+        await ctx.send("Under construction")
+
+    @_artistalbums.error
+    async def artistalbums_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='at', aliases = ["artisttracks"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _artisttracks(self, ctx: commands.Context, *args):
+        """
+        """
+
+        await ctx.send("Under construction")
+
+    @_artisttracks.error
+    async def artisttracks_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='ap', aliases = ["artistplays"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _artistplays(self, ctx: commands.Context, *args):
+        """
+        """
+
+        await ctx.send("Under construction")
+
+    @_artistplays.error
+    async def artistplays_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='ai', aliases = ["artistinfo"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _artistinfo(self, ctx: commands.Context, *args):
+        """
+        """
+
+        await ctx.send("Under construction")
+
+    @_artistinfo.error
+    async def artistinfo_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='from', aliases = ["fromcountry"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _fromcountry(self, ctx: commands.Context, *args):
+        """
+        """
+
+        await ctx.send("Under construction")
+
+    @_fromcountry.error
+    async def fromcountry_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='g', aliases = ["genres"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _usergenres(self, ctx: commands.Context, *args):
+        """
+        """
+
+        await ctx.send("Under construction")
+
+    @_usergenres.error
+    async def usergenres_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='ga', aliases = ["genreartist", "genreartists"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _genreartists(self, ctx: commands.Context, *args):
+        """
+        """
+
+        await ctx.send("Under construction")
+
+    @_genreartists.error
+    async def genreartists_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
 
 
 
@@ -1735,7 +2119,41 @@ class Music_Scrobbling(commands.Cog):
     async def _crownremove(self, ctx: commands.Context, *args):
         """🔒 remove crowns from a user
 
-        Remove crowns from user via their last_fm name."""
+        Remove crowns from user via their last_fm name.
+
+        Use command with argument `all` to remove all crowns on this bot."""
+
+        if len(args) == 0:
+            await ctx.send(f"Error: Command needs argument.")
+            return
+
+        if len(args) == 1 and args[0].lower() == "all":
+            conSS = sqlite3.connect('databases/scrobblestats.db')
+            curSS = conSS.cursor()
+            successes = 0
+            serverlist = []
+            for guild in self.bot.guilds:
+                try:
+                    curSS.execute(f'''CREATE TABLE IF NOT EXISTS crowns_{guild.id} (artist text, alias text, alias2 text, crown_holder text, discord_name text, playcount integer)''')
+                    scrobblestats = [item for item in curSS.execute(f"SELECT * FROM crowns_{guild.id}").fetchall()]
+                    if len(scrobblestats) == 0:
+                        continue
+
+                    curSS.execute(f"DELETE FROM crowns_{guild.id}")
+                    conSS.commit()
+                    successes += 1
+                    serverlist.append(str(guild.name))
+                except Exception as e:
+                    await ctx.send(f"Error while trying to remove all crowns from {guild.name}: {e}")
+
+            if successes > 0:
+                serverstring = ', '.join(serverlist)
+                emoji = util.emoji("unleashed")
+                await cts.send(f"Successfully removed all crowns from {successes} servers. {emoji}\nServers: {serverstring}")
+            else:
+                emoji = util.emoji("disappointed")
+                await cts.send(f"Couldn't remove any crowns. {emoji}")
+            return
 
         for arg in args:
             lfm_name = arg.replace("\\","")
@@ -1929,7 +2347,7 @@ class Music_Scrobbling(commands.Cog):
     #    """
 
     #    lfm_name = ' '.join(args)
-    #    len_before, len_after, sus = await self.run_scrobbledata_sanitycheck(lfm_name)
+    #    len_before, len_after, sus = await self.run_scrobbledata_sanitycheck(lfm_name, 0)
 
     #    text = f"Filtered and re-indexed scrobbles of {lfm_name}."
     #    if (len_before != len_after):
@@ -1937,10 +2355,10 @@ class Music_Scrobbling(commands.Cog):
     #    else:
     #        text += f"\nCount remains unchanged. (Diff: 0)"
 
-        #if sus > 0:
-        #    emoji = util.emoji("think")
-        #    text += f"\n\n(Furthermore, {sus} many scrobbles that happened at the same second. So many Napalm Death type cases? {emoji})"
-        #await ctx.send(text)
+    #    if sus > 0:
+    #        emoji = util.emoji("think")
+    #        text += f"\n\n(Furthermore, {sus} many scrobbles that happened at the same second. So many Napalm Death type cases? {emoji})"
+    #    await ctx.send(text)
 
     #@_scrobblefilter.error
     #async def scrobblefilter_error(self, ctx, error):
