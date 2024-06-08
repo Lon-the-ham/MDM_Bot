@@ -24,6 +24,7 @@ from tzlocal import get_localzone
 import pytz
 from other.utils.utils import Utils as util
 import os
+import sys
 import asyncio
 import sqlite3
 from emoji import UNICODE_EMOJI
@@ -4647,8 +4648,9 @@ class Administration_of_Settings(commands.Cog):
             for guild in self.bot.guilds:
                 curSS.execute(f'''CREATE TABLE IF NOT EXISTS crowns_{guild.id} (artist text, alias text, alias2 text, crown_holder text, discord_name text, playcount integer)''')
 
-            conSG = sqlite3.connect('databases/scrobblegenres.db')
-            curSG = conSS.cursor()
+            conSM = sqlite3.connect('databases/scrobblemeta.db')
+            curSM = conSM.cursor()
+            curSM.execute('''CREATE TABLE IF NOT EXISTS albuminfo (artist text, artist_filtername text, album text, album_filtername text, tags text, cover_url text, last_update integer)''')
 
 
             # SHENANIGANS
@@ -4701,6 +4703,11 @@ class Administration_of_Settings(commands.Cog):
             #############################################################################################################################
 
             # remove duplicates in UA database, and set empty previousroles
+
+            try:
+                os.remove(f"{sys.path[0]}/databases/scrobblegenres.db")
+            except:
+                pass
 
             UA_users = [item[0] for item in curUA.execute("SELECT userid FROM useractivity").fetchall()]
             UA_uniqueusers = list(dict.fromkeys(UA_users))
