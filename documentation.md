@@ -46,7 +46,13 @@ Additionally you may need to install 2 packages:
 
 > pip install --upgrade openai
 
-The googletranslate python package described in the read.md is an older one that is compatible with more devices. This other one causes problems on some devices, but is compatible with newer httpx that is required for openai. Test installing both these packages and test if you are still able to use `-tr` (as well as `-gpt`). If both work, good, if not, you may need to decide which feature you want to keep and if you decide pro-translator then 
+The googletranslate python package described in the read.md is an older one that is compatible with more devices. This other one causes problems on some devices, but is compatible with newer httpx that is required for openai. Test installing both these packages and test if you are still able to use `-tr` (as well as `-gpt`). If both work, good, if not try to install an older open ai package, i.e.
+
+> pip uninstall openai
+
+> pip install openai==1.30.3
+
+If that also doesn't work you may need to decide which feature you want to keep and if you decide pro-translator then 
 
 > pip uninstall openai
 
