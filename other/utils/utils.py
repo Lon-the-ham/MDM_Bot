@@ -796,6 +796,20 @@ class Utils():
 
 
 
+    def get_loadingbar(n, p):
+        """
+        n Breite des Balkens
+        p = 0,1,...,100 Prozent"""
+        bar = ""
+        for x in range(n):
+            if x < int(p * n / 100):
+                bar += "█"
+            else:
+                bar += "░"
+        return bar
+
+
+
     def get_rank(ctx, ctx_lfm_name, artist):
         try:
             conNP = sqlite3.connect('databases/npsettings.db')
@@ -1371,7 +1385,7 @@ class Utils():
         #print(table_list)
         for table in table_list:
             try:
-                result = con.execute(f'SELECT MAX(last_time) FROM {table}')
+                result = con.execute(f'SELECT MAX(last_time) FROM [{table}]')
                 rtuple = result.fetchone()
                 if int(rtuple[0]) > lasttime:
                     lasttime = int(rtuple[0])
@@ -3781,7 +3795,7 @@ class Utils():
 
         all_files_good = True
 
-        for filename in ['scrobbledata.db', 'scrobbledata_releasewise.db', 'scrobblestats.db', 'scrobblegenres.db']:
+        for filename in ['scrobbledata.db', 'scrobbledata_releasewise.db', 'scrobblestats.db', 'scrobblemeta.db']:
             try:
                 con = sqlite3.connect(f'databases/{filename}')
                 cur = con.cursor()  
@@ -3789,24 +3803,28 @@ class Utils():
                 #print(table_list)
                 try:
                     for table in table_list:
-                        cursor = con.execute(f'SELECT * FROM {table}')
+                        cursor = con.execute(f'SELECT * FROM [{table}]')
                         column_names = list(map(lambda x: x[0], cursor.description))
                         #print(column_names)
                         try:
-                            item_list = [item[0] for item in cur.execute(f"SELECT * FROM {table} ORDER BY {column_names[0]} ASC LIMIT 1").fetchall()]
+                            item_list = [item[0] for item in cur.execute(f"SELECT * FROM [{table}] ORDER BY {column_names[0]} ASC LIMIT 1").fetchall()]
                             #print(item_list)
                         except Exception as e:
                             print(f"Error with {filename} table {table} query:", e)
+                            #await ctx.send(f"Error with {filename} table {table} query: {e}")
                             all_files_good = False
                 except Exception as e:
                     print(f"Error with {filename} table {table} structure:", e)
+                    #await ctx.send(f"Error with {filename} table {table} structure: {e}")
                     all_files_good = False
             except Exception as e:
                 print(f"Error with {filename}:", e)
+                #await ctx.send(f"Error with {filename}: {e}")
                 all_files_good = False
 
         if not all_files_good:
-            await ctx.send(f"Cloud backup skipped. Corrupted file among scrobble databases found.\nUse `{self.prefix}troubleshoot` and delete troublesome databases. Then retrieve backup from cloud.")
+            prefix = os.getenv("prefix")
+            await ctx.send(f"Cloud backup skipped. Corrupted file among scrobble databases found.\nUse `{prefix}troubleshoot` and delete troublesome databases. Then retrieve backup from cloud.")
             return
 
         # CONNECT TO DROPBOX
@@ -4018,7 +4036,7 @@ class Utils():
             instances = [item[0] for item in cur.execute("SELECT details FROM botsettings WHERE name = ?", ("app id",)).fetchall()]
 
             subfolder = f"{sys.path[0]}/temp"
-            names = ["scrobbledata.db", "scrobbledata_releasewise.db",  "scrobblestats.db", "scrobblegenres.db"]
+            names = ["scrobbledata.db", "scrobbledata_releasewise.db",  "scrobblestats.db", "scrobblemeta.db"]
             filepathes = {}
 
             for instance in instances:
@@ -4105,10 +4123,10 @@ class Utils():
                         table_list = [item[0] for item in cur.execute("SELECT name FROM sqlite_master WHERE type = ?", ("table",)).fetchall()]
                         try:
                             for table in table_list:
-                                cursor = con.execute(f'SELECT * FROM {table}')
+                                cursor = con.execute(f'SELECT * FROM [{table}]')
                                 column_names = list(map(lambda x: x[0], cursor.description))
                                 try:
-                                    item_list = [item[0] for item in cur.execute(f"SELECT * FROM {table} ORDER BY {column_names[0]} ASC LIMIT 1").fetchall()]
+                                    item_list = [item[0] for item in cur.execute(f"SELECT * FROM [{table}] ORDER BY {column_names[0]} ASC LIMIT 1").fetchall()]
                                 except Exception as e:
                                     print(f"Error with {filename} table {table} query:", e)
                                     raise ValueError(f"{filename} file check : query error - {e}")
