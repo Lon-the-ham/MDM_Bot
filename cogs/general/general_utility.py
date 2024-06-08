@@ -6,13 +6,59 @@ from other.utils.utils import Utils as util
 import os
 import asyncio
 import random
-from googletrans import Translator
 import re
 from collections import OrderedDict
 import sqlite3
 import math
 import requests
 from emoji import UNICODE_EMOJI
+
+try:
+    from googletrans import Translator
+    googletrans_enabled = True
+except:
+    print("Not importing Google Translator library")
+    googletrans_enabled = False
+
+try:
+    import asyncpraw
+    try:
+        import asyncprawcore
+        reddit_enabled = True
+    except:
+        print("Not importing AsyncPrawCore (Reddit) library")
+        reddit_enabled = False
+except:
+    print("Not importing AsyncPraw (Reddit) library")
+    reddit_enabled = False
+
+try:
+    from openai import OpenAI
+    gpt_enabled = True
+except:
+    print("Not importing OpenAI library")
+    gpt_enabled = False
+
+
+
+class GU_Check():
+    def is_googletrans_enabled(self):
+        if googletrans_enabled:
+            return True
+        else:
+            raise ValueError("GoogleTranslate module was not imported.")
+
+    def is_reddit_enabled(self):
+        if reddit_enabled:
+            return True
+        else:
+            raise ValueError("AsyncPraw module (for Reddit) was not imported.")
+
+    def is_gpt_enabled(self):
+        if gpt_enabled:
+            return True
+        else:
+            raise ValueError("OpenAI module was not imported.")
 
 
 class General_Utility(commands.Cog):
@@ -680,6 +726,7 @@ class General_Utility(commands.Cog):
 
 
     @commands.group(name="translate", aliases = ["tr"], pass_context=True, invoke_without_command=True)
+    @commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate(self, ctx, *args):
         """translate
@@ -700,6 +747,7 @@ class General_Utility(commands.Cog):
 
 
     @commands.group(name="trx", aliases = ["translatex"], pass_context=True, invoke_without_command=True)
+    @commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate_x(self, ctx, *args):
         """translate (with detection info)
@@ -753,6 +801,7 @@ class General_Utility(commands.Cog):
 
     
     @commands.command(name='languages', aliases = ['language'])
+    @commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate_languages(self, ctx, *args):
         """list of supported translation languages
@@ -766,6 +815,7 @@ class General_Utility(commands.Cog):
 
 
     @_translate.command(name="languages", aliases = ['language'], pass_context=True)
+    @commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate_languages_subcommand(self, ctx, *args):
         """list of supported translation languages
@@ -778,6 +828,7 @@ class General_Utility(commands.Cog):
 
 
     @_translate_x.command(name="languages", aliases = ['language'], pass_context=True)
+    @commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translatex_languages_subcommand(self, ctx, *args):
         """list of supported translation languages
@@ -3222,6 +3273,61 @@ class General_Utility(commands.Cog):
     async def calculate_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
+
+
+    @commands.command(name='gpt', aliases = ['chatgpt'])
+    @commands.check(GU_Check.is_gpt_enabled)
+    @commands.check(util.is_active)
+    async def _gpt_query(self, ctx: commands.Context, *args):
+        """Query Chat GPT"""
+
+        if len(args) == 0:
+            await ctx.send("Command needs prompt.")
+            return
+
+        try:
+            api_key = os.getenv("openai_secret_key")
+
+            if api_key is None:
+                await ctx.send("No API key provided.\n||Ask mods to add Open AI account and API key.||")
+                return 
+        except:
+            await ctx.send("Failed to load OpenAI API key.")
+            return 
+
+        async with ctx.typing():
+            try:
+                client = OpenAI(api_key=api_key)
+                systemrole = "You are a skilled and quirky assistant, who is a bit bubbly in personality and likes using ascii emotes."
+
+                query = ' '.join(args)
+
+                completion = client.chat.completions.create(
+                  model="gpt-3.5-turbo",
+                  messages=[
+                    {"role": "system", "content": systemrole},
+                    {"role": "user", "content": query}
+                  ]
+                )
+
+                print(completion.choices[0].message)
+            except Exception as e:
+                try:
+                    error_code = str(e).split(" - {")[0].strip()
+                    message = str(e).split("'message': '")[1].split("'")[0].strip()
+                    error_type = str(e).split("'type': '")[1].split("'")[0].replace("_", " ").strip()
+                    print("ERROR:", message)
+                    additional = ""
+                    if error_type == "insufficient quota":
+                        additional = "API limit reached."
+
+                    await ctx.send(f"Open AI Error: ```{error_code} - {error_type}```{additional}")
+                except:
+                    await ctx.send(f"Open AI Error: {e}")
+            
+    @_gpt_query.error
+    async def gpt_query_error(self, ctx, error):
+        await util.error_handling(ctx, error)
         
 
 
