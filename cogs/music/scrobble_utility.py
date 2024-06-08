@@ -225,7 +225,7 @@ class Music_Scrobbling(commands.Cog):
         embed = discord.Embed(title="", description=description+loadingbar+f" 0%", color=0x000000)
         message = await ctx.reply(embed=embed, mention_author=False)
 
-        new_now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+        old_now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
         # FETCH NEW DATA
 
