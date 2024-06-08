@@ -58,7 +58,7 @@ If that also doesn't work you may need to decide which feature you want to keep 
 
 > pip uninstall googletrans-py
 
-> pip install googletrans
+> pip uninstall googletrans
 
 > pip install googletrans==3.1.0a0
 
