@@ -311,7 +311,7 @@ class Music_Scrobbling(commands.Cog):
                     # loading bar
                     try:
                         new_now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
-                        new_progress = int(int(page_int) / int(total_pages_int))
+                        new_progress = int(int(page_int) / int(total_pages_int) * 100)
 
                         if new_progress > progress and new_now > old_now + 2:
                             loadingbar = util.get_loadingbar(20, new_progress)
