@@ -30,9 +30,9 @@ Next you need to install a few packages that the applications uses:
   
 > pip install emoji==1.7
   
-> pip install emojis
-  
 > python3 -m pip install requests
+
+> pip install googletrans==3.1.0a0
   
 > pip install spotipy
   
@@ -40,13 +40,13 @@ Next you need to install a few packages that the applications uses:
 
 > pip install tzlocal==2.1
 
-> pip install googletrans==3.1.0a0
-
-> pip install asyncpraw
-
 > pip install beautifulsoup4
 
 > pip install dropbox
+
+These are not used yet, but will come eventually later:
+
+> pip install asyncpraw
 
 
 ### Create a discord application
