@@ -1797,6 +1797,11 @@ class Music_Scrobbling(commands.Cog):
         curFM = conFM.cursor()
 
         scrobbles = [[item[0],item[1],item[2],item[3]] for item in curFM.execute(f"SELECT artist_name, album_name, track_name, date_uts FROM [{lfm_name}] ORDER BY date_uts ASC").fetchall()]
+        
+        if len(scrobbles) == 0:
+            await ctx.send("You haven't imported any of your scrobbles.")
+            return
+
         footer = ""
         if index_number == "last_ms":
             milestone_list = [1]
