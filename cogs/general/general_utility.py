@@ -3342,7 +3342,7 @@ class General_Utility(commands.Cog):
 
 
 
-        information = "ohayougozaimasu"
+        information = "ohayougozaima"
 
 
         await ctx.send(information)
