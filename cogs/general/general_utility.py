@@ -3197,8 +3197,9 @@ class General_Utility(commands.Cog):
         rjson = response.json()
 
         bad_urls = [
+            "https://cdn.", # does not embed somehow
             "https://lookaside.", # facebook and instagram pictures
-            "https://cdn." # does not embed somehow
+            "https://www.tiktok.com", # tiktok
         ]
 
         try:
@@ -3208,7 +3209,22 @@ class General_Utility(commands.Cog):
                 await ctx.send(item['link'])
                 break
         except:
-            await ctx.send("Error: Could not find images or reached API limit.")
+            #print(rjson)
+            try:
+                errorcode = rjson['error']['code']
+                try:
+                    errorreason = rjson['error']['details'][0]['reason']
+                except:
+                    errorreason = "?"
+
+                if errorreason == 'RATE_LIMIT_EXCEEDED':
+                    await ctx.send(f"Error ({errorcode}): Reached API limit.\n(Only 100 queries per day.)")
+                else:
+                    reason = errorreason.lower().replace("_", " ")
+                    await ctx.send(f"Error ({errorcode}): Could not find image.\n(reason: {reason})")
+            except Exception as e:
+                print("Error while compiling error message lmao:", e)
+                await ctx.send("Error: Could not find image.")
 
     @_imagesearch.error
     async def imagesearch_error(self, ctx, error):
@@ -3279,12 +3295,10 @@ class General_Utility(commands.Cog):
     @commands.check(GU_Check.is_gpt_enabled)
     @commands.check(util.is_active)
     async def _gpt_query(self, ctx: commands.Context, *args):
-        """Query Chat GPT"""
+        """Query Chat GPT
 
-        if len(args) == 0:
-            await ctx.send("Command needs prompt.")
-            return
-
+        Note that this command makes an OpenAI query without any knowledge of previous conversation or information about the user that the bot otherwise has.
+        """
         try:
             api_key = os.getenv("openai_secret_key")
 
@@ -3294,6 +3308,10 @@ class General_Utility(commands.Cog):
         except:
             await ctx.send("Failed to load OpenAI API key.")
             return 
+
+        if len(args) == 0:
+            await ctx.send("Command needs prompt.")
+            return
 
         async with ctx.typing():
             try:
@@ -3310,7 +3328,7 @@ class General_Utility(commands.Cog):
                   ]
                 )
 
-                await ctx.send(str(completion.choices[0].message.content))
+                await ctx.reply(str(completion.choices[0].message.content))
 
             except Exception as e:
                 try:
@@ -3328,6 +3346,30 @@ class General_Utility(commands.Cog):
             
     @_gpt_query.error
     async def gpt_query_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+
+    @commands.command(name='wiki', aliases = ['wikipedia'])
+    @commands.check(util.is_active)
+    async def _wikipedia(self, ctx: commands.Context, *args):
+        """Queries wikipedia for information
+        """
+
+        if len(args) == 0:
+            await ctx.send("Command needs arguments.")
+            return
+
+
+
+        information = ""
+
+
+        await ctx.send(information)
+
+    @_wikipedia.error
+    async def wikipedia_error(self, ctx, error):
         await util.error_handling(ctx, error)
         
     @commands.command(name='wiki', aliases = ['wikipedia'])
@@ -3350,6 +3392,7 @@ class General_Utility(commands.Cog):
     @_wikipedia.error
     async def wikipedia_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
 
 async def setup(bot: commands.bot) -> None:
     await bot.add_cog(
