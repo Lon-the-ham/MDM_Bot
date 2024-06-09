@@ -3330,7 +3330,26 @@ class General_Utility(commands.Cog):
     async def gpt_query_error(self, ctx, error):
         await util.error_handling(ctx, error)
         
+    @commands.command(name='wiki', aliases = ['wikipedia'])
+    @commands.check(util.is_active)
+    async def _wikipedia(self, ctx: commands.Context, *args):
+        """Queries wikipedia for information
+        """
 
+        if len(args) == 0:
+            await ctx.send("Command needs arguments.")
+            return
+
+
+
+        information = "ohayougozaimasu"
+
+
+        await ctx.send(information)
+
+    @_wikipedia.error
+    async def wikipedia_error(self, ctx, error):
+        await util.error_handling(ctx, error)
 
 async def setup(bot: commands.bot) -> None:
     await bot.add_cog(
