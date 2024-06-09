@@ -2447,7 +2447,13 @@ class General_Utility(commands.Cog):
                 response = requests.get(url, headers=headers, params=payload)
                 rjson = response.json()
                 print(rjson)
-                return rjson, city_string
+                try:
+                    longitude = rjson['coord']['lon']
+                    latitude =  rjson['coord']['lat']
+                except:
+                    longitude = ""
+                    latitude = ""
+                return rjson, city_string, longitude, latitude
 
             else:
                 # GET COORDINATES FIRST BY CITY/COUNTRY NAME
@@ -3349,28 +3355,6 @@ class General_Utility(commands.Cog):
         await util.error_handling(ctx, error)
 
 
-
-
-    @commands.command(name='wiki', aliases = ['wikipedia'])
-    @commands.check(util.is_active)
-    async def _wikipedia(self, ctx: commands.Context, *args):
-        """Queries wikipedia for information
-        """
-
-        if len(args) == 0:
-            await ctx.send("Command needs arguments.")
-            return
-
-
-
-        information = ""
-
-
-        await ctx.send(information)
-
-    @_wikipedia.error
-    async def wikipedia_error(self, ctx, error):
-        await util.error_handling(ctx, error)
         
     @commands.command(name='wiki', aliases = ['wikipedia'])
     @commands.check(util.is_active)
@@ -3392,6 +3376,8 @@ class General_Utility(commands.Cog):
     @_wikipedia.error
     async def wikipedia_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
+
 
 
 async def setup(bot: commands.bot) -> None:
