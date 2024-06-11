@@ -67,7 +67,7 @@ class TimeLoops(commands.Cog):
         botspamchannel = self.bot.get_channel(botspamchannel_id) 
         if success == False:
             title = "⚠️ " + title + " Error"
-        embed=discord.Embed(title=title, description=message, color=0x000000)
+        embed=discord.Embed(title=title[:256], description=message[:4096], color=0x000000)
         await botspamchannel.send(embed=embed)
 
 
