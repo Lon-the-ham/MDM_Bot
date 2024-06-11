@@ -4678,6 +4678,17 @@ class Administration_of_Settings(commands.Cog):
             conRA = sqlite3.connect('databases/robotactivity.db')
             curRA = conRA.cursor()
             curRA.execute('''CREATE TABLE IF NOT EXISTS raw_reaction_embeds (embed_type text, channel_name text, guild_id text, channel_id text, message_id text, app_id text, called_by_id text, called_by_name text, utc_timestamp text)''')
+            curRA.execute('''CREATE TABLE IF NOT EXISTS gpt_context (role text, user_id text, username text, channel_id text, message_id text, content text, utc_timestamp integer)''')
+            curRA.execute('''CREATE TABLE IF NOT EXISTS gpt_setting (type text, content text, details text, etc text)''')
+
+            gpt_settings_context = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("context",)).fetchall()]
+            if len(gpt_settings_context) == 0:
+                curRA.execute("INSERT INTO gpt_setting VALUES (?, ?, ?, ?)", ("context", "disabled", "", ""))
+                conRA.commit()
+            gpt_settings_systemrole = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("systemrole",)).fetchall()]
+            if len(gpt_settings_systemrole) == 0:
+                curRA.execute("INSERT INTO gpt_setting VALUES (?, ?, ?, ?)", ("systemrole", "You are a skilled and quirky assistant, who is a bit bubbly in personality and likes using ascii emotes.", "", ""))
+                conRA.commit()
 
             # SEARCH FOR OTHER MDM BOT INSTANCES
             await asyncio.sleep(1)
