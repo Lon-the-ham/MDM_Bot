@@ -1225,19 +1225,20 @@ class TimeLoops(commands.Cog):
             try:
                 await user.edit(roles=[inactivity_role])
                 new_inactives_mention_list.append(f"<@{str(user.id)}>")
+                print(f"{user.name} was deemed inactive")
 
                 try:
                     # NPsettings change to inactive
                     conNP = sqlite3.connect('databases/npsettings.db')
                     curNP = conNP.cursor()
-                    lfm_list = [[item[0],item[1].lower().strip()] for item in curNP.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (str(user.id),)).fetchall()]
+                    lfm_list = [[item[0],item[1]] for item in curNP.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (str(user.id),)).fetchall()]
 
                     if len(lfm_list) > 0:
-                        status = lfm_list[0][1].strip()
-                        if status == "" or status is None:
+                        status = lfm_list[0][1]
+                        if status is None or status.lower().strip() == "":
                             new_status = "inactive"
                         else:
-                            new_status = status + "_inactive"
+                            new_status = status.lower().strip() + "_inactive"
                         curNP.execute("UPDATE lastfm SET details = ? WHERE id = ?", (new_status, str(user.id)))
                         conNP.commit()
                 except Exception as e:
@@ -1250,7 +1251,6 @@ class TimeLoops(commands.Cog):
 
             curUA.execute("UPDATE useractivity SET previous_roles = ? WHERE userid = ?", (previousroles, str(user_id)))
             conUA.commit()
-
             sleep_count += 1
 
         if sleep_count > 0:
