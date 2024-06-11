@@ -3321,20 +3321,70 @@ class General_Utility(commands.Cog):
 
         async with ctx.typing():
             try:
+                # connect
                 client = OpenAI(api_key=api_key)
-                systemrole = "You are a skilled and quirky assistant, who is a bit bubbly in personality and likes using ascii emotes."
+                context = []
 
+                # get initial role
+                conRA = sqlite3.connect('databases/robotactivity.db')
+                curRA = conRA.cursor()
+                gpt_settings_systemrole = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("systemrole",)).fetchall()]
+
+                if len(gpt_settings_systemrole) == 0:
+                    systemrole = "You are a helpful assistant."
+                else:
+                    systemrole = gpt_settings_systemrole[0]
+                context.append({"role": "system", "content": systemrole})
+
+                try:
+                    # get chat context
+                    gpt_settings_context = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("context",)).fetchall()]
+                    if len(gpt_settings_context) > 0 and gpt_settings_context[0].lower().strip() == "enabled":
+                        # remove old context
+                        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                        curRA.execute("DELETE FROM gpt_context WHERE utc_timestamp < ?", (now - 24*60*60,))
+                        conRA.commit()
+
+                        # fetch messages
+                        gpt_context_messages = [[item[0],item[1],item[2]] for item in curRA.execute("SELECT role, content, message_id FROM gpt_context WHERE user_id = ? AND channel_id = ? ORDER BY utc_timestamp ASC", (str(ctx.author.id),str(ctx.channel.id))).fetchall()]
+
+                        i = 0
+                        for item in gpt_context_messages:
+                            i += 1
+                            if len(gpt_context_messages) - i > 10:
+                                continue
+
+                            role = item[0]
+                            msg_text = item[1]
+                            context.append({"role": {role}, "content": {msg_text}})
+
+                        if ctx.message.reference is not None and ctx.message.reference.message_id not in [x[2] for x in gpt_context_messages]:
+                            msg = await ctx.fetch_message(ctx.message.reference.message_id)
+
+                            if str(msg.author.id) == str(self.bot.application_id):
+                                role = "assistant"
+                            else:
+                                role = "user"
+                            context.append({"role": {role}, "content": {str(msg.content)}})
+
+                except Exception as e:
+                    print("Error while trying to assemble context:", e)
+
+                # get query
                 query = ' '.join(args)
+                context.append({"role": "user", "content": query})
 
                 completion = client.chat.completions.create(
                   model="gpt-3.5-turbo",
-                  messages=[
-                    {"role": "system", "content": systemrole},
-                    {"role": "user", "content": query}
-                  ]
+                  messages=context
                 )
 
                 await ctx.reply(str(completion.choices[0].message.content))
+
+                if len(gpt_settings_context) > 0 and gpt_settings_context[0].lower().strip() == "enabled":
+                    curRA.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?, ?, ?, ?)", ("user", str(ctx.author.id), str(ctx.author.name), str(ctx.channel.id), str(ctx.message.id), query, now-1))
+                    curRA.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?, ?, ?, ?)", ("assistant", str(ctx.author.id), str(ctx.author.name), str(ctx.channel.id), str(ctx.message.id), str(completion.choices[0].message.content), now-1))
+                    conRA.commit()
 
             except Exception as e:
                 try:
@@ -3354,6 +3404,72 @@ class General_Utility(commands.Cog):
     async def gpt_query_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
+
+
+    @commands.command(name='gptset', aliases = ['setgpt'])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(GU_Check.is_gpt_enabled)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _setgpt(self, ctx: commands.Context, *args):
+        """🔒 GPT settings of bot
+
+        Use arg `context` with `on` or `off` to enable/disable context messages.
+        Use arg `systemrole` to set "personality" of the AI respodent.
+
+        Use without argument to see settings.
+        """
+        conRA = sqlite3.connect('databases/robotactivity.db')
+        curRA = conRA.cursor()
+        
+        if len(args) == 0:
+            gpt_settings_systemrole = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("systemrole",)).fetchall()]
+            if len(gpt_settings_systemrole) == 0:
+                systemrole = "You are a helpful assistant."
+            else:
+                systemrole = util.cleantext2(gpt_settings_systemrole[0])
+
+            gpt_settings_context = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("context",)).fetchall()]
+            if len(gpt_settings_context) > 0 and gpt_settings_context[0].lower().strip() in ["enabled", "on", "enable"]:
+                context = "on"
+            else:
+                context = "off"
+
+            info = f"GPT system role is set to```{systemrole}```Context is set `{context}`."
+            await ctx.send(info)
+
+        elif args[0].lower().strip() == "systemrole":
+            if len(args) <= 1:
+                new_systemrole = "You are a helpful assistant."
+            else:
+                new_systemrole = ' '.join(args[1:])
+            curRA.execute("UPDATE gpt_setting SET content = ? WHERE type = ?", (new_systemrole, "systemrole"))
+            conRA.commit()
+
+            await ctx.send(f"GPT system role set to ```{new_systemrole[:1900]}```")
+
+        elif args[0].lower().strip() == "context":
+            try:
+                switch = args[1].lower().strip()
+
+                if switch in ["on", "enabled", "enable"]:
+                    turn = "enabled"
+                else:
+                    turn = "disabled"
+
+                curRA.execute("UPDATE gpt_setting SET content = ? WHERE type = ?", (turn, "context"))
+                conRA.commit()
+
+                await ctx.send(f"GPT: {turn} context")
+            except:
+                await ctx.send("Error with provided arguments.")
+
+        else:
+            await ctx.send("Error: Command needs either argument `context` or `systemrole` or no argument.")
+
+    @_setgpt.error
+    async def setgpt_error(self, ctx, error):
+        await util.error_handling(ctx, error)
 
         
     @commands.command(name='wiki', aliases = ['wikipedia'])
