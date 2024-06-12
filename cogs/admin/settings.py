@@ -4640,7 +4640,9 @@ class Administration_of_Settings(commands.Cog):
             curFM = conFM.cursor()
             conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
             curFM2 = conFM2.cursor()
-
+            conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+            curFM3 = conFM3.cursor()
+            
             conSS = sqlite3.connect('databases/scrobblestats.db')
             curSS = conSS.cursor()
             curSS.execute('''CREATE TABLE IF NOT EXISTS artistinfo (artist text, thumbnail text, tags_lfm text, tags_other text, last_update integer, filtername text, filteralias text)''')
@@ -4789,6 +4791,34 @@ class Administration_of_Settings(commands.Cog):
                 print("Error:", e)
                 print(traceback.format_exc())
 
+            # add first_time column to scrobbledata_releasewise.db
+
+            try:
+                conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+                curFM2 = conFM2.cursor()
+                table_list = [item[0] for item in curFM2.execute("SELECT name FROM sqlite_master WHERE type = ?", ("table",)).fetchall()]
+
+                changes_happened = False
+
+                for table in table_list:
+                    cursorFM2 = conFM2.execute(f'SELECT * FROM [{table}]')
+                    column_names = list(map(lambda x: x[0], cursorFM2.description))
+                    cursorFM2.close()
+                    column_number = len(column_names)
+                    
+                    if column_number <= 4:
+                        conFM2.execute(f'ALTER TABLE [{table}] ADD COLUMN first_time integer;')
+                        y9999 = util.year9999()
+                        curFM2.execute(f"UPDATE [{table}] SET first_time = ?", (y9999,))
+                        conFM2.commit()
+                        changes_happened = True
+
+                if changes_happened:
+                    await ctx.send(f"Note: Run `{self.prefix}reloadrwdb` after this command is done.")
+
+            except Exception as e:
+                print("Error:", e)
+                print(traceback.format_exc())
 
             # fix scrobble stats
 
