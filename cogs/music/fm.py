@@ -2560,6 +2560,23 @@ class Music_NowPlaying(commands.Cog):
         new_lfm_link = "https://www.last.fm/user/" + new_lfm_name
         details = ""
 
+        letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+        digits = ['0','1','2','3','4','5','6','7','8','9']
+        extra = ['_','-']
+
+        if new_lfm_name[0].lower() not in letters:
+            await ctx.send("Error: Invalid name. Needs to start with a letter.")
+            return 
+
+        for char in new_lfm_name:
+            if char.lower() not in letters+digits+extra:
+                await ctx.send("Error: Invalid characters. Name can only contain letters, numbers, a `-` or a `_`.")
+                return 
+
+        if len(new_lfm_name) < 2 or len(new_lfm_name) > 15:
+            await ctx.send("Error: Invalid name-length. Needs to be between 2 and 15 chars.")
+            return 
+
         con = sqlite3.connect('databases/npsettings.db')
         cur = con.cursor()
         lfm_list = [[item[0],item[1]] for item in cur.execute("SELECT lfm_name, lfm_link FROM lastfm WHERE id = ?", (user_id,)).fetchall()]
