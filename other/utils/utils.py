@@ -483,17 +483,18 @@ class Utils():
         try:
             intermediate_string = input_string
 
-            if info == ("artist"):
+            if info == ("artist",):
                 if input_string.endswith(" - Topic"):
                     intermediate_string = input_string.replace(" - Topic", "")
-            elif info == ("album"):
+            elif info == ("album",):
                 if input_string.endswith(" - EP"):
                     intermediate_string = input_string.replace(" - EP", "")
 
-            if "(" in intermediate_string and not intermediate_string.startswith("("):
-                intermediate_string = intermediate_string.split("(",1)[0]
-            if "[" in intermediate_string and not intermediate_string.startswith("["):
-                intermediate_string = intermediate_string.split("[",1)[0]
+            if not info == ("track",):
+                if "(" in intermediate_string and not intermediate_string.startswith("("):
+                    intermediate_string = intermediate_string.split("(",1)[0]
+                if "[" in intermediate_string and not intermediate_string.startswith("["):
+                    intermediate_string = intermediate_string.split("[",1)[0]
 
             # get rid of non-alphanumeric
             intermediate_string = ''.join([x for x in intermediate_string.upper() if x.isalnum()])
@@ -862,7 +863,7 @@ class Utils():
                 # GET COUNT
 
                 try:
-                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM [{lfm_name}] WHERE artist_name = ?", (Utils.compactnamefilter(artist),))
+                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM [{lfm_name}] WHERE artist_name = ?", (Utils.compactnamefilter(artist,"artist"),))
 
                     try:
                         rtuple = result.fetchone()
@@ -2043,6 +2044,12 @@ class Utils():
 
 
 
+    def year9999():
+        """UNIX timestamp for year 9999, December 31st"""
+        return 253402210800
+
+
+
     def years_to_seconds(amount_of_years, month_of_year, day_of_year, from_timestamp):
         if from_timestamp is not None and Utils.represents_float(from_timestamp):
             ts = int(from_timestamp)
@@ -3174,7 +3181,7 @@ class Utils():
         def releasewise_insert(lfm_name, item_dict):
             conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
             curFM2 = conFM2.cursor()
-            curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer)")
+            curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer, first_time integer)")
 
             for k,v in item_dict.items():
                 artist = k[0]
@@ -3187,21 +3194,31 @@ class Utils():
                     now_time = int(v[1])
                 except:
                     now_time = 0
+
+                try:
+                    first_time = int(v[2])
+                except:
+                    first_time = Utils.year9999()
                 
                 try:
-                    result = curFM2.execute(f"SELECT count, last_time FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (artist, album))
+                    result = curFM2.execute(f"SELECT count, last_time, first_time FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (artist, album))
                     rtuple = result.fetchone()
                     prev_count = int(rtuple[0])
                     try:
                         prev_time = int(rtuple[1])
                     except:
                         prev_time = 0
+                    try:
+                        prev_first = int(rtuple[2])
+                    except:
+                        prev_first = Utils.year9999()
                 except:
                     prev_count = 0
                     prev_time = 0
+                    prev_first = Utils.year9999()
 
                 if prev_count == 0:
-                    curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?)", (artist, album, count, now_time))
+                    curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist, album, count, now_time, first_time))
 
                 else:
                     new_count = prev_count + count
@@ -3209,9 +3226,67 @@ class Utils():
                         time = now_time
                     else:
                         time = prev_time
-                    curFM2.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, artist, album))
+                    if first_time < prev_first:
+                        curFM2.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ?, first_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, first_time, artist, album))
+                    else:
+                        curFM2.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, artist, album))
             conFM2.commit()
             #print("inserted into secondary database as well")
+
+        def trackwise_insert(lfm_name, item_dict):
+            conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+            curFM3 = conFM3.cursor()
+            curFM3.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, track_name text, count integer, last_time integer, first_time integer)")
+
+            for k,v in item_dict.items():
+                artist = k[0]
+                track  = k[1]
+                try:
+                    count = int(v[0])
+                except Exception as e:
+                    count = 0
+                try:
+                    now_time = int(v[1])
+                except:
+                    now_time = 0
+
+                try:
+                    first_time = int(v[2])
+                except:
+                    first_time = Utils.year9999()
+                
+                try:
+                    result = curFM3.execute(f"SELECT count, last_time, first_time FROM [{lfm_name}] WHERE artist_name = ? AND track_name = ?", (artist, track))
+                    rtuple = result.fetchone()
+                    prev_count = int(rtuple[0])
+                    try:
+                        prev_time = int(rtuple[1])
+                    except:
+                        prev_time = 0
+                    try:
+                        prev_first = int(rtuple[2])
+                    except:
+                        prev_first = Utils.year9999()
+                except:
+                    prev_count = 0
+                    prev_time = 0
+                    prev_first = Utils.year9999()
+
+                if prev_count == 0:
+                    curFM3.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist, track, count, now_time, first_time))
+
+                else:
+                    new_count = prev_count + count
+                    if prev_time < now_time:
+                        time = now_time
+                    else:
+                        time = prev_time
+                    # keep first time
+                    if first_time < prev_first:
+                        curFM3.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ?, first_time = ? WHERE artist_name = ? AND track_name = ?", (new_count, time, first_time, artist, track))
+                    else:
+                        curFM3.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ? WHERE artist_name = ? AND track_name = ?", (new_count, time, artist, track))
+            conFM3.commit()
 
         ### actual function
 
@@ -3235,6 +3310,7 @@ class Utils():
 
         try:
             item_dict = {}
+            track_dict = {}
             previous_item = None
             while page_int < total_pages_int:
                 if not continue_loop:
@@ -3281,8 +3357,9 @@ class Utils():
                     i -= 1
 
                     # prepare for inserting into releasewise DB
-                    artist_filtername = Utils.compactnamefilter(item[0]) #''.join([x for x in item[0].upper() if x.isalnum()])
-                    album_filtername = Utils.compactnamefilter(item[1]) #''.join([x for x in item[1].upper() if x.isalnum()])
+                    artist_filtername = Utils.compactnamefilter(item[0],"artist") #''.join([x for x in item[0].upper() if x.isalnum()])
+                    album_filtername = Utils.compactnamefilter(item[1],"album") #''.join([x for x in item[1].upper() if x.isalnum()])
+                    track_filtername = Utils.compactnamefilter(item[2],"track")
                     
                     if (artist_filtername, album_filtername) in item_dict:
                         release = item_dict[(artist_filtername, album_filtername)]
@@ -3295,13 +3372,45 @@ class Utils():
                         except:
                             releaselastprev = 0
 
-                        item_dict[(artist_filtername, album_filtername)] = (releasecount + 1, releaselastprev)
+                        releasefirst = release[2]
+
+                        item_dict[(artist_filtername, album_filtername)] = (releasecount + 1, releaselastprev, releasefirst)
                     else:
                         try:
                             releaselast = int(item[3])
+                            releasefirst = releaselast
+                            if releasefirst < 1000000000:
+                                releasefirst = Utils.year9999()
                         except:
                             releaselast = 0
-                        item_dict[(artist_filtername, album_filtername)] = (1, releaselast)
+                            releasefirst = Utils.year9999()
+                        item_dict[(artist_filtername, album_filtername)] = (1, releaselast, releasefirst)
+
+                    # TRACKWISE DATABASE PREPARATION
+                    if (artist_filtername, track_filtername) in track_dict:
+                        trackitem = track_dict[(artist_filtername, track_filtername)]
+                        try:
+                            trackcount = int(trackitem[0])
+                        except:
+                            trackcount = 0
+                        try:
+                            tracklastprev = int(trackitem[1])
+                        except:
+                            tracklastprev = 0
+
+                        trackfirst = trackitem[2]
+
+                        track_dict[(artist_filtername, track_filtername)] = (trackcount + 1, tracklastprev, trackfirst)
+                    else:
+                        try:
+                            tracklast = int(item[3])
+                            trackfirst = tracklast
+                            if trackfirst < 1000000000:
+                                trackfirst = Utils.year9999()
+                        except:
+                            tracklast = 0
+                            trackfirst = Utils.year9999()
+                        track_dict[(artist_filtername, track_filtername)] = (1, tracklast, trackfirst)
 
                     # next iteration
                     previous_item = item
@@ -3309,6 +3418,7 @@ class Utils():
                 print(f"updated scrobble data of {lfm_name} : ({count} entries)")
             conFM.commit()
             releasewise_insert(lfm_name, item_dict)
+            trackwise_insert(lfm_name, track_dict)
             await Utils.changetimeupdate()
         except Exception as e:
             print("Error:", e)
@@ -3800,7 +3910,7 @@ class Utils():
 
         all_files_good = True
 
-        for filename in ['scrobbledata.db', 'scrobbledata_releasewise.db', 'scrobblestats.db', 'scrobblemeta.db']:
+        for filename in ['scrobbledata.db', 'scrobbledata_releasewise.db', "scrobbledata_trackwise.db", 'scrobblestats.db', 'scrobblemeta.db']:
             try:
                 con = sqlite3.connect(f'databases/{filename}')
                 cur = con.cursor()  
@@ -4041,7 +4151,7 @@ class Utils():
             instances = [item[0] for item in cur.execute("SELECT details FROM botsettings WHERE name = ?", ("app id",)).fetchall()]
 
             subfolder = f"{sys.path[0]}/temp"
-            names = ["scrobbledata.db", "scrobbledata_releasewise.db",  "scrobblestats.db", "scrobblemeta.db"]
+            names = ["scrobbledata.db", "scrobbledata_releasewise.db",  "scrobbledata_trackwise.db", "scrobblestats.db", "scrobblemeta.db"]
             filepathes = {}
 
             for instance in instances:
