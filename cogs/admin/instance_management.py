@@ -94,7 +94,7 @@ class Administration_of_Bot_Instance(commands.Cog):
 
                                 for filename in os.listdir(f"{sys.path[0]}/temp/"):
                                     if filename.endswith(".db"):
-                                        if filename in ["activity.db", "scrobbledata.db", "scrobbledata_releasewise.db",  "scrobblestats.db", "scrobblemeta.db"]:
+                                        if filename in ["activity.db", "scrobbledata.db", "scrobbledata_releasewise.db", "scrobbledata_trackwise.db", "scrobblestats.db", "scrobblemeta.db"]:
                                             pass 
                                         else:
                                             dbExist = os.path.exists(f"{sys.path[0]}/databases/{filename}")
@@ -151,7 +151,7 @@ class Administration_of_Bot_Instance(commands.Cog):
 
                         for filename in os.listdir(f"{sys.path[0]}/temp/"):
                             if filename.endswith(".db"):
-                                if filename in ["activity.db", "scrobbledata.db", "scrobbledata_releasewise.db",  "scrobblestats.db", "scrobblemeta.db"]:
+                                if filename in ["activity.db", "scrobbledata.db", "scrobbledata_releasewise.db", "scrobbledata_trackwise.db", "scrobblestats.db", "scrobblemeta.db"]:
                                     pass 
                                 else:
                                     dbExist = os.path.exists(f"{sys.path[0]}/databases/{filename}")
@@ -205,12 +205,12 @@ class Administration_of_Bot_Instance(commands.Cog):
             lastchanged = 0
             for filename in os.listdir(db_directory):
                 if str(filename).endswith(".db"):
-                    if ("activity.db" in str(filename)) or ("scrobbledata.db" in str(filename)) or ("scrobbledata_releasewise.db" in str(filename)) or ("scrobblestats.db" in str(filename)) or ("scrobblemeta.db" in str(filename)):
+                    if ("activity.db" in str(filename)) or ("scrobbledata.db" in str(filename)) or ("scrobbledata_releasewise.db" in str(filename)) or ("scrobbledata_trackwise.db" in str(filename)) or ("scrobblestats.db" in str(filename)) or ("scrobblemeta.db" in str(filename)):
                         continue
                         
                     zf.write(os.path.join(db_directory, filename), filename)
                     edittime = int(os.path.getmtime(os.path.join(db_directory, filename)))
-                    if (edittime > lastedited) and ("activity.db" not in str(filename)) and ("scrobbledata.db" not in str(filename)) and ("scrobbledata_releasewise.db" not in str(filename)) and ("scrobblestats.db" not in str(filename)) and ("scrobblemeta.db" not in str(filename)):
+                    if (edittime > lastedited) and ("activity.db" not in str(filename)) and ("scrobbledata.db" not in str(filename)) and ("scrobbledata_releasewise.db" not in str(filename)) and ("scrobbledata_trackwise.db" not in str(filename)) and ("scrobblestats.db" not in str(filename)) and ("scrobblemeta.db" not in str(filename)):
                         lastedited = edittime
                     if str(filename) == "aftermostchange.db":
                         try:
