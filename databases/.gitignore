@@ -10,7 +10,7 @@ robotactivity.db
 roles.db
 scrobbledata.db
 scrobbledata_releasewise.db
-scrobblegenres.db
+scrobbledata_trackwise.db
 scrobblemeta.db
 scrobblestats.db
 shenanigans.db
