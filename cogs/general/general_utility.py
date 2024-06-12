@@ -13,6 +13,8 @@ import math
 import requests
 from emoji import UNICODE_EMOJI
 
+import traceback
+
 try:
     from googletrans import Translator
     googletrans_enabled = True
@@ -322,13 +324,22 @@ class General_Utility(commands.Cog):
     @commands.command(name='roll', aliases = ['rng', 'die', 'random', 'dice', 'choose'])
     @commands.check(util.is_active)
     async def _dice(self, ctx: commands.Context, *args):
-        """random number
+        """RNG command
 
-        argument must be either one integer n > 1 (gives out random integer between 1 and n)
+        Gives out random number or choice depending on the argument.
+
+        Argument can be either one integer n > 1 -> gives out random integer between 1 and n.
         or
-        argument must be a set of options to choose from separated by semicolons
+        Argument can be a set of options to choose from separated by semicolons -> chooses one of those options.
         or
-        argument must be bl (optionally with category name behind (no spaces))
+        Argument can be `bl`, `blc` or `blx` (optionally with category name behind (no spaces)) -> chooses random item from your backlog.
+        or
+        Argument can be multiple die rolls with syntax `<n>D<x>` to roll `n`-many `x`-sided dice, e.g. `-roll 8D20`.
+        In the last case you can add modifiers:
+        e.g. `-roll 8D20d3` to drop the 3 lowest die rolls
+        e.g. `-roll 8D20k3` to keep the 3 highest die rolls
+        e.g. `-roll 8D20dh3` to drop the 3 highest die rolls
+        e.g. `-roll 8D20kl3` to keep the 3 highest die rolls
 
         (when no argument is given, the command gives out a random number between 1 and 6)
         """
@@ -406,48 +417,6 @@ class General_Utility(commands.Cog):
                 await util.backlog_roll(ctx, user, cat_type, cat_list)
                 return
 
-            dice = args[0].lower()
-            if "d" in dice:
-                number_and_sides = dice.split("d",1)
-                try:
-                    if number_and_sides[0] == "":
-                        num_of_dice = 1
-                    else:
-                        num_of_dice = int(number_and_sides[0])
-                    dice_size = int(number_and_sides[1])
-                except:
-                    await ctx.send(f'Error: If you want to use a multiple dice command with `n`-many `x`-sided dice, then use {self.prefix}roll `n`d`x`.\nFor example -roll 6d20')
-                    return
-
-                if num_of_dice < 1:
-                    await ctx.send(f'Error: Number of dice must be at least 1.')
-                    return
-                if dice_size < 2:
-                    await ctx.send(f'Error: Dice/coins must be at least 2-sided.')
-                    return
-                if dice_size > 999:
-                    emoji = util.emoji("umm")
-                    await ctx.send(f'Error: Lmao how large do you want your dice to be. {emoji}\nI can offer a D999 at most...')
-                    return
-                if num_of_dice > 100:
-                    emoji = util.emoji("cry2")
-                    await ctx.send(f"Error: I'm sorry, but I only have 100 of these dice {emoji}")
-                    return
-
-                n = num_of_dice
-                dice_rolls = []
-                while n >= 1:
-                    r = random.randint(1, dice_size)
-                    dice_rolls.append(r)
-                    n = n - 1
-                total = sum(dice_rolls)
-
-                await ctx.send(f"🎲 {num_of_dice}x D{dice_size} roll: {total} ({str(dice_rolls)[1:len(str(dice_rolls))-1]})")
-                return
-
-            await ctx.send(f'Error: Argument should be either an integer > 1, a list of options separated by semicolons, `bl` or `blc categoryname`.')
-            return
-        
         if len(args) >= 2 and args[0].lower() in ['bl','backlog','memo','blc','backlogcat','backlogcategory','blx','backlogwithout']:
             commandarg = args[0].lower()
             user, color, rest_list = await util.fetch_member_and_color(ctx, args[1:])
@@ -471,8 +440,143 @@ class General_Utility(commands.Cog):
             await util.backlog_roll(ctx, user, cat_type, cat_list)
             return
 
-        await ctx.send(f'Error: Argument must be either an integer > 1, a list of options separated by semicolons, `bl`, `blc <categoryname>`, `blx <categoryname>` or `xDy` (where x and y are integers > 1).')              
+        if len(args) >= 1 and "d" in args[0].lower():
+            try:
+                diceroll_batch = []
+                argumentstring = ''.join(args).lower()
 
+                for char in argumentstring:
+                    if char not in ["d","k","l","h","+","-","0","1","2","3","4","5","6","7","8","9"]:
+                        # under construction: add explosion e or !
+                        # under construction minimum/maximum?
+                        # under construction: number successes > <
+                        raise ValueError("syntax error - inavlid characters")
+                        return
+
+                argumentstring2 = argumentstring.replace("+","?+").replace("-","?-")
+                arguments = argumentstring2.split("?")
+
+                i = -1
+                for arg in arguments:
+                    if "d" in arg:
+                        i += 1
+                        # handle dice
+                        # parse number of dice
+                        num_of_dice_str = arg.split("d",1)[0]
+                        if num_of_dice_str == "":
+                            num_of_dice = 1
+                        else:
+                            num_of_dice = int(num_of_dice_str)
+                            if num_of_dice < 1:
+                                raise ValueError("number of dice need to be positive")
+                            elif num_of_dice > 9999:
+                                raise ValueError("number of dice too large")
+                        rest = arg.split("d",1)[1]
+                        extra = False
+                        bonus = 0
+
+                        if "dh" in rest:
+                            die_size = int(rest.split("dh")[0])
+                            num = int(rest.split("dh")[1])
+                            extra = True
+                            reverse = False
+                            keep_factor = -1
+
+                        elif "kl" in rest:
+                            die_size = int(rest.split("kl")[0])
+                            num = int(rest.split("kl")[1])
+                            extra = True
+                            reverse = False
+                            keep_factor = 1
+
+                        elif "d" in rest:
+                            die_size = int(rest.split("d")[0])
+                            num = int(rest.split("d")[1])
+                            extra = True
+                            reverse = True
+                            keep_factor = -1
+
+                        elif "k" in rest:
+                            die_size = int(rest.split("k")[0])
+                            num = int(rest.split("k")[1])
+                            extra = True
+                            reverse = True
+                            keep_factor = 1
+
+                        else:
+                            die_size = int(rest)
+
+                        n = num_of_dice
+                        dice_rolls = []
+                        while n >= 1:
+                            r = random.randint(1, die_size)
+                            dice_rolls.append(r)
+                            n = n - 1
+                        #total = sum(dice_rolls)
+
+                        if extra:
+                            if num > 0 and num < num_of_dice:
+                                dice_rolls.sort(reverse=reverse)
+                                filtered_rolls = dice_rolls[:(keep_factor * num)]
+                                filtered_sum = sum(filtered_rolls)
+                                dropped_rolls = dice_rolls[(keep_factor * num):]
+                            else:
+                                raise ValueError("modifiers to drop/keep cannot be equal or larger than the number of dice")
+                        else:
+                            filtered_rolls = dice_rolls
+                            filtered_sum = sum(filtered_rolls)
+                            dropped_rolls = []
+
+                        diceroll_batch.append([filtered_sum, sorted(filtered_rolls, reverse=True), sorted(dropped_rolls, reverse=True), bonus])
+                    else:
+                        #handle bonus
+                        if arg.startswith("+"):
+                            diceroll_batch[i][3] += int(arg[1:])
+                        elif arg.startswith("-"):
+                            diceroll_batch[i][3] -= int(arg[1:])
+
+                if len(diceroll_batch) == 0:
+                    raise ValueError("no valid roll found")
+
+                # assemble
+                description = argumentstring
+                result = ""
+                total = 0
+                for diceroll in diceroll_batch:
+                    sub_total = diceroll[0]
+                    filtered = ', '.join([str(x) for x in diceroll[1]])
+                    if len(diceroll[2]) > 0:
+                        dropped = ", ~~" + ', '.join([str(x) for x in diceroll[2]]) + "~~"
+                    else:
+                        dropped = ""
+                    if diceroll[3] == 0:
+                        bonus = ""
+                    elif diceroll[3] < 0:
+                        bonus = str(diceroll[3])
+                    else:
+                        bonus = "+" + str(diceroll[3])
+                    result += f"{sub_total}{bonus}  ({filtered}{dropped})\n"
+
+                    total += sub_total + diceroll[3]
+
+                if len(diceroll_batch) > 1 or diceroll[3] != 0:
+                    s = "\n"
+                else:
+                    s = ""
+                response = f"🎲 `{description} roll`:{s} {result}"[:1950] 
+                if len(diceroll_batch) > 1 or diceroll[3] != 0:
+                    response +=  f"**Total: {total}**"
+
+                await ctx.send(response.strip())
+                return
+
+            except Exception as e:
+                await ctx.send(f"Error: {e}")
+                print(traceback.format_exc())
+                return
+       
+        await ctx.send(f'Error: Argument can be one of the following things:\nan integer > 1\na list of options separated by semicolons\n`bl` or `blc <category>` or `blx <category>` (with category names separated by commas)\n`n`D`x` to roll `n`-many `x`-sided dice.')
+    
     @_dice.error
     async def dice_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -1563,10 +1667,12 @@ class General_Utility(commands.Cog):
                     time_type = "at"
                 else:
                     time_type = "in"
+            elif arguments[0].startswith("<t:") and arguments[0].endswith((':d>',':D>',':t>',':T>',':f>',':F>',':R>',':r>')) and util.represents_integer(arguments[0][3:-3]):
+                time_type = "at"
+                arguments = (arguments[0][3:-3],) + arguments[1:]
             else:
                 await ctx.send(f"Error (possibly in snytax): Use e.g. `{self.prefix}remind in 5 hours` or `{self.prefix}remind at <UNIX timestamp>`.")
                 return
-
 
         # GET REMINDER COUNTER
 
@@ -1626,9 +1732,9 @@ class General_Utility(commands.Cog):
             elif int(timeseconds) < 60:
                 await ctx.send(f"Time is too short for me to act.")
                 return
-            if rest.strip() in ["", "to", "about"]:
-                await ctx.send("What should the reminder be about?")
-                return
+            #if rest.strip() in ["", "to", "about"]:
+            #    await ctx.send("What should the reminder be about?")
+            #    return
 
             utc_timestamp = now + int(timeseconds)
             remindertext = rest
@@ -3319,6 +3425,9 @@ class General_Utility(commands.Cog):
             await ctx.send("Command needs prompt.")
             return
 
+        # THE QUERY
+        query = ' '.join(args)
+
         async with ctx.typing():
             try:
                 # connect
@@ -3346,19 +3455,34 @@ class General_Utility(commands.Cog):
                         conRA.commit()
 
                         # fetch messages
-                        gpt_context_messages = [[item[0],item[1],item[2]] for item in curRA.execute("SELECT role, content, message_id FROM gpt_context WHERE user_id = ? AND channel_id = ? ORDER BY utc_timestamp ASC", (str(ctx.author.id),str(ctx.channel.id))).fetchall()]
+                        gpt_context_messages = [[item[0],item[1][:1000],item[2]] for item in curRA.execute("SELECT role, content, message_id FROM gpt_context WHERE user_id = ? AND channel_id = ? ORDER BY utc_timestamp ASC", (str(ctx.author.id),str(ctx.channel.id))).fetchall()]
+
+                        # filter out messages
+                        gpt_context_messages_copy = []
+                        char_count = len(query) + len(systemrole)
+                        remove_rest = False
+                        for item in reversed(gpt_context_messages):
+                            # throw out too long stuff
+                            if char_count + len(item[1]) > 2000:
+                                remove_rest = True
+
+                            if not remove_rest:
+                                char_count += len(item[1])
+                                gpt_context_messages_copy.append(item)
+
+                        gpt_context_messages_copy = list(reversed(gpt_context_messages_copy))
 
                         i = 0
-                        for item in gpt_context_messages:
+                        for item in gpt_context_messages_copy:
                             i += 1
-                            if len(gpt_context_messages) - i > 10:
+                            if len(gpt_context_messages_copy) - i > 10:
                                 continue
 
                             role = item[0]
                             msg_text = item[1]
                             context.append({"role": {role}, "content": {msg_text}})
 
-                        if ctx.message.reference is not None and ctx.message.reference.message_id not in [x[2] for x in gpt_context_messages]:
+                        if ctx.message.reference is not None and ctx.message.reference.message_id not in [x[2] for x in gpt_context_messages_copy]:
                             msg = await ctx.fetch_message(ctx.message.reference.message_id)
 
                             if str(msg.author.id) == str(self.bot.application_id):
@@ -3370,8 +3494,7 @@ class General_Utility(commands.Cog):
                 except Exception as e:
                     print("Error while trying to assemble context:", e)
 
-                # get query
-                query = ' '.join(args)
+                # append query
                 context.append({"role": "user", "content": query})
 
                 completion = client.chat.completions.create(
