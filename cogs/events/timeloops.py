@@ -1197,16 +1197,16 @@ class TimeLoops(commands.Cog):
                     raise ValueError(f"Error: User object of user with id {user_id} is None.")
             except Exception as e:
                 error_count += 1
-                error_users.append(f"<@{user.id}>*")
+                error_users.append(f"<@{user_id}>*")
                 print("Error with user:", e)
                 try: # remove user from database if not a member
                     for member in server.members:
-                        if member.id == user.id:
+                        if member.id == int(user_id):
                             break
                     else:
                         curUA.execute("DELETE FROM useractivity WHERE userid = ?", (str(user_id),))
                         conUA.commit()
-                        print(f"Removed {user.name} (id: {user.id}) from useractivity database")
+                        print(f"Removed {user.name} (id: {user_id}) from useractivity database")
                 except Exception as e:
                     print("Error:", e)
                 continue
