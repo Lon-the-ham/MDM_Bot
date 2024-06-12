@@ -76,13 +76,13 @@ async def sendit(string, d_client):
             lastchanged = 0
             for filename in os.listdir(db_directory):
                 if str(filename).endswith(".db") or str(filename).endswith(".txt"): # skip .gitignore file
-                    if ("activity.db" in str(filename)) or ("scrobbledata.db" in str(filename)) or ("scrobbledata_releasewise.db" in str(filename)) or ("scrobblestats.db" in str(filename)) or ("scrobblemeta.db" in str(filename)):
+                    if ("activity.db" in str(filename)) or ("scrobbledata.db" in str(filename)) or ("scrobbledata_releasewise.db" in str(filename)) or ("scrobbledata_trackwise.db" in str(filename)) or ("scrobblestats.db" in str(filename)) or ("scrobblemeta.db" in str(filename)):
                         continue
 
                     zf.write(os.path.join(db_directory, filename), filename)
 
                     edittime = int(os.path.getmtime(os.path.join(db_directory, filename)))
-                    if (edittime > lastedited) and ("activity.db" not in str(filename)) and ("scrobbledata.db" not in str(filename)) and ("scrobbledata_releasewise.db" not in str(filename)) and ("scrobblestats.db" not in str(filename)) and ("scrobblemeta.db" not in str(filename)):
+                    if (edittime > lastedited) and ("activity.db" not in str(filename)) and ("scrobbledata.db" not in str(filename)) and ("scrobbledata_releasewise.db" not in str(filename)) and ("scrobbledata_trackwise.db" not in str(filename)) and ("scrobblestats.db" not in str(filename)) and ("scrobblemeta.db" not in str(filename)):
                         lastedited = edittime
                     if str(filename) == "aftermostchange.db":
                         try:
@@ -330,7 +330,7 @@ async def cloud_upload_scrobble_backup():
 
     all_files_good = True
 
-    for filename in ['scrobbledata.db', 'scrobbledata_releasewise.db', 'scrobblestats.db', 'scrobblemeta.db']:
+    for filename in ['scrobbledata.db', 'scrobbledata_releasewise.db', "scrobbledata_trackwise.db", 'scrobblestats.db', 'scrobblemeta.db']:
         try:
             try:
                 con = sqlite3.connect(f'databases/{filename}')
