@@ -142,7 +142,7 @@ class Music_Scrobbling(commands.Cog):
     def releasewise_insert(self, lfm_name, item_dict):
         conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
         curFM2 = conFM2.cursor()
-        curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer)")
+        curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer, first_time integer)")
 
         for k,v in item_dict.items():
             artist = k[0]
@@ -155,21 +155,31 @@ class Music_Scrobbling(commands.Cog):
                 now_time = int(v[1])
             except:
                 now_time = 0
+
+            try:
+                first_time = int(v[2])
+            except:
+                first_time = util.year9999()
             
             try:
-                result = curFM2.execute(f"SELECT count, last_time FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (artist, album))
+                result = curFM2.execute(f"SELECT count, last_time, first_time FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (artist, album))
                 rtuple = result.fetchone()
                 prev_count = int(rtuple[0])
                 try:
                     prev_time = int(rtuple[1])
                 except:
                     prev_time = 0
+                try:
+                    prev_first = int(rtuple[2])
+                except:
+                    prev_first = util.year9999()
             except:
                 prev_count = 0
                 prev_time = 0
+                prev_first = util.year9999()
 
             if prev_count == 0:
-                curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?)", (artist, album, count, now_time))
+                curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist, album, count, now_time, first_time))
 
             else:
                 new_count = prev_count + count
@@ -177,9 +187,70 @@ class Music_Scrobbling(commands.Cog):
                     time = now_time
                 else:
                     time = prev_time
-                curFM2.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, artist, album))
+                # keep first time
+                if first_time < prev_first:
+                    curFM2.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ?, first_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, first_time, artist, album))
+                else:
+                    curFM2.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, artist, album))
         conFM2.commit()
         #print("inserted into secondary database as well")
+
+
+
+    def trackwise_insert(self, lfm_name, item_dict):
+        conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+        curFM3 = conFM3.cursor()
+        curFM3.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, track_name text, count integer, last_time integer, first_time integer)")
+
+        for k,v in item_dict.items():
+            artist = k[0]
+            track  = k[1]
+            try:
+                count = int(v[0])
+            except Exception as e:
+                count = 0
+            try:
+                now_time = int(v[1])
+            except:
+                now_time = 0
+
+            try:
+                first_time = int(v[2])
+            except:
+                first_time = util.year9999()
+            
+            try:
+                result = curFM3.execute(f"SELECT count, last_time, first_time FROM [{lfm_name}] WHERE artist_name = ? AND track_name = ?", (artist, track))
+                rtuple = result.fetchone()
+                prev_count = int(rtuple[0])
+                try:
+                    prev_time = int(rtuple[1])
+                except:
+                    prev_time = 0
+                try:
+                    prev_first = int(rtuple[2])
+                except:
+                    prev_first = util.year9999()
+            except:
+                prev_count = 0
+                prev_time = 0
+                prev_first = util.year9999()
+
+            if prev_count == 0:
+                curFM3.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist, track, count, now_time, first_time))
+
+            else:
+                new_count = prev_count + count
+                if prev_time < now_time:
+                    time = now_time
+                else:
+                    time = prev_time
+                # keep first time
+                if first_time < prev_first:
+                    curFM3.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ?, first_time = ? WHERE artist_name = ? AND track_name = ?", (new_count, time, first_time, artist, track))
+                else:
+                    curFM3.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ? WHERE artist_name = ? AND track_name = ?", (new_count, time, artist, track))
+        conFM3.commit()
 
         
 
@@ -231,7 +302,8 @@ class Music_Scrobbling(commands.Cog):
         # FETCH NEW DATA
 
         try:
-            item_dict = {}
+            item_dict = {} # ALBUMS
+            track_dict = {} # TRACKS
             previous_item = None
             print("Start fetching data...")
             while page_int < total_pages_int:
@@ -284,9 +356,11 @@ class Music_Scrobbling(commands.Cog):
                     i -= 1
 
                     # prepare for inserting into releasewise DB
-                    artist_filtername = util.compactnamefilter(item[0]) #''.join([x for x in item[0].upper() if x.isalnum()])
-                    album_filtername = util.compactnamefilter(item[1]) #''.join([x for x in item[1].upper() if x.isalnum()])
+                    artist_filtername = util.compactnamefilter(item[0],"artist") #''.join([x for x in item[0].upper() if x.isalnum()])
+                    album_filtername = util.compactnamefilter(item[1],"album") #''.join([x for x in item[1].upper() if x.isalnum()])
+                    track_filtername = util.compactnamefilter(item[2],"track")
                     
+                    # RELEASEWISE DATABASE PREPARATION
                     if (artist_filtername, album_filtername) in item_dict:
                         release = item_dict[(artist_filtername, album_filtername)]
                         try:
@@ -298,13 +372,45 @@ class Music_Scrobbling(commands.Cog):
                         except:
                             releaselastprev = 0
 
-                        item_dict[(artist_filtername, album_filtername)] = (releasecount + 1, releaselastprev)
+                        releasefirst = release[2]
+
+                        item_dict[(artist_filtername, album_filtername)] = (releasecount + 1, releaselastprev, releasefirst)
                     else:
                         try:
                             releaselast = int(item[3])
+                            releasefirst = releaselast
+                            if releasefirst < 1000000000:
+                                releasefirst = util.year9999()
                         except:
                             releaselast = 0
-                        item_dict[(artist_filtername, album_filtername)] = (1, releaselast)
+                            releasefirst = util.year9999()
+                        item_dict[(artist_filtername, album_filtername)] = (1, releaselast, releasefirst)
+
+                    # TRACKWISE DATABASE PREPARATION
+                    if (artist_filtername, track_filtername) in track_dict:
+                        trackitem = track_dict[(artist_filtername, track_filtername)]
+                        try:
+                            trackcount = int(trackitem[0])
+                        except:
+                            trackcount = 0
+                        try:
+                            tracklastprev = int(trackitem[1])
+                        except:
+                            tracklastprev = 0
+
+                        trackfirst = trackitem[2]
+
+                        track_dict[(artist_filtername, track_filtername)] = (trackcount + 1, tracklastprev, trackfirst)
+                    else:
+                        try:
+                            tracklast = int(item[3])
+                            trackfirst = tracklast
+                            if trackfirst < 1000000000:
+                                trackfirst = util.year9999()
+                        except:
+                            tracklast = 0
+                            trackfirst = util.year9999()
+                        track_dict[(artist_filtername, track_filtername)] = (1, tracklast, trackfirst)
 
                     # for next iteration
                     previous_item = item
@@ -312,7 +418,7 @@ class Music_Scrobbling(commands.Cog):
                     # loading bar
                     try:
                         new_now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
-                        new_progress = int(int(page_int) / int(total_pages_int) * 100)
+                        new_progress = min(int(int(page_int) / int(total_pages_int) * 100), 99)
 
                         if new_progress > progress and new_now > old_now + 2:
                             loadingbar = util.get_loadingbar(self.loadingbar_width, new_progress)
@@ -325,6 +431,7 @@ class Music_Scrobbling(commands.Cog):
 
             conFM.commit()
             self.releasewise_insert(lfm_name, item_dict)
+            self.trackwise_insert(lfm_name, track_dict)
             await util.changetimeupdate()
             print("done")
 
@@ -362,6 +469,11 @@ class Music_Scrobbling(commands.Cog):
             track = item[2]
             uts = item[3]
 
+            if uts < 1000000000:
+                first_time = util.year9999()
+            else:
+                first_time = uts
+
             if (artist == prev_artist) and (album == prev_album) and (track == prev_track) and (abs(uts - prev_uts) < (leeway+1)) and uts > 999999999:
                 print(f"Removing: {artist} - {track} ({album}) scrobbled at {uts}")
                 continue
@@ -372,20 +484,24 @@ class Music_Scrobbling(commands.Cog):
             i += 1
             new_scrobbles.append((i, artist, album, track, uts))
 
-            artist_compact = util.compactnamefilter(artist)
-            album_compact = util.compactnamefilter(album)
+            artist_compact = util.compactnamefilter(artist,"artist")
+            album_compact = util.compactnamefilter(album,"album")
 
             if (artist_compact,album_compact) in release_dict:
                 entry = release_dict[(artist_compact,album_compact)]
                 prev_count = entry[0]
                 prev_time = entry[1]
+                prev_first = entry[2]
+
+                if first_time > prev_first:
+                    first_time = prev_first
 
                 if prev_time > uts:
-                    release_dict[(artist_compact,album_compact)] = (prev_count + 1, prev_time)
+                    release_dict[(artist_compact,album_compact)] = (prev_count + 1, prev_time, first_time)
                 else:
-                    release_dict[(artist_compact,album_compact)] = (prev_count + 1, uts)
+                    release_dict[(artist_compact,album_compact)] = (prev_count + 1, uts, first_time)
             else:
-                release_dict[(artist_compact,album_compact)] = (1, uts)
+                release_dict[(artist_compact,album_compact)] = (1, uts, first_time)
 
             # assign for next itereration
             prev_artist = artist
@@ -409,7 +525,8 @@ class Music_Scrobbling(commands.Cog):
             album = k[1]
             count = v[0]
             time = v[1]
-            curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?)", (artist, album, count, time))
+            first = v[2]
+            curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist, album, count, time, first))
         conFM2.commit()
 
         return len(scrobbles), len(new_scrobbles), sus
@@ -427,6 +544,8 @@ class Music_Scrobbling(commands.Cog):
         curFM = conFM.cursor()
         conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
         curFM2 = conFM2.cursor()
+        conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+        curFM3 = conFM3.cursor()
 
         i = 0
 
@@ -443,44 +562,90 @@ class Music_Scrobbling(commands.Cog):
             print(f"Try summarising {lfm_name} data")
             try:
                 curFM.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (id integer, artist_name text, album_name text, track_name text, date_uts integer)")
-                curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer)")
+                curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer, first_time integer)")
                 curFM2.execute(f"DELETE FROM [{lfm_name}]")
                 conFM2.commit()
+                curFM3.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, track_name text, count integer, last_time integer, first_time integer)")
+                curFM3.execute(f"DELETE FROM [{lfm_name}]")
+                conFM3.commit()
 
-                scrobbles = [[util.compactnamefilter(item[0]),util.compactnamefilter(item[1]),item[2]] for item in curFM.execute(f"SELECT artist_name, album_name, date_uts FROM [{lfm_name}]").fetchall()]
+                scrobbles = [[util.compactnamefilter(item[0],"artist"),util.compactnamefilter(item[1],"album"),util.compactnamefilter(item[2],"track"),item[3]] for item in curFM.execute(f"SELECT artist_name, album_name, track_name, date_uts FROM [{lfm_name}]").fetchall()]
 
                 release_dict = {}
+                track_dict = {}
 
                 for item in scrobbles:
                     i += 1
+
+                    # ALBUMS
                     artist = item[0]
                     album = item[1]
                     try:
-                        time = int(item[2])
+                        time = int(item[3])
                     except:
                         time = 0
+                    if time < 1000000000:
+                        first = util.year9999()
+                    else:
+                        first = time
 
                     if (artist, album) in release_dict:
                         entry = release_dict[(artist, album)]
                         prev_count = entry[0]
                         prev_time = entry[1]
+                        prev_first = entry[2]
+                        
+                        if first > prev_first:
+                            first_of2 = prev_first
+                        else:
+                            first_of2 = first
 
                         if prev_time > time:
-                            release_dict[(artist, album)] = (prev_count + 1, prev_time)
+                            release_dict[(artist, album)] = (prev_count + 1, prev_time, first_of2)
                         else:
-                            release_dict[(artist, album)] = (prev_count + 1, time)
-
+                            release_dict[(artist, album)] = (prev_count + 1, time, first_of2)
                     else:
-                        release_dict[(artist, album)] = (1, time)
+                        release_dict[(artist, album)] = (1, time, first)
 
+                    # TRACKS
+                    track = item[2]
+                    if (artist, track) in track_dict:
+                        entry = track_dict[(artist, track)]
+                        prev_count = entry[0]
+                        prev_time = entry[1]
+                        prev_first = entry[2]
+                        
+                        if first > prev_first:
+                            first_of2 = prev_first
+                        else:
+                            first_of2 = first
 
+                        if prev_time > time:
+                            track_dict[(artist, track)] = (prev_count + 1, prev_time, first_of2)
+                        else:
+                            track_dict[(artist, track)] = (prev_count + 1, time, first_of2)
+                    else:
+                        track_dict[(artist, track)] = (1, time, first)
+
+                print(">release wise")
                 for k,v in release_dict.items():
                     artist = k[0]
                     album = k[1]
                     count = v[0]
                     time = v[1]
-                    curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?)", (artist, album, count, time))
+                    first = v[2]
+                    curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist, album, count, time, first))
                 conFM2.commit()
+
+                print(">track wise")
+                for k,v in track_dict.items():
+                    artist = k[0]
+                    track = k[1]
+                    count = v[0]
+                    time = v[1]
+                    first = v[2]
+                    curFM3.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist, track, count, time, first))
+                conFM3.commit()
                 print("done")
 
             except Exception as e:
@@ -498,7 +663,7 @@ class Music_Scrobbling(commands.Cog):
     def update_artistinfo(self, artist, artist_thumbnail, tags):
         try: # update stats
             now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
-            artist_fltr = util.compactnamefilter(artist)
+            artist_fltr = util.compactnamefilter(artist,"artist")
             tags_lfm = ';'.join(tags)
             try:
                 conSS = sqlite3.connect('databases/scrobblestats.db')
@@ -623,7 +788,7 @@ class Music_Scrobbling(commands.Cog):
 
             conSS = sqlite3.connect('databases/scrobblestats.db')
             curSS = conSS.cursor()
-            artist_fltr = util.compactnamefilter(argument)
+            artist_fltr = util.compactnamefilter(argument,"artist")
             db_entry_exists = False
 
             try:
@@ -861,7 +1026,7 @@ class Music_Scrobbling(commands.Cog):
             artist, thumbnail, tags = await self.wk_artist_match(ctx, argument)
             header = f"{artist}"
 
-            if util.compactnamefilter(artist) == "":
+            if util.compactnamefilter(artist,"artist") == "":
                 emoji = util.emoji("shrug")
                 await ctx.send(f"oof... what's this artist name?? ping dev to do something about it, i'm out {emoji}")
                 return
@@ -877,11 +1042,14 @@ class Music_Scrobbling(commands.Cog):
         else:
             raise ValueError("unknown WK type")
 
-        conFM = sqlite3.connect('databases/scrobbledata.db')
-        curFM = conFM.cursor()
+        #conFM = sqlite3.connect('databases/scrobbledata.db')
+        #curFM = conFM.cursor()
 
         conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
         curFM2 = conFM2.cursor()
+
+        conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+        curFM3 = conFM3.cursor()
 
         conSS = sqlite3.connect('databases/scrobblestats.db')
         curSS = conSS.cursor()
@@ -931,13 +1099,13 @@ class Music_Scrobbling(commands.Cog):
 
             try:
                 if wk_type == "artist":
-                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM [{lfm_name}] WHERE artist_name = ?", (util.compactnamefilter(artist),))
+                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM [{lfm_name}] WHERE artist_name = ?", (util.compactnamefilter(artist,"artist"),))
 
                 elif wk_type == "album":
-                    result = curFM2.execute(f"SELECT count, last_time FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (util.compactnamefilter(artist),util.compactnamefilter(album)))
+                    result = curFM2.execute(f"SELECT count, last_time FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (util.compactnamefilter(artist,"artist"),util.compactnamefilter(album,"album")))
 
                 elif wk_type == "track":
-                    result = curFM.execute(f"SELECT COUNT(id), MAX(date_uts) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (artist,track))
+                    result = curFM3.execute(f"SELECT count, last_time FROM [{lfm_name}] WHERE artist_name = ? AND track_name = ?", (util.compactnamefilter(artist,"artist"),util.compactnamefilter(track,"track")))
 
                 try:
                     rtuple = result.fetchone()
@@ -1034,7 +1202,7 @@ class Music_Scrobbling(commands.Cog):
             # CROWN update: only for artists
 
             if crown_user != None:            
-                results = [[item[0],item[1],item[2]] for item in curSS.execute(f"SELECT crown_holder, discord_name, playcount FROM crowns_{ctx.guild.id} WHERE alias = ? OR alias2 = ?", (util.compactnamefilter(artist), util.compactnamefilter(artist))).fetchall()]
+                results = [[item[0],item[1],item[2]] for item in curSS.execute(f"SELECT crown_holder, discord_name, playcount FROM crowns_{ctx.guild.id} WHERE alias = ? OR alias2 = ?", (util.compactnamefilter(artist,"artist"), util.compactnamefilter(artist,"artist"))).fetchall()]
                 if len(results) > 0:
                     prev_crownholder = results[0][0]
                     prev_discord_name = results[0][1]
@@ -1048,12 +1216,12 @@ class Music_Scrobbling(commands.Cog):
                     else:
                         emoji = util.emoji("unleashed")
                         description += f"\n{discordname_dict[crown_user]} yoinked crown (with {crown_count} plays) from {prev_discord_name} ({prev_playcount} plays)! {emoji}"
-                    curSS.execute(f"UPDATE crowns_{ctx.guild.id} SET crown_holder = ?, discord_name = ?, playcount = ? WHERE alias = ? OR alias2 = ?", (lfmname_dict[crown_user], discordname_dict[crown_user], crown_count, util.compactnamefilter(artist), util.compactnamefilter(artist)))
+                    curSS.execute(f"UPDATE crowns_{ctx.guild.id} SET crown_holder = ?, discord_name = ?, playcount = ? WHERE alias = ? OR alias2 = ?", (lfmname_dict[crown_user], discordname_dict[crown_user], crown_count, util.compactnamefilter(artist,"artist"), util.compactnamefilter(artist,"artist")))
                     conSS.commit()
                 else:
                     emoji = util.emoji("thumbs_up")
                     description += f"\nCrown claimed by {discordname_dict[crown_user]} with {crown_count} plays! {emoji}"
-                    curSS.execute(f"INSERT INTO crowns_{ctx.guild.id} VALUES (?, ?, ?, ?, ?, ?)", (artist, util.compactnamefilter(artist), "", lfmname_dict[crown_user],discordname_dict[crown_user],crown_count))
+                    curSS.execute(f"INSERT INTO crowns_{ctx.guild.id} VALUES (?, ?, ?, ?, ?, ?)", (artist, util.compactnamefilter(artist,"artist"), "", lfmname_dict[crown_user],discordname_dict[crown_user],crown_count))
                     conSS.commit()
 
         embed = discord.Embed(title=header[:256], description=description[:4096], color=0x800000)
@@ -1100,8 +1268,14 @@ class Music_Scrobbling(commands.Cog):
         else:
             raise ValueError("unknown WK type")
 
-        conFM = sqlite3.connect('databases/scrobbledata.db')
-        curFM = conFM.cursor()
+        #conFM = sqlite3.connect('databases/scrobbledata.db')
+        #curFM = conFM.cursor()
+
+        conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+        curFM2 = conFM2.cursor()
+
+        conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+        curFM3 = conFM3.cursor()
 
         # ignore: inactive, wk_banned and scrobble_banned
         # proceed with: NULL, "", crown_banned
@@ -1142,17 +1316,20 @@ class Music_Scrobbling(commands.Cog):
 
             try:
                 if wk_type == "artist":
-                    result = curFM.execute(f"SELECT MIN(date_uts) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND date_uts > ?", (artist, 1000000000))
+                    result = curFM2.execute(f"SELECT MIN(first_time) FROM [{lfm_name}] WHERE artist_name = ?", (util.compactnamefilter(artist,"artist"),))
 
                 elif wk_type == "album":
-                    result = curFM.execute(f"SELECT MIN(date_uts) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('album_name')} = {util.compact_sql('?')} AND date_uts > ?", (artist, album, 1000000000))
+                    result = curFM2.execute(f"SELECT first_time FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (util.compactnamefilter(artist,"artist"),util.compactnamefilter(album,"album")))
 
                 elif wk_type == "track":
-                    result = curFM.execute(f"SELECT MIN(date_uts) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')} AND date_uts > ?", (artist, track, 1000000000))
+                    result = curFM3.execute(f"SELECT first_time FROM [{lfm_name}] WHERE artist_name = ? AND track_name = ?", (util.compactnamefilter(artist,"artist"),util.compactnamefilter(track,"track")))
 
                 try:
                     rtuple = result.fetchone()
                     first = int(rtuple[0])
+
+                    if first < 1000000000 or first >= util.year9999():
+                        first = None
                 except:
                     first = None
                     
@@ -1242,7 +1419,7 @@ class Music_Scrobbling(commands.Cog):
         conSM = sqlite3.connect('databases/scrobblemeta.db')
         curSM = conSM.cursor()
         curSM.execute('''CREATE TABLE IF NOT EXISTS albuminfo (artist text, artist_filtername text, album text, album_filtername text, tags text, cover_url text, last_update integer)''')
-        albuminfo = [[item[0],item[1],item[2],item[3]] for item in curSM.execute("SELECT artist, album, tags, cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (util.compactnamefilter(artist), util.compactnamefilter(album))).fetchall()]
+        albuminfo = [[item[0],item[1],item[2],item[3]] for item in curSM.execute("SELECT artist, album, tags, cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (util.compactnamefilter(artist,"artist"), util.compactnamefilter(album,"album"))).fetchall()]
 
         if len(albuminfo) > 0:
             cover_url = albuminfo[0][3]
