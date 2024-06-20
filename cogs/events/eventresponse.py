@@ -256,6 +256,8 @@ class Event_Response(commands.Cog):
         color = 0x3cb043
         await self.botspam_send(title, text, footer, image, None, color, None)
 
+        # under construction: NPsettings change inactive to active?
+
 
 
     @commands.Cog.listener()
@@ -481,7 +483,7 @@ class Event_Response(commands.Cog):
 
         title = f"Message Edited in <#{before.channel.id}>"
         # TEXT BEGIN
-        text = "message.jump_url"
+        text = str(message.jump_url)
         text += f"\n**Before**:\n"
         text += util.cleantext2(before.content[:1024])
         if len(before.content) > 1024:
@@ -525,8 +527,10 @@ class Event_Response(commands.Cog):
             text += "..."
         #text += f"<t:{timestamp}:f>"
         # TEXT END
-        footer = f"NAME: {message.author.name}, ID: {message.author.id}"   
-        image = ""
+        footer = f"NAME: {message.author.name}, ID: {message.author.id}"
+
+        image = "" # under construction
+        
         color = 0xd30000
         await self.botspam_send(title, text, footer, image, message.author, color, None)
 
