@@ -44,23 +44,26 @@ except:
 
 
 class GU_Check():
-    def is_googletrans_enabled(self):
+    def is_googletrans_enabled(*ctx):
         if googletrans_enabled:
             return True
         else:
-            raise ValueError("GoogleTranslate module was not imported.")
+            return False
+            #raise ValueError("GoogleTranslate module was not imported.")
 
-    def is_reddit_enabled(self):
+    def is_reddit_enabled(*ctx):
         if reddit_enabled:
             return True
         else:
-            raise ValueError("AsyncPraw module (for Reddit) was not imported.")
+            return False
+            #raise ValueError("AsyncPraw module (for Reddit) was not imported.")
 
-    def is_gpt_enabled(self):
+    def is_gpt_enabled(*ctx):
         if gpt_enabled:
             return True
         else:
-            raise ValueError("OpenAI module was not imported.")
+            return False
+            #raise ValueError("OpenAI module was not imported.")
 
 
 class General_Utility(commands.Cog):
@@ -340,6 +343,7 @@ class General_Utility(commands.Cog):
         e.g. `-roll 8D20k3` to keep the 3 highest die rolls
         e.g. `-roll 8D20dh3` to drop the 3 highest die rolls
         e.g. `-roll 8D20kl3` to keep the 3 highest die rolls
+        You can also use +/- for bonus/malus or string together multiple dice rolls with + as well (or - if you want to subtract the dice roll).
 
         (when no argument is given, the command gives out a random number between 1 and 6)
         """
@@ -461,16 +465,24 @@ class General_Utility(commands.Cog):
                     if "d" in arg:
                         i += 1
                         # handle dice
+                        factor = 1
                         # parse number of dice
                         num_of_dice_str = arg.split("d",1)[0]
-                        if num_of_dice_str == "":
+                        if num_of_dice_str.strip() in ["", "+", "-"]:
                             num_of_dice = 1
+                            if num_of_dice_str.strip() in ["-"]:
+                                factor = -1
                         else:
                             num_of_dice = int(num_of_dice_str)
-                            if num_of_dice < 1:
-                                raise ValueError("number of dice need to be positive")
+                            if num_of_dice < -9999:
+                                raise ValueError("number of dice too far in the negative")
                             elif num_of_dice > 9999:
                                 raise ValueError("number of dice too large")
+                            if num_of_dice == 0:
+                                continue
+                            if num_of_dice < 0:
+                                num_of_dice = -num_of_dice
+                                factor = -1
                         rest = arg.split("d",1)[1]
                         extra = False
                         bonus = 0
@@ -487,6 +499,20 @@ class General_Utility(commands.Cog):
                             num = int(rest.split("kl")[1])
                             extra = True
                             reverse = False
+                            keep_factor = 1
+
+                        elif "dl" in rest:
+                            die_size = int(rest.split("dl")[0])
+                            num = int(rest.split("dl")[1])
+                            extra = True
+                            reverse = True
+                            keep_factor = -1
+
+                        elif "kh" in rest:
+                            die_size = int(rest.split("kh")[0])
+                            num = int(rest.split("kh")[1])
+                            extra = True
+                            reverse = True
                             keep_factor = 1
 
                         elif "d" in rest:
@@ -518,13 +544,13 @@ class General_Utility(commands.Cog):
                             if num > 0 and num < num_of_dice:
                                 dice_rolls.sort(reverse=reverse)
                                 filtered_rolls = dice_rolls[:(keep_factor * num)]
-                                filtered_sum = sum(filtered_rolls)
+                                filtered_sum = sum(filtered_rolls) * factor
                                 dropped_rolls = dice_rolls[(keep_factor * num):]
                             else:
                                 raise ValueError("modifiers to drop/keep cannot be equal or larger than the number of dice")
                         else:
                             filtered_rolls = dice_rolls
-                            filtered_sum = sum(filtered_rolls)
+                            filtered_sum = sum(filtered_rolls) * factor
                             dropped_rolls = []
 
                         diceroll_batch.append([filtered_sum, sorted(filtered_rolls, reverse=True), sorted(dropped_rolls, reverse=True), bonus])
@@ -800,7 +826,7 @@ class General_Utility(commands.Cog):
             print(f"Target Language: {targetLanguage}")
 
             if targetLanguage == "error":
-                await ctx.send(f'Language {givenLanguage} is not supported.')
+                await ctx.send(f'Language {givenLanguage} is not supported. Use `{self.prefix}language details` to get list of supported languages.')
                 return
 
             if len(args) == 1:
@@ -829,20 +855,40 @@ class General_Utility(commands.Cog):
 
 
 
+    async def libre_translate(self, ctx, args, extra_info):
+        await ctx.send("under construction")
+        #async with ctx.typing():
+        #    if len(args) == 0:
+        #        await ctx.send(f'No arguments provided. First argument needs to be language code, everything after will be translated.')
+        #        return
+
+
+
+
     @commands.group(name="translate", aliases = ["tr"], pass_context=True, invoke_without_command=True)
-    @commands.check(GU_Check.is_googletrans_enabled)
+    #@commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate(self, ctx, *args):
         """translate
 
         Translates a word or sentence, first argument must be the destination language code.
-        Use `-languages` to see which languages are supported.
+
+        If GoogleTranslate is enabled, you can use `-languages` to see which languages are supported.
+        If not the command will use LibreTranslate instead.
         """
         if len(args) < 2:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
+
         extra_info = False
-        await self.google_translate(ctx, args, extra_info)
+
+        try:
+            if GU_Check.is_googletrans_enabled():
+                await self.google_translate(ctx, args, extra_info)
+            else:
+                raise ValueError("GoogleTranslate not imported")
+        except:
+            await self.libre_translate(ctx, args, extra_info)
         
     @_translate.error
     async def translate_error(self, ctx, error):
@@ -851,22 +897,71 @@ class General_Utility(commands.Cog):
 
 
     @commands.group(name="trx", aliases = ["translatex"], pass_context=True, invoke_without_command=True)
-    @commands.check(GU_Check.is_googletrans_enabled)
+    #@commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate_x(self, ctx, *args):
         """translate (with detection info)
 
         Translates a word or sentence, first argument must be the destination language code.
-        Use `-languages` to see which languages are supported.
+        
+        If GoogleTranslate is enabled, you can use `-languages` to see which languages are supported.
+        If not the command will use LibreTranslate instead.
         """
         if len(args) < 2:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
         extra_info = True
-        await self.google_translate(ctx, args, extra_info)
+        
+        try:
+            if GU_Check.is_googletrans_enabled():
+                await self.google_translate(ctx, args, extra_info)
+            else:
+                raise ValueError("GoogleTranslate not imported")
+        except:
+            await self.libre_translate(ctx, args, extra_info)
         
     @_translate.error
     async def translate_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name="ltr", aliases = ["libretranslate", "ltranslate"])
+    @commands.check(GU_Check.is_googletrans_enabled)
+    @commands.check(util.is_active)
+    async def _libretranslate(self, ctx, *args):
+        """Translates using LibreTranslate
+        """
+        if len(args) < 2:
+            await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
+            return
+
+        extra_info = False
+
+        await self.libre_translate(ctx, args, extra_info)
+        
+    @_libretranslate.error
+    async def libretranslate_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name="ltrx", aliases = ["libretranslatex", "ltranslatex"])
+    @commands.check(GU_Check.is_googletrans_enabled)
+    @commands.check(util.is_active)
+    async def _libretranslatex(self, ctx, *args):
+        """Translates using LibreTranslate (with detection info)
+        """
+        if len(args) < 2:
+            await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
+            return
+
+        extra_info = True
+
+        await self.libre_translate(ctx, args, extra_info)
+        
+    @_libretranslatex.error
+    async def libretranslatex_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
@@ -3096,7 +3191,7 @@ class General_Utility(commands.Cog):
 
 
 
-    @commands.group(name="weather", aliases = ["w"], pass_context=True, invoke_without_command=True)
+    @commands.group(name="weather", aliases = ["we","wth", "ww"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _weather_by_location(self, ctx, *args):
         """Show weather of given location
@@ -3104,7 +3199,7 @@ class General_Utility(commands.Cog):
         Give argument `<city>` or `<city>, <country>` or `<city>, <state>, <country>`.
         You can also use `<zip code>, <country>`
 
-        You can also set your location with `-w set <location>` and remove it with `-w remove`.
+        You can also set your location with `-we set <location>` and remove it with `-we remove`.
         """
         forecast = False
         await self.weather_command(ctx, args, forecast)
@@ -3123,7 +3218,7 @@ class General_Utility(commands.Cog):
         Give argument `<city>` or `<city>, <country>` or `<city>, <state>, <country>`.
         You can also use `<zip code>, <country>`
 
-        You can also set your location with `-w set <location>` and remove it with `-w remove`.
+        You can also set your location with `-we set <location>` and remove it with `-we remove`.
         """
         forecast = True
         await self.weather_command(ctx, args, forecast)
@@ -3430,6 +3525,74 @@ class General_Utility(commands.Cog):
 
         async with ctx.typing():
             try:
+                now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+                conRA = sqlite3.connect('databases/robotactivity.db')
+                curRA = conRA.cursor()
+
+                # check channel restrictions
+
+                #under construction
+
+                # check bot-wide cooldown
+                try: # cooldown to not trigger actual rate limits or IP blocks
+                    await util.cooldown(ctx, "gpt")
+                except Exception as e:
+                    await util.cooldown_exception(ctx, e, "gpt")
+                    return
+
+                # check user-specific cooldown
+
+                modexempt = False
+                modexemption_list = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("user cooldown mod exempt",)).fetchall()]
+
+                if len(modexemption_list) > 0:
+                    modexemption = modexemption_list[0].lower().strip()
+                    if modexemption in ["on"]:
+                        modexempt = True
+                    if len(modexemption) > 1:
+                        print("Warning: multiple mod exemption entries for GPT command found in database")
+
+                if modexempt:
+                    for perms in ctx.message.author.guild_permissions:
+                        if perms[0] == "manage_guild":
+                            if perms[1]:
+                                is_mod = True
+                            else:
+                                is_mod = False
+                            break
+                    else:
+                        print("Error: Something is wrong with permission manage_guild.")
+                        is_mod = False
+
+                if not is_mod:
+                    cooldown_setting = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("user cooldown",)).fetchall()]
+                    try:
+                        cooldown_int = int(cooldown_setting[0])
+                    except Exception as e:
+                        print("Format error with given GPT user cooldown setting:", e)
+                        cooldown_int = 60
+
+                    usercooldown = [item[0] for item in curRA.execute("SELECT last_time FROM gpt_usercooldown WHERE userid = ?", (str(ctx.author.id),)).fetchall()]
+
+                    if len(usercooldown) == 0:
+                        curRA.execute("INSERT INTO gpt_usercooldown VALUES (?, ?, ?, ?)", (str(ctx.author.id), str(ctx.author.name), now, ""))
+                        conRA.commit()
+                    else:
+                        last_time = int(usercooldown[0])
+
+                        if last_time + cooldown_int > now:
+                            await ctx.send(f"Command on cooldown, please wait. <t:{(now - (last_time + cooldown_int))}:R>")
+                            return
+                        else:
+                            curRA.execute("UPDATE gpt_usercooldown SET last_time = ? WHERE userid = ?", (now, str(ctx.author.id)))
+                            conRA.commit()
+
+            except Exception as e:
+                await ctx.send(f"Error: {e}")
+                return
+
+            try:
                 # connect
                 client = OpenAI(api_key=api_key)
                 context = []
@@ -3502,11 +3665,11 @@ class General_Utility(commands.Cog):
                   messages=context
                 )
 
-                await ctx.reply(str(completion.choices[0].message.content))
+                await ctx.reply(str(completion.choices[0].message.content), mention_author=False)
 
                 if len(gpt_settings_context) > 0 and gpt_settings_context[0].lower().strip() == "enabled":
-                    curRA.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?, ?, ?, ?)", ("user", str(ctx.author.id), str(ctx.author.name), str(ctx.channel.id), str(ctx.message.id), query, now-1))
-                    curRA.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?, ?, ?, ?)", ("assistant", str(ctx.author.id), str(ctx.author.name), str(ctx.channel.id), str(ctx.message.id), str(completion.choices[0].message.content), now-1))
+                    curRA.execute("INSERT INTO gpt_context VALUES (?, ?, ?, ?, ?, ?, ?)", ("user", str(ctx.author.id), str(ctx.author.name), str(ctx.channel.id), str(ctx.message.id), query, now-1))
+                    curRA.execute("INSERT INTO gpt_context VALUES (?, ?, ?, ?, ?, ?, ?)", ("assistant", str(ctx.author.id), str(ctx.author.name), str(ctx.channel.id), str(ctx.message.id), str(completion.choices[0].message.content), now-1))
                     conRA.commit()
 
             except Exception as e:
@@ -3593,6 +3756,8 @@ class General_Utility(commands.Cog):
     @_setgpt.error
     async def setgpt_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
+
 
         
     @commands.command(name='wiki', aliases = ['wikipedia'])
