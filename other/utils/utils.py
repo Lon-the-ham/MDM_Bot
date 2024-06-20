@@ -925,7 +925,8 @@ class Utils():
                         ctx_rank = posuser_counter
 
             if ctx_rank != -1:
-                ctx_rank_string = f"[{ctx_rank}/{posuser_counter}]"
+                ordinal = Utils.ordinal_suffix(ctx_rank)
+                ctx_rank_string = f"[{ctx_rank}{ordinal}/{posuser_counter}]"
             else:
                 ctx_rank_string = ""
 
@@ -1463,6 +1464,30 @@ class Utils():
         seconds = diff * 24*60*60
 
         return seconds 
+
+
+
+    def ordinal_suffix(num):
+        try:
+            n = int(num)
+            s = str(n)
+
+            if s[-1] in ["1", "2", "3"]:
+                if len(s) > 1 and s[-2] == "1":
+                    return "th"
+                else:
+                    if s[-1] == "1":
+                        return "st"
+                    elif s[-1] == "2":
+                        return "nd"
+                    elif s[-1] == "3":
+                        return "rd"
+                    else:
+                        return ""
+            else:
+                return "th" 
+        except:
+            return ""
 
 
 
