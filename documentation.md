@@ -123,3 +123,10 @@ Visit https://developer.spotify.com/documentation/web-api/tutorials/getting-star
 With `-w` people can query the OpenWeatherMap API to get weather and temperature data of a given location. To enable this feature you need to head over to https://openweathermap.org/price#weather and select the free plan. The API key you receive then needs to be added to the environment file as follows:
 
 > openweathermap_key = `api key`
+
+
+---
+
+# Customization
+
+If you want to add your own commands copy the file `sandbox.py` in folder `other/templates` into the `cogs` folder and make your changes in there!
