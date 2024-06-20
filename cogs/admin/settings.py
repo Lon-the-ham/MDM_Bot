@@ -616,8 +616,8 @@ class Administration_of_Settings(commands.Cog):
             if len(notification_namechange_list) > 1:
                 print("Warning: there are multiple user name change notification setting entries in the database")
             notification_namechange = notification_namechange_list[0]
-        desctext_general.append(f"Message edits: `{notification_namechange}`")
-        desctext_notifications.append(f"Message edits: `{notification_namechange}`")
+        desctext_general.append(f"Name change: `{notification_namechange}`")
+        desctext_notifications.append(f"Name change: `{notification_namechange}`")
 
         notification_scheduledevents_list = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("scheduled event notification",)).fetchall()]
         if len(notification_scheduledevents_list) == 0:
@@ -1151,7 +1151,7 @@ class Administration_of_Settings(commands.Cog):
             "vcnotification": "notification on/off switches", 
             "editnotification": "notification on/off switches", 
             "eventnotification": "notification on/off switches", 
-            "invite notification": "notification on/off switches", 
+            "invitenotification": "notification on/off switches", 
             "usernamenotification": "notification on/off switches",
             "modsmodsmodsnotification": "notification on/off switches",
             "detailederrorreporting": "notification on/off switches",
@@ -3842,6 +3842,55 @@ class Administration_of_Settings(commands.Cog):
 
 
 
+    ##################################### COMMANDS RESTRICTIONS #############################################################################
+
+
+
+    @_set.command(name="commandrestrict", aliases = ["commandrestriction", "restriction"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_commandrestrict(self, ctx, *args):
+        """Set a restriction for a command
+
+        Syntax: 
+        `-set restriction <command name> <restriction type> <specifications>`
+
+        The command name needs to be one of the following:
+        - gpt
+
+        Restriction type can be one of the following
+        - channel
+        - role
+        - permission (under construction)
+
+        Specification needs to be in the case of channels or roles the IDs of the channels/roles you want it to restrict to separated by semicolons.
+        Specify `none` to remove restriction.
+        """
+        conB = sqlite3.connect(f'databases/botsettings.db')
+        curB = conB.cursor()
+        curB.execute('''CREATE TABLE IF NOT EXISTS command_restrictions (command_name text, guild_ids text, channel_ids text, role_ids text, permissions text)''')
+        
+        if len(args) < 3:
+            await ctx.send(f"Argument needs more arguments.\ni.e. `{self.prefix}set restriction <command name> <restriction type> <specifications>`")
+            return
+
+        command_name = args[0].lower().strip()
+        restriction_type = args[1].lower().strip()
+        specifications_list = [x.strip().lower() for x in ' '.join(args[2:]).split(";")]
+
+
+        # under construction
+
+        await ctx.send("under construction")
+
+    @_set_commandrestrict.error
+    async def set_commandrestrict_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+
     #########################################################################################################################################
     #########################################################################################################################################
     #########################################################################################################################################
@@ -4550,6 +4599,10 @@ class Administration_of_Settings(commands.Cog):
                     conB.commit()
                     print(f"Added emoji for {moji_purpose} into database.")
 
+            # BOTSETTINGS DB: COMMAND CHANNEL RESTRICTIONS
+
+            curB.execute('''CREATE TABLE IF NOT EXISTS command_restrictions (command_name text, guild_ids text, channel_ids text, role_ids text, permissions text)''')
+
 
             # TIMETABLES DB
 
@@ -4598,7 +4651,7 @@ class Administration_of_Settings(commands.Cog):
             curC.execute('''CREATE TABLE IF NOT EXISTS cooldowns (service text, last_used text, limit_seconds text, limit_type text, long_limit_seconds text, long_limit_amount text)''') # soft limit type: delay, hard limit type: stop request
 
             cooldown_db_list = [item[0] for item in curC.execute("SELECT service FROM cooldowns").fetchall()]
-            cooldowns_light = ["applemusic", "metallum", "musicbrainz", "lastfm", "openweathermap", "spotify", "wolframalpha"]
+            cooldowns_light = ["applemusic", "gpt", "metallum", "musicbrainz", "lastfm", "openweathermap", "spotify", "wolframalpha"]
             cooldowns_medium = ["googlesearch"]
             cooldowns_critical = ["rym"]
             cooldowns_update = ["lastfm_update"]
@@ -4682,6 +4735,7 @@ class Administration_of_Settings(commands.Cog):
             curRA.execute('''CREATE TABLE IF NOT EXISTS raw_reaction_embeds (embed_type text, channel_name text, guild_id text, channel_id text, message_id text, app_id text, called_by_id text, called_by_name text, utc_timestamp text)''')
             curRA.execute('''CREATE TABLE IF NOT EXISTS gpt_context (role text, user_id text, username text, channel_id text, message_id text, content text, utc_timestamp integer)''')
             curRA.execute('''CREATE TABLE IF NOT EXISTS gpt_setting (type text, content text, details text, etc text)''')
+            curRA.execute('''CREATE TABLE IF NOT EXISTS gpt_usercooldown (userid text, username text, last_time integer, etc text)''')
 
             gpt_settings_context = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("context",)).fetchall()]
             if len(gpt_settings_context) == 0:
@@ -4690,6 +4744,14 @@ class Administration_of_Settings(commands.Cog):
             gpt_settings_systemrole = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("systemrole",)).fetchall()]
             if len(gpt_settings_systemrole) == 0:
                 curRA.execute("INSERT INTO gpt_setting VALUES (?, ?, ?, ?)", ("systemrole", "You are a skilled and quirky assistant, who is a bit bubbly in personality and likes using ascii emotes.", "", ""))
+                conRA.commit()
+            gpt_settings_usercooldown = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("user cooldown",)).fetchall()]
+            if len(gpt_settings_usercooldown) == 0:
+                curRA.execute("INSERT INTO gpt_setting VALUES (?, ?, ?, ?)", ("user cooldown", "60", "", ""))
+                conRA.commit()
+            gpt_settings_usercooldown_modexempt = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("user cooldown mod exempt",)).fetchall()]
+            if len(gpt_settings_usercooldown_modexempt) == 0:
+                curRA.execute("INSERT INTO gpt_setting VALUES (?, ?, ?, ?)", ("user cooldown mod exempt", "on", "", ""))
                 conRA.commit()
 
             # SEARCH FOR OTHER MDM BOT INSTANCES
