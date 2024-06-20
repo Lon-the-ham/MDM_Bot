@@ -52,11 +52,19 @@ class YataBot(commands.Bot):
             "cogs.userown.memo",
             "cogs.userown.pingterest",
             ]
+        self.optional_extensions = ["cogs.sandbox"]
 
 
     async def setup_hook(self):
         for ext in self.initial_extensions:
             await self.load_extension(ext)
+        for ext in self.optional_extensions:
+            try:
+                await self.load_extension(ext)
+                print("loaded", str(ext))
+            except:
+                #print("did not load", str(ext))
+                pass
         await bot.tree.sync(guild = discord.Object(id = guild_id))
 
 
