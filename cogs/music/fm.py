@@ -851,6 +851,9 @@ class Music_NowPlaying(commands.Cog):
             conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
             curFM2 = conFM2.cursor()
 
+            conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+            curFM3 = conFM3.cursor()
+
             conSS = sqlite3.connect('databases/scrobblestats.db')
             curSS = conSS.cursor()
 
@@ -888,7 +891,7 @@ class Music_NowPlaying(commands.Cog):
 
                 if lastfm_artistscrobbles == "on":
                     try:
-                        result = curFM2.execute(f"SELECT SUM(count) FROM [{lfm_name}] WHERE artist_name = ?", (util.compactnamefilter(subst_artist),))
+                        result = curFM2.execute(f"SELECT SUM(count) FROM [{lfm_name}] WHERE artist_name = ?", (util.compactnamefilter(subst_artist,"artist"),))
                         rtuple = result.fetchone()
                         try:
                             artistcount = int(rtuple[0])
@@ -905,7 +908,7 @@ class Music_NowPlaying(commands.Cog):
                 
                 if lastfm_albumscrobbles == "on" and album.strip() != "":
                     try:
-                        result = curFM2.execute(f"SELECT count FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (util.compactnamefilter(subst_artist),util.compactnamefilter(album)))
+                        result = curFM2.execute(f"SELECT count FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (util.compactnamefilter(subst_artist,"artist"),util.compactnamefilter(album,"album")))
                         rtuple = result.fetchone()
                         try:
                             albumcount = int(rtuple[0])
@@ -927,7 +930,8 @@ class Music_NowPlaying(commands.Cog):
 
                 if lastfm_trackscrobbles == "on":
                     try:
-                        result = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (subst_artist,song))
+                        result = curFM3.execute(f"SELECT count FROM [{lfm_name}] WHERE artist_name = ? AND track_name = ?", (util.compactnamefilter(subst_artist,"artist"),util.compactnamefilter(song,"track")))
+                        #result = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (subst_artist,song))
                         rtuple = result.fetchone()
                         try:
                             trackcount = int(rtuple[0])
@@ -2723,7 +2727,7 @@ class Music_NowPlaying(commands.Cog):
 
             if len(valid_emojis) == 0:
                 emoji = util.emoji("disappointed")
-                await ctx.send(f"None of the given emojis are valid. {emoji}\nAre you sure I am on the server these emojis are on?")
+                await ctx.send(f"None of the given emojis are valid. {emoji}\nAre you sure I am on the server these emojis are on?\n(Also make sure that there are spaces between the emoji.)")
                 return
 
             # EDIT DATABASE ENTRY
@@ -2767,7 +2771,7 @@ class Music_NowPlaying(commands.Cog):
             if len(msg_toomany) > 0:
                 msg_toomany = "\n\nOnly up to 5 reacts allowed, so could not add:\n" + msg_toomany
             if len(msg_invalid) > 0:
-                msg_invalid = "\n\nDid not understand the following emojis:\n" + msg_invalid
+                msg_invalid = "\n\nDid not understand the following emojis:\n" + msg_invalid + "\n(Make sure that there are spaces between the emoji.)"
 
             text = msg_valid + msg_toomany + msg_invalid
             try:
