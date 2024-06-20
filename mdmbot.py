@@ -62,8 +62,8 @@ class YataBot(commands.Bot):
             try:
                 await self.load_extension(ext)
                 print("loaded", str(ext))
-            except:
-                #print("did not load", str(ext))
+            except Exception as e:
+                print(f"did not load {str(ext)}", e)
                 pass
         await bot.tree.sync(guild = discord.Object(id = guild_id))
 
