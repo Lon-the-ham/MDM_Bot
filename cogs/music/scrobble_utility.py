@@ -335,6 +335,8 @@ class Music_Scrobbling(commands.Cog):
         # FETCH NEW DATA
 
         try:
+            scrobble_list = []
+
             if not argument.strip().startswith("--force"):
                 item_dict = {} # ALBUMS
                 track_dict = {} # TRACKS
@@ -385,7 +387,7 @@ class Music_Scrobbling(commands.Cog):
 
                     #insert into scrobble database
                     item_indexed = (i,) + item
-                    curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)
+                    scrobble_list.append(item_indexed)
                     count += 1
                     i -= 1
 
@@ -464,6 +466,8 @@ class Music_Scrobbling(commands.Cog):
                     except Exception as e:
                         print("Error:", e)
 
+            for item_indexed in sorted(scrobble_list, key = lambda x : x[0]):
+                curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)
             conFM.commit()
             if argument.strip().startswith("--force"):
                 await self.reload_userdbs(lfm_name)
@@ -1073,7 +1077,7 @@ class Music_Scrobbling(commands.Cog):
 
         if wk_type == "artist":
             artist, thumbnail, tags = await self.wk_artist_match(ctx, argument)
-            header = f"{artist}"
+            header = util.compactaddendumfilter(artist,"artist")
 
             if util.compactnamefilter(artist,"artist") == "":
                 emoji = util.emoji("shrug")
@@ -1083,7 +1087,7 @@ class Music_Scrobbling(commands.Cog):
         elif wk_type == "album":
             try:
                 artist, album, thumbnail, tags = await self.wk_album_match(ctx, argument)
-                header = f"{artist} - {album}"
+                header = util.compactaddendumfilter(artist,"artist") + " - " + util.compactaddendumfilter(album,"album")
             except Exception as e:
                 if str(e) == "Could not parse artist and album.":
                     #artistless_albummatch
@@ -1092,7 +1096,7 @@ class Music_Scrobbling(commands.Cog):
                     tags = []
                     album = argument.upper()
                     wk_type = "album without artist"
-                    header = f"Album: {album}"
+                    header = "Album: " + util.compactaddendumfilter(album,"album")
                 else:
                     raise ValueError(f"while parsing artist/album - {e}")
                     return
@@ -1100,7 +1104,7 @@ class Music_Scrobbling(commands.Cog):
         elif wk_type == "track":
             try:
                 artist, track, thumbnail, tags = await self.wk_track_match(ctx, argument)
-                header = f"{artist} - {track}"
+                header = util.compactaddendumfilter(artist,"artist") + " - " + util.compactaddendumfilter(track,"track")
             except Exception as e:
                 if str(e) == "Could not parse artist and track.":
                     #artistless_trackmatch
@@ -1109,7 +1113,7 @@ class Music_Scrobbling(commands.Cog):
                     tags = []
                     track = argument.upper()
                     wk_type = "track without artist"
-                    header = f"Track: {track}"
+                    header = "Track: " + util.compactaddendumfilter(track,"track")
                 else:
                     raise ValueError(f"while parsing artist/track - {e}")
                     return
