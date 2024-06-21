@@ -129,4 +129,4 @@ With `-w` people can query the OpenWeatherMap API to get weather and temperature
 
 # Customization
 
-If you want to add your own commands copy the file `sandbox.py` in folder `other/templates` into the `cogs` folder and make your changes in there!
+If you want to add your own commands copy the file `sandbox.py` in folder `other/templates` into the `cogs` folder and make your changes in there! This file will be git-ignored and not be synced when git pulling new versions of MDM bot.
