@@ -477,24 +477,34 @@ class Utils():
 
 
 
+    def compactaddendumfilter(input_string, *info):
+        intermediate_string = input_string
+
+        if info == ("artist",):
+            if input_string.endswith(" - Topic"):
+                intermediate_string = input_string.replace(" - Topic", "")
+        elif info == ("album",):
+            if input_string.endswith(" - EP"):
+                intermediate_string = input_string.replace(" - EP", "")
+
+        if not info == ("track",):
+            if "(" in intermediate_string and not intermediate_string.startswith("("):
+                intermediate_string = intermediate_string.split("(",1)[0]
+            if "[" in intermediate_string and not intermediate_string.startswith("["):
+                intermediate_string = intermediate_string.split("[",1)[0]
+
+        return intermediate_string
+
+
+
     def compactnamefilter(input_string, *info):
         # https://en.wikipedia.org/wiki/List_of_Latin-script_letters
         # get rid of bracket info
         try:
-            intermediate_string = input_string
-
-            if info == ("artist",):
-                if input_string.endswith(" - Topic"):
-                    intermediate_string = input_string.replace(" - Topic", "")
-            elif info == ("album",):
-                if input_string.endswith(" - EP"):
-                    intermediate_string = input_string.replace(" - EP", "")
-
-            if not info == ("track",):
-                if "(" in intermediate_string and not intermediate_string.startswith("("):
-                    intermediate_string = intermediate_string.split("(",1)[0]
-                if "[" in intermediate_string and not intermediate_string.startswith("["):
-                    intermediate_string = intermediate_string.split("[",1)[0]
+            if len(info) > 0:
+                intermediate_string = Utils.compactaddendumfilter(input_string, info[0])
+            else:
+                intermediate_string = input_string
 
             # get rid of non-alphanumeric
             intermediate_string = ''.join([x for x in intermediate_string.upper() if x.isalnum()])
@@ -3334,6 +3344,8 @@ class Utils():
         i = -1
 
         try:
+            scrobble_list = []
+
             item_dict = {}
             track_dict = {}
             previous_item = None
@@ -3377,7 +3389,8 @@ class Utils():
 
                     # add item to scrobble DB
                     item_indexed = (i,) + item
-                    curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)  
+                    #curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)
+                    scrobble_list.append(item_indexed)  
                     count += 1
                     i -= 1
 
@@ -3441,6 +3454,9 @@ class Utils():
                     previous_item = item
             if count > 0:
                 print(f"updated scrobble data of {lfm_name} : ({count} entries)")
+            
+            for item_indexed in sorted(scrobble_list, key = lambda x : x[0]):
+                curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)
             conFM.commit()
             releasewise_insert(lfm_name, item_dict)
             trackwise_insert(lfm_name, track_dict)
