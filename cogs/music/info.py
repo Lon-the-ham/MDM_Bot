@@ -723,7 +723,11 @@ class Music_Info(commands.Cog):
 
                 if len(aa_items) == 0:
                     emoji = util.emoji("shy")
-                    await ctx.channel.send(f'Could not find band with such a name on the Metal Archives. {emoji}')
+                    try:
+                        namespec = f" ({primaryinput})"
+                    except:
+                        namespec = ""
+                    await ctx.channel.send(f'Could not find band with such a name{namespec} on the Metal Archives. {emoji}')
 
                 elif len(aa_items) == 1:
                     try:
