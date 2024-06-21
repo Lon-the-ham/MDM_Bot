@@ -3582,7 +3582,7 @@ class General_Utility(commands.Cog):
                         last_time = int(usercooldown[0])
 
                         if last_time + cooldown_int > now:
-                            await ctx.send(f"Command on cooldown, please wait. <t:{(now - (last_time + cooldown_int))}:R>")
+                            await ctx.send(f"Command on cooldown, please wait. <t:{(now + (now - (last_time + cooldown_int)))}:R>")
                             return
                         else:
                             curRA.execute("UPDATE gpt_usercooldown SET last_time = ? WHERE userid = ?", (now, str(ctx.author.id)))
