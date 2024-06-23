@@ -1549,6 +1549,104 @@ class Music_Scrobbling(commands.Cog):
 
 
 
+    async def artist_detailplays(self, ctx, argument, wk_type):
+
+        # GET USER
+        user_id = str(ctx.author.id)
+
+        # under construction: fetch other user
+
+        con = sqlite3.connect('databases/npsettings.db')
+        cur = con.cursor()
+        lfm_list = [item[0] for item in cur.execute("SELECT lfm_name FROM lastfm WHERE id = ?", (str(user_id),)).fetchall()]
+        lfm_name = lfm_list[0].strip()
+
+        artist, thumbnail, tags = await self.wk_artist_match(ctx, argument)
+        compact_artist = util.compactnamefilter(artist,"artist")
+        artist_aliases_compact = [compact_artist]
+
+        # LOAD ALL SCROBBLES
+        conFM = sqlite3.connect('databases/scrobbledata.db')
+        curFM = conFM.cursor()
+
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        if wk_type == "album":
+            conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+            curFM2 = conFM2.cursor()
+            result = [[item[0],item[1]] for item in curFM2.execute(f"SELECT album_name, count FROM [{lfm_name}] WHERE artist_name = ? ORDER BY count DESC", (compact_artist,)).fetchall()]
+
+            #under construction: fetch album name from scrobblemeta.db instead
+
+            all_albums = [[item[0],item[1]] for item in curFM.execute(f"SELECT DISTINCT artist_name, album_name FROM [{lfm_name}]").fetchall()]
+            filtered_albums = [[util.compactnamefilter(x[1],"album"), x[1]] for x in all_albums if util.compactnamefilter(x[0],"artist") in artist_aliases_compact]
+            album_dict = {}
+            for key, element in filtered_albums:
+                album_dict[key] = element
+
+            result_proper = []
+            for item in result:
+                album_name = item[0]
+                if album_name in album_dict:
+                    album_name = album_dict[album_name]
+                count = item[1]
+                result_proper.append([album_name, count])
+
+        elif wk_type == "track":
+            conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+            curFM3 = conFM3.cursor()
+            result = [[item[0],item[1]] for item in curFM3.execute(f"SELECT track_name, count FROM [{lfm_name}] WHERE artist_name = ? ORDER BY count DESC", (compact_artist,)).fetchall()]
+
+            all_tracks = [[item[0],item[1]] for item in curFM.execute(f"SELECT DISTINCT artist_name, track_name FROM [{lfm_name}]").fetchall()]
+            filtered_tracks = [[util.compactnamefilter(x[1],"track"), x[1]] for x in all_tracks if util.compactnamefilter(x[0],"artist") in artist_aliases_compact]
+            track_dict = {}
+            for key, element in filtered_tracks:
+                track_dict[key] = element
+
+            result_proper = []
+            for item in result:
+                track_name = item[0]
+                if track_name in track_dict:
+                    track_name = track_dict[track_name]
+                count = item[1]
+                result_proper.append([track_name, count])
+        else:
+            raise ValueError("unknown WK type")
+
+        ###################### EMBED
+
+        # under construction
+
+        header = f"{artist[:128]} {wk_type} plays"
+        header = f"{ctx.author.display_name}"[:253-len(header)] + "'s " + header
+        color = ctx.author.color
+
+        contents = [""]
+        i = 0 #indexnumber
+        k = 0 #pagenumber
+        for item in result_proper:
+            if item[0].strip() == "":
+                continue
+
+            i = i+1
+            itemstring = f"`{i}.` **{item[0]}** - *{item[1]} plays*\n"
+            
+            previous = 0
+            for j in range(0,k):
+                previous += contents[j].count("\n")
+
+            if len(contents[k]) + len(itemstring) <= 1500 and (i - previous) <= 15:    
+                contents[k] = contents[k] + itemstring 
+            else:
+                k = k+1
+                contents.append(itemstring)
+
+        footer = f"{i} {wk_type}s"
+
+        await util.embed_pages(ctx, self.bot, header, contents, color, footer)
+        
+
+
     async def lastfm_error_handler(self, ctx, e):
         if "'message': '" in str(e):
             try:
@@ -2434,9 +2532,15 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(util.is_active)
     async def _artistalbums(self, ctx: commands.Context, *args):
         """
+        Shows the top albums by plays of a given artist
         """
 
-        await ctx.send("Under construction")
+        try:
+            async with ctx.typing():
+                argument = ' '.join(args)
+                await self.artist_detailplays(ctx, argument, "album")
+        except Exception as e:
+            await self.lastfm_error_handler(ctx, e)
 
     @_artistalbums.error
     async def artistalbums_error(self, ctx, error):
@@ -2449,9 +2553,15 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(util.is_active)
     async def _artisttracks(self, ctx: commands.Context, *args):
         """
+        Shows the top tracks by plays of a given artist
         """
 
-        await ctx.send("Under construction")
+        try:
+            async with ctx.typing():
+                argument = ' '.join(args)
+                await self.artist_detailplays(ctx, argument, "track")
+        except Exception as e:
+            await self.lastfm_error_handler(ctx, e)
 
     @_artisttracks.error
     async def artisttracks_error(self, ctx, error):
