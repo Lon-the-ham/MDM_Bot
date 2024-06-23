@@ -66,7 +66,7 @@ class Event_Response(commands.Cog):
             return
         try:
             if timestamp == None or timestamp == "":
-                timestamp = datetime.datetime.utcnow()
+                timestamp = datetime.datetime.now()
             header = title[:256]
             description = text[:4096]
             if color == "" or color == None:
@@ -242,7 +242,7 @@ class Event_Response(commands.Cog):
         title = "Member joined"
         try:
             created_utc = member.created_at
-            now_utc = datetime.utcnow()
+            now_utc = datetime.datetime.utcnow()
             age = now_utc - created_utc
             age_seconds = age.total_seconds
             now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
@@ -352,7 +352,7 @@ class Event_Response(commands.Cog):
 
         if before.timed_out_until is None and after.timed_out_until is not None: # timeout (the discord internal one)
             endtime = after.timed_out_until
-            now_utc = datetime.utcnow()
+            now_utc = datetime.datetime.utcnow()
             remaining = (endtime - now_utc).total_seconds()
             now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
             remaining_string = util.seconds_to_readabletime(remaining, now)
@@ -468,7 +468,7 @@ class Event_Response(commands.Cog):
         if not self.setting_enabled("edit message notification"):
             return
 
-        now_utc = datetime.utcnow()
+        now_utc = datetime.datetime.utcnow()
         old_time = before.created_at
 
         if (now_utc - old_time).total_seconds() > 7200:
@@ -479,7 +479,7 @@ class Event_Response(commands.Cog):
         #    edit_time = after.created_at
         #    timestamp = edit_time.replace(tzinfo=timezone.utc).timestamp()
         #except:
-        #    timestamp = "error"
+        #    timestamp = ""
 
         title = f"Message Edited in <#{before.channel.id}>"
         # TEXT BEGIN
@@ -497,7 +497,7 @@ class Event_Response(commands.Cog):
         footer = f"NAME: {before.author.name}, ID: {before.author.id}"   
         image = ""
         color = 0x0e4c92
-        await self.botspam_send(title, text, footer, image, before.author, color, after.created_at)
+        await self.botspam_send(title, text, footer, image, before.author, color, None) #after.created_at)
 
 
 
@@ -532,7 +532,7 @@ class Event_Response(commands.Cog):
         image = "" # under construction
         
         color = 0xd30000
-        await self.botspam_send(title, text, footer, image, message.author, color, None)
+        await self.botspam_send(title, text, footer, image, message.author, color, None) #message.created_at)
 
 
 
