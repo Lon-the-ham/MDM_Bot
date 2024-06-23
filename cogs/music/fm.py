@@ -36,7 +36,27 @@ class Music_NowPlaying(commands.Cog):
                 # FETCH ARTIST/ALBUM/SONG INFORMATION
 
                 try:
-                    if "-" in str(activity.details):
+                    if "ꜰʀᴏᴍ " in util.cleantext2(activity.state):
+                        if " - " in str(activity.details):
+                            details = activity.details.split(" - ", 1)
+                        else:
+                            details = activity.details.split("-", 1)
+                        artist = util.cleantext2(details[0].strip())
+                        song = util.cleantext2(details[1].strip())
+                        try:
+                            album = util.cleantext2(activity.state).split("ꜰʀᴏᴍ ")[1]
+                        except:
+                            album = ""
+                        artist_rep = artist.replace(" ","+")
+                        song_rep = title.replace(" ","+")
+                        lfm_link = f"https://www.last.fm/music/{artist_rep}/_/{song_rep}".replace("\\", "")
+
+                        if album.strip() != "":
+                            description = f"[{song}]({lfm_link})\nby **{artist}** | {album}"
+                        else:
+                            description = f"[{song}]({lfm_link})\nby **{artist}**"
+
+                    elif "-" in str(activity.details):
                         if " - " in str(activity.details):
                             details = activity.details.split(" - ", 1)
                         else:
@@ -2344,31 +2364,57 @@ class Music_NowPlaying(commands.Cog):
 
                 if str(activity.type) == "ActivityType.playing" and activity.name == "MusicBee":
                     try:
-                        if " - " in str(activity.details):
-                            details = activity.details.split(" - ", 1)
-                        else:
-                            details = activity.details.split("-", 1)
-                        artist = util.cleantext2(details[0].strip())
-                        album = util.cleantext2(details[1].strip())
-                        try:
-                            title = util.cleantext2(activity.state.strip())
+                        if "ꜰʀᴏᴍ " in util.cleantext2(activity.state):
+                            if " - " in str(activity.details):
+                                details = activity.details.split(" - ", 1)
+                            else:
+                                details = activity.details.split("-", 1)
+                            artist = util.cleantext2(details[0].strip())
+                            title = util.cleantext2(details[1].strip())
+                            try:
+                                album = util.cleantext2(activity.state).split("ꜰʀᴏᴍ ")[1]
+                            except:
+                                album = ""
                             artist_rep = artist.replace(" ","+")
                             song_rep = title.replace(" ","+")
                             url = f"https://www.last.fm/music/{artist_rep}/_/{song_rep}".replace("\\", "")
-                        except:
-                            title = ""
-                            artist_rep = artist.replace(" ","+")
-                            album_re = album.replace(" ","+")
-                            url = f"https://www.last.fm/music/{artist_rep}/{album_rep}".replace("\\", "")
+
+                        else:
+                            if " - " in str(activity.details):
+                                details = activity.details.split(" - ", 1)
+                            else:
+                                details = activity.details.split("-", 1)
+                            artist = util.cleantext2(details[0].strip())
+                            album = util.cleantext2(details[1].strip())
+                            try:
+                                title = util.cleantext2(activity.state.strip())
+                                artist_rep = artist.replace(" ","+")
+                                song_rep = title.replace(" ","+")
+                                url = f"https://www.last.fm/music/{artist_rep}/_/{song_rep}".replace("\\", "")
+                            except:
+                                title = ""
+                                artist_rep = artist.replace(" ","+")
+                                album_re = album.replace(" ","+")
+                                url = f"https://www.last.fm/music/{artist_rep}/{album_rep}".replace("\\", "")
                         musicbee_list.append([member.display_name, member.id, title, artist, album, url])
                     except:
                         musicbee_list.append([member.display_name, member.id, "", "", "", ""])
 
                 if str(activity.type) == "ActivityType.playing" and (activity.name == "Apple Music" or (activity.name == "Music" and "iTunes Rich Presence for Discord" in activity_list)):
                     try:
-                        title = util.cleantext2(activity.details.replace("🎶", "").strip())
-                        artist = util.cleantext2(activity.state.split("💿")[0].replace("👤","").strip())
-                        album = util.cleantext2(activity.state.split("💿")[1].strip())
+                        try:
+                            title = util.cleantext2(activity.details.replace("🎶", "").strip())
+                            artist = util.cleantext2(activity.state.split("💿")[0].replace("👤","").strip())
+                            album = util.cleantext2(activity.state.split("💿")[1].strip())
+                        except:
+                            try:
+                                artist = util.cleantext2(activity.details.split(" - ", 1)[0].strip())
+                                song = util.cleantext2(activity.details.split(" - ", 1)[1].strip())
+                                album = util.cleantext2(activity.state.split("on ", 1)[1].strip())
+                            except:
+                                artist = util.cleantext2(activity.details.split(" — ", 1)[0].strip())
+                                song = util.cleantext2(activity.details.strip())
+                                album = util.cleantext2(activity.state.split(" — ")[1].strip())
                         url = f"https://music.apple.com/us/search?term={artist}_{album}_{title}".replace(" ","_").replace("\\", "")
                         applemusic_list.append([member.display_name, member.id, title, artist, album, url])
                     except:
