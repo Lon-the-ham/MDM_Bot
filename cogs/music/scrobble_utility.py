@@ -1588,7 +1588,7 @@ class Music_Scrobbling(commands.Cog):
             for item in result:
                 album_name = item[0]
                 if album_name in album_dict:
-                    album_name = album_dict[album_name]
+                    album_name = util.compactaddendumfilter(album_dict[album_name], "album")
                 count = item[1]
                 result_proper.append([album_name, count])
 
@@ -1607,7 +1607,7 @@ class Music_Scrobbling(commands.Cog):
             for item in result:
                 track_name = item[0]
                 if track_name in track_dict:
-                    track_name = track_dict[track_name]
+                    track_name = track_dict[track_name] #util.compactaddendumfilter(track_dict[track_name], "track")
                 count = item[1]
                 result_proper.append([track_name, count])
         else:
