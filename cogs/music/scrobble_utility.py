@@ -2585,7 +2585,7 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    @commands.command(name='aap', aliases = ["albumplays", 'alp'])
+    @commands.command(name='abp', aliases = ["albumplays", 'alp'])
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _albumplays(self, ctx: commands.Context, *args):
