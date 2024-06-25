@@ -826,6 +826,24 @@ class Utils():
 
 
 
+    def get_milestonelist():
+        milestone_list = [1]
+        for x in [1,2,3,4,5,6,7,8,9]:
+            for y in [1,2,3,4,5,6,7,8,9]:
+                milestone = (10 ** x) * y
+                milestone_list.append(milestone)
+                if x == 5:
+                    milestone += (10 ** (x-1)) * 5
+                    milestone_list.append(milestone)
+                if x > 5:
+                    for z in range(9):
+                        milestone += (10 ** (x-1)) * z
+                        milestone_list.append(milestone)
+                        
+        return milestone_list
+
+
+
     def get_rank(ctx, ctx_lfm_name, artist):
         try:
             conNP = sqlite3.connect('databases/npsettings.db')
