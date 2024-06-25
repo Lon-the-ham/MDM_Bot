@@ -2419,18 +2419,7 @@ class Music_Scrobbling(commands.Cog):
 
         footer = ""
         if index_number == "last_ms":
-            milestone_list = [1]
-            for x in [1,2,3,4,5,6,7,8,9]:
-                for y in [1,2,3,4,5,6,7,8,9]:
-                    milestone = (10 ** x) * y
-                    milestone_list.append(milestone)
-                    if x == 5:
-                        milestone += (10 ** (x-1)) * 5
-                        milestone_list.append(milestone)
-                    if x > 5:
-                        for z in range(9):
-                            milestone += (10 ** (x-1)) * z
-                            milestone_list.append(milestone)
+            milestone_list = util.get_milestonelist()
             index_int = 1
             for i in milestone_list:
                 if i <= len(scrobbles):
@@ -2517,9 +2506,110 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(util.is_active)
     async def _pace(self, ctx: commands.Context, *args):
         """Shows lastfm pace
-        """
 
-        await ctx.send("Under construction")
+        Per default it will base your pace off your past 4 weeks. Use the following arguments to change the base timeframe:
+        > d: day
+        > w: week (7 days)
+        > f: fortnight (14 days)
+        > m: month (30 days)
+        > y: year (365 days)
+        > a: all scrobbles
+        """
+        conFM = sqlite3.connect('databases/scrobbledata.db')
+        curFM = conFM.cursor()
+
+        user_id = str(ctx.author.id)
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+        timeframe_string = "4 weeks"
+        timeframe = 4*7*24*60*60 
+
+        # FETCH LASTFM NAME
+
+        conNP = sqlite3.connect('databases/npsettings.db')
+        curNP = conNP.cursor()
+
+        try:
+            result = curNP.execute("SELECT lfm_name FROM lastfm WHERE id = ?", (user_id,))
+            lfm_name = result.fetchone()[0]
+        except Exception as e:
+            print(e)
+            await ctx.send(f"Error: Could not find your lastfm username. {emoji}\nUse `{self.prefix}setfm` to set your username first, and then use `{self.prefix}u` to load your scrobbles into the bot's database.")
+            return
+
+        # PARSE TIMEFRAME ARGUMENT
+
+        first_scrobble_list = [item[0] for item in curFM.execute(f"SELECT MIN(date_uts) FROM [{lfm_name}] WHERE date_uts > ?", (1000000000,)).fetchall()]
+        first_scrobble = first_scrobble_list[0]
+        total_timeframe = int(now - first_scrobble)
+        scrobble_count_total_list = [item[0] for item in curFM.execute(f"SELECT COUNT(date_uts) FROM [{lfm_name}] WHERE date_uts > ?", (1000000000,)).fetchall()]
+        scrobble_count_total = scrobble_count_total_list[0]
+        scrobbles_per_day_total = scrobble_count_total * (24*60*60) / total_timeframe
+
+        footer = f"total since account creation: {round(scrobbles_per_day_total,2)} scrobbles per day"
+
+        if len(args) > 0:
+            arg = args[0].lower().strip()
+            if arg in ["d", "day"]:
+                timeframe_string = "the past 1 day"
+                timeframe = 24*60*60 
+            elif arg in ["w", "week"]:
+                timeframe_string = "the past week"
+                timeframe = 7*24*60*60 
+            elif arg in ["f", "fortnight"]:
+                timeframe_string = "the past 2 weeks"
+                timeframe = 14*24*60*60 
+            elif arg in ["m", "mon", "month", "moon"]:
+                timeframe_string = "the past 30 days"
+                timeframe = 30*24*60*60 
+            elif arg in ["y", "year"]:
+                timeframe_string = "the past 365 days"
+                timeframe = 365*24*60*60 
+            elif arg in ["a", "all"]:
+                timeframe_string = "all your scrobbles"
+                timeframe = total_timeframe
+                footer = ""
+
+        # FETCH SCROBBLES
+
+        scrobble_allcountlist = [item[0] for item in curFM.execute(f"SELECT COUNT(date_uts) FROM [{lfm_name}]").fetchall()]
+        scrobble_all = scrobble_allcountlist[0]
+
+        scrobble_countlist = [item[0] for item in curFM.execute(f"SELECT COUNT(date_uts) FROM [{lfm_name}] WHERE date_uts > ?", (now - timeframe,)).fetchall()]
+        scrobble_count = scrobble_countlist[0]
+        if scrobble_count == 0:
+            sad = util.emoji("sad")
+            await ctx.send(f"You don't have any scrobbles in the given timeframe. {sad}")
+            return
+
+        scrobbles_per_day = scrobble_count * (24*60*60) / timeframe
+        milestone_list = util.get_milestonelist()
+        next_milestone = 10000000000
+        for ms in sorted(milestone_list):
+            if scrobble_all >= ms:
+                continue
+            else:
+                next_milestone = ms
+                break
+
+        missing_scrobbles = next_milestone - scrobble_all
+        missing_seconds = int(missing_scrobbles / (scrobbles_per_day / (24*60*60)))
+
+        text = f"Based on {timeframe_string}, you have about **{round(scrobbles_per_day, 2)}** scrobbles per day.\n"
+        text += f"Keeping this pace you might reach {next_milestone} scrobbles on <t:{(now + missing_seconds)}:D>. (Currently {scrobble_all} scrobbles)"
+
+        # EMBED
+
+        embed = discord.Embed(title="", description=text, color=ctx.author.color)
+
+        try:
+            embed.set_author(name=f"{ctx.author.name}'s scrobble pace", icon_url=ctx.author.avatar)
+        except Exception as e:
+            print("Error:", e)
+
+        if footer.strip() != "":
+            embed.set_footer(text=footer.strip())
+
+        await ctx.send(embed=embed)
 
     @_pace.error
     async def pace_error(self, ctx, error):
@@ -2585,7 +2675,7 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    @commands.command(name='abp', aliases = ["albumplays", 'alp'])
+    @commands.command(name='abp', aliases = ["albumplays", 'alp', 'aap'])
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _albumplays(self, ctx: commands.Context, *args):
