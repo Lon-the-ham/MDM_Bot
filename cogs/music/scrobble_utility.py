@@ -2520,7 +2520,7 @@ class Music_Scrobbling(commands.Cog):
 
         user_id = str(ctx.author.id)
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
-        timeframe_string = "4 weeks"
+        timeframe_string = "the past 4 weeks"
         timeframe = 4*7*24*60*60 
 
         # FETCH LASTFM NAME
