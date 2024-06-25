@@ -468,10 +468,10 @@ class Event_Response(commands.Cog):
         if not self.setting_enabled("edit message notification"):
             return
 
-        now_utc = datetime.datetime.utcnow()
+        now_time = datetime.datetime.now()
         old_time = before.created_at
 
-        if (now_utc - old_time).total_seconds() > 7200:
+        if (now_time - old_time).total_seconds() > 7200:
             print("ignore edit of 2h+ old message")
             return
 
