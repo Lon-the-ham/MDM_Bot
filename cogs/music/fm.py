@@ -161,9 +161,15 @@ class Music_NowPlaying(commands.Cog):
                             song = util.cleantext2(activity.details.split(" - ", 1)[1].strip())
                             album = util.cleantext2(activity.state.split("on ", 1)[1].strip())
                         except:
-                            artist = util.cleantext2(activity.details.split(" — ", 1)[0].strip())
-                            song = util.cleantext2(activity.details.strip())
-                            album = util.cleantext2(activity.state.split(" — ")[1].strip())
+                            try:
+                                artist = util.cleantext2(activity.state.split(" — ", 1)[0].strip())
+                                song = util.cleantext2(activity.details.strip())
+                                album = util.cleantext2(activity.state.split(" — ", 1)[1].strip())
+                            except:
+                                artist = util.cleantext2(activity.state.strip())
+                                song = util.cleantext2(activity.details.strip())
+                                album = ""
+
 
                         try:
                             song_url = f"https://music.apple.com/us/search?term={artist}%20{album}%20{song}".replace(" ","%20").replace("\\", "")
@@ -2412,9 +2418,15 @@ class Music_NowPlaying(commands.Cog):
                                 song = util.cleantext2(activity.details.split(" - ", 1)[1].strip())
                                 album = util.cleantext2(activity.state.split("on ", 1)[1].strip())
                             except:
-                                artist = util.cleantext2(activity.details.split(" — ", 1)[0].strip())
-                                song = util.cleantext2(activity.details.strip())
-                                album = util.cleantext2(activity.state.split(" — ")[1].strip())
+                                try:
+                                    artist = util.cleantext2(activity.state.split(" — ", 1)[0].strip())
+                                    song = util.cleantext2(activity.details.strip())
+                                    album = util.cleantext2(activity.state.split(" — ", 1)[1].strip())
+                                except:
+                                    artist = util.cleantext2(activity.state.strip())
+                                    song = util.cleantext2(activity.details.strip())
+                                    album = ""
+
                         url = f"https://music.apple.com/us/search?term={artist}_{album}_{title}".replace(" ","_").replace("\\", "")
                         applemusic_list.append([member.display_name, member.id, title, artist, album, url])
                     except:
