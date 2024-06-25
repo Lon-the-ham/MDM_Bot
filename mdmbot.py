@@ -176,8 +176,6 @@ class YataBot(commands.Bot):
                 except Exception as e:
                     print(f"Error while trying to clear cooldown database - user requests table: {e}")
 
-                # under construction: clear info wheather updating process is taking place at the moment
-
                 # CLEAR TEMP FOLDER
 
                 try:
