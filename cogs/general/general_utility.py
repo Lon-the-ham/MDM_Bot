@@ -2618,7 +2618,7 @@ class General_Utility(commands.Cog):
             curU = conU.cursor()
             loc_list = [[item[0],item[1],item[2]] for item in curU.execute("SELECT longitude, latitude, city FROM location WHERE user_id = ?", (str(ctx.author.id),)).fetchall()]
             if len(loc_list) == 0:
-                raise ValueError(f"No location was set.\nUse `{self.prefix}w set <city>, <country>` to set location.\n\n(If you meant to use the *whoknows* command that'd be `{self.prefix}wk`)")
+                raise ValueError(f"No location was set.\nUse `{self.prefix}we set <city>, <country>` to set location.")
                 return
 
             longitude = loc_list[0][0]
