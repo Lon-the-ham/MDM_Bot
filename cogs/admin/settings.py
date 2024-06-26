@@ -3869,7 +3869,7 @@ class Administration_of_Settings(commands.Cog):
         """
         conB = sqlite3.connect(f'databases/botsettings.db')
         curB = conB.cursor()
-        curB.execute('''CREATE TABLE IF NOT EXISTS command_restrictions (command_name text, guild_ids text, channel_ids text, role_ids text, permissions text)''')
+        curB.execute('''CREATE TABLE IF NOT EXISTS command_restrictions (command_name text, guild_ids text, channel_ids text, role_ids text, permissions text, help text)''')
         
         if len(args) < 3:
             await ctx.send(f"Argument needs more arguments.\ni.e. `{self.prefix}set restriction <command name> <restriction type> <specifications>`")
@@ -4601,8 +4601,11 @@ class Administration_of_Settings(commands.Cog):
 
             # BOTSETTINGS DB: COMMAND CHANNEL RESTRICTIONS
 
-            curB.execute('''CREATE TABLE IF NOT EXISTS command_restrictions (command_name text, guild_ids text, channel_ids text, role_ids text, permissions text)''')
+            curB.execute('''CREATE TABLE IF NOT EXISTS command_restrictions (command_name text, guild_ids text, channel_ids text, role_ids text, permissions text, help text)''')
 
+            # MIRRORS DB
+
+            curB.execute('''CREATE TABLE IF NOT EXISTS mirrors (service text, url text, details text, extra text, priority integer)''')
 
             # TIMETABLES DB
 
@@ -4773,6 +4776,20 @@ class Administration_of_Settings(commands.Cog):
                         print("Could not add app to database:", e)
 
 
+            ################################################# UPDATE ####################################################################
+
+            curB.execute("DELETE FROM mirrors WHERE service = ?", ("libre translate",))
+            conB.commit()
+            print("Flush mirrors.")
+            libre_translate_list = await util.get_libretranslate_mirrors()
+
+            i = 0
+            for url in libre_translate_list:
+                i += 1
+                curB.execute("INSERT INTO mirrors VALUES (?, ?, ?, ?, ?)", ("libre translate", url, "", "", i))
+                print(f"Inserted Libre Translate Mirror: {url}")
+            conB.commit()
+
             #############################################################################################################################
             ################################################## FIX ERRORS ###############################################################
             #############################################################################################################################
@@ -4924,6 +4941,25 @@ class Administration_of_Settings(commands.Cog):
 
 
                 curSS.execute(f'''CREATE TABLE IF NOT EXISTS crowns_{guild.id} (artist text, crown_holder text, discord_name text, playcount integer)''')
+
+
+            try:
+                conB = sqlite3.connect('databases/botsettings.db')
+                curB= conB.cursor()
+
+                cursorB = conB.execute(f'SELECT * FROM command_restrictions')
+                column_names = list(map(lambda x: x[0], cursorB.description))
+                cursorB.close()
+                column_number = len(column_names)
+                
+                if column_number <= 5:
+                    conB.execute(f'ALTER TABLE command_restrictions ADD COLUMN help text;')
+                    print("added column to command_restriction table")
+
+                # under construction hide some commands via specifying that in help column
+
+            except Exception as e:
+                print("Error:", e)  
 
 
             ############# CONFIRMATION
