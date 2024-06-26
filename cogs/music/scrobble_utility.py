@@ -2507,13 +2507,17 @@ class Music_Scrobbling(commands.Cog):
     async def _pace(self, ctx: commands.Context, *args):
         """Shows lastfm pace
 
-        Per default it will base your pace off your past 4 weeks. Use the following arguments to change the base timeframe:
+        Per default it will base your pace off the past 4 weeks. Use the following arguments to change the base timeframe:
         > d: day
         > w: week (7 days)
         > f: fortnight (14 days)
         > m: month (30 days)
+        > q: quarter (90 days)
+        > h: half (180 days)
         > y: year (365 days)
         > a: all scrobbles
+
+        You can also include a target scrobble number as argument and then the bot will calculate when you would reach that target.
         """
         conFM = sqlite3.connect('databases/scrobbledata.db')
         curFM = conFM.cursor()
@@ -2521,7 +2525,7 @@ class Music_Scrobbling(commands.Cog):
         user_id = str(ctx.author.id)
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
         timeframe_string = "the past 4 weeks"
-        timeframe = 4*7*24*60*60 
+        timeframe = 4*7*24*60*60
 
         # FETCH LASTFM NAME
 
@@ -2548,7 +2552,32 @@ class Music_Scrobbling(commands.Cog):
         footer = f"total since account creation: {round(scrobbles_per_day_total,2)} scrobbles per day"
 
         if len(args) > 0:
-            arg = args[0].lower().strip()
+            if len(args) > 1:
+                # two arguments
+                if util.represents_integer(args[0].strip()):
+                    arg = args[1].lower().strip()
+                    try:
+                        scrobblegoal = int(args[0].strip())
+                    except:
+                        scrobblegoal = None
+                else:
+                    arg = args[0].lower().strip()
+                    try:
+                        scrobblegoal = int(args[1].strip())
+                    except:
+                        scrobblegoal = None
+            else:
+                # only one argument
+                if util.represents_integer(args[0].strip()):
+                    arg = None
+                    try:
+                        scrobblegoal = int(args[0].strip())
+                    except:
+                        scrobblegoal = None
+                else:
+                    arg = args[0].lower().strip()
+                    scrobblegoal = None
+
             if arg in ["d", "day"]:
                 timeframe_string = "the past 1 day"
                 timeframe = 24*60*60 
@@ -2560,8 +2589,14 @@ class Music_Scrobbling(commands.Cog):
                 timeframe = 14*24*60*60 
             elif arg in ["m", "mon", "month", "moon"]:
                 timeframe_string = "the past 30 days"
-                timeframe = 30*24*60*60 
-            elif arg in ["y", "year"]:
+                timeframe = 30*24*60*60
+            elif arg in ["q", "quarter", "quarterly"]:
+                timeframe_string = "the past 90 days"
+                timeframe = 90*24*60*60 
+            elif arg in ["h", "half", "semi"]:
+                timeframe_string = "the past 180 days"
+                timeframe = 180*24*60*60 
+            elif arg in ["y", "year", "full"]:
                 timeframe_string = "the past 365 days"
                 timeframe = 365*24*60*60 
             elif arg in ["a", "all"]:
@@ -2574,6 +2609,12 @@ class Music_Scrobbling(commands.Cog):
         scrobble_allcountlist = [item[0] for item in curFM.execute(f"SELECT COUNT(date_uts) FROM [{lfm_name}]").fetchall()]
         scrobble_all = scrobble_allcountlist[0]
 
+        try:
+            if not (scrobblegoal is None) and scrobblegoal <= scrobble_all:
+                scrobblegoal = None
+        except:
+            scrobblegoal = None
+
         scrobble_countlist = [item[0] for item in curFM.execute(f"SELECT COUNT(date_uts) FROM [{lfm_name}] WHERE date_uts > ?", (now - timeframe,)).fetchall()]
         scrobble_count = scrobble_countlist[0]
         if scrobble_count == 0:
@@ -2582,14 +2623,18 @@ class Music_Scrobbling(commands.Cog):
             return
 
         scrobbles_per_day = scrobble_count * (24*60*60) / timeframe
-        milestone_list = util.get_milestonelist()
-        next_milestone = 10000000000
-        for ms in sorted(milestone_list):
-            if scrobble_all >= ms:
-                continue
-            else:
-                next_milestone = ms
-                break
+
+        if scrobblegoal is None:
+            milestone_list = util.get_milestonelist()
+            next_milestone = 10000000000
+            for ms in sorted(milestone_list):
+                if scrobble_all >= ms:
+                    continue
+                else:
+                    next_milestone = ms
+                    break
+        else:
+            next_milestone = scrobblegoal
 
         missing_scrobbles = next_milestone - scrobble_all
         missing_seconds = int(missing_scrobbles / (scrobbles_per_day / (24*60*60)))
@@ -2703,6 +2748,51 @@ class Music_Scrobbling(commands.Cog):
 
     @_trackplays.error
     async def trackplays_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='sa', aliases = ["serverartist", "serverartists"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _serverartists(self, ctx: commands.Context, *args):
+        """Top 100 artists on server
+        """
+
+        await ctx.send("Under construction")
+
+    @_serverartists.error
+    async def serverartists_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='sab', aliases = ["serveralbum", "serveralbums"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _serveralbums(self, ctx: commands.Context, *args):
+        """Top 100 albums on server
+        """
+
+        await ctx.send("Under construction")
+
+    @_serveralbums.error
+    async def serveralbums_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='st', aliases = ["servertrack", "servertracks"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _servertracks(self, ctx: commands.Context, *args):
+        """Top 100 tracks on server
+        """
+
+        await ctx.send("Under construction")
+
+    @_servertracks.error
+    async def servertracks_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
