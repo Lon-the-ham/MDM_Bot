@@ -39,6 +39,7 @@ class Event_Response(commands.Cog):
         return domain_list
 
 
+
     async def botspam_send(self, title, text, footer, image, author, color, timestamp):
         conB = sqlite3.connect(f'databases/botsettings.db')
         curB = conB.cursor()
@@ -81,7 +82,7 @@ class Event_Response(commands.Cog):
 
             if author != None and author != "":
                 try:
-                    embed.set_author(name=author.name, icon_url=author.avatar_url)
+                    embed.set_author(name=author.name, icon_url=author.avatar)
                 except Exception as e:
                     print(e)
             await botspam_channel.send(embed=embed)
@@ -252,7 +253,7 @@ class Event_Response(commands.Cog):
             age_string = "error"
         text = f"<@{member_id}>\nAccount Age: {age_string}"
         footer = f"NAME: {member.name}, ID: {member_id}"   
-        image = member.avatar_url
+        image = member.avatar
         color = 0x3cb043
         await self.botspam_send(title, text, footer, image, None, color, None)
 
@@ -294,7 +295,7 @@ class Event_Response(commands.Cog):
         title = "Member left"
         text = f"<@{user.id}>"
         footer = f"NAME: {user.name}, ID: {user.id}"   
-        image = user.avatar_url
+        image = user.avatar
         color = 0xd30000
         await self.botspam_send(title, text, footer, image, None, color, None)
 
@@ -415,7 +416,7 @@ class Event_Response(commands.Cog):
         emoji = util.emoji("ban")
         text = f"<@{user.id}> {emoji}"
         footer = f"NAME: {user.name}, ID: {user.id}"   
-        image = user.avatar_url
+        image = user.avatar
         color = 0xd30000
         await self.botspam_send(title, text, footer, image, None, color, None)
 
@@ -443,7 +444,7 @@ class Event_Response(commands.Cog):
         emoji = util.emoji("ban")
         text = f"<@{user.id}> {emoji}"
         footer = f"NAME: {user.name}, ID: {user.id}"   
-        image = user.avatar_url
+        image = user.avatar
         color = 0x0e4c92
         await self.botspam_send(title, text, footer, image, None, color, None)
 
@@ -468,11 +469,13 @@ class Event_Response(commands.Cog):
         if not self.setting_enabled("edit message notification"):
             return
 
-        now_time = datetime.datetime.now()
-        old_time = before.created_at
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
-        if (now_time - old_time).total_seconds() > 7200:
-            print("ignore edit of 2h+ old message")
+        old_time = before.created_at
+        old = int((old_time.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        if (now - old) > 7200:
+            print(f"ignore edit of 2h+ old message ({now - old})")
             return
 
         #try:
@@ -481,10 +484,9 @@ class Event_Response(commands.Cog):
         #except:
         #    timestamp = ""
 
-        title = f"Message Edited in <#{before.channel.id}>"
+        title = f"Message Edited: {str(before.jump_url)}"
         # TEXT BEGIN
-        text = str(message.jump_url)
-        text += f"\n**Before**:\n"
+        text = f"\n**Before**:\n"
         text += util.cleantext2(before.content[:1024])
         if len(before.content) > 1024:
             text += "..."
@@ -1483,7 +1485,7 @@ class Event_Response(commands.Cog):
                                         emoji = util.emoji("ban")
                                         text = f"Banned <@{user.id}> {emoji}"
                                         footer = f"NAME: {user.name}, ID: {user.id}"
-                                        image = str(user.avatar_url)
+                                        image = str(user.avatar)
                                         color = 0xd30000
                                         await self.botspam_send(title, text, footer, image, None, color, None)
                                     except Exception as e:
