@@ -841,12 +841,13 @@ class General_Utility(commands.Cog):
                 detection = GTranslator.detect(msgToTranslate)
                 msgTranslated = GTranslator.translate(msgToTranslate, dest=targetLanguage).text
 
-                responsetext = ""
                 if extra_info:
-                    responsetext += f"`[Lang.: {detection.lang}, Conf.={detection.confidence}]`\n"
-                responsetext += f'`Translation result:` {msgTranslated}'
+                    responsetext = f"`[Lang.: {detection.lang}, Conf.={detection.confidence}]`\n"
+                    responsetext += f'`Google Translation result:` {msgTranslated}'
+                else:
+                    responsetext = f'`Translation result:` {msgTranslated}'
 
-                await ctx.send(responsetext[:2000])
+                await ctx.reply(responsetext[:2000], mention_author=False)
             except Exception as e:
                 if str(e).strip() == "'NoneType' object has no attribute 'group'":
                     await ctx.send(f'`An error ocurred:` Probably wrong googletranslate package.\nHost should try```pip uninstall googletrans```and then```pip install googletrans==3.1.0a0```in console.')
@@ -855,13 +856,108 @@ class General_Utility(commands.Cog):
 
 
 
-    async def libre_translate(self, ctx, args, extra_info):
-        await ctx.send("under construction")
-        #async with ctx.typing():
-        #    if len(args) == 0:
-        #        await ctx.send(f'No arguments provided. First argument needs to be language code, everything after will be translated.')
-        #        return
+    async def libre_get(self, mirror, language, query):
+        url = f"https://{mirror}/translate"
 
+        payload = {
+            'q': query,
+            'source': 'auto',
+            'target': language,
+            'format': 'text',
+            #'api_key': ""
+        }
+
+        response = requests.post(url, data=payload, timeout=4)
+        rjson = response.json()
+
+        return rjson
+
+
+
+    async def libre_translate(self, ctx, args, extra_info):
+        """https://github.com/LibreTranslate/LibreTranslate?tab=readme-ov-file#mirrors"""
+
+        if len(args) < 2:
+            await ctx.send("Command needs target language and words to translate as arguments.")
+
+        async with ctx.typing():
+            language = args[0]
+            query = ' '.join(args[1:])
+
+            conB = sqlite3.connect(f'databases/botsettings.db')
+            curB = conB.cursor()
+            mirror_list = [item[0] for item in curB.execute("SELECT url FROM mirrors WHERE service = ? ORDER BY priority", ("libre translate",)).fetchall()]
+
+            new_mirror_list = []
+            i = 0
+
+            # fetch from mirrors
+
+            for mirror in mirror_list:
+                try:
+                    rjson = await self.libre_get(mirror, language, query)
+
+                    translated_text = rjson['translatedText']
+                    new_mirror_list.append([mirror, 1])
+                    print("Translation mirror:", mirror)
+                    break
+
+                except Exception as e:
+                    print("Error:", e)
+                    try:
+                        print(rjson)
+                    except:
+                        pass
+                    i += 1
+                    new_mirror_list.append([mirror, len(mirror_list) + 1 - i])
+                    continue
+            else:
+                emoji = util.emoji("disappointed")
+                await ctx.send(f"None of the mirrors seem to work {emoji}\nMods can try to fix it via `{self.prefix}update`.")
+                return
+
+            # reorder
+
+            try:
+                new_mirror_urls = [x[0] for x in new_mirror_list]
+                for mirror in reversed(mirror_list):
+                    if mirror in new_mirror_urls:
+                        pass
+                    else:
+                        i += 1
+                        new_mirror_list.append([mirror, len(mirror_list) + 1 - i])
+
+                for item in new_mirror_list:
+                    url = item[0]
+                    prio = item[1]
+                    curB.execute("UPDATE mirrors SET priority = ? WHERE url = ?", (prio, url))
+                conB.commit()
+            except Exception as e:
+                print("Warning:", e)
+
+            # send
+
+            try:
+                try:
+                    original_language = rjson['detectedLanguage']['language']
+                except:
+                    original_language = "?"
+
+                try:
+                    confidence = rjson['detectedLanguage']['confidence']
+                except:
+                    confidence = "?"
+
+                if extra_info:
+                    responsetext = f"`[Lang.: {original_language}, Conf.={confidence}]`\n"
+                    responsetext += f'`Libre Translation result:` {translated_text}'
+                else:
+                    responsetext = f'`Translation result:` {translated_text}'
+
+                await ctx.reply(responsetext[:2000], mention_author=False)
+
+            except Exception as e:
+                await ctx.send(f"Error: {e}\n```{rjson}```Mayhaps let mods refresh libre translate mirrors via `{self.prefix}update`.")
 
 
 
