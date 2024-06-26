@@ -103,7 +103,7 @@ class Music_NowPlaying(commands.Cog):
                     try:
                         tag_string = await self.fetch_tags(ctx, "musicbee", artist, album, song, None, None, called_services, custom, str(member.id))
                         try:
-                            embed.set_footer(text = tag_string)
+                            embed.set_footer(text = tag_string.strip())
                         except Exception as e:
                             print("Error while creating footer for musicbee np: ", e)
                     except Exception as e:
@@ -219,7 +219,7 @@ class Music_NowPlaying(commands.Cog):
                         try:
                             tag_string = await self.fetch_tags(ctx, "applemusic", artist, album, song, None, None, called_services, custom, str(member.id))
                             try:
-                                embed.set_footer(text = tag_string)
+                                embed.set_footer(text = tag_string.strip())
                             except Exception as e:
                                 print("Error while creating footer for applemusic np: ", e)
                         except Exception as e:
@@ -244,7 +244,7 @@ class Music_NowPlaying(commands.Cog):
                         try:
                             tag_string = await self.fetch_tags(ctx, "unspecified", artist, album, song, None, None, called_services, custom, str(member.id))
                             try:
-                                embed.set_footer(text = tag_string)
+                                embed.set_footer(text = tag_string.strip())
                             except Exception as e:
                                 print("Error while creating footer for unspecified player np (probably applemusic): ", e)
                         except Exception as e:
@@ -328,7 +328,7 @@ class Music_NowPlaying(commands.Cog):
                     tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, musicbrainz_ids, called_services, custom, str(member.id))
                     try:
                         if tag_string != "":
-                            embed.set_footer(text = tag_string)
+                            embed.set_footer(text = tag_string.strip())
                     except Exception as e:
                         print("Error while creating footer for spotify tags and listener stats: ", e)
                 except Exception as e:
@@ -451,7 +451,7 @@ class Music_NowPlaying(commands.Cog):
             try:
                 tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, None, called_services, custom, str(member.id))
                 try:
-                    embed.set_footer(text = tag_string)
+                    embed.set_footer(text = tag_string.strip())
                 except Exception as e:
                     print("Error while creating footer for spotify tags and listener stats: ", e)
             except Exception as e:
@@ -485,7 +485,7 @@ class Music_NowPlaying(commands.Cog):
                     try:
                         tag_string = await self.fetch_tags(ctx, "spotify", artist, album, song, track_id, None, called_services, custom, str(member.id))
                         try:
-                            embed.set_footer(text = tag_string)
+                            embed.set_footer(text = tag_string.strip())
                         except Exception as e:
                             print("Error while creating footer for spotify tags and listener stats: ", e)
                     except Exception as e:
@@ -1677,7 +1677,7 @@ class Music_NowPlaying(commands.Cog):
         text = emoji + " " + text
         embed = discord.Embed(description=text[:4096], color = 0xd30000)
         if footer.strip() != "":
-            embed.set_footer(text=footer)
+            embed.set_footer(text=footer.strip())
         await ctx.send(embed=embed)
 
 
@@ -2175,7 +2175,7 @@ class Music_NowPlaying(commands.Cog):
                 except Exception as e:
                     print(e)
                 if tags == True or tags == "custom":
-                    embed.set_footer(text=tag_string[:2048])
+                    embed.set_footer(text=tag_string[:2048].strip())
 
                 message = await ctx.send(embed=embed)
             except Exception as e:
