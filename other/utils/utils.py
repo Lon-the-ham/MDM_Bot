@@ -230,11 +230,11 @@ class Utils():
             print("Asyncio: No callback?")
 
 
+
     # Must provide a callback function, callback func will be executed after the func completes execution !!
     @run_async(_callback)
     def asyncrequest_get(url, headers, params):
         return requests.get(url, headers=headers, params=params)
-
 
 
 
@@ -251,6 +251,7 @@ class Utils():
         """Runs a blocking function in a non-blocking way"""
         func = functools.partial(blocking_func, *args, **kwargs) # `run_in_executor` doesn't support kwargs, `functools.partial` does
         return await bot.loop.run_in_executor(None, func)
+
 
 
     ###############################################
@@ -3201,6 +3202,13 @@ class Utils():
 
 
     async def scrobble_update(lfm_name, allow_from_scratch):
+        def to_thread(func: typing.Callable) -> typing.Coroutine:
+            """wrapper for blocking functions, seems to not properly work though"""
+            @functools.wraps(func)
+            async def wrapper(*args, **kwargs):
+                return await asyncio.to_thread(func, *args, **kwargs)
+            return wrapper
+
         async def get_userscrobbles_from_page(lfm_name, page):
             try:
                 payload = {
@@ -3247,7 +3255,8 @@ class Utils():
             except:
                 date_uts = 0
             return (artist_name, album_name, track_name, date_uts)
-            
+        
+        @to_thread    
         def releasewise_insert(lfm_name, item_dict):
             conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
             curFM2 = conFM2.cursor()
@@ -3303,6 +3312,7 @@ class Utils():
             conFM2.commit()
             #print("inserted into secondary database as well")
 
+        @to_thread 
         def trackwise_insert(lfm_name, item_dict):
             conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
             curFM3 = conFM3.cursor()
@@ -3493,8 +3503,8 @@ class Utils():
             for item_indexed in sorted(scrobble_list, key = lambda x : x[0]):
                 curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)
             conFM.commit()
-            releasewise_insert(lfm_name, item_dict)
-            trackwise_insert(lfm_name, track_dict)
+            await releasewise_insert(lfm_name, item_dict)
+            await trackwise_insert(lfm_name, track_dict)
             await Utils.changetimeupdate()
         except Exception as e:
             print("Error:", e)
