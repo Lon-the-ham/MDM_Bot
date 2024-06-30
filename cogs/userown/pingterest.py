@@ -51,7 +51,7 @@ class Pingable_Interests(commands.Cog):
     async def _pingterest(self, ctx, *args):
         """*(New) PI + message
 
-        Creates a message with the pingterest to be able to join via react, but also makes an entry in the db for said interest, so that members can join it via -joinpi."""
+        Creates a message with the pingterest to be able to join via react, but also makes an entry in the db for said interest, so that members can join it via <prefix>joinpi."""
         
         pi_name = " ".join(args).lower()[:60]
 
@@ -191,7 +191,7 @@ class Pingable_Interests(commands.Cog):
     async def _listmypi(self, ctx, *args):
         """lists user's PI
         
-        use `-listmypi compact` to not show each pingterest in a separate line
+        use `<prefix>listmypi compact` to not show each pingterest in a separate line
         """
         argument = " ".join(args).lower()
         conP = sqlite3.connect('databases/pingterest.db')
@@ -226,7 +226,7 @@ class Pingable_Interests(commands.Cog):
     async def _pisubscribers(self, ctx, *args):
         """lists subscribers of given pingterest
 
-        use `-pisubs compact` to not display entries one per line"""
+        use `<prefix>pisubs compact` to not display entries one per line"""
         argument = " ".join(args).lower()
         conP = sqlite3.connect('databases/pingterest.db')
         curP = conP.cursor()
@@ -286,7 +286,7 @@ class Pingable_Interests(commands.Cog):
     async def _listpi(self, ctx, *args):
         """lists all PI
 
-        use `-listallpi compact` to not display entries one per line"""
+        use `<prefix>listallpi compact` to not display entries one per line"""
         argument = " ".join(args).lower()
         conP = sqlite3.connect('databases/pingterest.db')
         curP = conP.cursor()
@@ -368,7 +368,7 @@ class Pingable_Interests(commands.Cog):
     async def _ping(self, ctx, *args):
         """Pings members of PI
 
-        You can use a comma to add a message to the ping, i.e. write `-ping <pinterest name>, <message content>`"""
+        You can use a comma to add a message to the ping, i.e. write `<prefix>ping <pinterest name>, <message content>`"""
 
         conP = sqlite3.connect('databases/pingterest.db')
         curP = conP.cursor()
