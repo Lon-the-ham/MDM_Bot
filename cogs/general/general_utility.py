@@ -108,8 +108,8 @@ class General_Utility(commands.Cog):
     async def _say(self, ctx: commands.Context, *args):
         """🔒 Messages given text
 
-        Write `-say <channel name> <message>` to send an embedded message to this channel.
-        Use `-say <channel name> [<header>] <message>` to give it a title as well.
+        Write `<prefix>say <channel name> <message>` to send an embedded message to this channel.
+        Use `<prefix>say <channel name> [<header>] <message>` to give it a title as well.
         """
         if len(args) <= 1:
             message = "Not enough arguments :("
@@ -171,7 +171,7 @@ class General_Utility(commands.Cog):
     async def _react(self, ctx: commands.Context, *args):
         """🔒 Add reactions
 
-        Write -react <channel> <message id> <reactions> to add reactions to a message.
+        Write <prefix>react <channel> <message id> <reactions> to add reactions to a message.
         """
         if len(args) <= 2:
             message = "Not enough arguments :("
@@ -243,7 +243,7 @@ class General_Utility(commands.Cog):
         """Quickpoll
 
         Default adds 2 reacts: yes/no. 
-        With `-qp <question> options: <list of things seperated by commas>` you can create an embed with up to 20 options.
+        With `<prefix>qp <question> options: <list of things seperated by commas>` you can create an embed with up to 20 options.
 
         (🔒 By making the 1st argument a #channel mention you can send it over to that channel.)
         """
@@ -339,10 +339,10 @@ class General_Utility(commands.Cog):
         or
         Argument can be multiple die rolls with syntax `<n>D<x>` to roll `n`-many `x`-sided dice, e.g. `-roll 8D20`.
         In the last case you can add modifiers:
-        e.g. `-roll 8D20d3` to drop the 3 lowest die rolls
-        e.g. `-roll 8D20k3` to keep the 3 highest die rolls
-        e.g. `-roll 8D20dh3` to drop the 3 highest die rolls
-        e.g. `-roll 8D20kl3` to keep the 3 highest die rolls
+        e.g. `<prefix>roll 8D20d3` to drop the 3 lowest die rolls
+        e.g. `<prefix>roll 8D20k3` to keep the 3 highest die rolls
+        e.g. `<prefix>roll 8D20dh3` to drop the 3 highest die rolls
+        e.g. `<prefix>roll 8D20kl3` to keep the 3 highest die rolls
         You can also use +/- for bonus/malus or string together multiple dice rolls with + as well (or - if you want to subtract the dice roll).
 
         (when no argument is given, the command gives out a random number between 1 and 6)
@@ -1147,13 +1147,13 @@ class General_Utility(commands.Cog):
         """Converts units
         
         For example:
-        `-con <number>F`: Fahrenheit to Celsius
-        `-con <number>C`: Celsius to Fahrenheit
+        `<prefix>con <number>F`: Fahrenheit to Celsius
+        `<prefix>con <number>C`: Celsius to Fahrenheit
 
         currently supported are temperature `(C,F)`, length/distances `(km,m,cm,mi,yd,ft,in also 5'11 notation)`, speed `(kmh,mph)`, weight/mass `(lbs,oz,kg,g)`, volume `(gal,ukgal,fl oz,cup,l,cl,ml)`, area `(acre,sqm)`, time `(years,months,weeks,days,hours,minutes,seconds)`
         and 
         also currencies, for which you can use "to"
-        `-con <number> USD to EUR CHF`
+        `<prefix>con <number> USD to EUR CHF`
         if you leave the "to" out it will give out USD, EUR, GPB, JPY per default
         """
 
@@ -1962,12 +1962,12 @@ class General_Utility(commands.Cog):
         8th arg: comma-separated list of user IDs
         9th arg: emoji
         
-        i.e. `-remind recurring <unix timestamp> ;; <interval time> ;; <channel id> ;; <title> ;; <text> ;; <title link> ;; <thumbnail url> ;; <ping list>`
+        i.e. `<prefix>remind recurring <unix timestamp> ;; <interval time> ;; <channel id> ;; <title> ;; <text> ;; <title link> ;; <thumbnail url> ;; <ping list>`
         
         You do not have to provide all arguments, but you need to still separate empty arguments with a double-semicolon
-        e.g. `-remind recurring 2023668360 ;; weekly ;; ;; ;; hey this is a weekly reminder ;; ;; ;; ;;`.
+        e.g. `<prefix>remind recurring 2023668360 ;; weekly ;; ;; ;; hey this is a weekly reminder ;; ;; ;; ;;`.
         You can leave out double-semicolons at the end, where only empty arguments follow
-        e.g. `-remind recurring 2023668360 ;; every 30 days `.
+        e.g. `<prefix>remind recurring 2023668360 ;; every 30 days `.
         """
 
         if len(args) == 0:
@@ -2371,7 +2371,7 @@ class General_Utility(commands.Cog):
     async def _selfmute(self, ctx, *args):
         """Mutes you for given amount of time
 
-        i.e. `-selfmute 2 hours`
+        i.e. `<prefix>selfmute 2 hours`
         """
         # PRE CHECK
 
@@ -2561,13 +2561,13 @@ class General_Utility(commands.Cog):
         """Show calendar
 
         you can give days, months or weeks as argument or `next`, i.e.
-        `-calendar show 31/01` (next January 31st)
+        `<prefix>calendar show 31/01` (next January 31st)
         or
-        `calendar show 12` (show December)
+        `<prefix>calendar show 12` (show December)
         or
-        `calendar show week 28` (show 28th calender week)
+        `<prefix>calendar show week 28` (show 28th calender week)
         or
-        `calendar show next` (show next few calendar entries)
+        `<prefix>calendar show next` (show next few calendar entries)
         """
 
         await self.show_calendar(ctx)
@@ -3314,7 +3314,7 @@ class General_Utility(commands.Cog):
         Give argument `<city>` or `<city>, <country>` or `<city>, <state>, <country>`.
         You can also use `<zip code>, <country>`
 
-        You can also set your location with `-we set <location>` and remove it with `-we remove`.
+        You can also set your location with `<prefix>we set <location>` and remove it with `<prefix>we remove`.
         """
         forecast = True
         await self.weather_command(ctx, args, forecast)
@@ -3738,8 +3738,8 @@ class General_Utility(commands.Cog):
                                 continue
 
                             role = item[0]
-                            msg_text = item[1]
-                            context.append({"role": {role}, "content": {msg_text}})
+                            msg_text = util.cleantext2(item[1])
+                            context.append({"role": role, "content": msg_text})
 
                         if ctx.message.reference is not None and ctx.message.reference.message_id not in [x[2] for x in gpt_context_messages_copy]:
                             msg = await ctx.fetch_message(ctx.message.reference.message_id)
@@ -3748,7 +3748,8 @@ class General_Utility(commands.Cog):
                                 role = "assistant"
                             else:
                                 role = "user"
-                            context.append({"role": {role}, "content": {str(msg.content)}})
+                            text = util.cleantext2(str(msg.content))
+                            context.append({"role": role, "content": text})
 
                 except Exception as e:
                     print("Error while trying to assemble context:", e)
