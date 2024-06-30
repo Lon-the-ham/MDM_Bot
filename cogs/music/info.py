@@ -697,10 +697,10 @@ class Music_Info(commands.Cog):
     async def _metallum(self, ctx: commands.Context, *args):
         """Metallum info
         
-        use `-ma <bandname>` to get an 4-page embed with `general info`, `discography`, `band members` and `similar artists`.
+        use `<prefix>ma <bandname>` to get an 4-page embed with `general info`, `discography`, `band members` and `similar artists`.
 
         If the bandname is not unique you will get a list of possible options indexed from 1 to n.
-        In this case you can use `-ma <bandname>; <index>` (integer after a semicolon) to get the info from he respective band.
+        In this case you can use `<prefix>ma <bandname>; <index>` (integer after a semicolon) to get the info from he respective band.
         You can also use the 2-letter country code (or 'int' for international) if this happens to be a unique combination.
 
         (If you don't give any argument the command will try to search for the artist you are currently listening to. Works for Spotify, MusicBee, AppleMusic and LastFM.)
