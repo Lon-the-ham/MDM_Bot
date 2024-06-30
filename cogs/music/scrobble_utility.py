@@ -3253,9 +3253,10 @@ class Music_Scrobbling(commands.Cog):
         """All ways an artist is spelled in your lastfm database
         """
 
-        argument = ' '.join(args)
-        wk_type = "artist"
-        await self.database_spelling(ctx, argument, wk_type)
+        async with ctx.typing():
+            argument = ' '.join(args)
+            wk_type = "artist"
+            await self.database_spelling(ctx, argument, wk_type)
 
     @_databaseartist.error
     async def databaseartist_error(self, ctx, error):
@@ -3270,9 +3271,10 @@ class Music_Scrobbling(commands.Cog):
         """All ways an album is spelled in your lastfm database
         """
 
-        argument = ' '.join(args)
-        wk_type = "album"
-        await self.database_spelling(ctx, argument, wk_type)
+        async with ctx.typing():
+            argument = ' '.join(args)
+            wk_type = "album"
+            await self.database_spelling(ctx, argument, wk_type)
 
     @_databasealbum.error
     async def databasealbum_error(self, ctx, error):
@@ -3287,9 +3289,10 @@ class Music_Scrobbling(commands.Cog):
         """All ways a track is spelled in your lastfm database
         """
 
-        argument = ' '.join(args)
-        wk_type = "track"
-        await self.database_spelling(ctx, argument, wk_type)
+        async with ctx.typing():
+            argument = ' '.join(args)
+            wk_type = "track"
+            await self.database_spelling(ctx, argument, wk_type)
 
     @_databasetrack.error
     async def databasetrack_error(self, ctx, error):
