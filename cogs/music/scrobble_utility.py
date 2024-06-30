@@ -1833,187 +1833,188 @@ class Music_Scrobbling(commands.Cog):
 
     async def user_plays(self, ctx, argument, wk_type):
         
-        # GET USER
-        try:
-            user_id, user_name, user_color, user_display_name, user_avatar, argument = await self.parse_user_and_media_arguments(ctx, argument)
-        except Exception as e:
-            await ctx.send(f"Error: {e}")
-            return
-        
-        # GET LFM NAME
+        async with ctx.typing():
+            # GET USER
+            try:
+                user_id, user_name, user_color, user_display_name, user_avatar, argument = await self.parse_user_and_media_arguments(ctx, argument)
+            except Exception as e:
+                await ctx.send(f"Error: {e}")
+                return
+            
+            # GET LFM NAME
 
-        con = sqlite3.connect('databases/npsettings.db')
-        cur = con.cursor()
-        lfm_list = [[item[0],str(item[1]).lower().strip()] for item in cur.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (user_id,)).fetchall()]
+            con = sqlite3.connect('databases/npsettings.db')
+            cur = con.cursor()
+            lfm_list = [[item[0],str(item[1]).lower().strip()] for item in cur.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (user_id,)).fetchall()]
 
-        if len(lfm_list) == 0:
-            if user_id == str(ctx.author.id):
-                await ctx.reply(f"You haven't set your lastfm account yet.\nUse `{self.prefix}setfm <your username>` to set your account.", mention_author=False)
+            if len(lfm_list) == 0:
+                if user_id == str(ctx.author.id):
+                    await ctx.reply(f"You haven't set your lastfm account yet.\nUse `{self.prefix}setfm <your username>` to set your account.", mention_author=False)
+                else:
+                    await ctx.reply(f"They haven't set their lastfm account yet.", mention_author=False)
+                return
+
+            lfm_name = lfm_list[0][0].strip()
+
+            # GET ARTIST/ALBUM/SONG
+
+            if wk_type == "artist":
+                artist, thumbnail, tags = await self.wk_artist_match(ctx, argument)
+                header = f"{artist}"
+
+            elif wk_type == "album":
+                try:
+                    artist, album, thumbnail, tags = await self.wk_album_match(ctx, argument)
+                    header = f"{artist} - {album}"
+                except Exception as e:
+                    if str(e) == "Could not parse artist and album.":
+                        #artistless_albummatch
+                        artist = ""
+                        thumbnail = ""
+                        tags = []
+                        album = argument.upper()
+                        wk_type = "album without artist"
+                        header = f"Album: {album}"
+                    else:
+                        raise ValueError(f"while parsing artist/album - {e}")
+                        return
+
+            elif wk_type == "track":
+                try:
+                    artist, track, thumbnail, tags = await self.wk_track_match(ctx, argument)
+                    header = f"{artist} - {track}"
+                except Exception as e:
+                    if str(e) == "Could not parse artist and track.":
+                        #artistless_trackmatch
+                        artist = ""
+                        thumbnail = ""
+                        tags = []
+                        track = argument.upper()
+                        wk_type = "track without artist"
+                        header = f"Track: {track}"
+                    else:
+                        raise ValueError(f"while parsing artist/track - {e}")
+                        return
             else:
-                await ctx.reply(f"They haven't set their lastfm account yet.", mention_author=False)
-            return
+                raise ValueError("unknown WK type")
 
-        lfm_name = lfm_list[0][0].strip()
+            conFM = sqlite3.connect('databases/scrobbledata.db')
+            curFM = conFM.cursor()
 
-        # GET ARTIST/ALBUM/SONG
+            conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+            curFM2 = conFM2.cursor()
 
-        if wk_type == "artist":
-            artist, thumbnail, tags = await self.wk_artist_match(ctx, argument)
-            header = f"{artist}"
+            conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+            curFM3 = conFM3.cursor()
 
-        elif wk_type == "album":
+            now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+            artistlist = []
+            artist_matches = ""
+
+            if wk_type == "artist":
+                result = curFM2.execute(f"SELECT SUM(count) FROM [{lfm_name}] WHERE artist_name = ?", (util.compactnamefilter(artist,"artist"),))
+                result2 = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE date_uts > ? AND {util.compact_sql('artist_name')} = {util.compact_sql('?')}", (now - 7*24*60*60, artist))
+
+            elif wk_type == "album":
+                result = curFM2.execute(f"SELECT count FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (util.compactnamefilter(artist,"artist"),util.compactnamefilter(album,"album")))
+                result2 = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE date_uts > ? AND {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('album_name')} = {util.compact_sql('?')}", (now - 7*24*60*60, artist, album))
+
+            elif wk_type == "track":
+                result = curFM3.execute(f"SELECT count FROM [{lfm_name}] WHERE artist_name = ? AND track_name = ?", (util.compactnamefilter(artist,"artist"),util.compactnamefilter(track,"track")))
+                result2 = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE date_uts > ? AND {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (now - 7*24*60*60, artist, track))
+
+            ############ error case feature
+
+            elif wk_type == "album without artist":
+                result = curFM2.execute(f"SELECT SUM(count) FROM [{lfm_name}] WHERE album_name = ?", (util.compactnamefilter(album,"album"),))
+                result2 = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE date_uts > ? AND {util.compact_sql('album_name')} = {util.compact_sql('?')}", (now - 7*24*60*60, album))
+                try:
+                    rtuple = result.fetchone()
+                    count = int(rtuple[0])
+                except:
+                    count = 0
+                temp_artist_list = [item[0] for item in curFM2.execute(f"SELECT artist_name FROM [{lfm_name}] WHERE album_name = ?", (util.compactnamefilter(album,"album"),)).fetchall()]  
+                for temp_artist in temp_artist_list:
+                    if temp_artist not in artistlist:
+                        artistlist.append(temp_artist)
+
+            elif wk_type == "track without artist":
+                result = curFM3.execute(f"SELECT SUM(count) FROM [{lfm_name}] WHERE track_name = ?", (util.compactnamefilter(track,"track"),))
+                result2 = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE date_uts > ? AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (now - 7*24*60*60, track))
+                try:
+                    rtuple = result.fetchone()
+                    count = int(rtuple[0])
+                except:
+                    count = 0
+                temp_artist_list = [item[0] for item in curFM3.execute(f"SELECT artist_name FROM [{lfm_name}] WHERE track_name = ?", (util.compactnamefilter(track,"track"),)).fetchall()]  
+                for temp_artist in temp_artist_list:
+                    if temp_artist not in artistlist:
+                        artistlist.append(temp_artist)
+
+            else:
+                result = (None, None)
+                print("Error: Unknown WK type")
+
+            ############
+            if wk_type in ["artist", "album", "track"]:
+                try:
+                    rtuple = result.fetchone()
+                    count = int(rtuple[0])
+                except Exception as e:
+                    print(e)
+                    count = 0
+            else:
+                pass # artistless aap/atp
+
             try:
-                artist, album, thumbnail, tags = await self.wk_album_match(ctx, argument)
-                header = f"{artist} - {album}"
-            except Exception as e:
-                if str(e) == "Could not parse artist and album.":
-                    #artistless_albummatch
-                    artist = ""
-                    thumbnail = ""
-                    tags = []
-                    album = argument.upper()
-                    wk_type = "album without artist"
-                    header = f"Album: {album}"
-                else:
-                    raise ValueError(f"while parsing artist/album - {e}")
-                    return
-
-        elif wk_type == "track":
-            try:
-                artist, track, thumbnail, tags = await self.wk_track_match(ctx, argument)
-                header = f"{artist} - {track}"
-            except Exception as e:
-                if str(e) == "Could not parse artist and track.":
-                    #artistless_trackmatch
-                    artist = ""
-                    thumbnail = ""
-                    tags = []
-                    track = argument.upper()
-                    wk_type = "track without artist"
-                    header = f"Track: {track}"
-                else:
-                    raise ValueError(f"while parsing artist/track - {e}")
-                    return
-        else:
-            raise ValueError("unknown WK type")
-
-        conFM = sqlite3.connect('databases/scrobbledata.db')
-        curFM = conFM.cursor()
-
-        conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
-        curFM2 = conFM2.cursor()
-
-        conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
-        curFM3 = conFM3.cursor()
-
-        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
-        artistlist = []
-        artist_matches = ""
-
-        if wk_type == "artist":
-            result = curFM2.execute(f"SELECT SUM(count) FROM [{lfm_name}] WHERE artist_name = ?", (util.compactnamefilter(artist,"artist"),))
-            result2 = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE date_uts > ? AND {util.compact_sql('artist_name')} = {util.compact_sql('?')}", (now - 7*24*60*60, artist))
-
-        elif wk_type == "album":
-            result = curFM2.execute(f"SELECT count FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (util.compactnamefilter(artist,"artist"),util.compactnamefilter(album,"album")))
-            result2 = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE date_uts > ? AND {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('album_name')} = {util.compact_sql('?')}", (now - 7*24*60*60, artist, album))
-
-        elif wk_type == "track":
-            result = curFM3.execute(f"SELECT count FROM [{lfm_name}] WHERE artist_name = ? AND track_name = ?", (util.compactnamefilter(artist,"artist"),util.compactnamefilter(track,"track")))
-            result2 = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE date_uts > ? AND {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (now - 7*24*60*60, artist, track))
-
-        ############ error case feature
-
-        elif wk_type == "album without artist":
-            result = curFM2.execute(f"SELECT SUM(count) FROM [{lfm_name}] WHERE album_name = ?", (util.compactnamefilter(album,"album"),))
-            result2 = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE date_uts > ? AND {util.compact_sql('album_name')} = {util.compact_sql('?')}", (now - 7*24*60*60, album))
-            try:
-                rtuple = result.fetchone()
-                count = int(rtuple[0])
+                rtuple2 = result2.fetchone()
+                weekcount = int(rtuple2[0])
             except:
-                count = 0
-            temp_artist_list = [item[0] for item in curFM2.execute(f"SELECT artist_name FROM [{lfm_name}] WHERE album_name = ?", (util.compactnamefilter(album,"album"),)).fetchall()]  
-            for temp_artist in temp_artist_list:
-                if temp_artist not in artistlist:
-                    artistlist.append(temp_artist)
+                weekcount = 0
 
-        elif wk_type == "track without artist":
-            result = curFM3.execute(f"SELECT SUM(count) FROM [{lfm_name}] WHERE track_name = ?", (util.compactnamefilter(track,"track"),))
-            result2 = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE date_uts > ? AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (now - 7*24*60*60, track))
+            ###################### EMBED
+
+            description = f"**{count}** plays of {header[:256]}\n{weekcount} in the past week"
+
+            embed = discord.Embed(title="", description=description[:4096], color=user_color)
+            if wk_type in ["artist", "album", "track"]:
+                try:
+                    embed.set_thumbnail(url=thumbnail)
+                except:
+                    pass
+            else:
+                try:
+                    if len(artistlist) > 0:
+                        artistlist_new = []
+                        conSS = sqlite3.connect('databases/scrobblestats.db')
+                        curSS = conSS.cursor()
+
+                        tag_string_add = f"\n{wk_type} - {len(artistlist)} potential artists"
+
+                        for a in artistlist:
+                            try:
+                                artistresult = curSS.execute("SELECT artist FROM artistinfo WHERE filtername = ? OR filteralias = ?", (util.compactnamefilter(a,"artist"),util.compactnamefilter(a,"artist")))
+                                rtuple = artistresult.fetchone()
+                                artist_wo = rtuple[0]
+                                artistlist_new.append(artist_wo.lower())
+                            except:
+                                artistlist_new.append(a.lower())
+                        tag_string = str("artist matches: " + ", ".join(sorted(artistlist_new)))
+
+                        if len(tag_string) > 2048-len(tag_string_add):
+                            tag_string = tag_string[:2045-len(tag_string_add)] + "..."
+
+                        tag_string += tag_string_add
+                        embed.set_footer(text=tag_string[:2048])
+
+                except Exception as e:
+                    print("Error:", e)
             try:
-                rtuple = result.fetchone()
-                count = int(rtuple[0])
-            except:
-                count = 0
-            temp_artist_list = [item[0] for item in curFM3.execute(f"SELECT artist_name FROM [{lfm_name}] WHERE track_name = ?", (util.compactnamefilter(track,"track"),)).fetchall()]  
-            for temp_artist in temp_artist_list:
-                if temp_artist not in artistlist:
-                    artistlist.append(temp_artist)
-
-        else:
-            result = (None, None)
-            print("Error: Unknown WK type")
-
-        ############
-        if wk_type in ["artist", "album", "track"]:
-            try:
-                rtuple = result.fetchone()
-                count = int(rtuple[0])
-            except Exception as e:
-                print(e)
-                count = 0
-        else:
-            pass # artistless aap/atp
-
-        try:
-            rtuple2 = result2.fetchone()
-            weekcount = int(rtuple2[0])
-        except:
-            weekcount = 0
-
-        ###################### EMBED
-
-        description = f"**{count}** plays of {header[:256]}\n{weekcount} in the past week"
-
-        embed = discord.Embed(title="", description=description[:4096], color=user_color)
-        if wk_type in ["artist", "album", "track"]:
-            try:
-                embed.set_thumbnail(url=thumbnail)
-            except:
-                pass
-        else:
-            try:
-                if len(artistlist) > 0:
-                    artistlist_new = []
-                    conSS = sqlite3.connect('databases/scrobblestats.db')
-                    curSS = conSS.cursor()
-
-                    tag_string_add = f"\n{wk_type} - {len(artistlist)} potential artists"
-
-                    for a in artistlist:
-                        try:
-                            artistresult = curSS.execute("SELECT artist FROM artistinfo WHERE filtername = ? OR filteralias = ?", (util.compactnamefilter(a,"artist"),util.compactnamefilter(a,"artist")))
-                            rtuple = artistresult.fetchone()
-                            artist_wo = rtuple[0]
-                            artistlist_new.append(artist_wo.lower())
-                        except:
-                            artistlist_new.append(a.lower())
-                    tag_string = str("artist matches: " + ", ".join(sorted(artistlist_new)))
-
-                    if len(tag_string) > 2048-len(tag_string_add):
-                        tag_string = tag_string[:2045-len(tag_string_add)] + "..."
-
-                    tag_string += tag_string_add
-                    embed.set_footer(text=tag_string[:2048])
-
+                member = ctx.author
+                embed.set_author(name=f"{user_display_name}'s {wk_type.split()[0]} plays" , icon_url=user_avatar)
             except Exception as e:
                 print("Error:", e)
-        try:
-            member = ctx.author
-            embed.set_author(name=f"{user_display_name}'s {wk_type.split()[0]} plays" , icon_url=user_avatar)
-        except Exception as e:
-            print("Error:", e)
-        await ctx.send(embed=embed)
+            await ctx.send(embed=embed)
 
 
 
