@@ -1008,7 +1008,11 @@ class Music_NowPlaying(commands.Cog):
             else:
                 user_stats = user_stats.strip() + "\n"
 
-            tag_string = user_stats + listener_stats_string + genre_tag_string
+            #tag_string = user_stats + listener_stats_string + genre_tag_string
+            footer_list = [user_stats.strip(), listener_stats_string.strip(), genre_tag_string.strip()]
+            while "" in footer_list:
+                footer_list.remove("")
+            tag_string = '\n'.join(footer_list)
             if len(tag_string) > 2048:
                 tag_string = tag_string[:2045] + "..."
 
@@ -2134,7 +2138,7 @@ class Music_NowPlaying(commands.Cog):
                                 listeners2, total_scrobbles2, artist_genre_tag_list = await self.fetch_lastfm_data_via_web(ctx, artist, cooldown)
                                 artist_genre_tag_list = util.filter_genretags(artist_genre_tag_list)
                                 if len(artist_genre_tag_list) > 0:
-                                    genre_tag_string = "LFM*: " + f"{self.tagseparator}".join(artist_genre_tag_list)
+                                    genre_tag_string = "LFM*: " + f"{self.tagseparator}".join(artist_genre_tag_list).strip()
                                 else:
                                     genre_tag_string = "no genre tags found"
                         except Exception as e:
@@ -2142,7 +2146,7 @@ class Music_NowPlaying(commands.Cog):
 
                         # COMPOSE TAG STRING
 
-                        tag_string += f"{self.tagseparator}".join(listener_tags)
+                        tag_string += f"{self.tagseparator}".join(listener_tags).strip()
                         tag_string += f"\n{genre_tag_string}"
                     except Exception as e:
                         print("Error while trying to fetch tags:", e)
