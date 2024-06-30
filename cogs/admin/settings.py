@@ -1316,7 +1316,7 @@ class Administration_of_Settings(commands.Cog):
     async def _set_botspam(self, ctx, *args):
         """Set the botspam/notifications channel id
 
-        Use `-set botspam <channelid>` or `-set botspam <#channelname>`.
+        Use `<prefix>set botspam <channelid>` or `<prefix>set botspam <#channelname>`.
 
         This channel will be used for all kinds of notifications from this bot.
         """
@@ -1333,7 +1333,7 @@ class Administration_of_Settings(commands.Cog):
     async def _set_general(self, ctx, *args):
         """Set the general channel id
 
-        Use `-set general <channelid>` or `-set general <#channelname>`.
+        Use `<prefix>set general <channelid>` or `<prefix>set general <#channelname>`.
 
         This channel is where welcome messages will appear.
         """
@@ -1350,10 +1350,10 @@ class Administration_of_Settings(commands.Cog):
     async def _set_rolechannel(self, ctx, *args):
         """Set the roles channel id
 
-        Use `-set roles <channelid>` or `-set roles <#channelname>`.
+        Use `<prefix>set roles <channelid>` or `<prefix>set roles <#channelname>`.
 
         This channel is where users can assign/unsassign roles to themselves by placing reacts.
-        Use `-help set reactionroles`
+        Use `<prefix>help set reactionroles`
         """
         await self.database_channel_change(ctx, args, "role channel id")
     @_set_rolechannel.error
@@ -1368,7 +1368,7 @@ class Administration_of_Settings(commands.Cog):
     async def _set_accesswallchannel(self, ctx, *args):
         """Set the access wall channel id
 
-        Use `-set accesswallchannel <channelid>` or `-set accesswallchannel <#channelname>`.
+        Use `<prefix>set accesswallchannel <channelid>` or `<prefix>set accesswallchannel <#channelname>`.
 
         If access wall is enabled, this channel is where new users are placed to itroduce themselves before they are verified and get access to the (rest of the) server.
         """
@@ -1385,7 +1385,7 @@ class Administration_of_Settings(commands.Cog):
     async def _set_turingchannel(self, ctx, *args):
         """Set the turing test channel id
 
-        Use `-set turingchannel <channelid>` or `-set turingchannel <#channelname>`.
+        Use `<prefix>set turingchannel <channelid>` or `<prefix>set turingchannel <#channelname>`.
 
         If access wall and turing test are enabled, this channel is where the turing test is conducted to auto-ban bot users.
         See more info with `-help set turingtest`.
@@ -1403,7 +1403,7 @@ class Administration_of_Settings(commands.Cog):
     async def _set_inactivitychannel(self, ctx, *args):
         """Set the inactivity channel id
 
-        Use `-set inactivitychannel <channelid>` or `-set inactivitychannel <#channelname>`.
+        Use `<prefix>set inactivitychannel <channelid>` or `<prefix>set inactivitychannel <#channelname>`.
 
         If inactivity filter is enabled users that have been inactive for X days (default: 180) will be placed into this channel.
         """
@@ -1429,13 +1429,13 @@ class Administration_of_Settings(commands.Cog):
         2nd arg needs to be `on`, `off`, `rename` or `remove`.
 
         `on` and `off` enable/disable the availability of role reacts (and adds them to the database if they weren't there before). 
-        Use `-rolechannelupdate` to refresh the reaction embeds in the #roles channel.
+        Use `<prefix>rolechannelupdate` to refresh the reaction embeds in the #roles channel.
 
         With `rename` you can rename a role category. Needs a 3rd argument with a new name.
         With `remove` you can remove a role category entirely from the database.
         Roles of that category will be moved to the default `none` category.
 
-        (Note: using `-set reactrolecat <category name> on` will also automatically make these roles assignable via `-role <role name>` for users, setting role categories `off` does not revert that. To do that use `-set assignability` command.)
+        (Note: using `<prefix>set reactrolecat <category name> on` will also automatically make these roles assignable via `<prefix>role <role name>` for users, setting role categories `off` does not revert that. To do that use `<prefix>set assignability` command.)
         """
         
         if len(args) <= 1:
@@ -1870,15 +1870,15 @@ class Administration_of_Settings(commands.Cog):
         
         By default every embed will have a simple title, text, footer and black embed color.
         You can customise some of these values via:
-        `-set reactroleembed <category name> ;; <embed title> ;; <embed text> ;; <embed footer> ;; <embed HEX color>`
+        `<prefix>set reactroleembed <category name> ;; <embed title> ;; <embed text> ;; <embed footer> ;; <embed HEX color>`
 
         You do not have to give all arguments, but you need the double-semicolons, so the bot is able to parse the positional arguments.
         Category name is mandatory, but if you want to -for example- only alter the footer, use
-        `-set reactroleembed <category name> ;; ;; ;; <embed footer> ;; `
+        `<prefix>set reactroleembed <category name> ;; ;; ;; <embed footer> ;; `
 
         If you want to remove a specific entry and set it back to the default write "remove" into the positional argument, 
         e.g.
-        `-set reactroleembed <category name> ;; ;; remove ;; ;; remove`
+        `<prefix>set reactroleembed <category name> ;; ;; remove ;; ;; remove`
         if you want to remove the embed text and embed HEX color.
         """
 
@@ -2015,10 +2015,10 @@ class Administration_of_Settings(commands.Cog):
         (*warning: names aren't necessarily unique)
         2nd argument needs to be the category name of the category you want to place the role under.
         (category cannot have spaces, use underscores instead)
-        i.e. `-set rolecat <role id> <cat name>`
+        i.e. `<prefix>set rolecat <role id> <cat name>`
 
         If you want to add multiple roles at once you must use @role mentions for all of them.
-        i.e. `-set rolecat <@role1> <@role2> <@role3> <cat name>`
+        i.e. `<prefix>set rolecat <@role1> <@role2> <@role3> <cat name>`
         """
 
         if len(args) < 2:
@@ -2162,17 +2162,17 @@ class Administration_of_Settings(commands.Cog):
         """Set emoji of roles (for reacts)
 
         Set emoji for assigning/unassigning a role with a react in #roles channel via
-        `-set rolemoji <@role> <emoji>`
+        `<prefix>set rolemoji <@role> <emoji>`
         1st argument needs to be an @mention of the role or the role id.
         2nd argument needs to be the emoji.
 
         Keep in mind:
-        >> You need to update the #roles channel embeds via `-rcupdate` to let this work properly. (Just changing the emoji without updating the embed will make the assign/unassign not work with the old emoji.)
+        >> You need to update the #roles channel embeds via `<prefix>rcupdate` to let this work properly. (Just changing the emoji without updating the embed will make the assign/unassign not work with the old emoji.)
         >> Only relevant for emojis that ought to be displayed in the #roles channel.
         >> An emoji is not allowed to be assigned to multiple roles.
         
         You can also change multiple role-emojis at once by separating role-emoji pairs with a semicolon.
-        i.e. `-set rolemoji <@role1> <emoji1>; <@role2> <emoji2> ; <@role3> <emoji3>`
+        i.e. `<prefix>set rolemoji <@role1> <emoji1>; <@role2> <emoji2> ; <@role3> <emoji3>`
         """
 
         if len(args) < 2:
@@ -2353,7 +2353,7 @@ class Administration_of_Settings(commands.Cog):
 
         ...
         On setup per default roles without extra permissions (except special functionality roles) are assingnable while everything else isn't.
-        After setup every new role created with `-createrole` will be assignable, while every role created otherwise will be set unassignable per default.
+        After setup every new role created with `<prefix>createrole` will be assignable, while every role created otherwise will be set unassignable per default.
         (This is just the default setting and you can always change assignability with this command provided that the command does not have any extra permissions (beyond viewing certain channels).)
         """
 
@@ -2547,18 +2547,19 @@ class Administration_of_Settings(commands.Cog):
         1st arg needs to be `on` or `off`.
 
         An access wall is a system where newly joining users will have to introduce themselves and then be verified by a moderator before they can see and access the rest of the server.
-        You will need a seperate channel (specify with command `-set accesschannel <channel id>`) where new users will land instead, as well as 2 roles: 
-        One for the newly joined members (specify with command `-set accessrole <role id>`),
-        and one for all the verified members (specify with command `-set verifiedrole <role id>`).
+        You will need a seperate channel (specify with command `<prefix>set accesschannel <channel id>`) where new users will land instead, as well as 2 roles: 
+        One for the newly joined members (specify with command `<prefix>set accessrole <role id>`),
+        and one for all the verified members (specify with command `<prefix>set verifiedrole <role id>`).
 
         Keep in mind that you also need to change permission so that all channels, except e.g. #rules, #roles, #announcements (that should be visible to all) need to be ONLY accessible by members who have the verified role. Also, members with the access wall role need to be able to access the access wall channel.
 
-        If you're newly setting up this access wall, use `-verifyall` to verify all members that have already joined.
+        If you're newly setting up this access wall, use `<prefix>verifyall` to verify all members that have already joined.
         """
         await self.database_on_off_switch(ctx, args, "access wall")
     @_set_accesswall.error
     async def set_accesswall_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
 
 
     @_set.command(name="autorole", aliases = ["automaticrole", "communityrolefeature"], pass_context=True)
@@ -2571,12 +2572,13 @@ class Administration_of_Settings(commands.Cog):
         1st arg needs to be `on` or `off`.
 
         In case an access wall is NOT set up it may still make sense to assign all new members a member or community role automatically.
-        Set up the auto-role via `-set autorole <role id>`.
+        Set up the auto-role via `<prefix>set autorole <role id>`.
         """
         await self.database_on_off_switch(ctx, args, "automatic role")
     @_set_autorole.error
     async def set_autorole_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
 
 
     @_set.command(name="turingtest", aliases = ["turing"], pass_context=True)
@@ -2592,7 +2594,7 @@ class Administration_of_Settings(commands.Cog):
         Since many (malicious) bot accounts join servers these days, there is a little *turing test* you can enable to automatically ban them.
         The functionality is simple: A lot of these bot accounts try to pretend to be human users by reacting to the last few messages in channels they can access (such as #roles and #rules). 
         Since most just pick the first placed reaction on these messages, we suggest to write into your #rules that users shall not react with whatever the first react on this message is until they are verified, because they'd automatically get auto-banned.
-        This application will then ban anyone with the access wall role but no verified role who reacts to a specific message designated via `-set turingmsg <message id>` (the last message in the #rules channel is recommended).
+        This application will then ban anyone with the access wall role but no verified role who reacts to a specific message designated via `<prefix>set turingmsg <message id>` (the last message in the #rules channel is recommended).
         """
         await self.database_on_off_switch(ctx, args, "turing test")
     @_set_turingtest.error
@@ -2626,7 +2628,7 @@ class Administration_of_Settings(commands.Cog):
     async def _set_turingcalibration(self, ctx, *args):
         """Recalibrate turing test
 
-        Takes last message in designated Turing Test channel, provided via `-set turingchannel <channel id>` (rec.: #rules channel), and designates it to be the message where the *Turing Test* is performed. See `-help set turingtest` for more info.
+        Takes last message in designated Turing Test channel, provided via `<prefix>set turingchannel <channel id>` (rec.: #rules channel), and designates it to be the message where the *Turing Test* is performed. See `<prefix>help set turingtest` for more info.
 
         Optional: 1st argument can be a message id to pick a specific message other than the last one.
         """
@@ -2716,7 +2718,7 @@ class Administration_of_Settings(commands.Cog):
 
         This feature is only needed in case this application runs on multiple instances for redundancy.
         Since it might be helpful to only have the active instance displayed on the sidebar you can let the application automatically assign/unassign the role from the active/inactive instances of this bot if this feature is set to `on`.
-        The bot role has to specified via `-set botrole <role id>`
+        The bot role has to specified via `<prefix>set botrole <role id>`
         """
         await self.database_on_off_switch(ctx, args, "bot display")
     @_set_botrole.error
@@ -2754,7 +2756,7 @@ class Administration_of_Settings(commands.Cog):
         1st arg needs to be `on` or `off`.
 
         This is a reminder feature that notifies people to tag their spotify/youtube/applemusic links with a genre or ffo (for fans of) for specific channels.
-        To edit channels use `-set genretagchannels`.
+        To edit channels use `<prefix>set genretagchannels`.
         """
         await self.database_on_off_switch(ctx, args, "genre tag reminder")
     @_set_genretagreminder.error
@@ -2772,7 +2774,7 @@ class Administration_of_Settings(commands.Cog):
 
         1st arg needs to be `on` or `off`.
 
-        This is a notification feature where users can create/join/leave interest topics and can then be pinged via `-ping <interest>`.
+        This is a notification feature where users can create/join/leave interest topics and can then be pinged via `<prefix>ping <interest>`.
         This is functionally not really different from Roles, but sometimes servers do not want to have Roles that are too off-topic, so this is a way to have 'less official' interest roles.
         (They also function outside of the main server.)
         """
@@ -2810,7 +2812,7 @@ class Administration_of_Settings(commands.Cog):
 
         1st arg needs to be `on` or `off`.
 
-        Discord's native timeout system to mute users can be a bit clunky. With this feature mods can lock users out of the server for a given time (or indefinitely), while keeping some customisability such as which channels a user can still read or having a customised message in the dedicated timeout channel. Additionally, users can `-selfmute` for a given time if they want to pause from the server for i.e. studying.
+        Discord's native timeout system to mute users can be a bit clunky. With this feature mods can lock users out of the server for a given time (or indefinitely), while keeping some customisability such as which channels a user can still read or having a customised message in the dedicated timeout channel. Additionally, users can `<prefix>selfmute` for a given time if they want to pause from the server for i.e. studying.
 
         To properly set this feature up the following things would be required:
         > a timeout channel that is not visible for regular users
@@ -2832,9 +2834,9 @@ class Administration_of_Settings(commands.Cog):
 
         1st arg needs to be `on` or `off`.
 
-        Discord's own welcoming message can be a bit eh. With this feature mods can set a custom welcome message. Also, in case an access wall is set up, the welcome message will be sent for all to see once a user is actually verified instead and not when they join. (The message they get upon joining will be handled by the access wall system. See `-help set accesswall` for more info.)
+        Discord's own welcoming message can be a bit eh. With this feature mods can set a custom welcome message. Also, in case an access wall is set up, the welcome message will be sent for all to see once a user is actually verified instead and not when they join. (The message they get upon joining will be handled by the access wall system. See `<prefix>help set accesswall` for more info.)
 
-        Use `-welcomemsg <text>` to set a custom welcome message. Use `\\n` for line breaks and `@user` for mentioning the joinee.
+        Use `<prefix>welcomemsg <text>` to set a custom welcome message. Use `\\n` for line breaks and `@user` for mentioning the joinee.
         """
         await self.database_on_off_switch(ctx, args, "welcome message")
     @_set_welcome.error
@@ -2871,7 +2873,7 @@ class Administration_of_Settings(commands.Cog):
 
         1st arg needs to be `on` or `off`.
 
-        If this feature is enabled all users can create reminders via `-remind`. If not, then only mods can do that. 
+        If this feature is enabled all users can create reminders via `<prefix>remind`. If not, then only mods can do that. 
         Already existing reminders will still trigger even if this feature is disabled.
         Existing recurring reminders will trigger without pinging as long as this feature is disabled.
         """
@@ -2889,7 +2891,7 @@ class Administration_of_Settings(commands.Cog):
     async def _set_inactivityfilter(self, ctx, *args):
         """Enable/disable inactivity filter
 
-        1st arg needs to be either `on` or `off`, or use subcommand `-inactivityfilter days <number>` to specify the number of days users can be inactive without being put into inactivity/slumber channel.
+        1st arg needs to be either `on` or `off`, or use subcommand `<prefix>inactivityfilter days <number>` to specify the number of days users can be inactive without being put into inactivity/slumber channel.
 
         If this feature is enabled, users that haven't been active within the past X days will be put into a slumber channel.
         """
@@ -2960,7 +2962,7 @@ class Administration_of_Settings(commands.Cog):
         1st arg needs to be `on` or `off`.
 
         If this feature is enabled users can invoke all kinds of commands involving their scrobbles.
-        See `-help Music_Scrobbling` for info on the commands.
+        See `<prefix>help Music_Scrobbling` for info on the commands.
         """
         await self.database_on_off_switch(ctx, args, "scrobbling functionality")
 
@@ -2994,6 +2996,7 @@ class Administration_of_Settings(commands.Cog):
     ################################################################################# ON/OFF (NOTIFICATIONS)
 
 
+
     @_set.command(name="detailederrorreporting", aliases = ["detailederrornotification"], pass_context=True)
     @commands.check(util.is_active)
     @commands.has_permissions(manage_guild=True)
@@ -3007,6 +3010,7 @@ class Administration_of_Settings(commands.Cog):
     @_set_detailederrornotification.error
     async def set_detailederrornotification_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
 
 
     @_set.command(name="channelnotification", aliases = ["channelsnotification"], pass_context=True)
@@ -3024,6 +3028,7 @@ class Administration_of_Settings(commands.Cog):
         await util.error_handling(ctx, error)
 
 
+
     @_set.command(name="threadnotification", aliases = ["threadsnotification"], pass_context=True)
     @commands.check(util.is_active)
     @commands.has_permissions(manage_guild=True)
@@ -3037,6 +3042,7 @@ class Administration_of_Settings(commands.Cog):
     @_set_threadnotification.error
     async def set_threadnotification_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
 
 
     @_set.command(name="rolenotification", aliases = ["rolesnotification"], pass_context=True)
@@ -3054,6 +3060,7 @@ class Administration_of_Settings(commands.Cog):
         await util.error_handling(ctx, error)
 
 
+
     @_set.command(name="assignnotification", aliases = ["assignotification"], pass_context=True)
     @commands.check(util.is_active)
     @commands.has_permissions(manage_guild=True)
@@ -3067,6 +3074,7 @@ class Administration_of_Settings(commands.Cog):
     @_set_assignnotification.error
     async def set_assignnotification_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
 
 
     @_set.command(name="vcnotification", aliases = ["voicechatnotification"], pass_context=True)
@@ -3114,6 +3122,7 @@ class Administration_of_Settings(commands.Cog):
     @_set_editnotification.error
     async def set_editnotification_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
 
 
     @_set.command(name="usernamenotification", aliases = ["namechangenotification"], pass_context=True)
@@ -3190,7 +3199,7 @@ class Administration_of_Settings(commands.Cog):
     async def _set_emojis(self, ctx, *args):
         """Set emojis the bot uses in its messages
 
-        1st arg needs to be the emoji's shorthand name as you can find in `-settings emoji`.
+        1st arg needs to be the emoji's shorthand name as you can find in `<prefix>settings emoji`.
         2nd arg needs to be the new emoji.
         """
         if len(args) <= 1:
@@ -3854,15 +3863,15 @@ class Administration_of_Settings(commands.Cog):
         """Set a restriction for a command
 
         Syntax: 
-        `-set restriction <command name> <restriction type> <specifications>`
+        `<prefix>set restriction <command name> <restriction type> <specifications>`
 
         The command name needs to be one of the following:
-        - gpt
+        > gpt
 
         Restriction type can be one of the following
-        - channel
-        - role
-        - permission (under construction)
+        > channel
+        > role
+        > permission (under construction)
 
         Specification needs to be in the case of channels or roles the IDs of the channels/roles you want it to restrict to separated by semicolons.
         Specify `none` to remove restriction.
