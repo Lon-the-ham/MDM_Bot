@@ -1069,8 +1069,6 @@ class Music_Scrobbling(commands.Cog):
 
 
     async def whoknows(self, ctx, argument, wk_type):
-        # under construction : if argument is user mention or id then fetch from their lastfm
-
         con = sqlite3.connect('databases/npsettings.db')
         cur = con.cursor()
         lfm_list = [[item[0],item[1],str(item[2]).lower().strip()] for item in cur.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
@@ -1507,7 +1505,6 @@ class Music_Scrobbling(commands.Cog):
             if member.id in lfmname_dict:
                 discordname_dict[member.id] = str(member.name)
 
-
         # SORT
 
         time_list.sort(key=lambda x: x[1])
@@ -1549,12 +1546,94 @@ class Music_Scrobbling(commands.Cog):
 
 
 
+    ##############################################################################################################
+
+
+
+    async def parse_user_and_media_arguments(self, ctx, argument):
+        # if only one argument
+        if (" " not in argument) and (len(argument) > 16) and (util.represents_integer(argument) or (argument.startswith("<@") and argument.endswith(">") and util.represents_integer(argument[2:-1]))):
+            if util.represents_integer(argument):
+                user_id = argument
+            else:
+                user_id = argument[2:-1]
+
+            user_id_int = int(user_id)
+
+            # handle user name and color 
+            if user_id_int in [user.id for user in ctx.guild.members]:
+                argument = ""
+                for user in [user for user in ctx.guild.members]:
+                    if user_id_int == user.id:
+                        user_name = user.display_name
+                        user_color = user.color
+                        user_display_name = user.display_name
+                        user_avatar = user.avatar
+                        break
+                else:
+                    raise ValueError(f"Faulty with mentioned user id {user_id_int}.")
+                    return
+            else:
+                if argument.startswith("<@") and argument.endswith(">"):
+                    cover_eyes = uil.emoji("cover_eyes")
+                    raise ValueError(f"This user is not on this server. {cover_eyes}")
+                    return
+                else:
+                    print(f"Warning: a user with ID {user_id} is not on this server. Searching for an artist with name {user_id} instead :kek:.")
+                    user_id = str(ctx.author.id)
+                    user_name = ctx.author.display_name
+                    user_color = ctx.author.color
+                    user_display_name = ctx.author.display_name
+                    user_avatar = ctx.author.avatar
+        else:
+            user_args = []
+            non_user_args = []
+            # if mention in one of the arguments
+            for arg in argument.replace("><","> <").split():
+                if arg.startswith("<@") and arg.endswith(">") and len(arg) > 16 and util.represents_integer(arg[2:-1]):
+                    user_args.append(arg)
+                else:
+                    non_user_args.append(arg)
+
+            if len(user_args) > 0:
+                i = 0
+                user_id = user_args[0][2:-1]
+                user_id_int = int(user_args[i][2:-1])
+                for user in [user for user in ctx.guild.members]:
+                    if user_id_int == user.id:
+                        user_name = user.display_name
+                        user_color = user.color
+                        user_display_name = user.display_name
+                        user_avatar = user.avatar
+                        break
+                else:
+                    raise ValueError(f"User with {user_id_int} seems to be not on this server.")
+                    return
+
+                argument = ' '.join(non_user_args)
+
+            # if no mention or single-argument user id
+            else:
+                user_id = str(ctx.author.id)
+                user_name = ctx.author.display_name
+                user_color = ctx.author.color
+                user_display_name = ctx.author.display_name
+                user_avatar = ctx.author.avatar
+
+        return user_id, user_name, user_color, user_display_name, user_avatar, argument
+
+
+
     async def artist_detailplays(self, ctx, argument, wk_type):
 
         # GET USER
-        user_id = str(ctx.author.id)
+        try:
+            user_id, user_name, user_color, user_display_name, user_avatar, argument = await self.parse_user_and_media_arguments(ctx, argument)
+        except Exception as e:
+            await ctx.send(f"Error: {e}")
+            return
 
-        # under construction: fetch other user
+        # FETCH LFM STUFF
 
         con = sqlite3.connect('databases/npsettings.db')
         cur = con.cursor()
@@ -1576,7 +1655,7 @@ class Music_Scrobbling(commands.Cog):
             curFM2 = conFM2.cursor()
             result = [[item[0],item[1]] for item in curFM2.execute(f"SELECT album_name, count FROM [{lfm_name}] WHERE artist_name = ? ORDER BY count DESC", (compact_artist,)).fetchall()]
 
-            #under construction: fetch album name from scrobblemeta.db instead
+            #under construction: fetch album name from scrobblemeta.db instead?
 
             all_albums = [[item[0],item[1]] for item in curFM.execute(f"SELECT DISTINCT artist_name, album_name FROM [{lfm_name}]").fetchall()]
             filtered_albums = [[util.compactnamefilter(x[1],"album"), x[1]] for x in all_albums if util.compactnamefilter(x[0],"artist") in artist_aliases_compact]
@@ -1618,13 +1697,15 @@ class Music_Scrobbling(commands.Cog):
         # under construction
 
         header = f"{artist[:128]} {wk_type} plays"
-        header = f"{ctx.author.display_name}"[:253-len(header)] + "'s " + header
-        color = ctx.author.color
+        header = f"{user_name}"[:253-len(header)] + "'s " + header
+        color = user_color
 
         contents = [""]
         i = 0 #indexnumber
         k = 0 #pagenumber
+        plays = 0
         for item in result_proper:
+            plays += item[1]
             if item[0].strip() == "":
                 continue
 
@@ -1641,7 +1722,7 @@ class Music_Scrobbling(commands.Cog):
                 k = k+1
                 contents.append(itemstring)
 
-        footer = f"{i} {wk_type}s"
+        footer = f"{i} {wk_type}s - {plays} plays"
 
         await util.embed_pages(ctx, self.bot, header, contents, color, footer)
         
@@ -1752,9 +1833,14 @@ class Music_Scrobbling(commands.Cog):
 
     async def user_plays(self, ctx, argument, wk_type):
         
-        # under construction : if argument is user mention or id then fetch from their lastfm
+        # GET USER
+        try:
+            user_id, user_name, user_color, user_display_name, user_avatar, argument = await self.parse_user_and_media_arguments(ctx, argument)
+        except Exception as e:
+            await ctx.send(f"Error: {e}")
+            return
         
-        user_id = str(ctx.author.id)
+        # GET LFM NAME
 
         con = sqlite3.connect('databases/npsettings.db')
         cur = con.cursor()
@@ -1768,6 +1854,8 @@ class Music_Scrobbling(commands.Cog):
             return
 
         lfm_name = lfm_list[0][0].strip()
+
+        # GET ARTIST/ALBUM/SONG
 
         if wk_type == "artist":
             artist, thumbnail, tags = await self.wk_artist_match(ctx, argument)
@@ -1886,12 +1974,8 @@ class Music_Scrobbling(commands.Cog):
         ###################### EMBED
 
         description = f"**{count}** plays of {header[:256]}\n{weekcount} in the past week"
-        try:
-            color = ctx.author.color
-        except:
-            color = 0xFFFFFF
 
-        embed = discord.Embed(title="", description=description[:4096], color=color)
+        embed = discord.Embed(title="", description=description[:4096], color=user_color)
         if wk_type in ["artist", "album", "track"]:
             try:
                 embed.set_thumbnail(url=thumbnail)
@@ -1926,10 +2010,215 @@ class Music_Scrobbling(commands.Cog):
                 print("Error:", e)
         try:
             member = ctx.author
-            embed.set_author(name=f"{member.display_name}'s {wk_type.split()[0]} plays" , icon_url=member.avatar)
+            embed.set_author(name=f"{user_display_name}'s {wk_type.split()[0]} plays" , icon_url=user_avatar)
         except Exception as e:
             print("Error:", e)
         await ctx.send(embed=embed)
+
+
+
+    async def database_spelling(self, ctx, argument, wk_type):
+        # GET USER
+        try:
+            user_id, user_name, user_color, user_display_name, user_avatar, argument = await self.parse_user_and_media_arguments(ctx, argument)
+        except Exception as e:
+            await ctx.send(f"Error: {e}")
+            return
+        
+        # GET LFM NAME
+
+        con = sqlite3.connect('databases/npsettings.db')
+        cur = con.cursor()
+        lfm_list = [[item[0],str(item[1]).lower().strip()] for item in cur.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (user_id,)).fetchall()]
+
+        if len(lfm_list) == 0:
+            await ctx.reply(f"You haven't set your lastfm account yet.\nUse `{self.prefix}setfm <your username>` to set your account.", mention_author=False)
+            return
+
+        lfm_name = lfm_list[0][0]
+
+        # GET ARTIST/ALBUM/TRACK
+
+        if wk_type == "artist":
+            artist, thumbnail, tags = await self.wk_artist_match(ctx, argument)
+            header = util.compactaddendumfilter(artist,"artist")
+
+            if util.compactnamefilter(artist,"artist") == "":
+                emoji = util.emoji("shrug")
+                await ctx.send(f"oof... what's this artist name?? ping dev to do something about it, i'm out {emoji}")
+                return
+
+        elif wk_type == "album":
+            try:
+                artist, album, thumbnail, tags = await self.wk_album_match(ctx, argument)
+                header = util.compactaddendumfilter(artist,"artist") + " - " + util.compactaddendumfilter(album,"album")
+            except Exception as e:
+                if str(e) == "Could not parse artist and album.":
+                    #artistless_albummatch
+                    artist = ""
+                    thumbnail = ""
+                    tags = []
+                    album = argument.upper()
+                    wk_type = "album without artist"
+                    header = "Album: " + util.compactaddendumfilter(album,"album")
+                else:
+                    raise ValueError(f"while parsing artist/album - {e}")
+                    return
+
+        elif wk_type == "track":
+            try:
+                artist, track, thumbnail, tags = await self.wk_track_match(ctx, argument)
+                header = util.compactaddendumfilter(artist,"artist") + " - " + util.compactaddendumfilter(track,"track")
+            except Exception as e:
+                if str(e) == "Could not parse artist and track.":
+                    #artistless_trackmatch
+                    artist = ""
+                    thumbnail = ""
+                    tags = []
+                    track = argument.upper()
+                    wk_type = "track without artist"
+                    header = "Track: " + util.compactaddendumfilter(track,"track")
+                else:
+                    raise ValueError(f"while parsing artist/track - {e}")
+                    return
+        else:
+            raise ValueError("unknown WK type")
+
+        header += " DB spellings"
+
+        conFM = sqlite3.connect('databases/scrobbledata.db')
+        curFM = conFM.cursor()
+
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        # FETCH FROM DATABASE
+
+        scrobbles = [[item[0],item[1],item[2]] for item in curFM.execute(f"SELECT artist_name, album_name, track_name FROM [{lfm_name}] ORDER BY date_uts ASC").fetchall()]    
+        
+        compact_artist = util.compactnamefilter(artist, "artist")
+        try:
+            compact_album = util.compactnamefilter(album, "album")
+        except:
+            compact_album = ""
+        try:
+            compact_track = util.compactnamefilter(track, "track")
+        except:
+            compact_track = ""
+
+        match_count = {}
+
+        if wk_type == "artist":
+            for item in scrobbles:
+                exact_artist = item[0]
+                item_artist = util.compactnamefilter(exact_artist, "artist")
+
+                if item_artist == compact_artist:
+                    exact_pair = f"**{exact_artist}**"
+                    if exact_pair in match_count:
+                        match_count[exact_pair] += 1
+                    else:
+                        match_count[exact_pair] = 1
+
+        elif wk_type == "album":
+            for item in scrobbles:
+                exact_artist = item[0]
+                exact_album = item[1]
+                item_artist = util.compactnamefilter(exact_artist, "artist")
+                item_album = util.compactnamefilter(exact_album, "album")
+
+                if item_artist == compact_artist and item_album == compact_album:
+                    exact_pair = f"**{exact_artist}** - {exact_album}"
+                    if exact_pair in match_count:
+                        match_count[exact_pair] += 1
+                    else:
+                        match_count[exact_pair] = 1
+
+        elif wk_type == "track":
+            for item in scrobbles:
+                exact_artist = item[0]
+                exact_track = item[2]
+                item_artist = util.compactnamefilter(exact_artist, "artist")
+                item_track = util.compactnamefilter(exact_track, "track")
+
+                if item_artist == compact_artist and item_track == compact_track:
+                    exact_pair = f"**{exact_artist}** - {exact_track}"
+                    if exact_pair in match_count:
+                        match_count[exact_pair] += 1
+                    else:
+                        match_count[exact_pair] = 1
+
+        elif wk_type == "album without artist":
+            for item in scrobbles:
+                exact_artist = item[0]
+                exact_album = item[1]
+                item_album = util.compactnamefilter(exact_album, "album")
+
+                if item_album == compact_album:
+                    exact_pair = f"**{exact_artist}** - {exact_album}"
+                    if exact_pair in match_count:
+                        match_count[exact_pair] += 1
+                    else:
+                        match_count[exact_pair] = 1
+
+        elif wk_type == "track without artist":
+            for item in scrobbles:
+                exact_artist = item[0]
+                exact_track = item[2]
+                item_track = util.compactnamefilter(exact_track, "track")
+
+                if item_track == compact_track:
+                    exact_pair = f"**{exact_artist}** - {exact_track}"
+                    if exact_pair in match_count:
+                        match_count[exact_pair] += 1
+                    else:
+                        match_count[exact_pair] = 1
+        else:
+            raise ValueError("unknown wk_type")
+
+        plays = 0
+        countlist = []
+        for k,v in match_count.items():
+            countlist.append([k,v])
+            plays += v
+
+        countlist.sort(key=lambda x: x[1], reverse = True)
+
+        ###################### EMBED
+
+        footer = f"{len(countlist)} matches - {plays} plays"
+        if wk_type not in ["artist", "album", "track"]:
+            different_artists = []
+            for item in countlist:
+                diff_artist = item.split("** - ")[0]
+                if diff_artist not in different_artists:
+                    different_artists.append(diff_artist)
+            footer += f" {len(different_artists)} artists"
+
+        header = f"{user_display_name}"[:253-len(header)] + "'s " + header
+        color = user_color
+
+        contents = [""]
+        i = 0 #indexnumber
+        k = 0 #pagenumber
+        for item in countlist:
+            if item[0].strip() == "":
+                print(f"Error with item_0")
+                continue
+
+            i = i+1
+            itemstring = f"`{i}.` {item[0]} : *{item[1]} plays*\n"
+            
+            previous = 0
+            for j in range(0,k):
+                previous += contents[j].count("\n")
+
+            if len(contents[k]) + len(itemstring) <= 1500 and (i - previous) <= 15:    
+                contents[k] = contents[k] + itemstring 
+            else:
+                k = k+1
+                contents.append(itemstring)
+
+        await util.embed_pages(ctx, self.bot, header, contents, color, footer)
         
 
 
@@ -2708,7 +2997,10 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _artistplays(self, ctx: commands.Context, *args):
-        """
+        """Show your plays of an artist.
+        Incl. info about plays in the past 7 days.
+
+        Specify @user mention or user id to get information about their artist plays.
         """
         argument = ' '.join(args)
         wk_type = "artist"
@@ -2724,7 +3016,10 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _albumplays(self, ctx: commands.Context, *args):
-        """
+        """Show your plays of an album.
+        Incl. info about plays in the past 7 days.
+
+        Specify @user mention or user id to get information about their album plays.
         """
         argument = ' '.join(args)
         wk_type = "album"
@@ -2740,7 +3035,10 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _trackplays(self, ctx: commands.Context, *args):
-        """
+        """Show your plays of a track.
+        Incl. info about plays in the past 7 days.
+
+        Specify @user mention or user id to get information about their track plays.
         """
         argument = ' '.join(args)
         wk_type = "track"
@@ -2748,6 +3046,156 @@ class Music_Scrobbling(commands.Cog):
 
     @_trackplays.error
     async def trackplays_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='abt', aliases = ["albumtracks", 'albumtrack'])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _albumtracks(self, ctx: commands.Context, *args):
+        """Shows your track plays of each song on a specified album.
+
+        You can @-mention another user to see their album track plays of a given album.
+        """
+        async with ctx.typing():
+            argument = ' '.join(args)
+            # GET USER
+            try:
+                user_id, user_name, user_color, user_display_name, user_avatar, argument = await self.parse_user_and_media_arguments(ctx, argument)
+            except Exception as e:
+                await ctx.send(f"Error: {e}")
+                return
+
+            # GET LFM INFO
+            con = sqlite3.connect('databases/npsettings.db')
+            cur = con.cursor()
+            lfm_list = [[item[0],str(item[1]).lower().strip()] for item in cur.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (user_id,)).fetchall()]
+
+            if len(lfm_list) == 0:
+                if user_id == str(ctx.author.id):
+                    await ctx.reply(f"You haven't set your lastfm account yet.\nUse `{self.prefix}setfm <your username>` to set your account.", mention_author=False)
+                else:
+                    await ctx.reply(f"They haven't set their lastfm account yet.", mention_author=False)
+                return
+
+            lfm_name = lfm_list[0][0].strip()
+            has_artist = True
+            try:
+                artist, album, thumbnail, tags = await self.wk_album_match(ctx, argument)
+                header = f"{artist} - {album}"
+            except Exception as e:
+                if str(e) == "Could not parse artist and album.":
+                    #artistless_albummatch
+                    artist = ""
+                    thumbnail = ""
+                    tags = []
+                    album = argument.upper()
+                    has_artist = False
+                    header = f"Album: {album}"
+                else:
+                    raise ValueError(f"while parsing artist/album - {e}")
+                    return
+
+            conFM = sqlite3.connect('databases/scrobbledata.db')
+            curFM = conFM.cursor()
+            compact_artist = util.compactnamefilter(artist, "artist")
+            compact_album = util.compactnamefilter(album, "album")
+
+            scrobbles = [[item[0],item[1],item[2]] for item in curFM.execute(f"SELECT artist_name, album_name, track_name FROM [{lfm_name}] ORDER BY date_uts DESC").fetchall()]    
+            ab_trackcount = {}
+            ab_trackname = {}
+            artist_matches = ""
+
+            if has_artist:
+                for item in scrobbles:
+                    item_artist = util.compactnamefilter(item[0], "artist")
+                    item_album = util.compactnamefilter(item[1], "album")
+                    item_track = util.compactnamefilter(item[2], "track")
+
+                    if item_artist == compact_artist and item_album == compact_album:
+                        if item_track in ab_trackcount:
+                            ab_trackcount[item_track] += 1
+                        else:
+                            ab_trackcount[item_track] = 1
+
+                        if item_track not in ab_trackname:
+                            track_name = util.compactaddendumfilter(item[2], "track")
+                            ab_trackname[item_track] = track_name
+
+            else:
+                artistdict = {}
+
+                for item in scrobbles:
+                    item_album = util.compactnamefilter(item[1], "album")
+                    item_track = util.compactnamefilter(item[2], "track")
+
+                    if item_album == compact_album:
+                        item_artist = util.compactnamefilter(item[0], "artist")
+                        artist_name = util.compactaddendumfilter(item[0], "artist")
+
+                        if item_track in ab_trackcount:
+                            ab_trackcount[item_track] += 1
+                        else:
+                            ab_trackcount[item_track] = 1
+
+                        if item_track not in ab_trackname:
+                            track_name = util.compactaddendumfilter(item[2], "track")
+                            ab_trackname[item_track] = track_name
+
+                        if item_artist not in artistdict:
+                            artistdict[item_artist] = artist_name
+                
+                artist_matches = ', '.join([x for x in sorted(list(artistdict.values()))])
+
+            countlist = []
+            plays = 0
+            for k,v in ab_trackcount.items():
+                countlist.append([k,v])
+                plays += v
+
+            countlist.sort(key=lambda x: x[1], reverse = True)
+
+            ###################### EMBED
+
+            if has_artist:
+                if album.strip() == "":
+                    album = "?"
+                header = f"{artist[:80]} - {album[:80]} track plays"
+                footer = ""
+            else:
+                header = f"album {album[:100]} track plays"
+                footer = "Artist matches: " + artist_matches
+
+            header = f"{user_display_name}"[:253-len(header)] + "'s " + header
+            color = user_color
+
+            contents = [""]
+            i = 0 #indexnumber
+            k = 0 #pagenumber
+            for item in countlist:
+                if item[0].strip() == "":
+                    continue
+
+                i = i+1
+                itemstring = f"`{i}.` **{ab_trackname[item[0]]}** - *{item[1]} plays*\n"
+                
+                previous = 0
+                for j in range(0,k):
+                    previous += contents[j].count("\n")
+
+                if len(contents[k]) + len(itemstring) <= 1500 and (i - previous) <= 15:    
+                    contents[k] = contents[k] + itemstring 
+                else:
+                    k = k+1
+                    contents.append(itemstring)
+
+            footer = f"{plays} artist plays"
+
+            await util.embed_pages(ctx, self.bot, header, contents, color, footer)
+
+    @_albumtracks.error
+    async def albumtracks_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
@@ -2793,6 +3241,57 @@ class Music_Scrobbling(commands.Cog):
 
     @_servertracks.error
     async def servertracks_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='as', aliases = ["da", "dba", "databaseartist", "artistspelling", "spelling"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _databaseartist(self, ctx: commands.Context, *args):
+        """All ways an artist is spelled in your lastfm database
+        """
+
+        argument = ' '.join(args)
+        wk_type = "artist"
+        await self.database_spelling(ctx, argument, wk_type)
+
+    @_databaseartist.error
+    async def databaseartist_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='abs', aliases = ["dab", "dbab", "databasealbum", "albumspelling"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _databasealbum(self, ctx: commands.Context, *args):
+        """All ways an album is spelled in your lastfm database
+        """
+
+        argument = ' '.join(args)
+        wk_type = "album"
+        await self.database_spelling(ctx, argument, wk_type)
+
+    @_databasealbum.error
+    async def databasealbum_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='ts', aliases = ["dt", "dbt", "dat" "databasetrack", "trackspelling"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _databasetrack(self, ctx: commands.Context, *args):
+        """All ways a track is spelled in your lastfm database
+        """
+
+        argument = ' '.join(args)
+        wk_type = "track"
+        await self.database_spelling(ctx, argument, wk_type)
+
+    @_databasetrack.error
+    async def databasetrack_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
@@ -2853,6 +3352,21 @@ class Music_Scrobbling(commands.Cog):
 
     @_genreartists.error
     async def genreartists_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='peek', aliases = ["crownpeek"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _crownpeek(self, ctx: commands.Context, *args):
+        """Show how many crowns you *could* get.
+        """
+
+        await ctx.send("Under construction")
+
+    @_crownpeek.error
+    async def crownpeek_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
@@ -2926,7 +3440,7 @@ class Music_Scrobbling(commands.Cog):
         Crownbanned users are not able to participate in the crown game.
         Use command with arg `user id`.
 
-        If you want to also remove existing crowns of that user use command `-crownremove` next.
+        If you want to also remove existing crowns of that user use command `<prefix>crownremove` next.
         """
 
         user_ids, rest = await util.fetch_id_from_args("user", "multiple", remainder_args)
@@ -3202,6 +3716,8 @@ class Music_Scrobbling(commands.Cog):
     @_crownseed.error
     async def crownseed_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
+
 
 
 
