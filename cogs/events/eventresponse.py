@@ -478,6 +478,9 @@ class Event_Response(commands.Cog):
             print(f"ignore edit of 2h+ old message ({now - old})")
             return
 
+        if before.content == after.content and before.attachments == after.attachments:
+            return
+
         #try:
         #    edit_time = after.created_at
         #    timestamp = edit_time.replace(tzinfo=timezone.utc).timestamp()
@@ -496,8 +499,10 @@ class Event_Response(commands.Cog):
             text += "..."
         #text += f"<t:{timestamp}:f>"
         # TEXT END
-        footer = f"NAME: {before.author.name}, ID: {before.author.id}"   
+        footer = f"NAME: {before.author.name}, ID: {before.author.id}"
+
         image = ""
+
         color = 0x0e4c92
         await self.botspam_send(title, text, footer, image, before.author, color, None) #after.created_at)
 
@@ -531,7 +536,10 @@ class Event_Response(commands.Cog):
         # TEXT END
         footer = f"NAME: {message.author.name}, ID: {message.author.id}"
 
-        image = "" # under construction
+        try:
+            image = message.attachments[0].url # under construction
+        except Exception as e:
+            image = ""
         
         color = 0xd30000
         await self.botspam_send(title, text, footer, image, message.author, color, None) #message.created_at)
