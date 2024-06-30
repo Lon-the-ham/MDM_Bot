@@ -327,14 +327,14 @@ class Administration_of_Server(commands.Cog):
         Everything else will be read as mute reason.
 
         E.g.:
-        Write `-mute <@id>` to mute a user indefinitely.
-        Write `-mute <@id> <time>` to mute user for given time, where <time> has to be in the format: <integer><unit>
+        Write `<prefix>mute <@id>` to mute a user indefinitely.
+        Write `<prefix>mute <@id> <time>` to mute user for given time, where <time> has to be in the format: <integer><unit>
 
         *Valid time units are: min, hour(s), day(s), week(s), month(s)
         and can also be combined 
-        i.e. `-mute <@id> 1 day 6 hours`.
+        i.e. `<prefix>mute <@id> 1 day 6 hours`.
         Alternatively, use `until` to set end of mute to a specific time via UNIX timestamp,
-        i.e. `-mute <@id> until 1735771908`.
+        i.e. `<prefix>mute <@id> until 1735771908`.
         """
         if len(args) < 1:
             await ctx.send("Error: Missing arguments.")
@@ -665,7 +665,7 @@ class Administration_of_Server(commands.Cog):
     async def _batchban(self, ctx, *args):
         """🔒 Bans multiple users
         
-        Use `-batchban <optional: reason>` and attach a txt file with 1 id per row.
+        Use `<prefix>batchban <optional: reason>` and attach a txt file with 1 id per row.
 
         (Users banned via batchban do not receive a notification even if the penalty notifer is enabled and they are full members, i.e. are verified/have community role etc. depending on settings.)
         """
@@ -715,7 +715,7 @@ class Administration_of_Server(commands.Cog):
     async def _purge(self, ctx: commands.Context, *args):
         """🔒 Deletes given number of messages from channel (Limit 100)
         
-        Use i.e. `-purge 5`
+        Use i.e. `<prefix>purge 5`
 
         Specify argument `nonbulk` or `nb` for short, so messages are deleted one by one. This will help if you have message deletion notification enabled, so all messages are shown in the botspam channel.
         Note that non-bulk purges can also delete messages older than 14 days (and the limit is raised to 1000). The default purge cannot do that.
@@ -823,7 +823,7 @@ class Administration_of_Server(commands.Cog):
     async def _verify(self, ctx: commands.Context, *args):
         """🔒 Verifies user
         
-        Use `-verify <user_id or @mention>` to remove gate-role, add verified-role and put a welcome message in general channel.
+        Use `<prefix>verify <user_id or @mention>` to remove gate-role, add verified-role and put a welcome message in general channel.
         You can put as additional argument "nomsg" to leave out the last step and verify them without a welcome message.
         """
         if len(args) < 1:
@@ -1030,7 +1030,7 @@ class Administration_of_Server(commands.Cog):
     async def _winterspurge(self, ctx: commands.Context, *args):
         """🔒 Kick accesswall dwellers
 
-        Use `-yeetaw <number>` to kick all users who are for at least <number> days in access wall channel without being verified.
+        Use `<prefix>yeetaw <number>` to kick all users who are for at least <number> days in access wall channel without being verified.
         Without a specified <number> the bot will assume <number>=7.
         """
 
