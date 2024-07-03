@@ -40,7 +40,7 @@ class Event_Response(commands.Cog):
 
 
 
-    async def botspam_send(self, title, text, footer, image, author, color, timestamp):
+    def get_botspamchannelid(self):
         conB = sqlite3.connect(f'databases/botsettings.db')
         curB = conB.cursor()
         botspamchannelid_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("botspam channel id",)).fetchall()]
@@ -60,6 +60,12 @@ class Event_Response(commands.Cog):
             else:
                 raise ValueError(f"invalid botspam channel id (DB)")
                 return
+        return botspamchannelid
+
+
+
+    async def botspam_send(self, title, text, footer, image, author, color, timestamp):
+        botspamchannelid = self.get_botspamchannelid()
         try:
             botspam_channel = self.bot.get_channel(botspamchannelid)
         except:
@@ -462,12 +468,19 @@ class Event_Response(commands.Cog):
         conB = sqlite3.connect(f'databases/botsettings.db')
         curB = conB.cursor()    
         main_server = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id", )).fetchall()]
+        if not self.setting_enabled("edit message notification"):
+            return
         if str(server.id) not in main_server:
             print(f"{before.author.name} edited message in {server.name}")
             return
 
-        if not self.setting_enabled("edit message notification"):
-            return
+        botspamchannelid = self.get_botspamchannelid()
+        if str(before.channel.id) == str(botspamchannelid):
+            suppressbotspamedit_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("suppress botspam edit/delete",)).fetchall()]
+            if len(suppressbotspamedit_list) > 0:
+                if suppressbotspamedit_list[0] == "on":
+                    print(f"supressing msg edit ({before.author.name}) in botspam channel")
+                    return
 
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
@@ -520,12 +533,20 @@ class Event_Response(commands.Cog):
         conB = sqlite3.connect(f'databases/botsettings.db')
         curB = conB.cursor()    
         main_server = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id", )).fetchall()]
+
+        if not self.setting_enabled("edit message notification"):
+            return
         if str(server.id) not in main_server:
             print(f"{message.author.name}'s message deleted in {server.name}")
             return
 
-        if not self.setting_enabled("edit message notification"):
-            return
+        botspamchannelid = self.get_botspamchannelid()
+        if str(message.channel.id) == str(botspamchannelid):
+            suppressbotspamedit_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("suppress botspam edit/delete",)).fetchall()]
+            if len(suppressbotspamedit_list) > 0:
+                if suppressbotspamedit_list[0] == "on":
+                    print(f"supressing msg deletion ({message.author.name}) in botspam channel")
+                    return
 
         title = f"Message deleted in <#{message.channel.id}>"
         # TEXT BEGIN
@@ -557,12 +578,19 @@ class Event_Response(commands.Cog):
         conB = sqlite3.connect(f'databases/botsettings.db')
         curB = conB.cursor()    
         main_server = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id", )).fetchall()]
+        if not self.setting_enabled("edit message notification"):
+            return
         if str(server.id) not in main_server:
             print(f"bulk message delete ({len(messages)}) in {server.name}")
             return
 
-        if not self.setting_enabled("edit message notification"):
-            return
+        botspamchannelid = self.get_botspamchannelid()
+        if str(message.channel.id) == str(botspamchannelid):
+            suppressbotspamedit_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("suppress botspam edit/delete",)).fetchall()]
+            if len(suppressbotspamedit_list) > 0:
+                if suppressbotspamedit_list[0] == "on":
+                    print(f"supressing bulk delete in botspam channel")
+                    return
 
         title = f"Bulk message delete"
         text += f"{len(messages)} deleted in <#{message.channel.id}>"
