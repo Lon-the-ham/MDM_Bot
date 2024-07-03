@@ -1399,25 +1399,233 @@ class Music_Scrobbling(commands.Cog):
 
 
 
+    async def server_top(self, ctx, argument, wk_type):
+        # top artist/album/track on server
+
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        timedict = {
+            "d":     24*60*60,
+            "daily": 24*60*60,
+            "w":    7*24*60*60,
+            "week": 7*24*60*60,
+            "m":     30*24*60*60,
+            "month": 30*24*60*60,
+            "q":       90*24*60*60,
+            "quarter": 90*24*60*60,
+            "h":    180*24*60*60,
+            "half": 180*24*60*60,
+            "s":    180*24*60*60,
+            "semi": 180*24*60*60,
+            "y":    365*24*60*60,
+            "year": 365*24*60*60,
+            "a":       now,
+            "all":     now,
+            "alltime": now,
+        }
+
+        if argument.strip().lower() in timedict:
+            timelength = timedict[argument.strip().lower()]
+        else:
+            timelength = 7*24*60*60
+
+        time_text_dict = {
+            24*60*60    : " past 24h",
+            7*24*60*60  : " past week",
+            30*24*60*60 : " past 30 days",
+            90*24*60*60 : " past quarter",
+            180*24*60*60: " past half year",
+            365*24*60*60: " past year",
+            now         : " (all time)",
+        }
+
+        time_text = time_text_dict.get(timelength, "")
+
+        con = sqlite3.connect('databases/npsettings.db')
+        cur = con.cursor()
+        lfm_list = [[item[0],item[1],str(item[2]).lower().strip()] for item in cur.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
+
+        conFM = sqlite3.connect('databases/scrobbledata.db')
+        curFM = conFM.cursor()
+
+        conSS = sqlite3.connect('databases/scrobblestats.db')
+        curSS = conSS.cursor()
+        curSS.execute(f'''CREATE TABLE IF NOT EXISTS [crowns_{str(ctx.guild.id)}] (artist text, alias text, alias2 text, crown_holder text, discord_name text, playcount integer)''')
+
+        lfmname_dict = {}
+        count_list = []
+        crownbanned = []
+        total_plays = 0
+        server_member_ids = [x.id for x in ctx.guild.members]
+
+        scrobble_dict = {}
+        clearname_dict = {}
+        timecut = now - timelength
+        timecut_previous = now - 2 * timelength
+
+        previous_plays = 0
+        previous_scrobble_dict = {}
+
+        # FETCHING LOOP
+
+        print("starting search")
+        for useritem in lfm_list:
+            try:
+                user_id = int(useritem[0])
+            except Exception as e:
+                print("Error:", e)
+                continue
+
+            lfm_name = useritem[1]
+            status = useritem[2]
+
+            if type(status) == str and (status.startswith(("wk_banned", "scrobble_banned")) or (status.endswith("inactive") and str(ctx.guild.id) == str(os.getenv("guild_id")))):
+                continue
+            elif type(status) == str and status.startswith("crown_banned"):
+                crownbanned.append(user_id)
+
+            if user_id not in server_member_ids:
+                continue
+
+            if lfm_name in lfmname_dict.keys(): # check if lfm_name was already added
+                continue
+
+            lfmname_dict[user_id] = lfm_name
+
+            print(f"user: {lfm_name}")
+
+            # GET DATA
+
+            if wk_type == "artist":
+                scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "**") for item in curFM.execute(f"SELECT artist_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts ASC", (timecut,)).fetchall()]
+            else:
+                scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "** - " + util.compactaddendumfilter(item[1],wk_type)) for item in curFM.execute(f"SELECT artist_name, {wk_type}_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts ASC", (timecut,)).fetchall()]
+            
+            for scrobble in scrobbles:
+                total_plays += 1
+                if "** - " in scrobble:
+                    compactname = util.compactnamefilter(scrobble.split("** - ")[0], "artist") + " - " + util.compactnamefilter(scrobble.split("** - ")[1], wk_type)
+                else:
+                    compactname = util.compactnamefilter(scrobble, wk_type)
+                scrobble_dict[compactname] = scrobble_dict.get(compactname, 0) + 1
+
+                if compactname not in clearname_dict:
+                    clearname_dict[compactname] = scrobble
+
+            # previous time
+            if argument.strip().lower() not in ["a", "all", "alltime"]:
+                if wk_type == "artist":
+                    scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "**") for item in curFM.execute(f"SELECT artist_name FROM [{lfm_name}] WHERE date_uts > ? AND date_uts <= ? ORDER BY date_uts ASC", (timecut_previous,timecut)).fetchall()]
+                else:
+                    scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "** - " + util.compactaddendumfilter(item[1],wk_type)) for item in curFM.execute(f"SELECT artist_name, {wk_type}_name FROM [{lfm_name}] WHERE date_uts > ? AND date_uts <= ? ORDER BY date_uts ASC", (timecut_previous,timecut)).fetchall()]
+                
+                for scrobble in scrobbles:
+                    previous_plays += 1
+                    if "** - " in scrobbles:
+                        compactname = util.compactnamefilter(scrobble.split("** - ")[0], "artist") + " - " + util.compactnamefilter(scrobble.split("** - ")[1], wk_type)
+                    else:
+                        compactname = util.compactnamefilter(scrobble, wk_type)
+                    previous_scrobble_dict[compactname] = previous_scrobble_dict.get(compactname, 0) + 1
+
+        print(f"finished search: {total_plays} scrobbles in total")
+
+        scrobble_list = list(scrobble_dict.items())
+        scrobble_list.sort(key = lambda x: x[1], reverse = True)
+
+        # EMBED
+
+        counter = 0
+        change = ""
+
+        header = f"Top {wk_type}s on {ctx.guild.name}{time_text} 📊"
+        footer = f"{len(scrobble_list)} different {wk_type}s - {total_plays} plays in total"
+        color = 0x4682b4 # steel blue
+
+        contents = [""]
+        i = 0 #indexnumber
+        j = 0 #item on this page
+        k = 0 #pagenumber
+        for scrobble in scrobble_list:
+            compactname = scrobble[0]
+            if compactname == "":
+                continue
+            counter += 1
+            actualname = clearname_dict[compactname]
+            plays = scrobble[1]
+
+            if argument.strip().lower() not in ["a", "all", "alltime"]:
+                previous_plays = previous_scrobble_dict.get(compactname, 0)
+                if plays > previous_plays:
+                    change = util.emoji("change_up")
+                elif plays < previous_plays:
+                    change = util.emoji("change_down")
+                else:
+                    change = util.emoji("change_none")
+                change = " " + change
+
+            line = f"`{counter}.`{change} {actualname} **:** *{plays} plays*"
+
+            i += 1
+            j += 1
+
+            if j <= 15:    
+                contents[k] = contents[k] + "\n" + line 
+            else:
+                k = k+1
+                j = 1
+                contents.append(line)
+
+            if counter > 104:
+                break
+
+        # SEND EMBED MESSAGE
+
+        await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer)
+
+
 
     async def first_scrobbler(self, ctx, argument, wk_type):
-        # under construction : if argument is user mention or id then fetch from their lastfm
-
         con = sqlite3.connect('databases/npsettings.db')
         cur = con.cursor()
         lfm_list = [[item[0],item[1],str(item[2]).lower().strip()] for item in cur.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
 
         if wk_type == "artist":
             artist, thumbnail, tags = await self.wk_artist_match(ctx, argument)
-            header = f"{artist}"
+            header = util.compactaddendumfilter(artist,"artist")
 
         elif wk_type == "album":
-            artist, album, thumbnail, tags = await self.wk_album_match(ctx, argument)
-            header = f"{artist} - {album}"
+            try:
+                artist, album, thumbnail, tags = await self.wk_album_match(ctx, argument)
+                header = util.compactaddendumfilter(artist,"artist") + " - " + util.compactaddendumfilter(album,"album")
+            except Exception as e:
+                if str(e) == "Could not parse artist and album.":
+                    #artistless_albummatch
+                    artist = ""
+                    thumbnail = ""
+                    tags = []
+                    album = argument.upper()
+                    wk_type = "album without artist"
+                    header = "Album: " + util.compactaddendumfilter(album,"album")
+                else:
+                    raise ValueError(f"while parsing artist/album - {e}")
+                    return
 
         elif wk_type == "track":
-            artist, track, thumbnail, tags = await self.wk_track_match(ctx, argument)
-            header = f"{artist} - {track}"
+            try:
+                artist, track, thumbnail, tags = await self.wk_track_match(ctx, argument)
+                header = util.compactaddendumfilter(artist,"artist") + " - " + util.compactaddendumfilter(track,"track")
+            except Exception as e:
+                if str(e) == "Could not parse artist and track.":
+                    #artistless_trackmatch
+                    artist = ""
+                    thumbnail = ""
+                    tags = []
+                    track = argument.upper()
+                    wk_type = "track without artist"
+                    header = "Track: " + util.compactaddendumfilter(track,"track")
+                else:
+                    raise ValueError(f"while parsing artist/track - {e}")
+                    return
 
         else:
             raise ValueError("unknown WK type")
@@ -1441,6 +1649,15 @@ class Music_Scrobbling(commands.Cog):
         time_list = []
 
         server_member_ids = [x.id for x in ctx.guild.members]
+
+        # artistless stuff
+
+        artist_match_info = ""
+        artist_matches = []
+        if "without artist" in wk_type:
+            artistless = True
+        else:
+            artistless = False
 
         # FILTER BY USER STATUS
 
@@ -1478,14 +1695,35 @@ class Music_Scrobbling(commands.Cog):
                 elif wk_type == "track":
                     result = curFM3.execute(f"SELECT first_time FROM [{lfm_name}] WHERE artist_name = ? AND track_name = ?", (util.compactnamefilter(artist,"artist"),util.compactnamefilter(track,"track")))
 
-                try:
-                    rtuple = result.fetchone()
-                    first = int(rtuple[0])
+                elif wk_type == "album without artist":
+                    artistless_result = [[util.forceinteger(item[0]), item[1]] for item in curFM2.execute(f"SELECT first_time, artist_name FROM [{lfm_name}] WHERE album_name = ?", (util.compactnamefilter(album,"album"),)).fetchall()]
 
-                    if first < 1000000000 or first >= util.year9999():
+                elif wk_type == "track without artist":
+                    artistless_result = [[util.forceinteger(item[0]), item[1]] for item in curFM3.execute(f"SELECT first_time, artist_name FROM [{lfm_name}] WHERE track_name = ?", (util.compactnamefilter(track,"track"),)).fetchall()]
+
+                if not artistless:
+                    try:
+                        rtuple = result.fetchone()
+                        first = int(rtuple[0])
+
+                        if first < 1000000000 or first >= util.year9999():
+                            first = None
+                    except:
                         first = None
-                except:
-                    first = None
+                else:
+                    # artistless
+                    artistless_result.sort(key = lambda x:x[0])
+                    try:
+                        earliest = artistless_result[0]
+                        first = int(earliest[0])
+
+                        if first < 1000000000 or first >= util.year9999():
+                            first = None
+
+                        for item in artistless_result:
+                            artist_matches.append(util.compactaddendumfilter(item[1]))
+                    except:
+                        first = None
                     
             except Exception as e:
                 if str(e).startswith("no such table"):
@@ -1530,12 +1768,41 @@ class Music_Scrobbling(commands.Cog):
             emoji = util.emoji("disappointed")
             output_string = f"no has listened to this {wk_type} {emoji}"
 
+        while "" in artist_matches:
+            artist_matches.remove("")
+
+        match_info = ""
+
+        if len(artist_matches) > 0:
+            artist_matches_filtered = list(dict.fromkeys(artist_matches))
+            artist_matches_full = []
+
+            conSS = sqlite3.connect('databases/scrobblestats.db')
+            curSS = conSS.cursor()
+
+            for artist in artist_matches_filtered:
+                try:
+                    artistresult = curSS.execute("SELECT artist FROM artistinfo WHERE filtername = ? OR filteralias = ?", (artist,artist))
+                    rtuple = artistresult.fetchone()
+                    artist_wo = rtuple[0]
+                    artist_matches_full.append(artist_wo.lower())
+                except:
+                    artist_matches_full.append(artist.lower())
+
+            artist_matches_full.sort()
+            if len(artist_matches_full) == 1:
+                es = ""
+            else:
+                es = "es"
+                match_info = f" - {len(artist_matches_full)} artist matches"
+            output_string += f"\n`artist match{es}:` " + ', '.join(artist_matches_full)
+
         # EMBED
 
         header += f" : First {top} in {ctx.guild.name}"
         embed = discord.Embed(title=header[:256], description=output_string[:4096], color=0x800000)
         try:
-            embed.set_footer(text=f"{wk_type} - first scrobblers - {i} listeners")
+            embed.set_footer(text=f"{wk_type}{match_info} - first scrobblers - {i} listeners")
         except:
             pass
         try:
@@ -2839,7 +3106,7 @@ class Music_Scrobbling(commands.Cog):
         scrobble_count_total = scrobble_count_total_list[0]
         scrobbles_per_day_total = scrobble_count_total * (24*60*60) / total_timeframe
 
-        footer = f"total since account creation: {round(scrobbles_per_day_total,2)} scrobbles per day"
+        footer = f"since account creation: {round(scrobbles_per_day_total,2)} scrobbles per day"
 
         if len(args) > 0:
             if len(args) > 1:
@@ -3205,10 +3472,15 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _serverartists(self, ctx: commands.Context, *args):
-        """Top 100 artists on server
+        """Top artists on server
         """
 
-        await ctx.send("Under construction")
+        try:
+            async with ctx.typing():
+                argument = ' '.join(args)
+                await self.server_top(ctx, argument, "artist")
+        except Exception as e:
+            await self.lastfm_error_handler(ctx, e)
 
     @_serverartists.error
     async def serverartists_error(self, ctx, error):
@@ -3220,10 +3492,15 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _serveralbums(self, ctx: commands.Context, *args):
-        """Top 100 albums on server
+        """Top albums on server
         """
 
-        await ctx.send("Under construction")
+        try:
+            async with ctx.typing():
+                argument = ' '.join(args)
+                await self.server_top(ctx, argument, "album")
+        except Exception as e:
+            await self.lastfm_error_handler(ctx, e)
 
     @_serveralbums.error
     async def serveralbums_error(self, ctx, error):
@@ -3235,14 +3512,23 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _servertracks(self, ctx: commands.Context, *args):
-        """Top 100 tracks on server
+        """Top tracks on server
         """
 
-        await ctx.send("Under construction")
+        try:
+            async with ctx.typing():
+                argument = ' '.join(args)
+                await self.server_top(ctx, argument, "track")
+        except Exception as e:
+            await self.lastfm_error_handler(ctx, e)
 
     @_servertracks.error
     async def servertracks_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
+
+
+    # under construction: top artist / top albums / top tracks
 
 
 
@@ -3653,7 +3939,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _whoknowsunban(self, ctx: commands.Context, *args):
-        """🔒 ban user from being displayed on whoknows lists
+        """🔒 unban user from being displayed on whoknows lists
 
         """
 
