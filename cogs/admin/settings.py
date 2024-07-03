@@ -4440,6 +4440,14 @@ class Administration_of_Settings(commands.Cog):
             elif len(detailederrornotif_list) > 1:
                 print("Warning: Multiple detailed error reporting entries in serversettings table (botsettings.db)")
 
+            suppressbotspamedit_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("suppress botspam edit/delete",)).fetchall()]
+            if len(suppressbotspamedit_list) == 0:
+                curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("suppress botspam edit/delete", "on", "", ""))
+                conB.commit()
+                print("Updated serversettings table: suppress botspam edit/delete")
+            elif len(suppressbotspamedit_list) > 1:
+                print("Warning: Multiple suppress botspam edit/delete entries in serversettings table (botsettings.db)")
+
 
             # BOTSETTINGS DB: SPECIALROLES
 
@@ -4530,6 +4538,9 @@ class Administration_of_Settings(commands.Cog):
                             "bot" : "🤖",
                             "bouncy" : "⛹️",
                             "celebrate" : "🥳",
+                            "change_up": "🔺",
+                            "change_down": "🔻",
+                            "change_none": "🔹",
                             "cheer" : "😃",
                             "computer" : "💻",
                             "cover_eyes" : "🙈",
