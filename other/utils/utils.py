@@ -957,7 +957,8 @@ class Utils():
                 ordinal = Utils.ordinal_suffix(ctx_rank)
                 ctx_rank_string = f"[{ctx_rank}{ordinal}/{posuser_counter}]"
             else:
-                ctx_rank_string = ""
+                ordinal = Utils.ordinal_suffix(posuser_counter+1)
+                ctx_rank_string = f"[{posuser_counter+1}{ordinal}/{posuser_counter}]"
 
             # GET CROWN HOLDER
 
