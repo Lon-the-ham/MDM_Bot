@@ -1685,14 +1685,14 @@ class Music_Scrobbling(commands.Cog):
             i += 1
             j += 1
 
-            if j <= 15:    
+            if j <= 10:    
                 contents[k] = contents[k] + "\n" + line 
             else:
                 k = k+1
                 j = 1
                 contents.append(line)
 
-            if counter > 104:
+            if counter > 99:
                 break
 
         # SEND EMBED MESSAGE
