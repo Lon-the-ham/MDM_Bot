@@ -332,7 +332,7 @@ class Music_Scrobbling(commands.Cog):
             embed = discord.Embed(title="", description=description+loadingbar+f" 0%", color=0x000000)
             message = await ctx.reply(embed=embed, mention_author=False)
 
-        old_now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+            old_now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
         # FETCH NEW DATA
 
@@ -3195,6 +3195,7 @@ class Music_Scrobbling(commands.Cog):
 
         user_id = str(ctx.author.id)
         color = 0x9d2933
+        argument = ' '.join(args)
 
         # FETCH LASTFM NAME
 
@@ -3212,6 +3213,7 @@ class Music_Scrobbling(commands.Cog):
             return
 
         # TRY UPDATE
+        #if argument.strip().lower() in ["u", "update", "updat"]:
         try:
             if type(status) == str and status.startswith("scrobble_banned"):
                 raise ValueError(f"{lfm_name} is scrobble banned")
@@ -3278,7 +3280,11 @@ class Music_Scrobbling(commands.Cog):
 
         # MAKE EMBED
         if artist_count > 0:
-            text = f"`Artist:` {current_artist} - *{artist_count} plays*"
+            if artist_count > 1:
+                text = f"`Artist:` {current_artist} - *{artist_count} plays*"
+            else:
+                text = f"`Artist:` {current_artist} - *{artist_count} play*"
+
             if album_count > 1:
                 text += f"\n`Album:` {current_album} - *{album_count} plays*"
             if track_count > 1:
@@ -3292,6 +3298,9 @@ class Music_Scrobbling(commands.Cog):
                 text += "\n🔥"
         else:
             text = f"**{current_artist}** - {current_track}\nThis is just the start of your streak!"
+
+        if artist_count <= 1:
+            text += f"\nTry scrobbling multiple of the same artist, album or track in a row to get started!"
 
         footer = ""
         if update_happened:
