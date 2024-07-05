@@ -468,16 +468,17 @@ class Music_Scrobbling(commands.Cog):
                                 old_now = new_now
                         except Exception as e:
                             print("Error:", e)
-
-            for item_indexed in sorted(scrobble_list, key = lambda x : x[0]):
-                curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)
-            conFM.commit()
-            if argument.strip().startswith("--force"):
-                await self.reload_userdbs(lfm_name)
-            else:
-                self.releasewise_insert(lfm_name, item_dict)
-                self.trackwise_insert(lfm_name, track_dict)
-            await util.changetimeupdate()
+                            
+            if len(scrobble_list):
+                for item_indexed in sorted(scrobble_list, key = lambda x : x[0]):
+                    curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)
+                conFM.commit()
+                if argument.strip().startswith("--force"):
+                    await self.reload_userdbs(lfm_name)
+                else:
+                    self.releasewise_insert(lfm_name, item_dict)
+                    self.trackwise_insert(lfm_name, track_dict)
+                await util.changetimeupdate()
             print("done")
 
         except Exception as e:
