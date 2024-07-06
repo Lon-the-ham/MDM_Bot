@@ -949,7 +949,7 @@ class General_Utility(commands.Cog):
                     confidence = "?"
 
                 if extra_info:
-                    responsetext = f"`[Lang.: {original_language}, Conf.={confidence}]`\n"
+                    responsetext = f"`[Lang.: {original_language}, Conf.={confidence/100}]`\n"
                     responsetext += f'`Libre Translation result:` {translated_text}'
                 else:
                     responsetext = f'`Translation result:` {translated_text}'
