@@ -10,7 +10,8 @@ import json
 from bs4 import BeautifulSoup
 import random
 import math
-
+import functools
+import typing
 import traceback
 
 
@@ -39,6 +40,15 @@ class Music_Scrobbling(commands.Cog):
         self.prefix = os.getenv("prefix")
         self.tagseparator = " ‧ "
         self.loadingbar_width = 16
+
+
+
+    def to_thread(func: typing.Callable) -> typing.Coroutine:
+        """wrapper for blocking functions"""
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            return await asyncio.to_thread(func, *args, **kwargs)
+        return wrapper
 
 
 
@@ -140,6 +150,7 @@ class Music_Scrobbling(commands.Cog):
 
 
 
+    @to_thread 
     def releasewise_insert(self, lfm_name, item_dict):
         conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
         curFM2 = conFM2.cursor()
@@ -198,6 +209,7 @@ class Music_Scrobbling(commands.Cog):
 
 
 
+    @to_thread 
     def trackwise_insert(self, lfm_name, item_dict):
         conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
         curFM3 = conFM3.cursor()
@@ -476,9 +488,9 @@ class Music_Scrobbling(commands.Cog):
                 if argument.strip().startswith("--force"):
                     await self.reload_userdbs(lfm_name)
                 else:
-                    self.releasewise_insert(lfm_name, item_dict)
-                    self.trackwise_insert(lfm_name, track_dict)
-                await util.changetimeupdate()
+                    await self.releasewise_insert(lfm_name, item_dict)
+                    await self.trackwise_insert(lfm_name, track_dict)
+                #await util.changetimeupdate()
             print("done")
 
         except Exception as e:
@@ -493,7 +505,8 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    async def run_scrobbledata_sanitycheck(self, lfm_name, leeway):
+    @to_thread
+    def run_scrobbledata_sanitycheck(self, lfm_name, leeway):
         if type(leeway) == str:
             leeway = int(leeway)
 
@@ -512,6 +525,7 @@ class Music_Scrobbling(commands.Cog):
         i = 0
         sus = 0
         release_dict = {}
+        track_dict = {}
 
         for item in scrobbles:
             artist = item[0]
@@ -536,6 +550,7 @@ class Music_Scrobbling(commands.Cog):
 
             artist_compact = util.compactnamefilter(artist,"artist")
             album_compact = util.compactnamefilter(album,"album")
+            track_compact = util.compactnamefilter(track, "track")
 
             if (artist_compact,album_compact) in release_dict:
                 entry = release_dict[(artist_compact,album_compact)]
@@ -552,6 +567,22 @@ class Music_Scrobbling(commands.Cog):
                     release_dict[(artist_compact,album_compact)] = (prev_count + 1, uts, first_time)
             else:
                 release_dict[(artist_compact,album_compact)] = (1, uts, first_time)
+
+            if (artist_compact,track_compact) in track_dict:
+                entry = track_dict[(artist_compact,track_compact)]
+                prev_count = entry[0]
+                prev_time = entry[1]
+                prev_first = entry[2]
+
+                if first_time > prev_first:
+                    first_time = prev_first
+
+                if prev_time > uts:
+                    track_dict[(artist_compact,track_compact)] = (prev_count + 1, prev_time, first_time)
+                else:
+                    track_dict[(artist_compact,track_compact)] = (prev_count + 1, uts, first_time)
+            else:
+                track_dict[(artist_compact,track_compact)] = (1, uts, first_time)
 
             # assign for next itereration
             prev_artist = artist
@@ -579,11 +610,25 @@ class Music_Scrobbling(commands.Cog):
             curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist, album, count, time, first))
         conFM2.commit()
 
+        conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+        curFM3 = conFM2.cursor()
+        curFM3.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, track_name text, count integer, last_time integer)")
+        curFM3.execute(f"DELETE FROM [{lfm_name}]")
+        for k,v in track_dict.items():
+            artist = k[0]
+            track = k[1]
+            count = v[0]
+            time = v[1]
+            first = v[2]
+            curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist, track, count, time, first))
+        conFM2.commit()
+
         return len(scrobbles), len(new_scrobbles), sus
 
 
 
-    async def reload_userdbs(self, lfm_name):
+    @to_thread
+    def reload_userdbs(self, lfm_name):
         print(f"Try summarising {lfm_name} data")
         i = 0
         try:
@@ -1407,103 +1452,8 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    async def server_top(self, ctx, argument, wk_type):
-        # top artist/album/track on server
-
-        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
-
-        # PARSE TIME
-
-        timedict = {
-            "d":     24*60*60,
-            "day":   24*60*60,
-            "daily": 24*60*60,
-            "w":      7*24*60*60,
-            "week":   7*24*60*60,
-            "weekly": 7*24*60*60,
-            "f":           14*24*60*60,
-            "fortnite":    14*24*60*60,
-            "fortnight":   14*24*60*60,
-            "fortnightly": 14*24*60*60,
-            "b":           14*24*60*60,
-            "biweek":      14*24*60*60,
-            "biweekly":    14*24*60*60,
-            "m":       30*24*60*60,
-            "month":   30*24*60*60,
-            "monthly": 30*24*60*60,
-            "q":         90*24*60*60,
-            "quarter":   90*24*60*60,
-            "quarterly": 90*24*60*60,
-            "h":          180*24*60*60,
-            "half":       180*24*60*60,
-            "halfyear":   180*24*60*60,
-            "halfyearly": 180*24*60*60,
-            "y":      365*24*60*60,
-            "year":   365*24*60*60,
-            "yearly": 365*24*60*60,
-            "a":        now,
-            "all":      now,
-            "alltime":  now,
-            "all-time": now,
-        }
-
-        time_text_dict = {
-            24*60*60    : " past 24h",
-            7*24*60*60  : " past week",
-            14*24*60*60 : " past two weeks",
-            30*24*60*60 : " past 30 days",
-            90*24*60*60 : " past quarter",
-            180*24*60*60: " past half year",
-            365*24*60*60: " past year",
-            now         : " (all time)",
-        }
-
-        args = argument.split()
-
-        for arg in args:
-            if arg.strip().lower() in timedict:
-                timelength = timedict[arg.strip().lower()]
-                timeargument = arg.strip().lower()
-                break
-        else:
-            timelength = 7*24*60*60
-            timeargument = "week"
-
-        time_text = time_text_dict.get(timelength, "")
-
-        # PARSE SORTING
-
-        sortingrule_dict = {
-            "l" :         "l",
-            "listen" :    "l",
-            "listener" :  "l",
-            "listeners" : "l",
-            "p" :         "p",
-            "play" :      "p",
-            "plays" :     "p",
-            "scrobble" :  "p",
-            "scrobbles" : "p",
-            "s" :         "c",
-            "score" :     "c", 
-            "c" :         "c",
-            "com" :       "c",
-            "combi" :     "c",
-            "combination":"c",
-            "mix" :       "c",
-            "mixed" :     "c",
-        }
-
-        for arg in args:
-            if arg.strip().lower() in sortingrule_dict:
-                sortingrule = sortingrule_dict[arg.strip().lower()]
-                break
-        else:
-            sortingrule = "c"
-
-
-
-        # GET LASTFM DATA
-
+    @to_thread 
+    def server_top_fetch(self, ctx, wk_type, now, timeargument, timelength, sortingrule):
         con = sqlite3.connect('databases/npsettings.db')
         cur = con.cursor()
         lfm_list = [[item[0],item[1],str(item[2]).lower().strip()] for item in cur.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
@@ -1644,8 +1594,109 @@ class Music_Scrobbling(commands.Cog):
             scrobble_list.sort(key = lambda x: x[2], reverse = True)
             scrobble_list.sort(key = lambda x: x[1], reverse = True)
         else:
-            await ctx.send("Error with sorting rule argument.")
+            raise ValueError("Error with sorting rule argument.")
             return
+
+        return scrobble_list, clearname_dict, previous_listener_dict, total_plays, factor
+
+
+
+    async def server_top(self, ctx, argument, wk_type):
+        # top artist/album/track on server
+
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        # PARSE TIME
+
+        timedict = {
+            "d":     24*60*60,
+            "day":   24*60*60,
+            "daily": 24*60*60,
+            "w":      7*24*60*60,
+            "week":   7*24*60*60,
+            "weekly": 7*24*60*60,
+            "f":           14*24*60*60,
+            "fortnite":    14*24*60*60,
+            "fortnight":   14*24*60*60,
+            "fortnightly": 14*24*60*60,
+            "b":           14*24*60*60,
+            "biweek":      14*24*60*60,
+            "biweekly":    14*24*60*60,
+            "m":       30*24*60*60,
+            "month":   30*24*60*60,
+            "monthly": 30*24*60*60,
+            "q":         90*24*60*60,
+            "quarter":   90*24*60*60,
+            "quarterly": 90*24*60*60,
+            "h":          180*24*60*60,
+            "half":       180*24*60*60,
+            "halfyear":   180*24*60*60,
+            "halfyearly": 180*24*60*60,
+            "y":      365*24*60*60,
+            "year":   365*24*60*60,
+            "yearly": 365*24*60*60,
+            "a":        now,
+            "all":      now,
+            "alltime":  now,
+            "all-time": now,
+        }
+
+        time_text_dict = {
+            24*60*60    : " past 24h",
+            7*24*60*60  : " past week",
+            14*24*60*60 : " past two weeks",
+            30*24*60*60 : " past 30 days",
+            90*24*60*60 : " past quarter",
+            180*24*60*60: " past half year",
+            365*24*60*60: " past year",
+            now         : " (all time)",
+        }
+
+        args = argument.split()
+
+        for arg in args:
+            if arg.strip().lower() in timedict:
+                timelength = timedict[arg.strip().lower()]
+                timeargument = arg.strip().lower()
+                break
+        else:
+            timelength = 7*24*60*60
+            timeargument = "week"
+
+        time_text = time_text_dict.get(timelength, "")
+
+        # PARSE SORTING
+
+        sortingrule_dict = {
+            "l" :         "l",
+            "listen" :    "l",
+            "listener" :  "l",
+            "listeners" : "l",
+            "p" :         "p",
+            "play" :      "p",
+            "plays" :     "p",
+            "scrobble" :  "p",
+            "scrobbles" : "p",
+            "s" :         "c",
+            "score" :     "c", 
+            "c" :         "c",
+            "com" :       "c",
+            "combi" :     "c",
+            "combination":"c",
+            "mix" :       "c",
+            "mixed" :     "c",
+        }
+
+        for arg in args:
+            if arg.strip().lower() in sortingrule_dict:
+                sortingrule = sortingrule_dict[arg.strip().lower()]
+                break
+        else:
+            sortingrule = "c"
+
+        # GET LASTFM DATA
+
+        scrobble_list, clearname_dict, previous_listener_dict, total_plays, factor = await self.server_top_fetch(ctx, wk_type, now, timeargument, timelength, sortingrule)
 
         # EMBED
 
@@ -2575,10 +2626,10 @@ class Music_Scrobbling(commands.Cog):
         if wk_type not in ["artist", "album", "track"]:
             different_artists = []
             for item in countlist:
-                diff_artist = item.split("** - ")[0]
+                diff_artist = item[0].split("** - ")[0]
                 if diff_artist not in different_artists:
                     different_artists.append(diff_artist)
-            footer += f" {len(different_artists)} artists"
+            footer += f" - {len(different_artists)} artists"
 
         header = f"{user_display_name}"[:253-len(header)] + "'s " + header
         color = user_color
@@ -2609,6 +2660,8 @@ class Music_Scrobbling(commands.Cog):
 
 
     ##################################################### COMMANDS #################################################################
+
+
 
     async def individual_scrobble_update(self, ctx, lfm_name, argument, send_message, *cooldown_checked):
 
@@ -2709,7 +2762,7 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    @commands.command(name='reloadrwdb', aliases = ["reloadreleasewisedb"])
+    @commands.command(name='reloaddbs', aliases = ["reloadreleasewisedb", "reloadrwdb"])
     @commands.has_permissions(manage_guild=True)
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_main_server)
@@ -2727,7 +2780,7 @@ class Music_Scrobbling(commands.Cog):
             reindex = False
 
         async with ctx.typing():
-            await ctx.send("Warning: Bot functionality might be blocked until finished.")
+            await ctx.send("Warning: This might take a while!")
 
             cooldown_list = util.check_active_scrobbleupdate()
             if len(cooldown_list) > 0:
@@ -3171,6 +3224,49 @@ class Music_Scrobbling(commands.Cog):
         await util.error_handling(ctx, error) 
 
 
+
+    @commands.command(name='cover', aliases = ["co", "cov", "albumart", "albumcover"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _cover(self, ctx: commands.Context, *args):
+        """Shows lastfm stats
+        """
+        await ctx.send("under construction")
+
+        return
+
+        # download and upload picture instead
+        # check for nsfw and spoiler in that case 
+
+        color = 0x880000
+        argument = ' '.join(args)
+
+        try:
+            artist, album, thumbnail, tags = await self.wk_album_match(ctx, argument)
+            header = util.compactaddendumfilter(artist,"artist") + " - " + util.compactaddendumfilter(album,"album")
+        except Exception as e:
+            if str(e) == "Could not parse artist and album.":
+                #artistless_albummatch
+                artist = ""
+                thumbnail = ""
+                tags = []
+                album = argument.upper()
+                header = "Album: " + util.compactaddendumfilter(album,"album")
+            else:
+                raise ValueError(f"while parsing artist/album - {e}")
+                return
+
+        text = f"{artist} - {album}"
+        embed = discord.Embed(title="", description=text, color=color)
+
+        await ctx.send(thumbnail)
+        await ctx.send(embed=embed)
+
+    @_cover.error
+    async def cover_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
     
     @commands.command(name='stats', aliases = ["stat"])
     @commands.check(ScrobblingCheck.scrobbling_enabled)
@@ -3256,6 +3352,8 @@ class Music_Scrobbling(commands.Cog):
         current_album_compact = util.compactnamefilter(scrobbles[0][1])
         current_track_compact = util.compactnamefilter(scrobbles[0][2])
 
+        starttime = ""
+
         for scrobble in scrobbles:
             compact_artist = util.compactnamefilter(scrobble[0])
 
@@ -3279,6 +3377,8 @@ class Music_Scrobbling(commands.Cog):
             if continue_track_count:
                 track_count += 1
 
+            starttime = "\nstarted <t:" + str(scrobble[3]) + ":R>"
+
         # MAKE EMBED
         if artist_count > 0:
             if artist_count > 1:
@@ -3295,13 +3395,16 @@ class Music_Scrobbling(commands.Cog):
                 text += "\n🔥🔥🔥"
             elif artist_count > 49:
                 text += "\n🔥🔥"
-            elif artist_count > 9:
+            elif artist_count > 24:
                 text += "\n🔥"
         else:
+            # shouldn't happen
             text = f"**{current_artist}** - {current_track}\nThis is just the start of your streak!"
 
         if artist_count <= 1:
-            text += f"\nTry scrobbling multiple of the same artist, album or track in a row to get started!"
+            text += f"\nTry scrobbling multiple of the same artist, album or track in a row!\n"
+
+        text += starttime
 
         footer = ""
         if update_happened:
@@ -3334,16 +3437,66 @@ class Music_Scrobbling(commands.Cog):
 
 
 
+    async def fetch_streak_history(self, ctx):
+        user_id = str(ctx.author.id)
+        color = 0x9d2933
+        argument = ' '.join(args)
+
+        # FETCH LASTFM NAME
+
+        conNP = sqlite3.connect('databases/npsettings.db')
+        curNP = conNP.cursor()
+
+        try:
+            result = curNP.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (user_id,)).fetchone()
+            lfm_name = result[0]
+            status = result[1]
+        except Exception as e:
+            print(e)
+            emoji = util.emoji("disappointed")
+            await ctx.send(f"Error: Could not find your lastfm username. {emoji}\nUse `{self.prefix}setfm` to set your username first, and then use `{self.prefix}u` to load your scrobbles into the bot's database.")
+            return
+
+        # GET SCROBBLES
+
+        conFM = sqlite3.connect('databases/scrobbledata.db')
+        curFM = conFM.cursor()
+
+        scrobbles = [[item[0],item[1],item[2],item[3]] for item in curFM.execute(f"SELECT artist_name, album_name, track_name, date_uts FROM [{lfm_name}] ORDER BY date_uts DESC").fetchall()]
+        
+        if len(scrobbles) == 0:
+            await ctx.send("You haven't imported any scrobbles.")
+            return
+
+        await ctx.send("under construction")
+
+
+
     @_streak.command(name="history", aliases = ["all"], pass_context=True)
     @commands.check(util.is_active)
     @commands.check(util.is_main_server)
     async def _streak_history(self, ctx, *args):
-        """show streak history"""
+        """Show streak history"""
 
-        await ctx.send("under construction")
+        await self.fetch_streak_history(ctx)
 
     @_streak_history.error
     async def streak_history_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='streaks', aliases = ["streakhistory"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _streaks(self, ctx: commands.Context, *args):
+        """Show streak history
+        """
+
+        await self.fetch_streak_history(ctx)
+
+    @_streaks.error
+    async def streaks_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
