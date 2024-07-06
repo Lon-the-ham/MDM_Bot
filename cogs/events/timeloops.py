@@ -1231,6 +1231,7 @@ class TimeLoops(commands.Cog):
 
             try:
                 await user.edit(roles=[inactivity_role])
+                #new_inactives_mention_list.append(f"<@{str(user.id)}> ({user.name})")
                 new_inactives_mention_list.append(f"<@{str(user.id)}>")
                 print(f"{user.name} was deemed inactive")
 
@@ -1252,6 +1253,7 @@ class TimeLoops(commands.Cog):
                     print(f"Error with changing NP settings ({user.name}):", e)
             except Exception as e:
                 error_count += 1
+                #error_users.append(f"<@{user.id}> ({user.name})")
                 error_users.append(f"<@{user.id}>")
                 print(f"Error with user {user.name}:", e)
                 continue
