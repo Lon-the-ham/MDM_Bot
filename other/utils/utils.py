@@ -508,7 +508,12 @@ class Utils():
                 intermediate_string = input_string
 
             # get rid of non-alphanumeric
-            intermediate_string = ''.join([x for x in intermediate_string.upper() if x.isalnum()])
+            filtered_string = ''.join([x for x in intermediate_string.upper() if x.isalnum()])
+
+            if filtered_string == "":
+                return intermediate_string
+            else:
+                intermediate_string = filtered_string
 
             # adapt accents
             diacritics = {
@@ -3204,7 +3209,7 @@ class Utils():
 
     async def scrobble_update(lfm_name, allow_from_scratch):
         def to_thread(func: typing.Callable) -> typing.Coroutine:
-            """wrapper for blocking functions, seems to not properly work though"""
+            """wrapper for blocking functions"""
             @functools.wraps(func)
             async def wrapper(*args, **kwargs):
                 return await asyncio.to_thread(func, *args, **kwargs)
