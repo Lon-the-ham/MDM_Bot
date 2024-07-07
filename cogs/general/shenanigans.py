@@ -162,7 +162,7 @@ class Shenanigans(commands.Cog):
         > `sudo` [3 args](2 mandatory args: commandname, response 1; 1 optional arg: response 2)
 
         E.g.
-        `-addshenanigan sudo make me a sandwich;; ok here;; 🥪`
+        `<prefix>addshenanigan sudo make me a sandwich;; ok here;; 🥪`
         """
         if len(args) < 2:
             await ctx.send("Command needs more arguments.")
@@ -367,7 +367,7 @@ class Shenanigans(commands.Cog):
         Second argument needs to be the id.
 
         E.g.
-        `-removeshenanigan sudo 12`
+        `<prefix>removeshenanigan sudo 12`
         """
         if len(args) < 2:
             await ctx.send("Command needs more arguments.")

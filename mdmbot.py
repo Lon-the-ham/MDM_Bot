@@ -9,6 +9,7 @@ from discord.ext import commands
 import asyncio
 import sqlite3
 from other.utils.utils import Utils as util
+import traceback
 
 
 
@@ -52,11 +53,34 @@ class YataBot(commands.Bot):
             "cogs.userown.memo",
             "cogs.userown.pingterest",
             ]
+        self.optional_extensions = ["cogs.sandbox"]
 
 
     async def setup_hook(self):
+        # loading cogs
         for ext in self.initial_extensions:
             await self.load_extension(ext)
+
+        # loading optional cogs
+        for ext in self.optional_extensions:
+            try:
+                await self.load_extension(ext)
+                print("loaded", str(ext))
+            except Exception as e:
+                print(f"did not load extension {str(ext)}")
+                try:
+                    if f"Extension '{ext}' raised an error:" in str(traceback.format_exc()):
+                        reason = str(traceback.format_exc()).split(f"Extension '{ext}' raised an error:")[-1].strip()
+                    else:
+                        reason = str(traceback.format_exc()).strip().split("\n")[-1].strip()
+                    if reason.endswith(f"discord.ext.commands.errors.ExtensionNotFound: Extension '{ext}' could not be loaded."):
+                        pass
+                    else:
+                        print(f"> {reason}")
+                except:
+                    pass
+
+        # putting together
         await bot.tree.sync(guild = discord.Object(id = guild_id))
 
 
@@ -151,8 +175,6 @@ class YataBot(commands.Bot):
                     conC.commit()
                 except Exception as e:
                     print(f"Error while trying to clear cooldown database - user requests table: {e}")
-
-                # under construction: clear info wheather updating process is taking place at the moment
 
                 # CLEAR TEMP FOLDER
 

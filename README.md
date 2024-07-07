@@ -10,7 +10,7 @@ The main difference to other discord bots is that you can host multiple instance
 
 ### First time pi installs:
 
-After you had the raspberry pi imager configure the SD card and you successfully connected it to your wifi, ssh into your raspi and use the update commands to get update your system and python to the latest version by using these commands in your console:
+After you had the raspberry pi imager configure the SD card and you successfully connected it to your wifi, ssh into your raspi and use the update commands to update your system and python to the latest version by using these commands in your console:
 
 > sudo apt-get update
   

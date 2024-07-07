@@ -261,13 +261,13 @@ class Roles(commands.Cog):
     async def _role(self, ctx, *args):
         """Assign/unassign role
 
-        Use the role name, id or mention. Only roles that appear in `-roles` are assignable.
+        Use the role name, id or mention. Only roles that appear in `<prefix>roles` are assignable.
         You can also assign multiple roles at once, but they have to be either role ids/mentions OR role names separated by semicolons.
-        i.e. `-role <role name1>; <role name2>; <role name3>`.
+        i.e. `<prefix>role <role name1>; <role name2>; <role name3>`.
         
-        Moderators can assign all roles without extra-permissions. To assign roles with extra permissions use `-designate`.
+        Moderators can assign all roles without extra-permissions. To assign roles with extra permissions use `<prefix>designate`.
         To assign roles to other users use @user mentions (must NOT be id!), 
-        i.e. `-role <@user mention> <role name>`.
+        i.e. `<prefix>role <@user mention> <role name>`.
         """        
         if len(args) < 1:
             await ctx.send("Error: Command needs a role argument.")
@@ -285,13 +285,13 @@ class Roles(commands.Cog):
     async def _assign(self, ctx, *args):
         """Assign role
 
-        Use the role name, id or mention. Only roles that appear in `-roles` are assignable.
+        Use the role name, id or mention. Only roles that appear in `<prefix>roles` are assignable.
         You can also assign multiple roles at once, but they have to be either role ids/mentions OR role names separated by semicolons.
-        i.e. `-assign <role name1>; <role name2>; <role name3>`.
+        i.e. `<prefix>assign <role name1>; <role name2>; <role name3>`.
         
-        Moderators can assign all roles without extra-permissions. To assign roles with extra permissions use `-designate`.
+        Moderators can assign all roles without extra-permissions. To assign roles with extra permissions use `<prefix>designate`.
         To assign roles to other users use @user mentions (must NOT be id!), 
-        i.e. `-assign <@user mention> <role name>`.
+        i.e. `<prefix>assign <@user mention> <role name>`.
         """        
         if len(args) < 1:
             await ctx.send("Error: Command needs a role argument.")
@@ -309,13 +309,13 @@ class Roles(commands.Cog):
     async def _unassign(self, ctx, *args):
         """Unassign role
 
-        Use the role name, id or mention. Only roles that appear in `-roles` are unassignable.
+        Use the role name, id or mention. Only roles that appear in `<prefix>roles` are unassignable.
         You can also unassign multiple roles at once, but they have to be either role ids/mentions OR role names separated by semicolons.
-        i.e. `-unassign <role name1>; <role name2>; <role name3>`.
+        i.e. `<prefix>unassign <role name1>; <role name2>; <role name3>`.
         
         Moderators can unassign all roles without extra-permissions.
         To unassign roles from other users use @user mentions (must NOT be id!), 
-        i.e. `-unassign <@user mention> <role name>`.
+        i.e. `<prefix>unassign <@user mention> <role name>`.
         """        
         if len(args) < 1:
             await ctx.send("Error: Command needs a role argument.")
@@ -334,7 +334,7 @@ class Roles(commands.Cog):
     async def _designate(self, ctx, *args):
         """🔒 Assign/unassign role with perms
 
-        Use `-designate <@user mention> <role name>`.
+        Use `<prefix>designate <@user mention> <role name>`.
         """     
         if len(args) < 2:
             await ctx.send("Error: Command needs a user and role argument.")
@@ -805,7 +805,7 @@ class Roles(commands.Cog):
     async def _perms(self, ctx, *args):
         """🔒 Permissions of a user/role
 
-        This is a combined command of `-userperms` and `-roleperms`. 
+        This is a combined command of `<prefix>userperms` and `<prefix>roleperms`. 
         Command only works with @mention."""
         if len(args) == 0:
             await ctx.send("Command needs a @user or @role mention as argument.")
@@ -855,7 +855,7 @@ class Roles(commands.Cog):
     async def _rolecolor(self, ctx, *args):
         """🔒 Change role color
 
-        Use `-rolecol <role id or name> #<HEX code>`.
+        Use `<prefix>rolecol <role id or name> #<HEX code>`.
         Write `#` without code for no color."""
 
         # PARSE ARGUMENTS
@@ -920,7 +920,7 @@ class Roles(commands.Cog):
     async def _newrole(self, ctx, *args):
         """🔒 Creates permissionless role
 
-        Use `-newrole <new role name> #<HEX color> <category name>` to create new role.
+        Use `<prefix>newrole <new role name> #<HEX color> <category name>` to create new role.
         Category and Hex code are optional, but if you want to provide them you need to provide both. 
         (Categories cannot have spaces use underscores instead.)
 

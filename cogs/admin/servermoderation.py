@@ -327,14 +327,14 @@ class Administration_of_Server(commands.Cog):
         Everything else will be read as mute reason.
 
         E.g.:
-        Write `-mute <@id>` to mute a user indefinitely.
-        Write `-mute <@id> <time>` to mute user for given time, where <time> has to be in the format: <integer><unit>
+        Write `<prefix>mute <@id>` to mute a user indefinitely.
+        Write `<prefix>mute <@id> <time>` to mute user for given time, where <time> has to be in the format: <integer><unit>
 
         *Valid time units are: min, hour(s), day(s), week(s), month(s)
         and can also be combined 
-        i.e. `-mute <@id> 1 day 6 hours`.
+        i.e. `<prefix>mute <@id> 1 day 6 hours`.
         Alternatively, use `until` to set end of mute to a specific time via UNIX timestamp,
-        i.e. `-mute <@id> until 1735771908`.
+        i.e. `<prefix>mute <@id> until 1735771908`.
         """
         if len(args) < 1:
             await ctx.send("Error: Missing arguments.")
@@ -665,7 +665,7 @@ class Administration_of_Server(commands.Cog):
     async def _batchban(self, ctx, *args):
         """🔒 Bans multiple users
         
-        Use `-batchban <optional: reason>` and attach a txt file with 1 id per row.
+        Use `<prefix>batchban <optional: reason>` and attach a txt file with 1 id per row.
 
         (Users banned via batchban do not receive a notification even if the penalty notifer is enabled and they are full members, i.e. are verified/have community role etc. depending on settings.)
         """
@@ -708,6 +708,114 @@ class Administration_of_Server(commands.Cog):
 
 
 
+    @commands.command(name='purge', aliases = ['delmsg'])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _purge(self, ctx: commands.Context, *args):
+        """🔒 Deletes given number of messages from channel (Limit 100)
+        
+        Use i.e. `<prefix>purge 5`
+
+        Specify argument `nonbulk` or `nb` for short, so messages are deleted one by one. This will help if you have message deletion notification enabled, so all messages are shown in the botspam channel.
+        Note that non-bulk purges can also delete messages older than 14 days (and the limit is raised to 1000). The default purge cannot do that.
+
+        Specify argument(s) @user mention or user ID, so only messages of that user(s) will be deleted (the given number reflects the number of messages checked, not messages deleted then!)
+        """
+        def is_specified(m):
+            return (m.author.id in user_specified)
+
+        # PARSE SPECIFIER ARGUMENTS
+
+        arguments = []
+        for arg in args:
+            arguments.append(arg.lower().strip())
+
+        nonbulk = False
+        if "nonbulk" in arguments:
+            arguments.remove("nonbulk")
+            nonbulk = True
+        elif "nb" in arguments:
+            arguments.remove("nb")
+            nonbulk = True
+        elif "non-bulk" in arguments:
+            arguments.remove("non-bulk")
+            nonbulk = True
+
+        user_specified = []
+        arguments2 = []
+        for arg in arguments:
+            if arg.startswith("<@") and arg.endswith(">"):
+                arg2 = arg[2:-1]
+            else:
+                arg2 = arg
+
+            if len(arg2) > 17 and util.represents_integer(arg2):
+                try:
+                    user_id = int(arg2)
+                    user_specified.append(user_id)
+                except Exception as e:
+                    print("Error:", e)
+
+            else:
+                arguments2.append(arg)
+
+        if len(args) == 0:
+            await ctx.send("Command needs integer argument.")
+            return
+
+        await ctx.message.delete()
+
+        # PARSE NUMBER ARGUMENT
+
+        try:
+            limit = int(arguments2[0])
+
+            if nonbulk:
+                if limit > 1000:
+                    limit = 1000
+                    print("reduced amount to 1000")
+            else:
+                if limit > 100:
+                    limit = 100
+                    print("reduced amount to 100")
+            if limit < 1:
+                raise ValueError("Limit must be an integer > 0.")
+        except  Exception as e:
+            print("Error:", e)
+            await ctx.send("Error with given integer argument.")
+            return
+
+        # FETCH AND DELETE
+
+        if nonbulk and len(user_specified) == 0:
+            messages = [msg async for msg in ctx.channel.history(limit=limit)]
+            for message in reversed(messages):
+                await message.delete()
+            print("non-bulk delete: done")
+
+        elif nonbulk:
+            messages = [msg async for msg in ctx.channel.history(limit=limit) if (msg.author.id in user_specified)]
+            for message in reversed(messages):
+                await message.delete()
+            print("user specified non-bulk delete: done")
+            print(user_specified)
+
+        elif len(user_specified) == 0:
+            await ctx.channel.purge(limit=limit)
+            print("bulk delete: done")
+
+        else:
+            await ctx.channel.purge(limit=limit, check = is_specified)
+            print("user specified bulk delete: done")
+            print(user_specified)
+
+    @_purge.error
+    async def purge_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
     @commands.command(name='verify', aliases = ['verifying'])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
@@ -715,7 +823,7 @@ class Administration_of_Server(commands.Cog):
     async def _verify(self, ctx: commands.Context, *args):
         """🔒 Verifies user
         
-        Use `-verify <user_id or @mention>` to remove gate-role, add verified-role and put a welcome message in general channel.
+        Use `<prefix>verify <user_id or @mention>` to remove gate-role, add verified-role and put a welcome message in general channel.
         You can put as additional argument "nomsg" to leave out the last step and verify them without a welcome message.
         """
         if len(args) < 1:
@@ -922,7 +1030,7 @@ class Administration_of_Server(commands.Cog):
     async def _winterspurge(self, ctx: commands.Context, *args):
         """🔒 Kick accesswall dwellers
 
-        Use `-yeetaw <number>` to kick all users who are for at least <number> days in access wall channel without being verified.
+        Use `<prefix>yeetaw <number>` to kick all users who are for at least <number> days in access wall channel without being verified.
         Without a specified <number> the bot will assume <number>=7.
         """
 

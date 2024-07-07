@@ -36,7 +36,27 @@ class Music_NowPlaying(commands.Cog):
                 # FETCH ARTIST/ALBUM/SONG INFORMATION
 
                 try:
-                    if "-" in str(activity.details):
+                    if "ꜰʀᴏᴍ " in util.cleantext2(activity.state):
+                        if " - " in str(activity.details):
+                            details = activity.details.split(" - ", 1)
+                        else:
+                            details = activity.details.split("-", 1)
+                        artist = util.cleantext2(details[0].strip())
+                        song = util.cleantext2(details[1].strip())
+                        try:
+                            album = util.cleantext2(activity.state).split("ꜰʀᴏᴍ ")[1]
+                        except:
+                            album = ""
+                        artist_rep = artist.replace(" ","+")
+                        song_rep = title.replace(" ","+")
+                        lfm_link = f"https://www.last.fm/music/{artist_rep}/_/{song_rep}".replace("\\", "")
+
+                        if album.strip() != "":
+                            description = f"[{song}]({lfm_link})\nby **{artist}** | {album}"
+                        else:
+                            description = f"[{song}]({lfm_link})\nby **{artist}**"
+
+                    elif "-" in str(activity.details):
                         if " - " in str(activity.details):
                             details = activity.details.split(" - ", 1)
                         else:
@@ -83,7 +103,7 @@ class Music_NowPlaying(commands.Cog):
                     try:
                         tag_string = await self.fetch_tags(ctx, "musicbee", artist, album, song, None, None, called_services, custom, str(member.id))
                         try:
-                            embed.set_footer(text = tag_string)
+                            embed.set_footer(text = tag_string.strip())
                         except Exception as e:
                             print("Error while creating footer for musicbee np: ", e)
                     except Exception as e:
@@ -136,9 +156,20 @@ class Music_NowPlaying(commands.Cog):
 
                     # FETCH ARTIST/ALBUM/SONG INFORMATION
                     try:
-                        artist = util.cleantext2(activity.details.split(" - ", 1)[0].strip())
-                        song = util.cleantext2(activity.details.split(" - ", 1)[1].strip())
-                        album = util.cleantext2(activity.state.split("on ", 1)[1].strip())
+                        try:
+                            artist = util.cleantext2(activity.details.split(" - ", 1)[0].strip())
+                            song = util.cleantext2(activity.details.split(" - ", 1)[1].strip())
+                            album = util.cleantext2(activity.state.split("on ", 1)[1].strip())
+                        except:
+                            try:
+                                artist = util.cleantext2(activity.state.split(" — ", 1)[0].strip())
+                                song = util.cleantext2(activity.details.strip())
+                                album = util.cleantext2(activity.state.split(" — ", 1)[1].strip())
+                            except:
+                                artist = util.cleantext2(activity.state.strip())
+                                song = util.cleantext2(activity.details.strip())
+                                album = ""
+
 
                         try:
                             song_url = f"https://music.apple.com/us/search?term={artist}%20{album}%20{song}".replace(" ","%20").replace("\\", "")
@@ -188,7 +219,7 @@ class Music_NowPlaying(commands.Cog):
                         try:
                             tag_string = await self.fetch_tags(ctx, "applemusic", artist, album, song, None, None, called_services, custom, str(member.id))
                             try:
-                                embed.set_footer(text = tag_string)
+                                embed.set_footer(text = tag_string.strip())
                             except Exception as e:
                                 print("Error while creating footer for applemusic np: ", e)
                         except Exception as e:
@@ -213,7 +244,7 @@ class Music_NowPlaying(commands.Cog):
                         try:
                             tag_string = await self.fetch_tags(ctx, "unspecified", artist, album, song, None, None, called_services, custom, str(member.id))
                             try:
-                                embed.set_footer(text = tag_string)
+                                embed.set_footer(text = tag_string.strip())
                             except Exception as e:
                                 print("Error while creating footer for unspecified player np (probably applemusic): ", e)
                         except Exception as e:
@@ -297,7 +328,7 @@ class Music_NowPlaying(commands.Cog):
                     tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, musicbrainz_ids, called_services, custom, str(member.id))
                     try:
                         if tag_string != "":
-                            embed.set_footer(text = tag_string)
+                            embed.set_footer(text = tag_string.strip())
                     except Exception as e:
                         print("Error while creating footer for spotify tags and listener stats: ", e)
                 except Exception as e:
@@ -420,7 +451,7 @@ class Music_NowPlaying(commands.Cog):
             try:
                 tag_string = await self.fetch_tags(ctx, "lastfm", artist, album, song, None, None, called_services, custom, str(member.id))
                 try:
-                    embed.set_footer(text = tag_string)
+                    embed.set_footer(text = tag_string.strip())
                 except Exception as e:
                     print("Error while creating footer for spotify tags and listener stats: ", e)
             except Exception as e:
@@ -454,7 +485,7 @@ class Music_NowPlaying(commands.Cog):
                     try:
                         tag_string = await self.fetch_tags(ctx, "spotify", artist, album, song, track_id, None, called_services, custom, str(member.id))
                         try:
-                            embed.set_footer(text = tag_string)
+                            embed.set_footer(text = tag_string.strip())
                         except Exception as e:
                             print("Error while creating footer for spotify tags and listener stats: ", e)
                     except Exception as e:
@@ -851,6 +882,9 @@ class Music_NowPlaying(commands.Cog):
             conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
             curFM2 = conFM2.cursor()
 
+            conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+            curFM3 = conFM3.cursor()
+
             conSS = sqlite3.connect('databases/scrobblestats.db')
             curSS = conSS.cursor()
 
@@ -888,7 +922,7 @@ class Music_NowPlaying(commands.Cog):
 
                 if lastfm_artistscrobbles == "on":
                     try:
-                        result = curFM2.execute(f"SELECT SUM(count) FROM [{lfm_name}] WHERE artist_name = ?", (util.compactnamefilter(subst_artist),))
+                        result = curFM2.execute(f"SELECT SUM(count) FROM [{lfm_name}] WHERE artist_name = ?", (util.compactnamefilter(subst_artist,"artist"),))
                         rtuple = result.fetchone()
                         try:
                             artistcount = int(rtuple[0])
@@ -905,7 +939,7 @@ class Music_NowPlaying(commands.Cog):
                 
                 if lastfm_albumscrobbles == "on" and album.strip() != "":
                     try:
-                        result = curFM2.execute(f"SELECT count FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (util.compactnamefilter(subst_artist),util.compactnamefilter(album)))
+                        result = curFM2.execute(f"SELECT count FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (util.compactnamefilter(subst_artist,"artist"),util.compactnamefilter(album,"album")))
                         rtuple = result.fetchone()
                         try:
                             albumcount = int(rtuple[0])
@@ -927,7 +961,8 @@ class Music_NowPlaying(commands.Cog):
 
                 if lastfm_trackscrobbles == "on":
                     try:
-                        result = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (subst_artist,song))
+                        result = curFM3.execute(f"SELECT count FROM [{lfm_name}] WHERE artist_name = ? AND track_name = ?", (util.compactnamefilter(subst_artist,"artist"),util.compactnamefilter(song,"track")))
+                        #result = curFM.execute(f"SELECT COUNT(id) FROM [{lfm_name}] WHERE {util.compact_sql('artist_name')} = {util.compact_sql('?')} AND {util.compact_sql('track_name')} = {util.compact_sql('?')}", (subst_artist,song))
                         rtuple = result.fetchone()
                         try:
                             trackcount = int(rtuple[0])
@@ -973,7 +1008,11 @@ class Music_NowPlaying(commands.Cog):
             else:
                 user_stats = user_stats.strip() + "\n"
 
-            tag_string = user_stats + listener_stats_string + genre_tag_string
+            #tag_string = user_stats + listener_stats_string + genre_tag_string
+            footer_list = [user_stats.strip(), listener_stats_string.strip(), genre_tag_string.strip()]
+            while "" in footer_list:
+                footer_list.remove("")
+            tag_string = '\n'.join(footer_list)
             if len(tag_string) > 2048:
                 tag_string = tag_string[:2045] + "..."
 
@@ -1642,7 +1681,7 @@ class Music_NowPlaying(commands.Cog):
         text = emoji + " " + text
         embed = discord.Embed(description=text[:4096], color = 0xd30000)
         if footer.strip() != "":
-            embed.set_footer(text=footer)
+            embed.set_footer(text=footer.strip())
         await ctx.send(embed=embed)
 
 
@@ -2099,7 +2138,7 @@ class Music_NowPlaying(commands.Cog):
                                 listeners2, total_scrobbles2, artist_genre_tag_list = await self.fetch_lastfm_data_via_web(ctx, artist, cooldown)
                                 artist_genre_tag_list = util.filter_genretags(artist_genre_tag_list)
                                 if len(artist_genre_tag_list) > 0:
-                                    genre_tag_string = "LFM*: " + f"{self.tagseparator}".join(artist_genre_tag_list)
+                                    genre_tag_string = "LFM*: " + f"{self.tagseparator}".join(artist_genre_tag_list).strip()
                                 else:
                                     genre_tag_string = "no genre tags found"
                         except Exception as e:
@@ -2107,7 +2146,7 @@ class Music_NowPlaying(commands.Cog):
 
                         # COMPOSE TAG STRING
 
-                        tag_string += f"{self.tagseparator}".join(listener_tags)
+                        tag_string += f"{self.tagseparator}".join(listener_tags).strip()
                         tag_string += f"\n{genre_tag_string}"
                     except Exception as e:
                         print("Error while trying to fetch tags:", e)
@@ -2140,7 +2179,7 @@ class Music_NowPlaying(commands.Cog):
                 except Exception as e:
                     print(e)
                 if tags == True or tags == "custom":
-                    embed.set_footer(text=tag_string[:2048])
+                    embed.set_footer(text=tag_string[:2048].strip())
 
                 message = await ctx.send(embed=embed)
             except Exception as e:
@@ -2335,31 +2374,63 @@ class Music_NowPlaying(commands.Cog):
 
                 if str(activity.type) == "ActivityType.playing" and activity.name == "MusicBee":
                     try:
-                        if " - " in str(activity.details):
-                            details = activity.details.split(" - ", 1)
-                        else:
-                            details = activity.details.split("-", 1)
-                        artist = util.cleantext2(details[0].strip())
-                        album = util.cleantext2(details[1].strip())
-                        try:
-                            title = util.cleantext2(activity.state.strip())
+                        if "ꜰʀᴏᴍ " in util.cleantext2(activity.state):
+                            if " - " in str(activity.details):
+                                details = activity.details.split(" - ", 1)
+                            else:
+                                details = activity.details.split("-", 1)
+                            artist = util.cleantext2(details[0].strip())
+                            title = util.cleantext2(details[1].strip())
+                            try:
+                                album = util.cleantext2(activity.state).split("ꜰʀᴏᴍ ")[1]
+                            except:
+                                album = ""
                             artist_rep = artist.replace(" ","+")
                             song_rep = title.replace(" ","+")
                             url = f"https://www.last.fm/music/{artist_rep}/_/{song_rep}".replace("\\", "")
-                        except:
-                            title = ""
-                            artist_rep = artist.replace(" ","+")
-                            album_re = album.replace(" ","+")
-                            url = f"https://www.last.fm/music/{artist_rep}/{album_rep}".replace("\\", "")
+
+                        else:
+                            if " - " in str(activity.details):
+                                details = activity.details.split(" - ", 1)
+                            else:
+                                details = activity.details.split("-", 1)
+                            artist = util.cleantext2(details[0].strip())
+                            album = util.cleantext2(details[1].strip())
+                            try:
+                                title = util.cleantext2(activity.state.strip())
+                                artist_rep = artist.replace(" ","+")
+                                song_rep = title.replace(" ","+")
+                                url = f"https://www.last.fm/music/{artist_rep}/_/{song_rep}".replace("\\", "")
+                            except:
+                                title = ""
+                                artist_rep = artist.replace(" ","+")
+                                album_re = album.replace(" ","+")
+                                url = f"https://www.last.fm/music/{artist_rep}/{album_rep}".replace("\\", "")
                         musicbee_list.append([member.display_name, member.id, title, artist, album, url])
                     except:
                         musicbee_list.append([member.display_name, member.id, "", "", "", ""])
 
                 if str(activity.type) == "ActivityType.playing" and (activity.name == "Apple Music" or (activity.name == "Music" and "iTunes Rich Presence for Discord" in activity_list)):
                     try:
-                        title = util.cleantext2(activity.details.replace("🎶", "").strip())
-                        artist = util.cleantext2(activity.state.split("💿")[0].replace("👤","").strip())
-                        album = util.cleantext2(activity.state.split("💿")[1].strip())
+                        try:
+                            title = util.cleantext2(activity.details.replace("🎶", "").strip())
+                            artist = util.cleantext2(activity.state.split("💿")[0].replace("👤","").strip())
+                            album = util.cleantext2(activity.state.split("💿")[1].strip())
+                        except:
+                            try:
+                                artist = util.cleantext2(activity.details.split(" - ", 1)[0].strip())
+                                song = util.cleantext2(activity.details.split(" - ", 1)[1].strip())
+                                album = util.cleantext2(activity.state.split("on ", 1)[1].strip())
+                            except:
+                                try:
+                                    artist = util.cleantext2(activity.state.split(" — ", 1)[0].strip())
+                                    song = util.cleantext2(activity.details.strip())
+                                    album = util.cleantext2(activity.state.split(" — ", 1)[1].strip())
+                                except:
+                                    artist = util.cleantext2(activity.state.strip())
+                                    song = util.cleantext2(activity.details.strip())
+                                    album = ""
+
                         url = f"https://music.apple.com/us/search?term={artist}_{album}_{title}".replace(" ","_").replace("\\", "")
                         applemusic_list.append([member.display_name, member.id, title, artist, album, url])
                     except:
@@ -2560,6 +2631,23 @@ class Music_NowPlaying(commands.Cog):
         new_lfm_link = "https://www.last.fm/user/" + new_lfm_name
         details = ""
 
+        letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+        digits = ['0','1','2','3','4','5','6','7','8','9']
+        extra = ['_','-']
+
+        if new_lfm_name[0].lower() not in letters:
+            await ctx.send("Error: Invalid name. Needs to start with a letter.")
+            return 
+
+        for char in new_lfm_name:
+            if char.lower() not in letters+digits+extra:
+                await ctx.send("Error: Invalid characters. Name can only contain letters, numbers, a `-` or a `_`.")
+                return 
+
+        if len(new_lfm_name) < 2 or len(new_lfm_name) > 15:
+            await ctx.send("Error: Invalid name-length. Needs to be between 2 and 15 chars.")
+            return 
+
         con = sqlite3.connect('databases/npsettings.db')
         cur = con.cursor()
         lfm_list = [[item[0],item[1]] for item in cur.execute("SELECT lfm_name, lfm_link FROM lastfm WHERE id = ?", (user_id,)).fetchall()]
@@ -2706,7 +2794,7 @@ class Music_NowPlaying(commands.Cog):
 
             if len(valid_emojis) == 0:
                 emoji = util.emoji("disappointed")
-                await ctx.send(f"None of the given emojis are valid. {emoji}\nAre you sure I am on the server these emojis are on?")
+                await ctx.send(f"None of the given emojis are valid. {emoji}\nAre you sure I am on the server these emojis are on?\n(Also make sure that there are spaces between the emoji.)")
                 return
 
             # EDIT DATABASE ENTRY
@@ -2750,7 +2838,7 @@ class Music_NowPlaying(commands.Cog):
             if len(msg_toomany) > 0:
                 msg_toomany = "\n\nOnly up to 5 reacts allowed, so could not add:\n" + msg_toomany
             if len(msg_invalid) > 0:
-                msg_invalid = "\n\nDid not understand the following emojis:\n" + msg_invalid
+                msg_invalid = "\n\nDid not understand the following emojis:\n" + msg_invalid + "\n(Make sure that there are spaces between the emoji.)"
 
             text = msg_valid + msg_toomany + msg_invalid
             try:

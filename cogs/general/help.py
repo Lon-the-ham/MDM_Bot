@@ -84,7 +84,7 @@ class Help(commands.Cog):
         """shows command info
         
         Use without arguments to get an overview of all commands.
-        Use with command name our cog name to get info on that command or cog."""
+        Use with command name or cog name to get info on that command or cog."""
         async with ctx.typing():
             if len(args) == 0:
                 # If there are no arguments, just list the commands:
@@ -94,6 +94,7 @@ class Help(commands.Cog):
                 help_part = ""
 
                 for cog in {key:commands_dict[key] for key in sorted(commands_dict.keys())}:
+                    # under construction 1: exclude commands where help is restricted
                     if cog.lower() == "help":
                         help_part += f"__**{cog}**__\n"
                         help_part += ', '.join(commands_dict[cog])
@@ -116,6 +117,7 @@ class Help(commands.Cog):
 
                 if argument in command_names_list:
                     # If the argument is a command, get the help text from that command:
+                    # under construction 2: adapt prefix in 
                     title = f""
                     command = self.bot.get_command(argument)
 
@@ -126,12 +128,13 @@ class Help(commands.Cog):
                         description += "\n\n"
 
                     if command.help is None:
-                        description += "`Error: Lon forgot to add a desciption lmao`"
+                        description += "`Error: dev forgot to add a desciption lmao`"
                     else:
-                        description += str(command.help)
+                        description += str(command.help).replace("<prefix>", self.prefix)
 
                 else:
                     # If argument is a subcommand, get the help text from that subcommand:
+                    # under construction 2: adapt prefix in 
                     if len(args) > 1 and args[0].lower() in command_names_list and args[1] != "cog":
 
                         parent_command = self.bot.get_command(args[0].lower())
@@ -160,7 +163,7 @@ class Help(commands.Cog):
                             else:
                                 description += "\n"
                             description += f"subcommand of " + ' '.join(args[:-1]) + "\n\n"
-                            description += command.help
+                            description += command.help.replace("<prefix>", self.prefix)
 
                     else:
                         # if the argument is a cog, get the cog commands
@@ -172,7 +175,7 @@ class Help(commands.Cog):
 
                             for command in commands_dict[argument.replace("cog", "").replace(" ","")]:
                                 description += f"{self.prefix}{command} : "
-                                description += self.bot.get_command(command).help.split("\n")[0]
+                                description += self.bot.get_command(command).help.split("\n")[0].replace("<prefix>", self.prefix)
                                 description += "\n"
 
                         else:

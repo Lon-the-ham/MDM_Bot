@@ -211,19 +211,27 @@ class Memo(commands.Cog):
             return
 
         if len(args) == 0:
-            await ctx.send("Command needs argument")
+            await ctx.send("Command needs argument!")
+            return
+
+        arguments = ' '.join(args).replace(",", " ").replace(";", " ").split()
+        while "" in arguments:
+            arguments.remove("")
+
+        if len(arguments) == 0:
+            await ctx.send("Command needs proper argument!")
             return
 
         # 3 CASES: (LAST/TO/NORMAL)
 
-        if args[0].lower() in ["last", "bottom"]: # CASE 1: delete from last item
+        if arguments[0].lower() in ["last", "bottom"]: # CASE 1: delete from last item
             backlog_length = len(user_bl_list)
 
             deletion_number = 1
-            if len(args) > 1:
+            if len(arguments) > 1:
                 emoji = util.emoji("think_sceptic")
                 try:
-                    deletion_number = int(args[1])
+                    deletion_number = int(arguments[1])
                 except:
                     deletion_number = 1 
                     await ctx.send(f'Argument error, must be integer. Only deleting last entry. {emoji}')
@@ -261,12 +269,12 @@ class Memo(commands.Cog):
 
         else: # CASE 2 & 3
             
-            if len(args) > 1: # CAST 2: TO
-                if "to" == args[1]:
-                    if len(args) == 3:
+            if len(arguments) > 1: # CAST 2: TO
+                if "to" == arguments[1]:
+                    if len(arguments) == 3:
                         try:
-                            start = int(args[0])
-                            end = int(args[2])
+                            start = int(arguments[0])
+                            end = int(arguments[2])
                             print(start)
                             print(end)
                         except:
@@ -276,20 +284,20 @@ class Memo(commands.Cog):
                         if start > end:
                             emoji = util.emoji("think_sceptic")
                             await ctx.send(f'Argument error. {emoji}') 
-                            args = ()
+                            arguments = ()
                         else:
                             if end > len(user_bl_list):
                                 end = len(user_bl_list)
                                 await ctx.send(f'End marker larger than backlog size. Corrected marker.') 
-                            args = range(start, end+1, 1)
+                            arguments = range(start, end+1, 1)
                     else:
                         emoji = util.emoji("bot")
                         await ctx.send(f'Argument error. {emoji}\nDelete command with `to` arg needs exactly 3 arguments, e.g. `{self.prefix}del 4 to 9`.')
-                        args = ()
+                        arguments = ()
 
             ### CASE 3
             n = 0 #number of valid arguments
-            for arg in args:
+            for arg in arguments:
                 try:
                     i = int(arg)
                     if i == 0:
@@ -1654,7 +1662,7 @@ class Memo(commands.Cog):
     async def _index(self, ctx, *args):
         """Show item of index i
 
-        use `-index <index number>`
+        use `<prefix>index <index number>`
         """
         if len(args) == 0:
             await ctx.send("Command needs argument.")
@@ -1672,7 +1680,7 @@ class Memo(commands.Cog):
     async def _backlog_index(self, ctx, *args):
         """Show item of index i
 
-        use `-index <index number>`
+        use `<prefix>index <index number>`
         """
         if len(args) == 0:
             await ctx.send("Command needs argument.")
@@ -1692,7 +1700,7 @@ class Memo(commands.Cog):
 
         Adds an item to the bottom of your memo/backlog. You can add multiple entries seperated by a semi-colon ;
         
-        You can specify a category for the items by writing `-add [<categoryname>] <item name>`. The categoryname needs to be the first argument and within brackets, no spaces or semicolons!
+        You can specify a category for the items by writing `<prefix>add [<categoryname>] <item name>`. The categoryname needs to be the first argument and within brackets, no spaces or semicolons!
         """
         if len(args) == 0:
             args = ("",)
@@ -1711,7 +1719,7 @@ class Memo(commands.Cog):
 
         Adds an item to the bottom of your memo/backlog. You can add multiple entries seperated by a semi-colon ;
         
-        You can specify a category for the items by writing `-add [<categoryname>] <item name>`. The categoryname needs to be the first argument and within brackets, no spaces or semicolons!
+        You can specify a category for the items by writing `<prefix>add [<categoryname>] <item name>`. The categoryname needs to be the first argument and within brackets, no spaces or semicolons!
         """
         if len(args) == 0:
             args = ("",)
@@ -1730,12 +1738,12 @@ class Memo(commands.Cog):
 
         Deletes an item of your memo/backlog at a given index number.
 
-        You can do `-del 5` to delete the fifth entry of your backlog.
-        Also possible is `-del 1 4 17 8` to delete several entries at once,
-        or use `-del 5 to 9` to delete multiple entries in a row.
+        You can do `<prefix>del 5` to delete the fifth entry of your backlog.
+        Also possible is `<prefix>del 1 4 17 8` to delete several entries at once,
+        or use `<prefix>del 5 to 9` to delete multiple entries in a row.
 
         Another option is to use `-del last` to delete the last entry, 
-        or do `-del last 3` to delete the last 3 entries etc.
+        or do `<prefix>del last 3` to delete the last 3 entries etc.
         """
         if len(args) == 0:
             await ctx.send("Command needs argument.")
@@ -1755,12 +1763,12 @@ class Memo(commands.Cog):
 
         Deletes an item of your memo/backlog at a given index number.
 
-        You can do `-del 5` to delete the fifth entry of your backlog.
-        Also possible is `-del 1 4 17 8` to delete several entries at once,
-        or use `-del 5 to 9` to delete multiple entries in a row.
+        You can do `<prefix>del 5` to delete the fifth entry of your backlog.
+        Also possible is `<prefix>del 1 4 17 8` to delete several entries at once,
+        or use `<prefix>del 5 to 9` to delete multiple entries in a row.
 
         Another option is to use `-del last` to delete the last entry, 
-        or do `-del last 3` to delete the last 3 entries etc.
+        or do `<prefix>del last 3` to delete the last 3 entries etc.
         """
         if len(args) == 0:
             await ctx.send("Command needs index number argument.")
@@ -1782,7 +1790,7 @@ class Memo(commands.Cog):
         1st arg needs to be index number.
         Everything that follows will be the new item text.
 
-        (Categories won't be touched. To edit category use `-catedit`)
+        (Categories won't be touched. To edit category use `<prefix>catedit`)
         """
         if len(args) == 0:
             await ctx.send("Command needs arguments.")
@@ -1804,7 +1812,7 @@ class Memo(commands.Cog):
         1st arg needs to be index number.
         Everything that follows will be the new item text.
 
-        (Categories won't be touched. To edit category use `-catedit`)
+        (Categories won't be touched. To edit category use `<prefix>catedit`)
         """
         if len(args) == 0:
             await ctx.send("Command needs argument.")
@@ -1886,7 +1894,7 @@ class Memo(commands.Cog):
     async def _swap(self, ctx, *args):
         """Swap backlog entries
 
-        Swaps entries in your backlog. Use `-swap <index number> <index number>` to swap 2 entries.
+        Swaps entries in your backlog. Use `<prefix>swap <index number> <index number>` to swap 2 entries.
         If you put more than 2 index numbers the entries will rotate in the given order.
         """
         if len(args) == 0:
@@ -1905,7 +1913,7 @@ class Memo(commands.Cog):
     async def _backlog_swap(self, ctx, *args):
         """Swap backlog entries
 
-        Swaps entries in your backlog. Use `-swap <index number> <index number>` to swap 2 entries.
+        Swaps entries in your backlog. Use `<prefix>swap <index number> <index number>` to swap 2 entries.
         If you put more than 2 index numbers the entries will rotate in the given order.
         """
         if len(args) == 0:
@@ -1924,8 +1932,8 @@ class Memo(commands.Cog):
     async def _shift(self, ctx, *args):
         """Shift backlog entries
 
-        Shifts entries in your backlog. Use `-shift <index 1> to <index 2>` to shift entry <i1> to position <i2>. You can also write `-shift <index 1> to top` or `-shift <index 1> to bottom`, or shift multiple entries with e.g.
-        `-shift <i1> <i2> <i3> to <i4>`
+        Shifts entries in your backlog. Use `<prefix>shift <index 1> to <index 2>` to shift entry <i1> to position <i2>. You can also write `<prefix>shift <index 1> to top` or `<prefix>shift <index 1> to bottom`, or shift multiple entries with e.g.
+        `<prefix>shift <i1> <i2> <i3> to <i4>`
 
         Detail:
         Every 'unshifted' item with an index < <i4> remains above the shifted items, while every 'unshifted' item with an index ≥ <i4> will end up below. If however <i4> is the largest index in your backlog or if you use 'bottom', then all 'unshifted' entries will be places above.
@@ -1946,8 +1954,8 @@ class Memo(commands.Cog):
     async def _backlog_shift(self, ctx, *args):
         """Shift backlog entries
 
-        Shifts entries in your backlog. Use `-shift <index 1> to <index 2>` to shift entry <i1> to position <i2>. You can also write `-shift <index 1> to top` or `-shift <index 1> to bottom`, or shift multiple entries with e.g.
-        `-shift <i1> <i2> <i3> to <i4>`
+        Shifts entries in your backlog. Use `<prefix>shift <index 1> to <index 2>` to shift entry <i1> to position <i2>. You can also write `<prefix>shift <index 1> to top` or `<prefix>shift <index 1> to bottom`, or shift multiple entries with e.g.
+        `<prefix>shift <i1> <i2> <i3> to <i4>`
 
         Detail:
         Every 'unshifted' item with an index < <i4> remains above the shifted items, while every 'unshifted' item with an index ≥ <i4> will end up below. If however <i4> is the largest index in your backlog or if you use 'bottom', then all 'unshifted' entries will be places above.
@@ -2004,10 +2012,10 @@ class Memo(commands.Cog):
     async def _blcategoryedit(self, ctx, *args):
         """Edit categories of items
 
-        write `-catedit <n1> <n2> .... <nk> <categoryname>`
-        you can also use `-catedit <n1> to <n2> <categoryname>`
+        write `<prefix>catedit <n1> <n2> .... <nk> <categoryname>`
+        you can also use `<prefix>catedit <n1> to <n2> <categoryname>`
         or
-        `-catedit last (optional integer i) <categoryname>` to edit the category of the last i-many entries
+        `<prefix>catedit last (optional integer i) <categoryname>` to edit the category of the last i-many entries
         """    
         if len(args) == 0:
             await ctx.send("Command needs argument.")
@@ -2025,10 +2033,10 @@ class Memo(commands.Cog):
     async def _backlog_blcategoryedit(self, ctx, *args):
         """Edit categories of items
 
-        write `-cat <n1> <n2> .... <nk> <categoryname>`
-        you can also use `-cat <n1> to <n2> <categoryname>`
+        write `<prefix>cat <n1> <n2> .... <nk> <categoryname>`
+        you can also use `<prefix>cat <n1> to <n2> <categoryname>`
         or
-        `-cat last (optional integer i) <categoryname>` to edit the category of the last i-many entries
+        `<prefix>cat last (optional integer i) <categoryname>` to edit the category of the last i-many entries
         """    
         if len(args) == 0:
             await ctx.send("Command needs argument.")
@@ -2084,7 +2092,7 @@ class Memo(commands.Cog):
     async def _clearcat(self, ctx, *args):
         """Clear your backlog of all entries of given category
 
-        use i.e. `-clearcat <categoryname>`
+        use i.e. `<prefix>clearcat <categoryname>`
         """ 
         if len(args) == 0:
             await ctx.send("Command needs argument.")
@@ -2102,7 +2110,7 @@ class Memo(commands.Cog):
     async def _backlog_clearcat(self, ctx, *args):
         """Clear your backlog of all entries of given category
 
-        use i.e. `-clearcat <categoryname>`
+        use i.e. `<prefix>clearcat <categoryname>`
         """ 
         if len(args) == 0:
             await ctx.send("Command needs argument.")
@@ -2120,7 +2128,7 @@ class Memo(commands.Cog):
     async def _blsearch(self, ctx, *args):
         """Search backlog
         
-        use `-search <search term>` to find all backlog entries matching that term
+        use `<prefix>search <search term>` to find all backlog entries matching that term
         """    
         if len(args) == 0:
             await ctx.send("Command needs argument.")
@@ -2138,7 +2146,7 @@ class Memo(commands.Cog):
     async def _backlog_blsearch(self, ctx, *args):
         """Search backlog
         
-        use `-search <search term>` to find all backlog entries matching that term
+        use `<prefix>search <search term>` to find all backlog entries matching that term
         """    
         if len(args) == 0:
             await ctx.send("Command needs argument.")
@@ -2191,9 +2199,9 @@ class Memo(commands.Cog):
         """backlog, but only for given categories
 
         Shows your memo list / backlog filtered by a given category.
-        Use `-blc <categoryname>`
+        Use `<prefix>blc <categoryname>`
         or
-        `-blc <@user mention> <categoryname>`
+        `<prefix>blc <@user mention> <categoryname>`
         for other users backlog.
         Note that categories cannot have spaces.
         """   
@@ -2213,9 +2221,9 @@ class Memo(commands.Cog):
         """backlog, but only for given categories
 
         Shows your memo list / backlog filtered by a given category.
-        Use `-blc <categoryname>`
+        Use `<prefix>blc <categoryname>`
         or
-        `-blc <@user mention> <categoryname>`
+        `<prefix>blc <@user mention> <categoryname>`
         for other users backlog.
         Note that categories cannot have spaces.
         """    
@@ -2438,7 +2446,7 @@ class Memo(commands.Cog):
     async def _backlograndom(self, ctx, *args):
         """Gives random entry from backlog
 
-        By using `-blr <category name>` you can roll a random item from given category.
+        By using `<prefix>blr <category name>` you can roll a random item from given category.
         You can also give multiple category arguments.
 
         Use `except` as 1st argument to exclude the following categories."""
@@ -2480,7 +2488,7 @@ class Memo(commands.Cog):
     async def _backlog_backlograndom(self, ctx, *args):
         """Gives random entry from backlog
 
-        By using `-blr <category name>` you can roll a random item from given category.
+        By using `<prefix>blr <category name>` you can roll a random item from given category.
         You can also give multiple category arguments.
 
         Use `except` as 1st argument to exclude the following categories."""

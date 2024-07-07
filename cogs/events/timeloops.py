@@ -67,7 +67,7 @@ class TimeLoops(commands.Cog):
         botspamchannel = self.bot.get_channel(botspamchannel_id) 
         if success == False:
             title = "⚠️ " + title + " Error"
-        embed=discord.Embed(title=title, description=message, color=0x000000)
+        embed=discord.Embed(title=title[:256], description=message[:4096], color=0x000000)
         await botspamchannel.send(embed=embed)
 
 
@@ -670,8 +670,15 @@ class TimeLoops(commands.Cog):
 
         # check if update pipeline is in use or free
 
-        cooldown_list = util.check_active_scrobbleupdate()
-        if len(cooldown_list) > 0:
+        for _ in range(5):
+            cooldown_list = util.check_active_scrobbleupdate()
+            if len(cooldown_list) > 0:
+                print(f"Update pipe in use: {cooldown_list}. | Waiting 2 seconds...")
+                await asyncio.sleep(2)
+            else:
+                print("pipe clear: received go")
+                break
+        else:
             print("Skipping scrobble auto-update. Update pipe in use:", cooldown_list)
             return
 
@@ -1197,16 +1204,16 @@ class TimeLoops(commands.Cog):
                     raise ValueError(f"Error: User object of user with id {user_id} is None.")
             except Exception as e:
                 error_count += 1
-                error_users.append(f"<@{user.id}>*")
+                error_users.append(f"<@{user_id}>*")
                 print("Error with user:", e)
                 try: # remove user from database if not a member
                     for member in server.members:
-                        if member.id == user.id:
+                        if member.id == int(user_id):
                             break
                     else:
                         curUA.execute("DELETE FROM useractivity WHERE userid = ?", (str(user_id),))
                         conUA.commit()
-                        print(f"Removed {user.name} (id: {user.id}) from useractivity database")
+                        print(f"Removed {user.name} (id: {user_id}) from useractivity database")
                 except Exception as e:
                     print("Error:", e)
                 continue
@@ -1224,33 +1231,35 @@ class TimeLoops(commands.Cog):
 
             try:
                 await user.edit(roles=[inactivity_role])
+                #new_inactives_mention_list.append(f"<@{str(user.id)}> ({user.name})")
                 new_inactives_mention_list.append(f"<@{str(user.id)}>")
+                print(f"{user.name} was deemed inactive")
 
                 try:
                     # NPsettings change to inactive
                     conNP = sqlite3.connect('databases/npsettings.db')
                     curNP = conNP.cursor()
-                    lfm_list = [[item[0],item[1].lower().strip()] for item in curNP.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (str(user.id),)).fetchall()]
+                    lfm_list = [[item[0],item[1]] for item in curNP.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (str(user.id),)).fetchall()]
 
                     if len(lfm_list) > 0:
-                        status = lfm_list[0][1].strip()
-                        if status == "" or status is None:
+                        status = lfm_list[0][1]
+                        if status is None or status.lower().strip() == "":
                             new_status = "inactive"
                         else:
-                            new_status = status + "_inactive"
+                            new_status = status.lower().strip() + "_inactive"
                         curNP.execute("UPDATE lastfm SET details = ? WHERE id = ?", (new_status, str(user.id)))
                         conNP.commit()
                 except Exception as e:
                     print(f"Error with changing NP settings ({user.name}):", e)
             except Exception as e:
                 error_count += 1
+                #error_users.append(f"<@{user.id}> ({user.name})")
                 error_users.append(f"<@{user.id}>")
                 print(f"Error with user {user.name}:", e)
                 continue
 
             curUA.execute("UPDATE useractivity SET previous_roles = ? WHERE userid = ?", (previousroles, str(user_id)))
             conUA.commit()
-
             sleep_count += 1
 
         if sleep_count > 0:

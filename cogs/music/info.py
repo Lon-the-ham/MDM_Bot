@@ -586,7 +586,21 @@ class Music_Info(commands.Cog):
                 # CHECK FOR MUSIC BEE
                 for activity in user.activities:
                     if str(activity.type) == "ActivityType.playing" and activity.name == "MusicBee":
-                        if "-" in str(activity.details):
+                        if "ꜰʀᴏᴍ " in util.cleantext2(activity.state):
+                            if " - " in str(activity.details):
+                                details = activity.details.split(" - ", 1)
+                            else:
+                                details = activity.details.split("-", 1)
+                            input_string = util.cleantext2(details[0].strip()) # artist
+                            if fetch_album:
+                                try:
+                                    album = util.cleantext2(activity.state).split("ꜰʀᴏᴍ ")[1]
+                                    input_string += " - " + album
+                                except:
+                                    input_string = util.cleantext2(str(activity.details))
+                            break
+
+                        elif "-" in str(activity.details):
                             if " - " in str(activity.details):
                                 details = activity.details.split(" - ", 1)
                             else:
@@ -610,9 +624,21 @@ class Music_Info(commands.Cog):
                         if str(activity.type) == "ActivityType.playing" and (activity.name == "Apple Music" or (activity.name == "Music" and "iTunes Rich Presence for Discord" in activity_list)):
                             if activity.name == "Apple Music":
                                 try:
-                                    input_string = util.cleantext2(activity.details.split(" - ", 1)[0].strip()) # artist
+                                    try:
+                                        artist = util.cleantext2(activity.details.split(" - ", 1)[0].strip())
+                                        song = util.cleantext2(activity.details.split(" - ", 1)[1].strip())
+                                        album = util.cleantext2(activity.state.split("on ", 1)[1].strip())
+                                    except:
+                                        try:
+                                            artist = util.cleantext2(activity.state.split(" — ", 1)[0].strip())
+                                            song = util.cleantext2(activity.details.strip())
+                                            album = util.cleantext2(activity.state.split(" — ", 1)[1].strip())
+                                        except:
+                                            continue
+
+                                    input_string = artist
                                     if fetch_album:
-                                        input_string += " - " + util.cleantext2(activity.state.split("on ", 1)[1].strip()) # album
+                                        input_string += " - " + album 
                                     break
                                 except:
                                     pass
@@ -671,10 +697,10 @@ class Music_Info(commands.Cog):
     async def _metallum(self, ctx: commands.Context, *args):
         """Metallum info
         
-        use `-ma <bandname>` to get an 4-page embed with `general info`, `discography`, `band members` and `similar artists`.
+        use `<prefix>ma <bandname>` to get an 4-page embed with `general info`, `discography`, `band members` and `similar artists`.
 
         If the bandname is not unique you will get a list of possible options indexed from 1 to n.
-        In this case you can use `-ma <bandname>; <index>` (integer after a semicolon) to get the info from he respective band.
+        In this case you can use `<prefix>ma <bandname>; <index>` (integer after a semicolon) to get the info from he respective band.
         You can also use the 2-letter country code (or 'int' for international) if this happens to be a unique combination.
 
         (If you don't give any argument the command will try to search for the artist you are currently listening to. Works for Spotify, MusicBee, AppleMusic and LastFM.)
@@ -690,7 +716,7 @@ class Music_Info(commands.Cog):
                 primaryinput = input_string
                 specification = ""
 
-            if input_string == "":
+            if primaryinput == "":
                 fetch_album = False
                 input_string, primaryinput, specification = await self.input_from_nowplaying(ctx, fetch_album)
 
@@ -723,7 +749,11 @@ class Music_Info(commands.Cog):
 
                 if len(aa_items) == 0:
                     emoji = util.emoji("shy")
-                    await ctx.channel.send(f'Could not find band with such a name on the Metal Archives. {emoji}')
+                    try:
+                        namespec = f" ({primaryinput})"
+                    except:
+                        namespec = ""
+                    await ctx.channel.send(f'Could not find band with such a name{namespec} on the Metal Archives. {emoji}')
 
                 elif len(aa_items) == 1:
                     try:

@@ -13,6 +13,8 @@ import math
 import requests
 from emoji import UNICODE_EMOJI
 
+import traceback
+
 try:
     from googletrans import Translator
     googletrans_enabled = True
@@ -42,23 +44,26 @@ except:
 
 
 class GU_Check():
-    def is_googletrans_enabled(self):
+    def is_googletrans_enabled(*ctx):
         if googletrans_enabled:
             return True
         else:
-            raise ValueError("GoogleTranslate module was not imported.")
+            return False
+            #raise ValueError("GoogleTranslate module was not imported.")
 
-    def is_reddit_enabled(self):
+    def is_reddit_enabled(*ctx):
         if reddit_enabled:
             return True
         else:
-            raise ValueError("AsyncPraw module (for Reddit) was not imported.")
+            return False
+            #raise ValueError("AsyncPraw module (for Reddit) was not imported.")
 
-    def is_gpt_enabled(self):
+    def is_gpt_enabled(*ctx):
         if gpt_enabled:
             return True
         else:
-            raise ValueError("OpenAI module was not imported.")
+            return False
+            #raise ValueError("OpenAI module was not imported.")
 
 
 class General_Utility(commands.Cog):
@@ -103,8 +108,8 @@ class General_Utility(commands.Cog):
     async def _say(self, ctx: commands.Context, *args):
         """🔒 Messages given text
 
-        Write `-say <channel name> <message>` to send an embedded message to this channel.
-        Use `-say <channel name> [<header>] <message>` to give it a title as well.
+        Write `<prefix>say <channel name> <message>` to send an embedded message to this channel.
+        Use `<prefix>say <channel name> [<header>] <message>` to give it a title as well.
         """
         if len(args) <= 1:
             message = "Not enough arguments :("
@@ -166,7 +171,7 @@ class General_Utility(commands.Cog):
     async def _react(self, ctx: commands.Context, *args):
         """🔒 Add reactions
 
-        Write -react <channel> <message id> <reactions> to add reactions to a message.
+        Write <prefix>react <channel> <message id> <reactions> to add reactions to a message.
         """
         if len(args) <= 2:
             message = "Not enough arguments :("
@@ -238,7 +243,7 @@ class General_Utility(commands.Cog):
         """Quickpoll
 
         Default adds 2 reacts: yes/no. 
-        With `-qp <question> options: <list of things seperated by commas>` you can create an embed with up to 20 options.
+        With `<prefix>qp <question> options: <list of things seperated by commas>` you can create an embed with up to 20 options.
 
         (🔒 By making the 1st argument a #channel mention you can send it over to that channel.)
         """
@@ -322,13 +327,23 @@ class General_Utility(commands.Cog):
     @commands.command(name='roll', aliases = ['rng', 'die', 'random', 'dice', 'choose'])
     @commands.check(util.is_active)
     async def _dice(self, ctx: commands.Context, *args):
-        """random number
+        """RNG command
 
-        argument must be either one integer n > 1 (gives out random integer between 1 and n)
+        Gives out random number or choice depending on the argument.
+
+        Argument can be either one integer n > 1 -> gives out random integer between 1 and n.
         or
-        argument must be a set of options to choose from separated by semicolons
+        Argument can be a set of options to choose from separated by semicolons -> chooses one of those options.
         or
-        argument must be bl (optionally with category name behind (no spaces))
+        Argument can be `bl`, `blc` or `blx` (optionally with category name behind (no spaces)) -> chooses random item from your backlog.
+        or
+        Argument can be multiple die rolls with syntax `<n>D<x>` to roll `n`-many `x`-sided dice, e.g. `-roll 8D20`.
+        In the last case you can add modifiers:
+        e.g. `<prefix>roll 8D20d3` to drop the 3 lowest die rolls
+        e.g. `<prefix>roll 8D20k3` to keep the 3 highest die rolls
+        e.g. `<prefix>roll 8D20dh3` to drop the 3 highest die rolls
+        e.g. `<prefix>roll 8D20kl3` to keep the 3 highest die rolls
+        You can also use +/- for bonus/malus or string together multiple dice rolls with + as well (or - if you want to subtract the dice roll).
 
         (when no argument is given, the command gives out a random number between 1 and 6)
         """
@@ -406,48 +421,6 @@ class General_Utility(commands.Cog):
                 await util.backlog_roll(ctx, user, cat_type, cat_list)
                 return
 
-            dice = args[0].lower()
-            if "d" in dice:
-                number_and_sides = dice.split("d",1)
-                try:
-                    if number_and_sides[0] == "":
-                        num_of_dice = 1
-                    else:
-                        num_of_dice = int(number_and_sides[0])
-                    dice_size = int(number_and_sides[1])
-                except:
-                    await ctx.send(f'Error: If you want to use a multiple dice command with `n`-many `x`-sided dice, then use {self.prefix}roll `n`d`x`.\nFor example -roll 6d20')
-                    return
-
-                if num_of_dice < 1:
-                    await ctx.send(f'Error: Number of dice must be at least 1.')
-                    return
-                if dice_size < 2:
-                    await ctx.send(f'Error: Dice/coins must be at least 2-sided.')
-                    return
-                if dice_size > 999:
-                    emoji = util.emoji("umm")
-                    await ctx.send(f'Error: Lmao how large do you want your dice to be. {emoji}\nI can offer a D999 at most...')
-                    return
-                if num_of_dice > 100:
-                    emoji = util.emoji("cry2")
-                    await ctx.send(f"Error: I'm sorry, but I only have 100 of these dice {emoji}")
-                    return
-
-                n = num_of_dice
-                dice_rolls = []
-                while n >= 1:
-                    r = random.randint(1, dice_size)
-                    dice_rolls.append(r)
-                    n = n - 1
-                total = sum(dice_rolls)
-
-                await ctx.send(f"🎲 {num_of_dice}x D{dice_size} roll: {total} ({str(dice_rolls)[1:len(str(dice_rolls))-1]})")
-                return
-
-            await ctx.send(f'Error: Argument should be either an integer > 1, a list of options separated by semicolons, `bl` or `blc categoryname`.')
-            return
-        
         if len(args) >= 2 and args[0].lower() in ['bl','backlog','memo','blc','backlogcat','backlogcategory','blx','backlogwithout']:
             commandarg = args[0].lower()
             user, color, rest_list = await util.fetch_member_and_color(ctx, args[1:])
@@ -471,8 +444,165 @@ class General_Utility(commands.Cog):
             await util.backlog_roll(ctx, user, cat_type, cat_list)
             return
 
-        await ctx.send(f'Error: Argument must be either an integer > 1, a list of options separated by semicolons, `bl`, `blc <categoryname>`, `blx <categoryname>` or `xDy` (where x and y are integers > 1).')              
+        if len(args) >= 1 and "d" in args[0].lower():
+            try:
+                diceroll_batch = []
+                argumentstring = ''.join(args).lower()
 
+                for char in argumentstring:
+                    if char not in ["d","k","l","h","+","-","0","1","2","3","4","5","6","7","8","9"]:
+                        # under construction: add explosion e or !
+                        # under construction minimum/maximum?
+                        # under construction: number successes > <
+                        raise ValueError("syntax error - inavlid characters")
+                        return
+
+                argumentstring2 = argumentstring.replace("+","?+").replace("-","?-")
+                arguments = argumentstring2.split("?")
+
+                i = -1
+                for arg in arguments:
+                    if "d" in arg:
+                        i += 1
+                        # handle dice
+                        factor = 1
+                        # parse number of dice
+                        num_of_dice_str = arg.split("d",1)[0]
+                        if num_of_dice_str.strip() in ["", "+", "-"]:
+                            num_of_dice = 1
+                            if num_of_dice_str.strip() in ["-"]:
+                                factor = -1
+                        else:
+                            num_of_dice = int(num_of_dice_str)
+                            if num_of_dice < -9999:
+                                raise ValueError("number of dice too far in the negative")
+                            elif num_of_dice > 9999:
+                                raise ValueError("number of dice too large")
+                            if num_of_dice == 0:
+                                continue
+                            if num_of_dice < 0:
+                                num_of_dice = -num_of_dice
+                                factor = -1
+                        rest = arg.split("d",1)[1]
+                        extra = False
+                        bonus = 0
+
+                        if "dh" in rest:
+                            die_size = int(rest.split("dh")[0])
+                            num = int(rest.split("dh")[1])
+                            extra = True
+                            reverse = False
+                            keep_factor = -1
+
+                        elif "kl" in rest:
+                            die_size = int(rest.split("kl")[0])
+                            num = int(rest.split("kl")[1])
+                            extra = True
+                            reverse = False
+                            keep_factor = 1
+
+                        elif "dl" in rest:
+                            die_size = int(rest.split("dl")[0])
+                            num = int(rest.split("dl")[1])
+                            extra = True
+                            reverse = True
+                            keep_factor = -1
+
+                        elif "kh" in rest:
+                            die_size = int(rest.split("kh")[0])
+                            num = int(rest.split("kh")[1])
+                            extra = True
+                            reverse = True
+                            keep_factor = 1
+
+                        elif "d" in rest:
+                            die_size = int(rest.split("d")[0])
+                            num = int(rest.split("d")[1])
+                            extra = True
+                            reverse = True
+                            keep_factor = -1
+
+                        elif "k" in rest:
+                            die_size = int(rest.split("k")[0])
+                            num = int(rest.split("k")[1])
+                            extra = True
+                            reverse = True
+                            keep_factor = 1
+
+                        else:
+                            die_size = int(rest)
+
+                        n = num_of_dice
+                        dice_rolls = []
+                        while n >= 1:
+                            r = random.randint(1, die_size)
+                            dice_rolls.append(r)
+                            n = n - 1
+                        #total = sum(dice_rolls)
+
+                        if extra:
+                            if num > 0 and num < num_of_dice:
+                                dice_rolls.sort(reverse=reverse)
+                                filtered_rolls = dice_rolls[:(keep_factor * num)]
+                                filtered_sum = sum(filtered_rolls) * factor
+                                dropped_rolls = dice_rolls[(keep_factor * num):]
+                            else:
+                                raise ValueError("modifiers to drop/keep cannot be equal or larger than the number of dice")
+                        else:
+                            filtered_rolls = dice_rolls
+                            filtered_sum = sum(filtered_rolls) * factor
+                            dropped_rolls = []
+
+                        diceroll_batch.append([filtered_sum, sorted(filtered_rolls, reverse=True), sorted(dropped_rolls, reverse=True), bonus])
+                    else:
+                        #handle bonus
+                        if arg.startswith("+"):
+                            diceroll_batch[i][3] += int(arg[1:])
+                        elif arg.startswith("-"):
+                            diceroll_batch[i][3] -= int(arg[1:])
+
+                if len(diceroll_batch) == 0:
+                    raise ValueError("no valid roll found")
+
+                # assemble
+                description = argumentstring
+                result = ""
+                total = 0
+                for diceroll in diceroll_batch:
+                    sub_total = diceroll[0]
+                    filtered = ', '.join([str(x) for x in diceroll[1]])
+                    if len(diceroll[2]) > 0:
+                        dropped = ", ~~" + ', '.join([str(x) for x in diceroll[2]]) + "~~"
+                    else:
+                        dropped = ""
+                    if diceroll[3] == 0:
+                        bonus = ""
+                    elif diceroll[3] < 0:
+                        bonus = str(diceroll[3])
+                    else:
+                        bonus = "+" + str(diceroll[3])
+                    result += f"{sub_total}{bonus}  ({filtered}{dropped})\n"
+
+                    total += sub_total + diceroll[3]
+
+                if len(diceroll_batch) > 1 or diceroll[3] != 0:
+                    s = "\n"
+                else:
+                    s = ""
+                response = f"🎲 `{description} roll`:{s} {result}"[:1950] 
+                if len(diceroll_batch) > 1 or diceroll[3] != 0:
+                    response +=  f"**Total: {total}**"
+
+                await ctx.send(response.strip())
+                return
+
+            except Exception as e:
+                await ctx.send(f"Error: {e}")
+                print(traceback.format_exc())
+                return
+       
+        await ctx.send(f'Error: Argument can be one of the following things:\nan integer > 1\na list of options separated by semicolons\n`bl` or `blc <category>` or `blx <category>` (with category names separated by commas)\n`n`D`x` to roll `n`-many `x`-sided dice.')
+    
     @_dice.error
     async def dice_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -696,7 +826,7 @@ class General_Utility(commands.Cog):
             print(f"Target Language: {targetLanguage}")
 
             if targetLanguage == "error":
-                await ctx.send(f'Language {givenLanguage} is not supported.')
+                await ctx.send(f'Language {givenLanguage} is not supported. Use `{self.prefix}language details` to get list of supported languages.')
                 return
 
             if len(args) == 1:
@@ -711,12 +841,13 @@ class General_Utility(commands.Cog):
                 detection = GTranslator.detect(msgToTranslate)
                 msgTranslated = GTranslator.translate(msgToTranslate, dest=targetLanguage).text
 
-                responsetext = ""
                 if extra_info:
-                    responsetext += f"`[Lang.: {detection.lang}, Conf.={detection.confidence}]`\n"
-                responsetext += f'`Translation result:` {msgTranslated}'
+                    responsetext = f"`[Lang.: {detection.lang}, Conf.={detection.confidence}]`\n"
+                    responsetext += f'`Google Translation result:` {msgTranslated}'
+                else:
+                    responsetext = f'`Translation result:` {msgTranslated}'
 
-                await ctx.send(responsetext[:2000])
+                await ctx.reply(responsetext[:2000], mention_author=False)
             except Exception as e:
                 if str(e).strip() == "'NoneType' object has no attribute 'group'":
                     await ctx.send(f'`An error ocurred:` Probably wrong googletranslate package.\nHost should try```pip uninstall googletrans```and then```pip install googletrans==3.1.0a0```in console.')
@@ -725,20 +856,135 @@ class General_Utility(commands.Cog):
 
 
 
+    async def libre_get(self, mirror, language, query):
+        url = f"https://{mirror}/translate"
+
+        payload = {
+            'q': query,
+            'source': 'auto',
+            'target': language,
+            'format': 'text',
+            #'api_key': ""
+        }
+
+        response = requests.post(url, data=payload, timeout=4)
+        rjson = response.json()
+
+        return rjson
+
+
+
+    async def libre_translate(self, ctx, args, extra_info):
+        """https://github.com/LibreTranslate/LibreTranslate?tab=readme-ov-file#mirrors"""
+
+        if len(args) < 2:
+            await ctx.send("Command needs target language and words to translate as arguments.")
+
+        async with ctx.typing():
+            language = args[0]
+            query = ' '.join(args[1:])
+
+            conB = sqlite3.connect(f'databases/botsettings.db')
+            curB = conB.cursor()
+            mirror_list = [item[0] for item in curB.execute("SELECT url FROM mirrors WHERE service = ? ORDER BY priority", ("libre translate",)).fetchall()]
+
+            new_mirror_list = []
+            i = 0
+
+            # fetch from mirrors
+
+            for mirror in mirror_list:
+                try:
+                    rjson = await self.libre_get(mirror, language, query)
+
+                    translated_text = rjson['translatedText']
+                    new_mirror_list.append([mirror, 1])
+                    print("Translation mirror:", mirror)
+                    break
+
+                except Exception as e:
+                    print("Error:", e)
+                    try:
+                        print(rjson)
+                    except:
+                        pass
+                    i += 1
+                    new_mirror_list.append([mirror, len(mirror_list) + 1 - i])
+                    continue
+            else:
+                emoji = util.emoji("disappointed")
+                await ctx.send(f"None of the mirrors seem to work {emoji}\nMods can try to fix it via `{self.prefix}update`.")
+                return
+
+            # reorder
+
+            try:
+                new_mirror_urls = [x[0] for x in new_mirror_list]
+                for mirror in reversed(mirror_list):
+                    if mirror in new_mirror_urls:
+                        pass
+                    else:
+                        i += 1
+                        new_mirror_list.append([mirror, len(mirror_list) + 1 - i])
+
+                for item in new_mirror_list:
+                    url = item[0]
+                    prio = item[1]
+                    curB.execute("UPDATE mirrors SET priority = ? WHERE url = ?", (prio, url))
+                conB.commit()
+            except Exception as e:
+                print("Warning:", e)
+
+            # send
+
+            try:
+                try:
+                    original_language = rjson['detectedLanguage']['language']
+                except:
+                    original_language = "?"
+
+                try:
+                    confidence = rjson['detectedLanguage']['confidence']
+                except:
+                    confidence = "?"
+
+                if extra_info:
+                    responsetext = f"`[Lang.: {original_language}, Conf.={confidence/100}]`\n"
+                    responsetext += f'`Libre Translation result:` {translated_text}'
+                else:
+                    responsetext = f'`Translation result:` {translated_text}'
+
+                await ctx.reply(responsetext[:2000], mention_author=False)
+
+            except Exception as e:
+                await ctx.send(f"Error: {e}\n```{rjson}```Mayhaps let mods refresh libre translate mirrors via `{self.prefix}update`.")
+
+
+
     @commands.group(name="translate", aliases = ["tr"], pass_context=True, invoke_without_command=True)
-    @commands.check(GU_Check.is_googletrans_enabled)
+    #@commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate(self, ctx, *args):
         """translate
 
         Translates a word or sentence, first argument must be the destination language code.
-        Use `-languages` to see which languages are supported.
+
+        If GoogleTranslate is enabled, you can use `-languages` to see which languages are supported.
+        If not the command will use LibreTranslate instead.
         """
         if len(args) < 2:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
+
         extra_info = False
-        await self.google_translate(ctx, args, extra_info)
+
+        try:
+            if GU_Check.is_googletrans_enabled():
+                await self.google_translate(ctx, args, extra_info)
+            else:
+                raise ValueError("GoogleTranslate not imported")
+        except:
+            await self.libre_translate(ctx, args, extra_info)
         
     @_translate.error
     async def translate_error(self, ctx, error):
@@ -747,22 +993,71 @@ class General_Utility(commands.Cog):
 
 
     @commands.group(name="trx", aliases = ["translatex"], pass_context=True, invoke_without_command=True)
-    @commands.check(GU_Check.is_googletrans_enabled)
+    #@commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate_x(self, ctx, *args):
         """translate (with detection info)
 
         Translates a word or sentence, first argument must be the destination language code.
-        Use `-languages` to see which languages are supported.
+        
+        If GoogleTranslate is enabled, you can use `-languages` to see which languages are supported.
+        If not the command will use LibreTranslate instead.
         """
         if len(args) < 2:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
         extra_info = True
-        await self.google_translate(ctx, args, extra_info)
+        
+        try:
+            if GU_Check.is_googletrans_enabled():
+                await self.google_translate(ctx, args, extra_info)
+            else:
+                raise ValueError("GoogleTranslate not imported")
+        except:
+            await self.libre_translate(ctx, args, extra_info)
         
     @_translate.error
     async def translate_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name="ltr", aliases = ["libretranslate", "ltranslate"])
+    @commands.check(GU_Check.is_googletrans_enabled)
+    @commands.check(util.is_active)
+    async def _libretranslate(self, ctx, *args):
+        """Translates using LibreTranslate
+        """
+        if len(args) < 2:
+            await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
+            return
+
+        extra_info = False
+
+        await self.libre_translate(ctx, args, extra_info)
+        
+    @_libretranslate.error
+    async def libretranslate_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name="ltrx", aliases = ["libretranslatex", "ltranslatex"])
+    @commands.check(GU_Check.is_googletrans_enabled)
+    @commands.check(util.is_active)
+    async def _libretranslatex(self, ctx, *args):
+        """Translates using LibreTranslate (with detection info)
+        """
+        if len(args) < 2:
+            await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
+            return
+
+        extra_info = True
+
+        await self.libre_translate(ctx, args, extra_info)
+        
+    @_libretranslatex.error
+    async def libretranslatex_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
@@ -852,13 +1147,13 @@ class General_Utility(commands.Cog):
         """Converts units
         
         For example:
-        `-con <number>F`: Fahrenheit to Celsius
-        `-con <number>C`: Celsius to Fahrenheit
+        `<prefix>con <number>F`: Fahrenheit to Celsius
+        `<prefix>con <number>C`: Celsius to Fahrenheit
 
         currently supported are temperature `(C,F)`, length/distances `(km,m,cm,mi,yd,ft,in also 5'11 notation)`, speed `(kmh,mph)`, weight/mass `(lbs,oz,kg,g)`, volume `(gal,ukgal,fl oz,cup,l,cl,ml)`, area `(acre,sqm)`, time `(years,months,weeks,days,hours,minutes,seconds)`
         and 
         also currencies, for which you can use "to"
-        `-con <number> USD to EUR CHF`
+        `<prefix>con <number> USD to EUR CHF`
         if you leave the "to" out it will give out USD, EUR, GPB, JPY per default
         """
 
@@ -1563,10 +1858,12 @@ class General_Utility(commands.Cog):
                     time_type = "at"
                 else:
                     time_type = "in"
+            elif arguments[0].startswith("<t:") and arguments[0].endswith((':d>',':D>',':t>',':T>',':f>',':F>',':R>',':r>')) and util.represents_integer(arguments[0][3:-3]):
+                time_type = "at"
+                arguments = (arguments[0][3:-3],) + arguments[1:]
             else:
                 await ctx.send(f"Error (possibly in snytax): Use e.g. `{self.prefix}remind in 5 hours` or `{self.prefix}remind at <UNIX timestamp>`.")
                 return
-
 
         # GET REMINDER COUNTER
 
@@ -1626,9 +1923,9 @@ class General_Utility(commands.Cog):
             elif int(timeseconds) < 60:
                 await ctx.send(f"Time is too short for me to act.")
                 return
-            if rest.strip() in ["", "to", "about"]:
-                await ctx.send("What should the reminder be about?")
-                return
+            #if rest.strip() in ["", "to", "about"]:
+            #    await ctx.send("What should the reminder be about?")
+            #    return
 
             utc_timestamp = now + int(timeseconds)
             remindertext = rest
@@ -1665,12 +1962,12 @@ class General_Utility(commands.Cog):
         8th arg: comma-separated list of user IDs
         9th arg: emoji
         
-        i.e. `-remind recurring <unix timestamp> ;; <interval time> ;; <channel id> ;; <title> ;; <text> ;; <title link> ;; <thumbnail url> ;; <ping list>`
+        i.e. `<prefix>remind recurring <unix timestamp> ;; <interval time> ;; <channel id> ;; <title> ;; <text> ;; <title link> ;; <thumbnail url> ;; <ping list>`
         
         You do not have to provide all arguments, but you need to still separate empty arguments with a double-semicolon
-        e.g. `-remind recurring 2023668360 ;; weekly ;; ;; ;; hey this is a weekly reminder ;; ;; ;; ;;`.
+        e.g. `<prefix>remind recurring 2023668360 ;; weekly ;; ;; ;; hey this is a weekly reminder ;; ;; ;; ;;`.
         You can leave out double-semicolons at the end, where only empty arguments follow
-        e.g. `-remind recurring 2023668360 ;; every 30 days `.
+        e.g. `<prefix>remind recurring 2023668360 ;; every 30 days `.
         """
 
         if len(args) == 0:
@@ -2074,7 +2371,7 @@ class General_Utility(commands.Cog):
     async def _selfmute(self, ctx, *args):
         """Mutes you for given amount of time
 
-        i.e. `-selfmute 2 hours`
+        i.e. `<prefix>selfmute 2 hours`
         """
         # PRE CHECK
 
@@ -2264,13 +2561,13 @@ class General_Utility(commands.Cog):
         """Show calendar
 
         you can give days, months or weeks as argument or `next`, i.e.
-        `-calendar show 31/01` (next January 31st)
+        `<prefix>calendar show 31/01` (next January 31st)
         or
-        `calendar show 12` (show December)
+        `<prefix>calendar show 12` (show December)
         or
-        `calendar show week 28` (show 28th calender week)
+        `<prefix>calendar show week 28` (show 28th calender week)
         or
-        `calendar show next` (show next few calendar entries)
+        `<prefix>calendar show next` (show next few calendar entries)
         """
 
         await self.show_calendar(ctx)
@@ -2417,7 +2714,7 @@ class General_Utility(commands.Cog):
             curU = conU.cursor()
             loc_list = [[item[0],item[1],item[2]] for item in curU.execute("SELECT longitude, latitude, city FROM location WHERE user_id = ?", (str(ctx.author.id),)).fetchall()]
             if len(loc_list) == 0:
-                raise ValueError(f"No location was set.\nUse `{self.prefix}w set <city>, <country>` to set location.\n\n(If you meant to use the *whoknows* command that'd be `{self.prefix}wk`)")
+                raise ValueError(f"No location was set.\nUse `{self.prefix}we set <city>, <country>` to set location.")
                 return
 
             longitude = loc_list[0][0]
@@ -2447,7 +2744,13 @@ class General_Utility(commands.Cog):
                 response = requests.get(url, headers=headers, params=payload)
                 rjson = response.json()
                 print(rjson)
-                return rjson, city_string
+                try:
+                    longitude = rjson['coord']['lon']
+                    latitude =  rjson['coord']['lat']
+                except:
+                    longitude = ""
+                    latitude = ""
+                return rjson, city_string, longitude, latitude
 
             else:
                 # GET COORDINATES FIRST BY CITY/COUNTRY NAME
@@ -2984,7 +3287,7 @@ class General_Utility(commands.Cog):
 
 
 
-    @commands.group(name="weather", aliases = ["w"], pass_context=True, invoke_without_command=True)
+    @commands.group(name="weather", aliases = ["we","wth", "ww"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _weather_by_location(self, ctx, *args):
         """Show weather of given location
@@ -2992,7 +3295,7 @@ class General_Utility(commands.Cog):
         Give argument `<city>` or `<city>, <country>` or `<city>, <state>, <country>`.
         You can also use `<zip code>, <country>`
 
-        You can also set your location with `-w set <location>` and remove it with `-w remove`.
+        You can also set your location with `-we set <location>` and remove it with `-we remove`.
         """
         forecast = False
         await self.weather_command(ctx, args, forecast)
@@ -3011,7 +3314,7 @@ class General_Utility(commands.Cog):
         Give argument `<city>` or `<city>, <country>` or `<city>, <state>, <country>`.
         You can also use `<zip code>, <country>`
 
-        You can also set your location with `-w set <location>` and remove it with `-w remove`.
+        You can also set your location with `<prefix>we set <location>` and remove it with `<prefix>we remove`.
         """
         forecast = True
         await self.weather_command(ctx, args, forecast)
@@ -3197,8 +3500,9 @@ class General_Utility(commands.Cog):
         rjson = response.json()
 
         bad_urls = [
+            "https://cdn.", # does not embed somehow
             "https://lookaside.", # facebook and instagram pictures
-            "https://cdn." # does not embed somehow
+            "https://www.tiktok.com", # tiktok
         ]
 
         try:
@@ -3208,7 +3512,22 @@ class General_Utility(commands.Cog):
                 await ctx.send(item['link'])
                 break
         except:
-            await ctx.send("Error: Could not find images or reached API limit.")
+            #print(rjson)
+            try:
+                errorcode = rjson['error']['code']
+                try:
+                    errorreason = rjson['error']['details'][0]['reason']
+                except:
+                    errorreason = "?"
+
+                if errorreason == 'RATE_LIMIT_EXCEEDED':
+                    await ctx.send(f"Error ({errorcode}): Reached API limit.\n(Only 100 queries per day.)")
+                else:
+                    reason = errorreason.lower().replace("_", " ")
+                    await ctx.send(f"Error ({errorcode}): Could not find image.\n(reason: {reason})")
+            except Exception as e:
+                print("Error while compiling error message lmao:", e)
+                await ctx.send("Error: Could not find image.")
 
     @_imagesearch.error
     async def imagesearch_error(self, ctx, error):
@@ -3279,12 +3598,10 @@ class General_Utility(commands.Cog):
     @commands.check(GU_Check.is_gpt_enabled)
     @commands.check(util.is_active)
     async def _gpt_query(self, ctx: commands.Context, *args):
-        """Query Chat GPT"""
+        """Query Chat GPT
 
-        if len(args) == 0:
-            await ctx.send("Command needs prompt.")
-            return
-
+        Note that this command makes an OpenAI query without any knowledge of previous conversation or information about the user that the bot otherwise has.
+        """
         try:
             api_key = os.getenv("openai_secret_key")
 
@@ -3295,22 +3612,162 @@ class General_Utility(commands.Cog):
             await ctx.send("Failed to load OpenAI API key.")
             return 
 
+        if len(args) == 0:
+            await ctx.send("Command needs prompt.")
+            return
+
+        # THE QUERY
+        query = ' '.join(args)
+
         async with ctx.typing():
             try:
-                client = OpenAI(api_key=api_key)
-                systemrole = "You are a skilled and quirky assistant, who is a bit bubbly in personality and likes using ascii emotes."
+                now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
-                query = ' '.join(args)
+                conRA = sqlite3.connect('databases/robotactivity.db')
+                curRA = conRA.cursor()
+
+                # check channel restrictions
+
+                #under construction
+
+                # check bot-wide cooldown
+                try: # cooldown to not trigger actual rate limits or IP blocks
+                    await util.cooldown(ctx, "gpt")
+                except Exception as e:
+                    await util.cooldown_exception(ctx, e, "gpt")
+                    return
+
+                # check user-specific cooldown
+
+                modexempt = False
+                modexemption_list = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("user cooldown mod exempt",)).fetchall()]
+
+                if len(modexemption_list) > 0:
+                    modexemption = modexemption_list[0].lower().strip()
+                    if modexemption in ["on"]:
+                        modexempt = True
+                    if len(modexemption) > 1:
+                        print("Warning: multiple mod exemption entries for GPT command found in database")
+
+                if modexempt:
+                    for perms in ctx.message.author.guild_permissions:
+                        if perms[0] == "manage_guild":
+                            if perms[1]:
+                                is_mod = True
+                            else:
+                                is_mod = False
+                            break
+                    else:
+                        print("Error: Something is wrong with permission manage_guild.")
+                        is_mod = False
+
+                if not is_mod:
+                    cooldown_setting = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("user cooldown",)).fetchall()]
+                    try:
+                        cooldown_int = int(cooldown_setting[0])
+                    except Exception as e:
+                        print("Format error with given GPT user cooldown setting:", e)
+                        cooldown_int = 60
+
+                    usercooldown = [item[0] for item in curRA.execute("SELECT last_time FROM gpt_usercooldown WHERE userid = ?", (str(ctx.author.id),)).fetchall()]
+
+                    if len(usercooldown) == 0:
+                        curRA.execute("INSERT INTO gpt_usercooldown VALUES (?, ?, ?, ?)", (str(ctx.author.id), str(ctx.author.name), now, ""))
+                        conRA.commit()
+                    else:
+                        last_time = int(usercooldown[0])
+
+                        if last_time + cooldown_int > now:
+                            await ctx.send(f"Command on cooldown, please wait. <t:{(now + (now - (last_time + cooldown_int)))}:R>")
+                            return
+                        else:
+                            curRA.execute("UPDATE gpt_usercooldown SET last_time = ? WHERE userid = ?", (now, str(ctx.author.id)))
+                            conRA.commit()
+
+            except Exception as e:
+                await ctx.send(f"Error: {e}")
+                return
+
+            try:
+                # connect
+                client = OpenAI(api_key=api_key)
+                context = []
+
+                # get initial role
+                conRA = sqlite3.connect('databases/robotactivity.db')
+                curRA = conRA.cursor()
+                gpt_settings_systemrole = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("systemrole",)).fetchall()]
+
+                if len(gpt_settings_systemrole) == 0:
+                    systemrole = "You are a helpful assistant."
+                else:
+                    systemrole = gpt_settings_systemrole[0]
+                context.append({"role": "system", "content": systemrole})
+
+                try:
+                    # get chat context
+                    gpt_settings_context = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("context",)).fetchall()]
+                    if len(gpt_settings_context) > 0 and gpt_settings_context[0].lower().strip() == "enabled":
+                        # remove old context
+                        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                        curRA.execute("DELETE FROM gpt_context WHERE utc_timestamp < ?", (now - 24*60*60,))
+                        conRA.commit()
+
+                        # fetch messages
+                        gpt_context_messages = [[item[0],item[1][:1000],item[2]] for item in curRA.execute("SELECT role, content, message_id FROM gpt_context WHERE user_id = ? AND channel_id = ? ORDER BY utc_timestamp ASC", (str(ctx.author.id),str(ctx.channel.id))).fetchall()]
+
+                        # filter out messages
+                        gpt_context_messages_copy = []
+                        char_count = len(query) + len(systemrole)
+                        remove_rest = False
+                        for item in reversed(gpt_context_messages):
+                            # throw out too long stuff
+                            if char_count + len(item[1]) > 2000:
+                                remove_rest = True
+
+                            if not remove_rest:
+                                char_count += len(item[1])
+                                gpt_context_messages_copy.append(item)
+
+                        gpt_context_messages_copy = list(reversed(gpt_context_messages_copy))
+
+                        i = 0
+                        for item in gpt_context_messages_copy:
+                            i += 1
+                            if len(gpt_context_messages_copy) - i > 10:
+                                continue
+
+                            role = item[0]
+                            msg_text = util.cleantext2(item[1])
+                            context.append({"role": role, "content": msg_text})
+
+                        if ctx.message.reference is not None and ctx.message.reference.message_id not in [x[2] for x in gpt_context_messages_copy]:
+                            msg = await ctx.fetch_message(ctx.message.reference.message_id)
+
+                            if str(msg.author.id) == str(self.bot.application_id):
+                                role = "assistant"
+                            else:
+                                role = "user"
+                            text = util.cleantext2(str(msg.content))
+                            context.append({"role": role, "content": text})
+
+                except Exception as e:
+                    print("Error while trying to assemble context:", e)
+
+                # append query
+                context.append({"role": "user", "content": query})
 
                 completion = client.chat.completions.create(
                   model="gpt-3.5-turbo",
-                  messages=[
-                    {"role": "system", "content": systemrole},
-                    {"role": "user", "content": query}
-                  ]
+                  messages=context
                 )
 
-                await ctx.send(str(completion.choices[0].message.content))
+                await ctx.reply(str(completion.choices[0].message.content), mention_author=False)
+
+                if len(gpt_settings_context) > 0 and gpt_settings_context[0].lower().strip() == "enabled":
+                    curRA.execute("INSERT INTO gpt_context VALUES (?, ?, ?, ?, ?, ?, ?)", ("user", str(ctx.author.id), str(ctx.author.name), str(ctx.channel.id), str(ctx.message.id), query, now-1))
+                    curRA.execute("INSERT INTO gpt_context VALUES (?, ?, ?, ?, ?, ?, ?)", ("assistant", str(ctx.author.id), str(ctx.author.name), str(ctx.channel.id), str(ctx.message.id), str(completion.choices[0].message.content), now-1))
+                    conRA.commit()
 
             except Exception as e:
                 try:
@@ -3329,6 +3786,76 @@ class General_Utility(commands.Cog):
     @_gpt_query.error
     async def gpt_query_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='gptset', aliases = ['setgpt'])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(GU_Check.is_gpt_enabled)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _setgpt(self, ctx: commands.Context, *args):
+        """🔒 GPT settings of bot
+
+        Use arg `context` with `on` or `off` to enable/disable context messages.
+        Use arg `systemrole` to set "personality" of the AI respodent.
+
+        Use without argument to see settings.
+        """
+        conRA = sqlite3.connect('databases/robotactivity.db')
+        curRA = conRA.cursor()
+        
+        if len(args) == 0:
+            gpt_settings_systemrole = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("systemrole",)).fetchall()]
+            if len(gpt_settings_systemrole) == 0:
+                systemrole = "You are a helpful assistant."
+            else:
+                systemrole = util.cleantext2(gpt_settings_systemrole[0])
+
+            gpt_settings_context = [item[0] for item in curRA.execute("SELECT content FROM gpt_setting WHERE type = ?", ("context",)).fetchall()]
+            if len(gpt_settings_context) > 0 and gpt_settings_context[0].lower().strip() in ["enabled", "on", "enable"]:
+                context = "on"
+            else:
+                context = "off"
+
+            info = f"GPT system role is set to```{systemrole}```Context is set `{context}`."
+            await ctx.send(info)
+
+        elif args[0].lower().strip() == "systemrole":
+            if len(args) <= 1:
+                new_systemrole = "You are a helpful assistant."
+            else:
+                new_systemrole = ' '.join(args[1:])
+            curRA.execute("UPDATE gpt_setting SET content = ? WHERE type = ?", (new_systemrole, "systemrole"))
+            conRA.commit()
+
+            await ctx.send(f"GPT system role set to ```{new_systemrole[:1900]}```")
+
+        elif args[0].lower().strip() == "context":
+            try:
+                switch = args[1].lower().strip()
+
+                if switch in ["on", "enabled", "enable"]:
+                    turn = "enabled"
+                else:
+                    turn = "disabled"
+
+                curRA.execute("UPDATE gpt_setting SET content = ? WHERE type = ?", (turn, "context"))
+                conRA.commit()
+
+                await ctx.send(f"GPT: {turn} context")
+            except:
+                await ctx.send("Error with provided arguments.")
+
+        else:
+            await ctx.send("Error: Command needs either argument `context` or `systemrole` or no argument.")
+
+    @_setgpt.error
+    async def setgpt_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
         
     @commands.command(name='wiki', aliases = ['wikipedia'])
     @commands.check(util.is_active)
@@ -3476,6 +4003,9 @@ class General_Utility(commands.Cog):
     @_wikipedia.error
     async def wikipedia_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
+
+
 
 async def setup(bot: commands.bot) -> None:
     await bot.add_cog(

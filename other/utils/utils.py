@@ -230,11 +230,11 @@ class Utils():
             print("Asyncio: No callback?")
 
 
+
     # Must provide a callback function, callback func will be executed after the func completes execution !!
     @run_async(_callback)
     def asyncrequest_get(url, headers, params):
         return requests.get(url, headers=headers, params=params)
-
 
 
 
@@ -251,6 +251,7 @@ class Utils():
         """Runs a blocking function in a non-blocking way"""
         func = functools.partial(blocking_func, *args, **kwargs) # `run_in_executor` doesn't support kwargs, `functools.partial` does
         return await bot.loop.run_in_executor(None, func)
+
 
 
     ###############################################
@@ -477,26 +478,42 @@ class Utils():
 
 
 
-    def compactnamefilter(input_string, *info):
-        # https://en.wikipedia.org/wiki/List_of_Latin-script_letters
-        # get rid of bracket info
-        try:
-            intermediate_string = input_string
+    def compactaddendumfilter(input_string, *info):
+        intermediate_string = input_string
 
-            if info == ("artist"):
-                if input_string.endswith(" - Topic"):
-                    intermediate_string = input_string.replace(" - Topic", "")
-            elif info == ("album"):
-                if input_string.endswith(" - EP"):
-                    intermediate_string = input_string.replace(" - EP", "")
+        if info == ("artist",):
+            if input_string.endswith(" - Topic"):
+                intermediate_string = input_string.replace(" - Topic", "")
+        elif info == ("album",):
+            if input_string.endswith(" - EP"):
+                intermediate_string = input_string.replace(" - EP", "")
 
+        if not info == ("track",):
             if "(" in intermediate_string and not intermediate_string.startswith("("):
                 intermediate_string = intermediate_string.split("(",1)[0]
             if "[" in intermediate_string and not intermediate_string.startswith("["):
                 intermediate_string = intermediate_string.split("[",1)[0]
 
+        return intermediate_string
+
+
+
+    def compactnamefilter(input_string, *info):
+        # https://en.wikipedia.org/wiki/List_of_Latin-script_letters
+        # get rid of bracket info
+        try:
+            if len(info) > 0:
+                intermediate_string = Utils.compactaddendumfilter(input_string, info[0])
+            else:
+                intermediate_string = input_string
+
             # get rid of non-alphanumeric
-            intermediate_string = ''.join([x for x in intermediate_string.upper() if x.isalnum()])
+            filtered_string = ''.join([x for x in intermediate_string.upper() if x.isalnum()])
+
+            if filtered_string == "":
+                return intermediate_string
+            else:
+                intermediate_string = filtered_string
 
             # adapt accents
             diacritics = {
@@ -815,6 +832,24 @@ class Utils():
 
 
 
+    def get_milestonelist():
+        milestone_list = [1]
+        for x in [1,2,3,4,5,6,7,8,9]:
+            for y in [1,2,3,4,5,6,7,8,9]:
+                milestone = (10 ** x) * y
+                milestone_list.append(milestone)
+                if x == 5:
+                    milestone += (10 ** (x-1)) * 5
+                    milestone_list.append(milestone)
+                if x > 5:
+                    for z in range(9):
+                        milestone += (10 ** (x-1)) * z
+                        milestone_list.append(milestone)
+                        
+        return milestone_list
+
+
+
     def get_rank(ctx, ctx_lfm_name, artist):
         try:
             conNP = sqlite3.connect('databases/npsettings.db')
@@ -862,7 +897,7 @@ class Utils():
                 # GET COUNT
 
                 try:
-                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM [{lfm_name}] WHERE artist_name = ?", (Utils.compactnamefilter(artist),))
+                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM [{lfm_name}] WHERE artist_name = ?", (Utils.compactnamefilter(artist,"artist"),))
 
                     try:
                         rtuple = result.fetchone()
@@ -924,9 +959,11 @@ class Utils():
                         ctx_rank = posuser_counter
 
             if ctx_rank != -1:
-                ctx_rank_string = f"[{ctx_rank}/{posuser_counter}]"
+                ordinal = Utils.ordinal_suffix(ctx_rank)
+                ctx_rank_string = f"[{ctx_rank}{ordinal}/{posuser_counter}]"
             else:
-                ctx_rank_string = ""
+                ordinal = Utils.ordinal_suffix(posuser_counter+1)
+                ctx_rank_string = f"[{posuser_counter+1}{ordinal}/{posuser_counter}]"
 
             # GET CROWN HOLDER
 
@@ -1462,6 +1499,30 @@ class Utils():
         seconds = diff * 24*60*60
 
         return seconds 
+
+
+
+    def ordinal_suffix(num):
+        try:
+            n = int(num)
+            s = str(n)
+
+            if s[-1] in ["1", "2", "3"]:
+                if len(s) > 1 and s[-2] == "1":
+                    return "th"
+                else:
+                    if s[-1] == "1":
+                        return "st"
+                    elif s[-1] == "2":
+                        return "nd"
+                    elif s[-1] == "3":
+                        return "rd"
+                    else:
+                        return ""
+            else:
+                return "th" 
+        except:
+            return ""
 
 
 
@@ -2040,6 +2101,12 @@ class Utils():
             return False
 
         return True
+
+
+
+    def year9999():
+        """UNIX timestamp for year 9999, December 31st"""
+        return 253402210800
 
 
 
@@ -2749,6 +2816,23 @@ class Utils():
 
 
 
+    async def get_libretranslate_mirrors():
+        try:
+            raise ValueError("mirror fetcher under construction, loading hard-coded mirrors instead")
+
+            session = requests.session()
+
+            burp0_url = "https://github.com:443/LibreTranslate/LibreTranslate?tab=readme-ov-file"
+            burp0_headers = {"Sec-Ch-Ua": "\"Not-A.Brand\";v=\"99\", \"Chromium\";v=\"124\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.118 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate, br", "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7", "Priority": "u=0, i", "Connection": "close"}
+            response = session.get(burp0_url, headers=burp0_headers)
+        except Exception as e:
+            print("Error:", e)
+            url_list = ["translate.terraprint.co", "trans.zillyhuhn.com", "libretranslate.eownerdead.dedyn.io", "translate.lotigara.ru"]
+
+        return url_list
+
+
+
     async def get_reference_role(ctx):
         con = sqlite3.connect(f'databases/botsettings.db')
         cur = con.cursor()
@@ -3124,6 +3208,13 @@ class Utils():
 
 
     async def scrobble_update(lfm_name, allow_from_scratch):
+        def to_thread(func: typing.Callable) -> typing.Coroutine:
+            """wrapper for blocking functions"""
+            @functools.wraps(func)
+            async def wrapper(*args, **kwargs):
+                return await asyncio.to_thread(func, *args, **kwargs)
+            return wrapper
+
         async def get_userscrobbles_from_page(lfm_name, page):
             try:
                 payload = {
@@ -3170,11 +3261,12 @@ class Utils():
             except:
                 date_uts = 0
             return (artist_name, album_name, track_name, date_uts)
-            
+        
+        @to_thread    
         def releasewise_insert(lfm_name, item_dict):
             conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
             curFM2 = conFM2.cursor()
-            curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer)")
+            curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer, first_time integer)")
 
             for k,v in item_dict.items():
                 artist = k[0]
@@ -3187,21 +3279,31 @@ class Utils():
                     now_time = int(v[1])
                 except:
                     now_time = 0
+
+                try:
+                    first_time = int(v[2])
+                except:
+                    first_time = Utils.year9999()
                 
                 try:
-                    result = curFM2.execute(f"SELECT count, last_time FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (artist, album))
+                    result = curFM2.execute(f"SELECT count, last_time, first_time FROM [{lfm_name}] WHERE artist_name = ? AND album_name = ?", (artist, album))
                     rtuple = result.fetchone()
                     prev_count = int(rtuple[0])
                     try:
                         prev_time = int(rtuple[1])
                     except:
                         prev_time = 0
+                    try:
+                        prev_first = int(rtuple[2])
+                    except:
+                        prev_first = Utils.year9999()
                 except:
                     prev_count = 0
                     prev_time = 0
+                    prev_first = Utils.year9999()
 
                 if prev_count == 0:
-                    curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?)", (artist, album, count, now_time))
+                    curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist, album, count, now_time, first_time))
 
                 else:
                     new_count = prev_count + count
@@ -3209,9 +3311,68 @@ class Utils():
                         time = now_time
                     else:
                         time = prev_time
-                    curFM2.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, artist, album))
+                    if first_time < prev_first:
+                        curFM2.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ?, first_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, first_time, artist, album))
+                    else:
+                        curFM2.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, artist, album))
             conFM2.commit()
             #print("inserted into secondary database as well")
+
+        @to_thread 
+        def trackwise_insert(lfm_name, item_dict):
+            conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+            curFM3 = conFM3.cursor()
+            curFM3.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, track_name text, count integer, last_time integer, first_time integer)")
+
+            for k,v in item_dict.items():
+                artist = k[0]
+                track  = k[1]
+                try:
+                    count = int(v[0])
+                except Exception as e:
+                    count = 0
+                try:
+                    now_time = int(v[1])
+                except:
+                    now_time = 0
+
+                try:
+                    first_time = int(v[2])
+                except:
+                    first_time = Utils.year9999()
+                
+                try:
+                    result = curFM3.execute(f"SELECT count, last_time, first_time FROM [{lfm_name}] WHERE artist_name = ? AND track_name = ?", (artist, track))
+                    rtuple = result.fetchone()
+                    prev_count = int(rtuple[0])
+                    try:
+                        prev_time = int(rtuple[1])
+                    except:
+                        prev_time = 0
+                    try:
+                        prev_first = int(rtuple[2])
+                    except:
+                        prev_first = Utils.year9999()
+                except:
+                    prev_count = 0
+                    prev_time = 0
+                    prev_first = Utils.year9999()
+
+                if prev_count == 0:
+                    curFM3.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist, track, count, now_time, first_time))
+
+                else:
+                    new_count = prev_count + count
+                    if prev_time < now_time:
+                        time = now_time
+                    else:
+                        time = prev_time
+                    # keep first time
+                    if first_time < prev_first:
+                        curFM3.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ?, first_time = ? WHERE artist_name = ? AND track_name = ?", (new_count, time, first_time, artist, track))
+                    else:
+                        curFM3.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ? WHERE artist_name = ? AND track_name = ?", (new_count, time, artist, track))
+            conFM3.commit()
 
         ### actual function
 
@@ -3234,7 +3395,10 @@ class Utils():
         i = -1
 
         try:
+            scrobble_list = []
+
             item_dict = {}
+            track_dict = {}
             previous_item = None
             while page_int < total_pages_int:
                 if not continue_loop:
@@ -3276,13 +3440,15 @@ class Utils():
 
                     # add item to scrobble DB
                     item_indexed = (i,) + item
-                    curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)  
+                    #curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)
+                    scrobble_list.append(item_indexed)  
                     count += 1
                     i -= 1
 
                     # prepare for inserting into releasewise DB
-                    artist_filtername = Utils.compactnamefilter(item[0]) #''.join([x for x in item[0].upper() if x.isalnum()])
-                    album_filtername = Utils.compactnamefilter(item[1]) #''.join([x for x in item[1].upper() if x.isalnum()])
+                    artist_filtername = Utils.compactnamefilter(item[0],"artist") #''.join([x for x in item[0].upper() if x.isalnum()])
+                    album_filtername = Utils.compactnamefilter(item[1],"album") #''.join([x for x in item[1].upper() if x.isalnum()])
+                    track_filtername = Utils.compactnamefilter(item[2],"track")
                     
                     if (artist_filtername, album_filtername) in item_dict:
                         release = item_dict[(artist_filtername, album_filtername)]
@@ -3295,20 +3461,56 @@ class Utils():
                         except:
                             releaselastprev = 0
 
-                        item_dict[(artist_filtername, album_filtername)] = (releasecount + 1, releaselastprev)
+                        releasefirst = release[2]
+
+                        item_dict[(artist_filtername, album_filtername)] = (releasecount + 1, releaselastprev, releasefirst)
                     else:
                         try:
                             releaselast = int(item[3])
+                            releasefirst = releaselast
+                            if releasefirst < 1000000000:
+                                releasefirst = Utils.year9999()
                         except:
                             releaselast = 0
-                        item_dict[(artist_filtername, album_filtername)] = (1, releaselast)
+                            releasefirst = Utils.year9999()
+                        item_dict[(artist_filtername, album_filtername)] = (1, releaselast, releasefirst)
+
+                    # TRACKWISE DATABASE PREPARATION
+                    if (artist_filtername, track_filtername) in track_dict:
+                        trackitem = track_dict[(artist_filtername, track_filtername)]
+                        try:
+                            trackcount = int(trackitem[0])
+                        except:
+                            trackcount = 0
+                        try:
+                            tracklastprev = int(trackitem[1])
+                        except:
+                            tracklastprev = 0
+
+                        trackfirst = trackitem[2]
+
+                        track_dict[(artist_filtername, track_filtername)] = (trackcount + 1, tracklastprev, trackfirst)
+                    else:
+                        try:
+                            tracklast = int(item[3])
+                            trackfirst = tracklast
+                            if trackfirst < 1000000000:
+                                trackfirst = Utils.year9999()
+                        except:
+                            tracklast = 0
+                            trackfirst = Utils.year9999()
+                        track_dict[(artist_filtername, track_filtername)] = (1, tracklast, trackfirst)
 
                     # next iteration
                     previous_item = item
             if count > 0:
                 print(f"updated scrobble data of {lfm_name} : ({count} entries)")
+            
+            for item_indexed in sorted(scrobble_list, key = lambda x : x[0]):
+                curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)
             conFM.commit()
-            releasewise_insert(lfm_name, item_dict)
+            await releasewise_insert(lfm_name, item_dict)
+            await trackwise_insert(lfm_name, track_dict)
             await Utils.changetimeupdate()
         except Exception as e:
             print("Error:", e)
@@ -3800,7 +4002,7 @@ class Utils():
 
         all_files_good = True
 
-        for filename in ['scrobbledata.db', 'scrobbledata_releasewise.db', 'scrobblestats.db', 'scrobblemeta.db']:
+        for filename in ['scrobbledata.db', 'scrobbledata_releasewise.db', "scrobbledata_trackwise.db", 'scrobblestats.db', 'scrobblemeta.db']:
             try:
                 con = sqlite3.connect(f'databases/{filename}')
                 cur = con.cursor()  
@@ -4041,7 +4243,7 @@ class Utils():
             instances = [item[0] for item in cur.execute("SELECT details FROM botsettings WHERE name = ?", ("app id",)).fetchall()]
 
             subfolder = f"{sys.path[0]}/temp"
-            names = ["scrobbledata.db", "scrobbledata_releasewise.db",  "scrobblestats.db", "scrobblemeta.db"]
+            names = ["scrobbledata.db", "scrobbledata_releasewise.db",  "scrobbledata_trackwise.db", "scrobblestats.db", "scrobblemeta.db"]
             filepathes = {}
 
             for instance in instances:

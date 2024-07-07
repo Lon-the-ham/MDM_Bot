@@ -39,7 +39,8 @@ class Event_Response(commands.Cog):
         return domain_list
 
 
-    async def botspam_send(self, title, text, footer, image, author, color, timestamp):
+
+    def get_botspamchannelid(self):
         conB = sqlite3.connect(f'databases/botsettings.db')
         curB = conB.cursor()
         botspamchannelid_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("botspam channel id",)).fetchall()]
@@ -59,6 +60,12 @@ class Event_Response(commands.Cog):
             else:
                 raise ValueError(f"invalid botspam channel id (DB)")
                 return
+        return botspamchannelid
+
+
+
+    async def botspam_send(self, title, text, footer, image, author, color, timestamp):
+        botspamchannelid = self.get_botspamchannelid()
         try:
             botspam_channel = self.bot.get_channel(botspamchannelid)
         except:
@@ -66,7 +73,7 @@ class Event_Response(commands.Cog):
             return
         try:
             if timestamp == None or timestamp == "":
-                timestamp = datetime.datetime.utcnow()
+                timestamp = datetime.datetime.now()
             header = title[:256]
             description = text[:4096]
             if color == "" or color == None:
@@ -81,7 +88,7 @@ class Event_Response(commands.Cog):
 
             if author != None and author != "":
                 try:
-                    embed.set_author(name=author.name, icon_url=author.avatar_url)
+                    embed.set_author(name=author.name, icon_url=author.avatar)
                 except Exception as e:
                     print(e)
             await botspam_channel.send(embed=embed)
@@ -242,7 +249,7 @@ class Event_Response(commands.Cog):
         title = "Member joined"
         try:
             created_utc = member.created_at
-            now_utc = datetime.utcnow()
+            now_utc = datetime.datetime.utcnow()
             age = now_utc - created_utc
             age_seconds = age.total_seconds
             now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
@@ -252,9 +259,11 @@ class Event_Response(commands.Cog):
             age_string = "error"
         text = f"<@{member_id}>\nAccount Age: {age_string}"
         footer = f"NAME: {member.name}, ID: {member_id}"   
-        image = member.avatar_url
+        image = member.avatar
         color = 0x3cb043
         await self.botspam_send(title, text, footer, image, None, color, None)
+
+        # under construction: NPsettings change inactive to active?
 
 
 
@@ -292,7 +301,7 @@ class Event_Response(commands.Cog):
         title = "Member left"
         text = f"<@{user.id}>"
         footer = f"NAME: {user.name}, ID: {user.id}"   
-        image = user.avatar_url
+        image = user.avatar
         color = 0xd30000
         await self.botspam_send(title, text, footer, image, None, color, None)
 
@@ -350,7 +359,7 @@ class Event_Response(commands.Cog):
 
         if before.timed_out_until is None and after.timed_out_until is not None: # timeout (the discord internal one)
             endtime = after.timed_out_until
-            now_utc = datetime.utcnow()
+            now_utc = datetime.datetime.utcnow()
             remaining = (endtime - now_utc).total_seconds()
             now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
             remaining_string = util.seconds_to_readabletime(remaining, now)
@@ -413,7 +422,7 @@ class Event_Response(commands.Cog):
         emoji = util.emoji("ban")
         text = f"<@{user.id}> {emoji}"
         footer = f"NAME: {user.name}, ID: {user.id}"   
-        image = user.avatar_url
+        image = user.avatar
         color = 0xd30000
         await self.botspam_send(title, text, footer, image, None, color, None)
 
@@ -441,7 +450,7 @@ class Event_Response(commands.Cog):
         emoji = util.emoji("ban")
         text = f"<@{user.id}> {emoji}"
         footer = f"NAME: {user.name}, ID: {user.id}"   
-        image = user.avatar_url
+        image = user.avatar
         color = 0x0e4c92
         await self.botspam_send(title, text, footer, image, None, color, None)
 
@@ -459,30 +468,41 @@ class Event_Response(commands.Cog):
         conB = sqlite3.connect(f'databases/botsettings.db')
         curB = conB.cursor()    
         main_server = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id", )).fetchall()]
+        if not self.setting_enabled("edit message notification"):
+            return
         if str(server.id) not in main_server:
             print(f"{before.author.name} edited message in {server.name}")
             return
 
-        if not self.setting_enabled("edit message notification"):
+        botspamchannelid = self.get_botspamchannelid()
+        if str(before.channel.id) == str(botspamchannelid):
+            suppressbotspamedit_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("suppress botspam edit/delete",)).fetchall()]
+            if len(suppressbotspamedit_list) > 0:
+                if suppressbotspamedit_list[0] == "on":
+                    print(f"supressing msg edit ({before.author.name}) in botspam channel")
+                    return
+
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        old_time = before.created_at
+        old = int((old_time.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        if (now - old) > 7200:
+            print(f"ignore edit of 2h+ old message ({now - old})")
             return
 
-        now_utc = datetime.utcnow()
-        old_time = before.created_at
-
-        if (now_utc - old_time).total_seconds() > 7200:
-            print("ignore edit of 2h+ old message")
+        if before.content == after.content and before.attachments == after.attachments:
             return
 
         #try:
         #    edit_time = after.created_at
         #    timestamp = edit_time.replace(tzinfo=timezone.utc).timestamp()
         #except:
-        #    timestamp = "error"
+        #    timestamp = ""
 
-        title = f"Message Edited in <#{before.channel.id}>"
+        title = f"Message Edited: {str(before.jump_url)}"
         # TEXT BEGIN
-        text = "message.jump_url"
-        text += f"\n**Before**:\n"
+        text = f"\n**Before**:\n"
         text += util.cleantext2(before.content[:1024])
         if len(before.content) > 1024:
             text += "..."
@@ -492,10 +512,12 @@ class Event_Response(commands.Cog):
             text += "..."
         #text += f"<t:{timestamp}:f>"
         # TEXT END
-        footer = f"NAME: {before.author.name}, ID: {before.author.id}"   
+        footer = f"NAME: {before.author.name}, ID: {before.author.id}"
+
         image = ""
+
         color = 0x0e4c92
-        await self.botspam_send(title, text, footer, image, before.author, color, after.created_at)
+        await self.botspam_send(title, text, footer, image, before.author, color, None) #after.created_at)
 
 
 
@@ -511,12 +533,20 @@ class Event_Response(commands.Cog):
         conB = sqlite3.connect(f'databases/botsettings.db')
         curB = conB.cursor()    
         main_server = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id", )).fetchall()]
+
+        if not self.setting_enabled("edit message notification"):
+            return
         if str(server.id) not in main_server:
             print(f"{message.author.name}'s message deleted in {server.name}")
             return
 
-        if not self.setting_enabled("edit message notification"):
-            return
+        botspamchannelid = self.get_botspamchannelid()
+        if str(message.channel.id) == str(botspamchannelid):
+            suppressbotspamedit_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("suppress botspam edit/delete",)).fetchall()]
+            if len(suppressbotspamedit_list) > 0:
+                if suppressbotspamedit_list[0] == "on":
+                    print(f"supressing msg deletion ({message.author.name}) in botspam channel")
+                    return
 
         title = f"Message deleted in <#{message.channel.id}>"
         # TEXT BEGIN
@@ -525,10 +555,15 @@ class Event_Response(commands.Cog):
             text += "..."
         #text += f"<t:{timestamp}:f>"
         # TEXT END
-        footer = f"NAME: {message.author.name}, ID: {message.author.id}"   
-        image = ""
+        footer = f"NAME: {message.author.name}, ID: {message.author.id}"
+
+        try:
+            image = message.attachments[0].url # under construction
+        except Exception as e:
+            image = ""
+        
         color = 0xd30000
-        await self.botspam_send(title, text, footer, image, message.author, color, None)
+        await self.botspam_send(title, text, footer, image, message.author, color, None) #message.created_at)
 
 
 
@@ -543,12 +578,19 @@ class Event_Response(commands.Cog):
         conB = sqlite3.connect(f'databases/botsettings.db')
         curB = conB.cursor()    
         main_server = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id", )).fetchall()]
+        if not self.setting_enabled("edit message notification"):
+            return
         if str(server.id) not in main_server:
             print(f"bulk message delete ({len(messages)}) in {server.name}")
             return
 
-        if not self.setting_enabled("edit message notification"):
-            return
+        botspamchannelid = self.get_botspamchannelid()
+        if str(message.channel.id) == str(botspamchannelid):
+            suppressbotspamedit_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("suppress botspam edit/delete",)).fetchall()]
+            if len(suppressbotspamedit_list) > 0:
+                if suppressbotspamedit_list[0] == "on":
+                    print(f"supressing bulk delete in botspam channel")
+                    return
 
         title = f"Bulk message delete"
         text += f"{len(messages)} deleted in <#{message.channel.id}>"
@@ -1479,7 +1521,7 @@ class Event_Response(commands.Cog):
                                         emoji = util.emoji("ban")
                                         text = f"Banned <@{user.id}> {emoji}"
                                         footer = f"NAME: {user.name}, ID: {user.id}"
-                                        image = str(user.avatar_url)
+                                        image = str(user.avatar)
                                         color = 0xd30000
                                         await self.botspam_send(title, text, footer, image, None, color, None)
                                     except Exception as e:
