@@ -3437,7 +3437,7 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    async def fetch_streak_history(self, ctx):
+    async def fetch_streak_history(self, ctx, args):
         user_id = str(ctx.author.id)
         color = 0x9d2933
         argument = ' '.join(args)
@@ -3468,7 +3468,173 @@ class Music_Scrobbling(commands.Cog):
             await ctx.send("You haven't imported any scrobbles.")
             return
 
-        await ctx.send("under construction")
+        # COUNT STREAKS
+
+        streaks = []
+        current_streak = []
+
+        artist_dict = {}
+        album_dict = {}
+        track_dict = {}
+
+        current_artist = None
+        current_album = None
+        current_track = None
+        utc_start = None
+
+        artist_count = 0
+        album_count = 0
+        track_count = 0
+
+        streak_num = -1
+
+        for scrobble in scrobbles:
+            compact_artist = util.compactnamefilter(scrobble[0])
+            compact_album = util.compactnamefilter(scrobble[1])
+            compact_track = util.compactnamefilter(scrobble[2])
+
+            if compact_artist != current_artist:
+                # wrap up previous streak
+
+                if artist_count > 24:
+                    if compact_artist not in artist_dict:
+                        artist_dict[compact_artist] = util.compactaddendumfilter(scrobble[0])
+
+                    streaks.append(current_streak)
+
+                # move on to next streak
+                streak_num += 1
+
+                current_artist = compact_artist
+                current_album = compact_album
+                current_track = compact_track
+
+                artist_count = 0
+                album_count = 0
+                track_count = 0
+
+                max_album = current_album
+                max_album_count = album_count
+                max_track = current_track
+                max_track_count = track_count
+
+                current_streak = [current_artist, artist_count, max_album, max_album_count, current_album, album_count, max_track, max_track_count, current_track, track_count, utc_start]
+
+            # increase artist count by one
+            artist_count += 1
+            current_streak[1] = artist_count
+            utc_start = scrobble[3]
+
+            if current_album == compact_album:
+                # increase album count by one
+                album_count += 1
+                current_streak[5] = album_count
+
+                # if current album count overtook the maximal album count -> save
+                if current_album != "" and album_count > current_streak[3]:
+                    current_streak[2] = current_album
+                    current_streak[3] = album_count
+
+                    if f"{compact_artist}-{current_album}" not in album_dict:
+                        album_dict[f"{compact_artist}-{current_album}"] = util.compactaddendumfilter(scrobble[1])
+
+            else:
+                current_album = compact_album
+                current_streak[4] = current_album
+                album_count = 1
+                current_streak[5] = album_count
+
+
+            if current_track == compact_track:
+                # increase track count by one
+                track_count += 1
+                current_streak[9] = track_count
+
+                # if current track count overtook the maximal track count -> save
+                if current_track != "" and track_count > current_streak[7]:
+                    current_streak[6] = current_track
+                    current_streak[7] = track_count
+
+                    if f"{compact_artist}-{current_track}" not in track_dict:
+                        track_dict[f"{compact_artist}-{current_track}"] = util.compactaddendumfilter(scrobble[2])
+
+            else:
+                current_track = compact_track
+                current_streak[8] = current_track
+                track_count = 1
+                current_streak[9] = track_count
+
+        streaks_filtered = []
+
+        if argument == "chronological":
+            streaks.sort(key=lambda x: x[10], reverse = True)
+
+        elif argument in ["artist", "plays", "play", "scrobble"]:
+            streaks.sort(key=lambda x: x[1], reverse = True)
+
+        elif argument in ["album", "release"]:
+            streaks.sort(key=lambda x: x[3], reverse = True)
+
+        elif argument in ["track", "song"]:
+            streaks.sort(key=lambda x: x[7], reverse = True)
+
+        i = 0
+        for streak in reversed(streaks):
+            artist = artist_dict.get(streak[0], "")
+            artist_count = streak[1]
+            album = album_dict.get(f"{streak[0]}-{streak[2]}", "")
+            album_count = streak[3]
+            track = track_dict.get(f"{streak[0]}-{streak[6]}", "")
+            track_count = streak[7]
+
+            utc_start = streak[10]
+
+            if argument in ["album", "release"]:
+                if album == "" or album_count < 25:
+                    continue
+
+            if argument in ["track", "song"]:
+                if track == "" or track_count < 25:
+                    continue
+
+            if artist != "":
+                i+=1
+                text = f"<t:{utc_start}:f> **{artist}** - *{artist_count} plays*"
+                if album != "" and album_count > 1:
+                    text += f"\n`longest album streak:` {album} - *{album_count} plays*"
+                if track != "" and track_count > 1:
+                    text += f"\n`longest track streak:` {track} - *{track_count} plays*"
+
+                if argument == "":
+                    text = f"`{i}.` " + text
+                streaks_filtered.append(text)
+
+        if len(streaks_filtered) > 0:
+            contents = [""]
+            i = 0
+            k = 0
+            count = 0
+            for streak in reversed(streaks_filtered):
+                count += 1
+                i+=1
+                if argument == "":
+                    contents[k] += "\n\n" + streak
+                else:
+                    contents[k] += f"\n\n`{count}.` " + streak
+
+                if i >= 5:
+                    contents[k] = contents[k].strip()
+                    k += 1
+                    i = 0
+                    contents.append("")
+        else:
+            contents = ["no streaks :("]
+
+        header = f"{ctx.author.display_name}'s streaks 🔥"
+        color = ctx.author.color
+        footer = str(len(streaks_filtered)) + " streaks"
+
+        await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer)
 
 
 
@@ -3478,7 +3644,7 @@ class Music_Scrobbling(commands.Cog):
     async def _streak_history(self, ctx, *args):
         """Show streak history"""
 
-        await self.fetch_streak_history(ctx)
+        await self.fetch_streak_history(ctx, args)
 
     @_streak_history.error
     async def streak_history_error(self, ctx, error):
@@ -3493,7 +3659,7 @@ class Music_Scrobbling(commands.Cog):
         """Show streak history
         """
 
-        await self.fetch_streak_history(ctx)
+        await self.fetch_streak_history(ctx, args)
 
     @_streaks.error
     async def streaks_error(self, ctx, error):
