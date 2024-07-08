@@ -3642,7 +3642,15 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(util.is_active)
     @commands.check(util.is_main_server)
     async def _streak_history(self, ctx, *args):
-        """Show streak history"""
+        """Show streak history
+
+        Use argument
+        - `chronological` : to have them sorted from earliest to latest (artist) streak
+        - `artist` : to have them sorted by artist streak length
+        - `album` : to have them sorted by album streak length
+        - `track` : to have them sorted by track streak length
+
+        or without argument to have them sorted from latest (artist) streak to earliest."""
 
         await self.fetch_streak_history(ctx, args)
 
@@ -3657,6 +3665,14 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(util.is_active)
     async def _streaks(self, ctx: commands.Context, *args):
         """Show streak history
+
+        Use argument
+        - `chronological` : to have them sorted from earliest to latest (artist) streak
+        - `artist` : to have them sorted by artist streak length
+        - `album` : to have them sorted by album streak length
+        - `track` : to have them sorted by track streak length
+
+        or without argument to have them sorted from latest (artist) streak to earliest.
         """
 
         await self.fetch_streak_history(ctx, args)
