@@ -4674,7 +4674,7 @@ class Administration_of_Settings(commands.Cog):
             curC.execute('''CREATE TABLE IF NOT EXISTS cooldowns (service text, last_used text, limit_seconds text, limit_type text, long_limit_seconds text, long_limit_amount text)''') # soft limit type: delay, hard limit type: stop request
 
             cooldown_db_list = [item[0] for item in curC.execute("SELECT service FROM cooldowns").fetchall()]
-            cooldowns_light = ["applemusic", "gpt", "metallum", "musicbrainz", "lastfm", "openweathermap", "spotify", "wolframalpha"]
+            cooldowns_light = ["applemusic", "gpt", "metallum", "musicbrainz", "lastfm", "openweathermap", "spotify", "wikipedia", "wolframalpha"]
             cooldowns_medium = ["googlesearch"]
             cooldowns_critical = ["rym"]
             cooldowns_update = ["lastfm_update"]
