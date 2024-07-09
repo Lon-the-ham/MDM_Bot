@@ -3862,8 +3862,79 @@ class General_Utility(commands.Cog):
     async def _wikipedia(self, ctx: commands.Context, *args):
         """Queries wikipedia for information
         """
+        def get_images_from_wikipedia(title):
+            # if (title is jap): url is jap/ elif (): url is eng 
+            url = urleng
+            params = {
+                "action": "query",
+                "titles": title,
+                "prop": "images",
+                "format": "json"
+            }
+            response = requests.get(url, params=params)
+            data = response.json()
+            print(data)
+            pages = data.get("query", {}).get("pages", {})
+            images = []
+            for page_id, page in pages.items():
+                images.append(page.get("images", []))
+            return images
+        
+        def get_image_info(image_title):
+            url = urleng
+            params = {
+                "action": "query",
+                "titles": image_title,
+                "prop": "imageinfo",
+                "iiprop": "url",
+                "format": "json"
+            }
+            response = requests.get(url, params=params)
+            data = response.json()
+            pages = data.get("query", {}).get("pages", {})
+            for page_id, page in pages.items():
+                image_info = page.get("imageinfo", [{}])[0]
+                return image_info.get("url", [])
+
+        def fetch_wikipedia_page(load):
+            url = urleng
+            params = {
+                "action": "query",
+                "titles": load["i"],
+                "prop": "imageinfo",
+                "iiprop": "url",
+                "format": "json"
+                #'apikey': API_KEY,  # Include the API key in the request
+            }
+            response = requests.get(url, params = params)
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            return response.json()
+
+        def get_wikipedia_info(load, sentences=5):
+            url = urleng
+            params = {
+                "action": "query",
+                "format": "json",
+                "titles": load["i"],
+                "prop": "extracts",
+                "exintro": True,
+                "explaintext": True,
+                "exsentences": sentences
+            }
+
+            response = requests.get(url, params=params)
+            data = response.json()
+            
+            page = next(iter(data['query']['pages'].values()))
+            title = page.get('title', 'No title found')
+            summary = page.get('extract', 'No summary found')
+            
+            return title, summary
+
+        ### START OF FUNCTION
+
         try:
-            API_KEY = os.getenv("wikipedia_ID")
+            API_KEY = os.getenv("wikipedia_token")
             if API_KEY is None:
                 emoji = util.emoji("disappointed")
                 raise ValueError(f"No API key provided. {emoji}\n||(Ask mods to get an API key from https://api.wikimedia.org/wiki/Getting_started_with_Wikimedia_APIs)||")
@@ -3894,116 +3965,59 @@ class General_Utility(commands.Cog):
             return
 
         async with ctx.typing():
+
             payload = {
-                'appid': API_KEY,
-                'i': string,
-                    }
-        def get_images_from_wikipedia(title):
-            # if (title is jap): url is jap/ elif (): url is eng 
-            url = urljap
-            params = {
-                "action": "query",
-                "titles": title,
-                "prop": "images",
-                "format": "json"
-            }
-            response = requests.get(url, params=params)
-            data = response.json()
-            pages = data.get("query", {}).get("pages", {})
-            images = []
-            for page_id, page in pages.items():
-                images.extend(page.get("images", []))
-            return images
-        
-        def get_image_info(image_title):
-            url = "https://en.wikipedia.org/w/api.php"
-            params = {
-                "action": "query",
-                "titles": image_title,
-                "prop": "imageinfo",
-                "iiprop": "url",
-                "format": "json"
-            }
-            response = requests.get(url, params=params)
-            data = response.json()
-            pages = data.get("query", {}).get("pages", {})
-            for page_id, page in pages.items():
-                image_info = page.get("imageinfo", [{}])[0]
-                return image_info.get("url")
+                        'appid': API_KEY,
+                        'i': string,
+                        }
 
+            try:
+                # Fetch and print a Wikipedia page summary
+                page_data = fetch_wikipedia_page(payload)
+                pages = page_data.get('query', {}).get('pages', {})
+                string_list = []
+                title, summary = get_wikipedia_info(payload)
+                for page_id, page_info in pages.items():
+                    extract = page_info.get('extract', 'No extract found.')
+                    string_list.append(extract)
 
-        def fetch_wikipedia_page(load):
-            url = "https://en.wikipedia.org/w/api.php"
-            params = {
-                "action": "query",
-                "titles": load["i"],
-                "prop": "imageinfo",
-                "iiprop": "url",
-                "format": "json"
-#                'apikey': API_KEY,  # Include the API key in the request
-            }
-            response = requests.get(url, params = params)
-            response.raise_for_status()  # Raise an exception for HTTP errors
-            return response.json()
-        def get_wikipedia_info(load, sentences=5):
-            url = "https://en.wikipedia.org/w/api.php"
-            params = {
-                "action": "query",
-                "format": "json",
-                "titles": load["i"],
-                "prop": "extracts",
-                "exintro": True,
-                "explaintext": True,
-                "exsentences": sentences
-            }
+                embed = discord.Embed(
+                                title=f"{title}",
+                                description=f"{summary}",
+                                color=discord.Color.blue()
+                            )
 
-            response = requests.get(url, params=params)
-            data = response.json()
-            
-            page = next(iter(data['query']['pages'].values()))
-            title = page.get('title', 'No title found')
-            summary = page.get('extract', 'No summary found')
-            
-            return title, summary
+                images = get_images_from_wikipedia(string)
 
+                # Save the first image if it exists
+                try:
+                    if len(images) > 0:
+                        image_title = None
+                        for i in range(len(images)):
+                            if image_title not in [None, ""] and str(image_title).endswith(('.jpg','.jpeg','.png','.gif','.webm','.webp')):
+                                break
+                            for j in range(len(images[i])):
+                                try:
+                                    image_title = images[i][j].get("title")  # Get the first image's title
+                                    if image_title not in [None, ""] and str(image_title).endswith(('.jpg','.jpeg','.png','.gif','.webm','.webp')):
+                                        break
+                                except Exception as e:
+                                    print("intermediate image fetch error:", e)
+                                    continue
+                        if image_title:
+                            image_url = get_image_info(image_title)
+                            if len(image_url) > 0:
+                                embed.set_thumbnail(url = image_url) 
+                except Exception as e:
+                    print("wikipedia - could not add thumbnail:", e)
+                await ctx.send(embed=embed)
 
-        try:
-            # Fetch and print a Wikipedia page summary
-            page_data = fetch_wikipedia_page(payload)
-            pages = page_data.get('query', {}).get('pages', {})
-            string_list = []
-            title, summary = get_wikipedia_info(payload)
-            for page_id, page_info in pages.items():
-                extract = page_info.get('extract', 'No extract found.')
-                string_list.append(extract)
-
-            images = get_images_from_wikipedia(string)
-
-            # Save the first image if it exists
-            if images[0]:
-                image_title = images[0].get("title")  # Get the first image's title
-                if image_title:
-                    image_url = get_image_info(image_title)
-                    if len(image_url)>0:
-                        embed = discord.Embed(
-                            title=f"{title}",
-                            description=f"{summary}",
-                            color=discord.Color.blue()
-                        )
-                        embd = embed.set_thumbnail(url = image_url) 
-                        # embed.add_field(
-                        # name=,
-                        # =f"```{summary}```",
-                        # inline=False
-                        # )
-                        await ctx.send(embed=embd)
-                        # await ctx.send(image_url)
-        except Exception as e:
-            print(e)
-            if str(e) == "list index out of range":
-                await ctx.send("Wikipedia Error: Page not found")
-            else:
-                await ctx.send(f"Wikipedia Error: {e}")
+            except Exception as e:
+                print(e)
+                if str(e) == "list index out of range":
+                    await ctx.send("Wikipedia Error: Page not found")
+                else:
+                    await ctx.send(f"Wikipedia Error: {e}")
 
     @_wikipedia.error
     async def wikipedia_error(self, ctx, error):
