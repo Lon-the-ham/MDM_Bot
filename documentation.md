@@ -125,6 +125,13 @@ With `-w` people can query the OpenWeatherMap API to get weather and temperature
 > openweathermap_key = `api key`
 
 
+### Wikipedia
+
+You can integrate wiki information by creating an account on https://api.wikimedia.org/wiki/Getting_started_with_Wikimedia_APIs and getting an API key there. You will get an ID a Secret and a Token. You only Need to add the token to your `.env`-file by writing:
+
+> wikipedia_token = `Token`
+
+
 ---
 
 # Customization
