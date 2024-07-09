@@ -1453,6 +1453,22 @@ class Music_Scrobbling(commands.Cog):
 
 
     @to_thread 
+    def find_clearname_from_compactname(self, scrobble_list):
+        """ aux for albums should be artist
+        """
+        conSS = sqlite3.connect('databases/scrobblestats.db')
+        curSS = conSS.cursor()
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+
+        clearname_dict = {}
+        # under construction
+
+        return clearname_dict 
+
+
+
+    @to_thread 
     def server_top_fetch(self, ctx, wk_type, now, timeargument, timelength, sortingrule):
         con = sqlite3.connect('databases/npsettings.db')
         cur = con.cursor()
@@ -1515,38 +1531,82 @@ class Music_Scrobbling(commands.Cog):
 
             # GET DATA
 
-            if wk_type == "artist":
-                scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "**") for item in curFM.execute(f"SELECT artist_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts ASC", (timecut,)).fetchall()]
+            if timeargument in ["a", "all", "alltime", "all-time"]:
+                conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+                curFM2 = conFM2.cursor()
+
+                conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+                curFM3 = conFM3.cursor()
+
+                if wk_type == "artist":
+                    scrobbles = [[str("**" + item[0] + "**"), item[1]] for item in curFM2.execute(f"SELECT artist_name, count FROM [{lfm_name}]").fetchall()]
+                
+                elif wk_type == "album":
+                    scrobbles = [[str("**" + item[0] + "** - " + item[1]), item[2]] for item in curFM2.execute(f"SELECT artist_name, album_name, count FROM [{lfm_name}]").fetchall()]
+                
+                elif wk_type == "track":
+                    scrobbles = [[str("**" + item[0] + "** - " + item[1]), item[2]] for item in curFM3.execute(f"SELECT artist_name, track_name, count FROM [{lfm_name}]").fetchall()]
+
+                if len(scrobbles) > 0:
+                    server_listeners += 1
+
+                for scrobble_item in scrobbles:
+                    scrobble = scrobble_item[0]
+                    plays = scrobble_item[1]
+                    total_plays += plays
+                    if "** - " in scrobble:
+                        compactname = util.compactnamefilter(scrobble.split("** - ")[0], "artist") + " - " + util.compactnamefilter(scrobble.split("** - ")[1], wk_type)
+                    else:
+                        compactname = util.compactnamefilter(scrobble, wk_type)
+
+                    scrobble_dict[compactname] = scrobble_dict.get(compactname, 0) + plays
+                    local_playcount_dict[compactname] = local_playcount_dict.get(compactname, 0) + plays
+
+                    if compactname not in clearname_dict:
+                        clearname_dict[compactname] = scrobble
+
+                    if compactname not in local_listener_dict:
+                        local_listener_dict[compactname] = True
+                        listener_dict[compactname] = listener_dict.get(compactname, 0) + 1
+
+                # score
+                for compactname in local_playcount_dict:
+                    score_dict[compactname] = score_dict.get(compactname, 0) + math.sqrt(local_playcount_dict[compactname])
+
             else:
-                scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "** - " + util.compactaddendumfilter(item[1],wk_type)) for item in curFM.execute(f"SELECT artist_name, {wk_type}_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts ASC", (timecut,)).fetchall()]
-            
-            if len(scrobbles) > 0:
-                server_listeners += 1
 
-            for scrobble in scrobbles:
-                total_plays += 1
-                if "** - " in scrobble:
-                    compactname = util.compactnamefilter(scrobble.split("** - ")[0], "artist") + " - " + util.compactnamefilter(scrobble.split("** - ")[1], wk_type)
+                if wk_type == "artist":
+                    scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "**") for item in curFM.execute(f"SELECT artist_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts ASC", (timecut,)).fetchall()]
                 else:
-                    compactname = util.compactnamefilter(scrobble, wk_type)
+                    scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "** - " + util.compactaddendumfilter(item[1],wk_type)) for item in curFM.execute(f"SELECT artist_name, {wk_type}_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts ASC", (timecut,)).fetchall()]
+                
+                if len(scrobbles) > 0:
+                    server_listeners += 1
 
-                scrobble_dict[compactname] = scrobble_dict.get(compactname, 0) + 1
-                local_playcount_dict[compactname] = local_playcount_dict.get(compactname, 0) + 1
+                for scrobble in scrobbles:
+                    total_plays += 1
+                    if "** - " in scrobble:
+                        compactname = util.compactnamefilter(scrobble.split("** - ")[0], "artist") + " - " + util.compactnamefilter(scrobble.split("** - ")[1], wk_type)
+                    else:
+                        compactname = util.compactnamefilter(scrobble, wk_type)
 
-                if compactname not in clearname_dict:
-                    clearname_dict[compactname] = scrobble
+                    scrobble_dict[compactname] = scrobble_dict.get(compactname, 0) + 1
+                    local_playcount_dict[compactname] = local_playcount_dict.get(compactname, 0) + 1
 
-                if compactname not in local_listener_dict:
-                    local_listener_dict[compactname] = True
-                    listener_dict[compactname] = listener_dict.get(compactname, 0) + 1
+                    if compactname not in clearname_dict:
+                        clearname_dict[compactname] = scrobble
 
-            # score
+                    if compactname not in local_listener_dict:
+                        local_listener_dict[compactname] = True
+                        listener_dict[compactname] = listener_dict.get(compactname, 0) + 1
 
-            for compactname in local_playcount_dict:
-                score_dict[compactname] = score_dict.get(compactname, 0) + math.sqrt(local_playcount_dict[compactname])
+                # score
 
-            # previous time
-            if timeargument not in ["a", "all", "alltime", "all-time"]:
+                for compactname in local_playcount_dict:
+                    score_dict[compactname] = score_dict.get(compactname, 0) + math.sqrt(local_playcount_dict[compactname])
+
+                # previous time
+
                 if wk_type == "artist":
                     scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "**") for item in curFM.execute(f"SELECT artist_name FROM [{lfm_name}] WHERE date_uts > ? AND date_uts <= ? ORDER BY date_uts ASC", (timecut_previous,timecut)).fetchall()]
                 else:
@@ -1698,6 +1758,11 @@ class Music_Scrobbling(commands.Cog):
 
         scrobble_list, clearname_dict, previous_listener_dict, total_plays, factor = await self.server_top_fetch(ctx, wk_type, now, timeargument, timelength, sortingrule)
 
+        if timeargument in ["a", "all", "alltime", "all-time"]:
+            # under construction
+            #clearname_dict = await self.find_clearname_from_compactname(scrobble_list[:100])
+            pass
+
         # EMBED
 
         counter = 0
@@ -1732,7 +1797,7 @@ class Music_Scrobbling(commands.Cog):
                 change = " " + change
 
             #line = f"`{counter}.`{change} {actualname} **:** `{listeners} listeners` *{plays} plays* (score: {score}%)"
-            line = f"`{counter}.`{change} {actualname}\n`{listeners} listeners` *{plays} plays* (score: {score}%)"
+            line = f"`{counter}.`{change} {actualname}\n>> {listeners} listeners - *{plays} plays* (score: {score}%)"
 
             i += 1
             j += 1
@@ -3457,184 +3522,207 @@ class Music_Scrobbling(commands.Cog):
             await ctx.send(f"Error: Could not find your lastfm username. {emoji}\nUse `{self.prefix}setfm` to set your username first, and then use `{self.prefix}u` to load your scrobbles into the bot's database.")
             return
 
-        # GET SCROBBLES
+        async with ctx.typing():
+            # GET SCROBBLES
 
-        conFM = sqlite3.connect('databases/scrobbledata.db')
-        curFM = conFM.cursor()
+            conFM = sqlite3.connect('databases/scrobbledata.db')
+            curFM = conFM.cursor()
 
-        scrobbles = [[item[0],item[1],item[2],item[3]] for item in curFM.execute(f"SELECT artist_name, album_name, track_name, date_uts FROM [{lfm_name}] ORDER BY date_uts DESC").fetchall()]
-        
-        if len(scrobbles) == 0:
-            await ctx.send("You haven't imported any scrobbles.")
-            return
+            scrobbles = [[item[0],item[1],item[2],item[3]] for item in curFM.execute(f"SELECT artist_name, album_name, track_name, date_uts FROM [{lfm_name}] ORDER BY date_uts DESC").fetchall()]
+            
+            if len(scrobbles) == 0:
+                await ctx.send("You haven't imported any scrobbles.")
+                return
 
-        # COUNT STREAKS
+            # COUNT STREAKS
 
-        streaks = []
-        current_streak = []
+            streaks = []
+            current_streak = []
 
-        artist_dict = {}
-        album_dict = {}
-        track_dict = {}
+            artist_dict = {}
+            album_dict = {}
+            track_dict = {}
 
-        current_artist = None
-        current_album = None
-        current_track = None
-        utc_start = None
+            artistnamefull = "_"
+            previous_compact_artist = "_"
+            current_artist = None
+            current_album = None
+            current_track = None
+            utc_start = None
 
-        artist_count = 0
-        album_count = 0
-        track_count = 0
+            artist_count = 0
+            album_count = 0
+            track_count = 0
 
-        streak_num = -1
+            streak_num = -1
 
-        for scrobble in scrobbles:
-            compact_artist = util.compactnamefilter(scrobble[0])
-            compact_album = util.compactnamefilter(scrobble[1])
-            compact_track = util.compactnamefilter(scrobble[2])
+            scrobbles.append(["", "", "", util.year9999()])
 
-            if compact_artist != current_artist:
-                # wrap up previous streak
+            for scrobble in scrobbles:
+                compact_artist = util.compactnamefilter(scrobble[0])
+                compact_album = util.compactnamefilter(scrobble[1])
+                compact_track = util.compactnamefilter(scrobble[2])
 
-                if artist_count > 24:
-                    if compact_artist not in artist_dict:
-                        artist_dict[compact_artist] = util.compactaddendumfilter(scrobble[0])
+                if compact_artist != current_artist:
+                    # wrap up previous streak
 
-                    streaks.append(current_streak)
+                    if artist_count > 24:
+                        if previous_compact_artist not in artist_dict:
+                            artist_dict[previous_compact_artist] = util.compactaddendumfilter(artistnamefull)
 
-                # move on to next streak
-                streak_num += 1
+                        streaks.append(current_streak)
 
-                current_artist = compact_artist
-                current_album = compact_album
-                current_track = compact_track
+                    # move on to next streak
+                    streak_num += 1
 
-                artist_count = 0
-                album_count = 0
-                track_count = 0
+                    current_artist = compact_artist
+                    current_album = compact_album
+                    current_track = compact_track
 
-                max_album = current_album
-                max_album_count = album_count
-                max_track = current_track
-                max_track_count = track_count
+                    artist_count = 0
+                    album_count = 0
+                    track_count = 0
 
-                current_streak = [current_artist, artist_count, max_album, max_album_count, current_album, album_count, max_track, max_track_count, current_track, track_count, utc_start]
+                    max_album = current_album
+                    max_album_count = album_count
+                    max_track = current_track
+                    max_track_count = track_count
 
-            # increase artist count by one
-            artist_count += 1
-            current_streak[1] = artist_count
-            utc_start = scrobble[3]
+                    current_streak = [current_artist, artist_count, max_album, max_album_count, current_album, album_count, max_track, max_track_count, current_track, track_count, utc_start]
 
-            if current_album == compact_album:
-                # increase album count by one
-                album_count += 1
-                current_streak[5] = album_count
+                # increase artist count by one
+                artist_count += 1
+                current_streak[1] = artist_count
+                utc_start = scrobble[3]
 
-                # if current album count overtook the maximal album count -> save
-                if current_album != "" and album_count > current_streak[3]:
-                    current_streak[2] = current_album
-                    current_streak[3] = album_count
+                artistnamefull = util.compactaddendumfilter(scrobble[0])
+                previous_compact_artist = compact_artist
 
-                    if f"{compact_artist}-{current_album}" not in album_dict:
-                        album_dict[f"{compact_artist}-{current_album}"] = util.compactaddendumfilter(scrobble[1])
+                if current_album == compact_album:
+                    # increase album count by one
+                    album_count += 1
+                    current_streak[5] = album_count
 
-            else:
-                current_album = compact_album
-                current_streak[4] = current_album
-                album_count = 1
-                current_streak[5] = album_count
+                    # if current album count overtook the maximal album count -> save
+                    if current_album != "" and album_count > current_streak[3]:
+                        current_streak[2] = current_album
+                        current_streak[3] = album_count
 
+                        if f"{compact_artist}-{current_album}" not in album_dict:
+                            album_dict[f"{compact_artist}-{current_album}"] = util.compactaddendumfilter(scrobble[1])
 
-            if current_track == compact_track:
-                # increase track count by one
-                track_count += 1
-                current_streak[9] = track_count
-
-                # if current track count overtook the maximal track count -> save
-                if current_track != "" and track_count > current_streak[7]:
-                    current_streak[6] = current_track
-                    current_streak[7] = track_count
-
-                    if f"{compact_artist}-{current_track}" not in track_dict:
-                        track_dict[f"{compact_artist}-{current_track}"] = util.compactaddendumfilter(scrobble[2])
-
-            else:
-                current_track = compact_track
-                current_streak[8] = current_track
-                track_count = 1
-                current_streak[9] = track_count
-
-        streaks_filtered = []
-
-        if argument == "chronological":
-            streaks.sort(key=lambda x: x[10], reverse = True)
-
-        elif argument in ["artist", "plays", "play", "scrobble"]:
-            streaks.sort(key=lambda x: x[1], reverse = True)
-
-        elif argument in ["album", "release"]:
-            streaks.sort(key=lambda x: x[3], reverse = True)
-
-        elif argument in ["track", "song"]:
-            streaks.sort(key=lambda x: x[7], reverse = True)
-
-        i = 0
-        for streak in reversed(streaks):
-            artist = artist_dict.get(streak[0], "")
-            artist_count = streak[1]
-            album = album_dict.get(f"{streak[0]}-{streak[2]}", "")
-            album_count = streak[3]
-            track = track_dict.get(f"{streak[0]}-{streak[6]}", "")
-            track_count = streak[7]
-
-            utc_start = streak[10]
-
-            if argument in ["album", "release"]:
-                if album == "" or album_count < 25:
-                    continue
-
-            if argument in ["track", "song"]:
-                if track == "" or track_count < 25:
-                    continue
-
-            if artist != "":
-                i+=1
-                text = f"<t:{utc_start}:f> **{artist}** - *{artist_count} plays*"
-                if album != "" and album_count > 1:
-                    text += f"\n`longest album streak:` {album} - *{album_count} plays*"
-                if track != "" and track_count > 1:
-                    text += f"\n`longest track streak:` {track} - *{track_count} plays*"
-
-                if argument == "":
-                    text = f"`{i}.` " + text
-                streaks_filtered.append(text)
-
-        if len(streaks_filtered) > 0:
-            contents = [""]
-            i = 0
-            k = 0
-            count = 0
-            for streak in reversed(streaks_filtered):
-                count += 1
-                i+=1
-                if argument == "":
-                    contents[k] += "\n\n" + streak
                 else:
-                    contents[k] += f"\n\n`{count}.` " + streak
+                    current_album = compact_album
+                    current_streak[4] = current_album
+                    album_count = 1
+                    current_streak[5] = album_count
 
-                if i >= 5:
-                    contents[k] = contents[k].strip()
-                    k += 1
-                    i = 0
-                    contents.append("")
-        else:
-            contents = ["no streaks :("]
 
-        header = f"{ctx.author.display_name}'s streaks 🔥"
-        color = ctx.author.color
-        footer = str(len(streaks_filtered)) + " streaks"
+                if current_track == compact_track:
+                    # increase track count by one
+                    track_count += 1
+                    current_streak[9] = track_count
 
-        await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer)
+                    # if current track count overtook the maximal track count -> save
+                    if current_track != "" and track_count > current_streak[7]:
+                        current_streak[6] = current_track
+                        current_streak[7] = track_count
+
+                        if f"{compact_artist}-{current_track}" not in track_dict:
+                            track_dict[f"{compact_artist}-{current_track}"] = util.compactaddendumfilter(scrobble[2])
+
+                else:
+                    current_track = compact_track
+                    current_streak[8] = current_track
+                    track_count = 1
+                    current_streak[9] = track_count
+
+
+            streaks_filtered = []
+
+            # PARSE ARGUMENT FOR SORTING
+
+            argument = argument.replace(" ","")
+            if argument.startswith("sortby"):
+                argument = argument[6:]
+            elif argument.startswith("by"):
+                argument = argument[2:]
+
+            if argument == "time":
+                # already in right order
+                pass
+
+            elif argument == "chronological":
+                streaks.sort(key=lambda x: x[10], reverse = True)
+
+            elif argument in ["artist", "plays", "play", "scrobble"]:
+                streaks.sort(key=lambda x: x[1], reverse = True)
+
+            elif argument in ["album", "release"]:
+                streaks.sort(key=lambda x: x[3], reverse = True)
+
+            elif argument in ["track", "song"]:
+                streaks.sort(key=lambda x: x[7], reverse = True)
+
+            # PUT EMBED TOGETHER
+
+            i = 0
+            for streak in reversed(streaks):
+                artist = artist_dict.get(streak[0], "")
+                artist_count = streak[1]
+                album = album_dict.get(f"{streak[0]}-{streak[2]}", "")
+                album_count = streak[3]
+                track = track_dict.get(f"{streak[0]}-{streak[6]}", "")
+                track_count = streak[7]
+
+                utc_start = streak[10]
+
+                if argument in ["album", "release"]:
+                    if album == "" or album_count < 25:
+                        continue
+
+                if argument in ["track", "song"]:
+                    if track == "" or track_count < 25:
+                        continue
+
+                if artist != "":
+                    i+=1
+                    text = f"<t:{utc_start}:f> **{artist}** - *{artist_count} plays*"
+                    if album != "" and album_count > 1:
+                        text += f"\n`longest album streak:` {album} - *{album_count} plays*"
+                    if track != "" and track_count > 1:
+                        text += f"\n`longest track streak:` {track} - *{track_count} plays*"
+
+                    if argument == "":
+                        text = f"`{i}.` " + text
+                    streaks_filtered.append(text)
+
+            if len(streaks_filtered) > 0:
+                contents = [""]
+                i = 0
+                k = 0
+                count = 0
+                for streak in reversed(streaks_filtered):
+                    count += 1
+                    i+=1
+                    if argument == "":
+                        contents[k] += "\n\n" + streak
+                    else:
+                        contents[k] += f"\n\n`{count}.` " + streak
+
+                    if i >= 5:
+                        contents[k] = contents[k].strip()
+                        k += 1
+                        i = 0
+                        contents.append("")
+            else:
+                contents = ["no streaks :("]
+
+            header = f"{ctx.author.display_name}'s streaks 🔥"
+            color = ctx.author.color
+            footer = str(len(streaks_filtered)) + " streaks"
+
+            await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer)
 
 
 
@@ -3646,11 +3734,13 @@ class Music_Scrobbling(commands.Cog):
 
         Use argument
         - `chronological` : to have them sorted from earliest to latest (artist) streak
+        - `time` : to have them in reverse chronological order
         - `artist` : to have them sorted by artist streak length
         - `album` : to have them sorted by album streak length
         - `track` : to have them sorted by track streak length
 
-        or without argument to have them sorted from latest (artist) streak to earliest."""
+        or without argument to have `time` argument as default.
+        """
 
         await self.fetch_streak_history(ctx, args)
 
@@ -3668,11 +3758,12 @@ class Music_Scrobbling(commands.Cog):
 
         Use argument
         - `chronological` : to have them sorted from earliest to latest (artist) streak
+        - `time` : to have them in reverse chronological order
         - `artist` : to have them sorted by artist streak length
         - `album` : to have them sorted by album streak length
         - `track` : to have them sorted by track streak length
 
-        or without argument to have them sorted from latest (artist) streak to earliest.
+        or without argument to have `time` argument as default.
         """
 
         await self.fetch_streak_history(ctx, args)
@@ -3866,7 +3957,7 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    @commands.command(name='at', aliases = ["artisttracks"])
+    @commands.command(name='at', aliases = ["artisttracks", "favs", "fav"])
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _artisttracks(self, ctx: commands.Context, *args):
@@ -4098,7 +4189,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _serverartists(self, ctx: commands.Context, *args):
-        """Top artists on server
+        """Serverwide top artists
 
         Timeframe defaults to `week`, but you can specify also `day`, `month`, `quarter`, `half`, `year`.
 
@@ -4123,7 +4214,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _serveralbums(self, ctx: commands.Context, *args):
-        """Top albums on server
+        """Serverwide top albums
 
         Timeframe defaults to `week`, but you can specify also `day`, `month`, `quarter`, `half`, `year`.
 
@@ -4148,7 +4239,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _servertracks(self, ctx: commands.Context, *args):
-        """Top tracks on server
+        """Serverwide top tracks
 
         Timeframe defaults to `week`, but you can specify also `day`, `month`, `quarter`, `half`, `year`.
 
@@ -4169,7 +4260,75 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    # under construction: personal top artist / top albums / top tracks
+    @commands.command(name='saa', aliases = ["serverartistalbum", "serverartistalbums"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _serverartistalbums(self, ctx: commands.Context, *args):
+        """Serverwide top albums of an artist
+        """
+
+        await ctx.send("under construction")
+
+    @_serverartistalbums.error
+    async def serverartistalbums_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='sat', aliases = ["serverartisttrack", "serverartisttracks"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _serverartisttracks(self, ctx: commands.Context, *args):
+        """Serverwide top tracks of an artist
+        """
+
+        await ctx.send("under construction")
+
+    @_serverartisttracks.error
+    async def serverartisttracks_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='ta', aliases = ["topartist", "topartists"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _topartists(self, ctx: commands.Context, *args):
+        """Your top artists
+        """
+        await ctx.send("under construction")
+
+    @_topartists.error
+    async def topartists_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='tab', aliases = ["topalbum", "topalbums"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _topalbums(self, ctx: commands.Context, *args):
+        """Your top albums
+        """
+        await ctx.send("under construction")
+
+    @_topalbums.error
+    async def topalbums_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='tt', aliases = ["toptrack", "toptracks"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _toptracks(self, ctx: commands.Context, *args):
+        """Your top tracks
+        """
+        await ctx.send("under construction")
+
+    @_toptracks.error
+    async def toptracks_error(self, ctx, error):
+        await util.error_handling(ctx, error)
 
 
 
