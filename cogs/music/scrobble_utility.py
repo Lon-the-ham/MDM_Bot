@@ -1529,9 +1529,11 @@ class Music_Scrobbling(commands.Cog):
             previous_local_listener_dict = {}
             local_playcount_dict = {}
 
+
+
             # GET DATA
 
-            if timeargument in ["a", "all", "alltime", "all-time"]:
+            if timeargument in ["a", "at", "all", "alltime", "all-time"]:
                 conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
                 curFM2 = conFM2.cursor()
 
@@ -1657,7 +1659,174 @@ class Music_Scrobbling(commands.Cog):
             raise ValueError("Error with sorting rule argument.")
             return
 
-        return scrobble_list, clearname_dict, previous_listener_dict, total_plays, factor
+        return scrobble_list, clearname_dict, previous_listener_dict, total_plays, server_listeners, factor
+
+
+
+    async def user_top(self, ctx, argument, wk_type):
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        # PARSE USER
+
+        # under construction: make possible to mention other users
+        user = ctx.author
+
+        user_id = str(user.id)
+        user_name = user.display_name
+        user_color = user.color
+        user_display_name = user.display_name
+        user_avatar = user.avatar
+
+        # FETCH LASTFM NAME
+
+        conNP = sqlite3.connect('databases/npsettings.db')
+        curNP = conNP.cursor()
+
+        try:
+            result = curNP.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (user_id,)).fetchone()
+            lfm_name = result[0]
+            status = result[1]
+        except Exception as e:
+            print(e)
+            emoji = util.emoji("disappointed")
+            await ctx.send(f"Error: Could not find your lastfm username. {emoji}\nUse `{self.prefix}setfm` to set your username first, and then use `{self.prefix}u` to load your scrobbles into the bot's database.")
+            return
+
+        # PARSE TIME
+
+        timedict = {
+            "d":     24*60*60,
+            "day":   24*60*60,
+            "daily": 24*60*60,
+            "w":      7*24*60*60,
+            "week":   7*24*60*60,
+            "weekly": 7*24*60*60,
+            "f":           14*24*60*60,
+            "fortnite":    14*24*60*60,
+            "fortnight":   14*24*60*60,
+            "fortnightly": 14*24*60*60,
+            "b":           14*24*60*60,
+            "biweek":      14*24*60*60,
+            "biweekly":    14*24*60*60,
+            "m":       30*24*60*60,
+            "month":   30*24*60*60,
+            "monthly": 30*24*60*60,
+            "q":         90*24*60*60,
+            "quarter":   90*24*60*60,
+            "quarterly": 90*24*60*60,
+            "h":          180*24*60*60,
+            "half":       180*24*60*60,
+            "halfyear":   180*24*60*60,
+            "halfyearly": 180*24*60*60,
+            "y":      365*24*60*60,
+            "year":   365*24*60*60,
+            "yearly": 365*24*60*60,
+            "a":        now,
+            "at":       now,
+            "all":      now,
+            "alltime":  now,
+            "all-time": now,
+        }
+
+        time_text_dict = {
+            24*60*60    : " daily",
+            7*24*60*60  : " weekly",
+            14*24*60*60 : " fortnightly",
+            30*24*60*60 : " monthly",
+            90*24*60*60 : " quarterly",
+            180*24*60*60: " half-yearly",
+            365*24*60*60: " yearly",
+            now         : " all time",
+        }
+
+        args = argument.split()
+
+        for arg in args:
+            if arg.strip().lower() in timedict:
+                timelength = timedict[arg.strip().lower()]
+                timeargument = arg.strip().lower()
+                break
+        else:
+            timelength = 30*24*60*60
+            timeargument = "month"
+
+        timecut = now - timelength
+        time_text = time_text_dict.get(timelength, "")
+
+        # GET LASTFM DATA
+
+        async with ctx.typing():
+            # GET SCROBBLES
+
+            conFM = sqlite3.connect('databases/scrobbledata.db')
+            curFM = conFM.cursor()
+
+            scrobble_dict = {}
+            clearname_dict = {}
+            total_plays = 0
+
+            if wk_type == "artist":
+                scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "**") for item in curFM.execute(f"SELECT artist_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts ASC", (timecut,)).fetchall()]
+            else:
+                scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "** - " + util.compactaddendumfilter(item[1],wk_type)) for item in curFM.execute(f"SELECT artist_name, {wk_type}_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts ASC", (timecut,)).fetchall()]
+            
+            for scrobble in scrobbles:
+                total_plays += 1
+                if "** - " in scrobble:
+                    compactname = util.compactnamefilter(scrobble.split("** - ")[0], "artist") + " - " + util.compactnamefilter(scrobble.split("** - ")[1], wk_type)
+                else:
+                    compactname = util.compactnamefilter(scrobble, wk_type)
+
+                scrobble_dict[compactname] = scrobble_dict.get(compactname, 0) + 1
+
+                if compactname not in clearname_dict:
+                    clearname_dict[compactname] = scrobble
+
+            # MAKE LIST AND SORT
+
+            scrobble_list = []
+            for compactname, playcount in scrobble_dict.items():
+                scrobble_list.append([compactname, playcount])
+
+            scrobble_list.sort(key = lambda x: x[1], reverse = True)
+
+            # EMBED
+
+            counter = 0
+            change = ""
+
+            header = f"Top{time_text} {wk_type}s of {user_name} 📊"
+            footer = f"{len(scrobble_list)} different {wk_type}s - {total_plays} plays in total"
+            color = 0x4682b4 # steel blue
+
+            contents = [""]
+            i = 0 #indexnumber
+            j = 0 #item on this page
+            k = 0 #pagenumber
+            for scrobble in scrobble_list:
+                compactname = scrobble[0]
+                plays = scrobble[1]
+                if compactname == "":
+                    continue
+                counter += 1
+                actualname = clearname_dict[compactname]
+
+                line = f"`{counter}.` {actualname} - *{plays} plays*"
+
+                i += 1
+                j += 1
+
+                if j <= 15:    
+                    contents[k] = contents[k] + "\n" + line 
+                else:
+                    k = k+1
+                    j = 1
+                    contents.append(line)
+                #if counter > 99:
+                #    break
+
+            # SEND EMBED MESSAGE
+            await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer)
 
 
 
@@ -1696,6 +1865,7 @@ class Music_Scrobbling(commands.Cog):
             "year":   365*24*60*60,
             "yearly": 365*24*60*60,
             "a":        now,
+            "at":       now,
             "all":      now,
             "alltime":  now,
             "all-time": now,
@@ -1756,9 +1926,9 @@ class Music_Scrobbling(commands.Cog):
 
         # GET LASTFM DATA
 
-        scrobble_list, clearname_dict, previous_listener_dict, total_plays, factor = await self.server_top_fetch(ctx, wk_type, now, timeargument, timelength, sortingrule)
+        scrobble_list, clearname_dict, previous_listener_dict, total_plays, total_users, factor = await self.server_top_fetch(ctx, wk_type, now, timeargument, timelength, sortingrule)
 
-        if timeargument in ["a", "all", "alltime", "all-time"]:
+        if timeargument in ["a", "at", "all", "alltime", "all-time"]:
             # under construction
             #clearname_dict = await self.find_clearname_from_compactname(scrobble_list[:100])
             pass
@@ -1769,7 +1939,7 @@ class Music_Scrobbling(commands.Cog):
         change = ""
 
         header = f"Top {wk_type}s on {ctx.guild.name}{time_text} 📊"
-        footer = f"{len(scrobble_list)} different {wk_type}s - {total_plays} plays in total"
+        footer = f"{len(scrobble_list)} different {wk_type}s - {total_users} users - {total_plays} plays in total"
         color = 0x4682b4 # steel blue
 
         contents = [""]
@@ -1786,7 +1956,7 @@ class Music_Scrobbling(commands.Cog):
             listeners = scrobble[2]
             score = round(scrobble[3] / factor * 100)
 
-            if timeargument not in ["a", "all", "alltime", "all-time"]:
+            if timeargument not in ["a", "at", "all", "alltime", "all-time"]:
                 previous_listeners = previous_listener_dict.get(compactname, 0)
                 if listeners > previous_listeners:
                     change = util.emoji("change_up")
@@ -3642,27 +3812,32 @@ class Music_Scrobbling(commands.Cog):
 
             # PARSE ARGUMENT FOR SORTING
 
+            spec = ""
+
             argument = argument.replace(" ","")
             if argument.startswith("sortby"):
                 argument = argument[6:]
             elif argument.startswith("by"):
                 argument = argument[2:]
 
-            if argument == "time":
+            if argument in ["t", "time"]:
                 # already in right order
                 pass
 
-            elif argument == "chronological":
+            elif argument in ["chronological", "chron", "c"]:
                 streaks.sort(key=lambda x: x[10], reverse = True)
 
-            elif argument in ["artist", "plays", "play", "scrobble"]:
+            elif argument in ["artist", "plays", "play", "scrobble", "artists", "a"]:
                 streaks.sort(key=lambda x: x[1], reverse = True)
+                spec = "artist "
 
-            elif argument in ["album", "release"]:
+            elif argument in ["album", "release", "albums", "releases", "ab"]:
                 streaks.sort(key=lambda x: x[3], reverse = True)
+                spec = "album "
 
-            elif argument in ["track", "song"]:
+            elif argument in ["track", "song", "tracks", "songs", "t"]:
                 streaks.sort(key=lambda x: x[7], reverse = True)
+                spec = "track "
 
             # PUT EMBED TOGETHER
 
@@ -3718,7 +3893,7 @@ class Music_Scrobbling(commands.Cog):
             else:
                 contents = ["no streaks :("]
 
-            header = f"{ctx.author.display_name}'s streaks 🔥"
+            header = f"{ctx.author.display_name}'s {spec}streaks 🔥"
             color = ctx.author.color
             footer = str(len(streaks_filtered)) + " streaks"
 
@@ -3739,7 +3914,7 @@ class Music_Scrobbling(commands.Cog):
         - `album` : to have them sorted by album streak length
         - `track` : to have them sorted by track streak length
 
-        or without argument to have `time` argument as default.
+        In case of no argument `time` acts as default.
         """
 
         await self.fetch_streak_history(ctx, args)
@@ -3763,7 +3938,7 @@ class Music_Scrobbling(commands.Cog):
         - `album` : to have them sorted by album streak length
         - `track` : to have them sorted by track streak length
 
-        or without argument to have `time` argument as default.
+        In case of no argument `time` acts as default.
         """
 
         await self.fetch_streak_history(ctx, args)
@@ -4295,8 +4470,25 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(util.is_active)
     async def _topartists(self, ctx: commands.Context, *args):
         """Your top artists
+
+        You can specify the timeframe
+        - `day`
+        - `week`
+        - `fortnight`
+        - `month`
+        - `quarter`
+        - `half`
+        - `year`
+        - `alltime`
+
+        The default without argument is `month`.
         """
-        await ctx.send("under construction")
+        try:
+            async with ctx.typing():
+                argument = ' '.join(args)
+                await self.user_top(ctx, argument, "artist")
+        except Exception as e:
+            await self.lastfm_error_handler(ctx, e)
 
     @_topartists.error
     async def topartists_error(self, ctx, error):
@@ -4309,8 +4501,25 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(util.is_active)
     async def _topalbums(self, ctx: commands.Context, *args):
         """Your top albums
+
+        You can specify the timeframe
+        - `day`
+        - `week`
+        - `fortnight`
+        - `month`
+        - `quarter`
+        - `half`
+        - `year`
+        - `alltime`
+
+        The default without argument is `month`.
         """
-        await ctx.send("under construction")
+        try:
+            async with ctx.typing():
+                argument = ' '.join(args)
+                await self.user_top(ctx, argument, "album")
+        except Exception as e:
+            await self.lastfm_error_handler(ctx, e)
 
     @_topalbums.error
     async def topalbums_error(self, ctx, error):
@@ -4323,8 +4532,25 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(util.is_active)
     async def _toptracks(self, ctx: commands.Context, *args):
         """Your top tracks
+
+        You can specify the timeframe
+        - `day`
+        - `week`
+        - `fortnight`
+        - `month`
+        - `quarter`
+        - `half`
+        - `year`
+        - `alltime`
+
+        The default without argument is `month`.
         """
-        await ctx.send("under construction")
+        try:
+            async with ctx.typing():
+                argument = ' '.join(args)
+                await self.user_top(ctx, argument, "track")
+        except Exception as e:
+            await self.lastfm_error_handler(ctx, e)
 
     @_toptracks.error
     async def toptracks_error(self, ctx, error):
