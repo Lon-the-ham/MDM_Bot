@@ -3857,7 +3857,7 @@ class Music_Scrobbling(commands.Cog):
                         continue
 
                 if argument in ["track", "song"]:
-                    if track == "" or track_count < 25:
+                    if track == "" or track_count < 10:
                         continue
 
                 if artist != "":
