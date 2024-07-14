@@ -1988,6 +1988,11 @@ class Music_Scrobbling(commands.Cog):
 
 
 
+    async def server_artist_top(self, ctx, argument, wk_type):
+        await ctx.send("under construction")
+
+
+
     async def first_scrobbler(self, ctx, argument, wk_type):
         con = sqlite3.connect('databases/npsettings.db')
         cur = con.cursor()
@@ -3714,7 +3719,11 @@ class Music_Scrobbling(commands.Cog):
             track_dict = {}
 
             artistnamefull = "_"
+            albumnamefull = "_"
+            tracknamefull = "_"
             previous_compact_artist = "_"
+            previous_compact_album = "_"
+            previous_compact_track = "_"
             current_artist = None
             current_album = None
             current_track = None
@@ -3728,91 +3737,220 @@ class Music_Scrobbling(commands.Cog):
 
             scrobbles.append(["", "", "", util.year9999()])
 
-            for scrobble in scrobbles:
-                compact_artist = util.compactnamefilter(scrobble[0])
-                compact_album = util.compactnamefilter(scrobble[1])
-                compact_track = util.compactnamefilter(scrobble[2])
+            # FIND STREAKS BY ARTIST
+            if argument not in ["album", "release", "albums", "releases", "ab"] + ["track", "song", "tracks", "songs", "t"]:
+                for scrobble in scrobbles:
+                    compact_artist = util.compactnamefilter(scrobble[0], "artist")
+                    compact_album = util.compactnamefilter(scrobble[1], "album")
+                    compact_track = util.compactnamefilter(scrobble[2], "track")
 
-                if compact_artist != current_artist:
-                    # wrap up previous streak
+                    if compact_artist != current_artist:
+                        # wrap up previous streak
 
-                    if artist_count > 24:
-                        if previous_compact_artist not in artist_dict:
-                            artist_dict[previous_compact_artist] = util.compactaddendumfilter(artistnamefull)
+                        if artist_count > 24:
+                            if previous_compact_artist not in artist_dict:
+                                artist_dict[previous_compact_artist] = util.compactaddendumfilter(artistnamefull)
 
-                        streaks.append(current_streak)
+                            streaks.append(current_streak)
 
-                    # move on to next streak
-                    streak_num += 1
+                        # move on to next streak
+                        streak_num += 1
 
-                    current_artist = compact_artist
-                    current_album = compact_album
-                    current_track = compact_track
+                        current_artist = compact_artist
+                        current_album = compact_album
+                        current_track = compact_track
 
-                    artist_count = 0
-                    album_count = 0
-                    track_count = 0
+                        artist_count = 0
+                        album_count = 0
+                        track_count = 0
+                        utc_start = scrobble[3]
 
-                    max_album = current_album
-                    max_album_count = album_count
-                    max_track = current_track
-                    max_track_count = track_count
+                        max_album = current_album
+                        max_album_count = album_count
+                        max_track = current_track
+                        max_track_count = track_count
 
-                    current_streak = [current_artist, artist_count, max_album, max_album_count, current_album, album_count, max_track, max_track_count, current_track, track_count, utc_start]
+                        current_streak = [current_artist, artist_count, max_album, max_album_count, current_album, album_count, max_track, max_track_count, current_track, track_count, utc_start]
 
-                # increase artist count by one
-                artist_count += 1
-                current_streak[1] = artist_count
-                utc_start = scrobble[3]
+                    # increase artist count by one
+                    artist_count += 1
+                    current_streak[1] = artist_count
+                    #utc_start = scrobble[3]
 
-                artistnamefull = util.compactaddendumfilter(scrobble[0])
-                previous_compact_artist = compact_artist
+                    artistnamefull = util.compactaddendumfilter(scrobble[0], "artist")
+                    previous_compact_artist = compact_artist
 
-                if current_album == compact_album:
-                    # increase album count by one
-                    album_count += 1
-                    current_streak[5] = album_count
+                    if current_album == compact_album:
+                        # increase album count by one
+                        album_count += 1
+                        current_streak[5] = album_count
 
-                    # if current album count overtook the maximal album count -> save
-                    if current_album != "" and album_count > current_streak[3]:
-                        current_streak[2] = current_album
+                        # if current album count overtook the maximal album count -> save
+                        if current_album != "" and album_count > current_streak[3]:
+                            current_streak[2] = current_album
+                            current_streak[3] = album_count
+
+                            if f"{compact_artist}-{current_album}" not in album_dict:
+                                album_dict[f"{compact_artist}-{current_album}"] = util.compactaddendumfilter(scrobble[1], "album")
+
+                    else:
+                        current_album = compact_album
+                        current_streak[4] = current_album
+                        album_count = 1
+                        current_streak[5] = album_count
+
+
+                    if current_track == compact_track:
+                        # increase track count by one
+                        track_count += 1
+                        current_streak[9] = track_count
+
+                        # if current track count overtook the maximal track count -> save
+                        if current_track != "" and track_count > current_streak[7]:
+                            current_streak[6] = current_track
+                            current_streak[7] = track_count
+
+                            if f"{compact_artist}-{current_track}" not in track_dict:
+                                track_dict[f"{compact_artist}-{current_track}"] = util.compactaddendumfilter(scrobble[2], "track")
+
+                    else:
+                        current_track = compact_track
+                        current_streak[8] = current_track
+                        track_count = 1
+                        current_streak[9] = track_count
+
+            else:
+                artist_count = -1
+
+                # FIND STREAKS BY ALBUM
+                if argument in ["album", "release", "albums", "releases", "ab"]:
+                    for scrobble in scrobbles:
+                        compact_artist = util.compactnamefilter(scrobble[0], "artist")
+                        compact_album = util.compactnamefilter(scrobble[1], "album")
+                        compact_track = util.compactnamefilter(scrobble[2], "track")
+
+                        if compact_artist != current_artist or compact_album != current_album:
+                            # wrap up previous streak
+
+                            if album_count > 24:
+                                if previous_compact_artist not in artist_dict:
+                                    artist_dict[previous_compact_artist] = util.compactaddendumfilter(artistnamefull, "artist")
+
+                                if f"{previous_compact_artist}-{previous_compact_album}" not in album_dict:
+                                    album_dict[f"{previous_compact_artist}-{previous_compact_album}"] = util.compactaddendumfilter(albumnamefull, "album")
+
+                                streaks.append(current_streak)
+
+                            # move on to next streak
+                            streak_num += 1
+
+                            current_artist = compact_artist
+                            current_album = compact_album
+                            current_track = compact_track
+
+                            album_count = 0
+                            track_count = 0
+                            utc_start = scrobble[3]
+
+                            max_album = current_album
+                            max_album_count = album_count
+                            max_track = current_track
+                            max_track_count = track_count
+
+                            current_streak = [current_artist, artist_count, max_album, max_album_count, current_album, album_count, max_track, max_track_count, current_track, track_count, utc_start]
+
+                        # artist
+                        #utc_start = scrobble[3]
+                        artistnamefull = util.compactaddendumfilter(scrobble[0], "artist")
+                        previous_compact_artist = compact_artist
+
+                        # album
+                        album_count += 1
+                        albumnamefull = util.compactaddendumfilter(scrobble[1], "album")
+                        previous_compact_album = compact_album
                         current_streak[3] = album_count
+                        current_streak[5] = album_count
+                        current_streak[2] = current_album
+                        current_streak[4] = current_album
 
-                        if f"{compact_artist}-{current_album}" not in album_dict:
-                            album_dict[f"{compact_artist}-{current_album}"] = util.compactaddendumfilter(scrobble[1])
+                        # track
+                        if current_track == compact_track:
+                            # increase track count by one
+                            track_count += 1
+                            current_streak[9] = track_count
+
+                            # if current track count overtook the maximal track count -> save
+                            if current_track != "" and track_count > current_streak[7]:
+                                current_streak[6] = current_track
+                                current_streak[7] = track_count
+
+                                if f"{compact_artist}-{current_track}" not in track_dict:
+                                    track_dict[f"{compact_artist}-{current_track}"] = util.compactaddendumfilter(scrobble[2], "track")
+
+                        else:
+                            current_track = compact_track
+                            current_streak[8] = current_track
+                            track_count = 1
+                            current_streak[9] = track_count
 
                 else:
-                    current_album = compact_album
-                    current_streak[4] = current_album
-                    album_count = 1
-                    current_streak[5] = album_count
+                    # FIND STREAKS BY TRACK
+                    for scrobble in scrobbles:
+                        compact_artist = util.compactnamefilter(scrobble[0], "artist")
+                        compact_album = util.compactnamefilter(scrobble[1], "album")
+                        compact_track = util.compactnamefilter(scrobble[2], "track")
 
+                        if compact_artist != current_artist or compact_album != current_album:
+                            # wrap up previous streak
 
-                if current_track == compact_track:
-                    # increase track count by one
-                    track_count += 1
-                    current_streak[9] = track_count
+                            if album_count > 24:
+                                if previous_compact_artist not in artist_dict:
+                                    artist_dict[previous_compact_artist] = util.compactaddendumfilter(artistnamefull, "artist")
 
-                    # if current track count overtook the maximal track count -> save
-                    if current_track != "" and track_count > current_streak[7]:
-                        current_streak[6] = current_track
+                                if f"{previous_compact_artist}-{previous_compact_track}" not in track_dict:
+                                    track_dict[f"{previous_compact_artist}-{previous_compact_track}"] = util.compactaddendumfilter(tracknamefull, "track")
+
+                                streaks.append(current_streak)
+
+                            # move on to next streak
+                            streak_num += 1
+
+                            current_artist = compact_artist
+                            current_album = compact_album
+                            current_track = compact_track
+
+                            album_count = 0
+                            track_count = 0
+                            utc_start = scrobble[3]
+
+                            max_album = ""
+                            max_album_count = 0
+                            max_track = current_track
+                            max_track_count = track_count
+
+                            current_streak = [current_artist, artist_count, max_album, max_album_count, current_album, album_count, max_track, max_track_count, current_track, track_count, utc_start]
+
+                        # artist
+                        #utc_start = scrobble[3]
+                        artistnamefull = util.compactaddendumfilter(scrobble[0], "artist")
+                        previous_compact_artist = compact_artist
+
+                        # track
+                        track_count += 1
+                        tracknamefull = util.compactaddendumfilter(scrobble[2], "track")
+                        previous_compact_track = compact_track
                         current_streak[7] = track_count
-
-                        if f"{compact_artist}-{current_track}" not in track_dict:
-                            track_dict[f"{compact_artist}-{current_track}"] = util.compactaddendumfilter(scrobble[2])
-
-                else:
-                    current_track = compact_track
-                    current_streak[8] = current_track
-                    track_count = 1
-                    current_streak[9] = track_count
-
+                        current_streak[9] = track_count
+                        current_streak[6] = current_track
+                        current_streak[8] = current_track
 
             streaks_filtered = []
 
             # PARSE ARGUMENT FOR SORTING
 
             spec = ""
+            la = "longest "
+            lt = "longest "
 
             argument = argument.replace(" ","")
             if argument.startswith("sortby"):
@@ -3834,10 +3972,12 @@ class Music_Scrobbling(commands.Cog):
             elif argument in ["album", "release", "albums", "releases", "ab"]:
                 streaks.sort(key=lambda x: x[3], reverse = True)
                 spec = "album "
+                la = ""
 
             elif argument in ["track", "song", "tracks", "songs", "t"]:
                 streaks.sort(key=lambda x: x[7], reverse = True)
                 spec = "track "
+                lt = ""
 
             # PUT EMBED TOGETHER
 
@@ -3862,11 +4002,19 @@ class Music_Scrobbling(commands.Cog):
 
                 if artist != "":
                     i+=1
-                    text = f"<t:{utc_start}:f> **{artist}** - *{artist_count} plays*"
+                    if str(utc_start) == "None":
+                        text = f"*<none time>* **{artist}**"
+                    else:
+                        text = f"<t:{utc_start}:f> **{artist}**"
+                    if artist_count < 0:
+                        pass
+                    else:
+                        text += f" - *{artist_count} plays*"
+
                     if album != "" and album_count > 1:
-                        text += f"\n`longest album streak:` {album} - *{album_count} plays*"
+                        text += f"\n`{la}album streak:` {album} - *{album_count} plays*"
                     if track != "" and track_count > 1:
-                        text += f"\n`longest track streak:` {track} - *{track_count} plays*"
+                        text += f"\n`{lt}track streak:` {track} - *{track_count} plays*"
 
                     if argument == "":
                         text = f"`{i}.` " + text
@@ -4441,8 +4589,12 @@ class Music_Scrobbling(commands.Cog):
     async def _serverartistalbums(self, ctx: commands.Context, *args):
         """Serverwide top albums of an artist
         """
-
-        await ctx.send("under construction")
+        try:
+            async with ctx.typing():
+                argument = ' '.join(args)
+                await self.server_artist_top(ctx, argument, "album")
+        except Exception as e:
+            await self.lastfm_error_handler(ctx, e)
 
     @_serverartistalbums.error
     async def serverartistalbums_error(self, ctx, error):
@@ -4456,8 +4608,12 @@ class Music_Scrobbling(commands.Cog):
     async def _serverartisttracks(self, ctx: commands.Context, *args):
         """Serverwide top tracks of an artist
         """
-
-        await ctx.send("under construction")
+        try:
+            async with ctx.typing():
+                argument = ' '.join(args)
+                await self.server_artist_top(ctx, argument, "track")
+        except Exception as e:
+            await self.lastfm_error_handler(ctx, e)
 
     @_serverartisttracks.error
     async def serverartisttracks_error(self, ctx, error):
