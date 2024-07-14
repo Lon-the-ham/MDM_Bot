@@ -3900,10 +3900,10 @@ class Music_Scrobbling(commands.Cog):
                         compact_album = util.compactnamefilter(scrobble[1], "album")
                         compact_track = util.compactnamefilter(scrobble[2], "track")
 
-                        if compact_artist != current_artist or compact_album != current_album:
+                        if compact_artist != current_artist or compact_track != current_track:
                             # wrap up previous streak
 
-                            if album_count > 24:
+                            if track_count > 9:
                                 if previous_compact_artist not in artist_dict:
                                     artist_dict[previous_compact_artist] = util.compactaddendumfilter(artistnamefull, "artist")
 
@@ -3919,12 +3919,12 @@ class Music_Scrobbling(commands.Cog):
                             current_album = compact_album
                             current_track = compact_track
 
-                            album_count = 0
+                            album_count = -1
                             track_count = 0
                             utc_start = scrobble[3]
 
                             max_album = ""
-                            max_album_count = 0
+                            max_album_count = -1
                             max_track = current_track
                             max_track_count = track_count
 
