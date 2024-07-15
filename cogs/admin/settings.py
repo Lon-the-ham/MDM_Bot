@@ -5804,7 +5804,7 @@ class Administration_of_Settings(commands.Cog):
 
                 argument2 = f"{hour}:{minute}"
 
-        elif argument2 in ["rym scraping"]:
+        elif argument1 in ["rym scraping"]:
             if argument2 not in ["on", "off"]:
                 await ctx.send(f"Error: 2nd arg needs to be `on` or `off`.")
                 return
