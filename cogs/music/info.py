@@ -713,12 +713,12 @@ class Music_Info(commands.Cog):
                 primaryinput = input_string.split(";",1)[0].strip()
                 specification = input_string.split(";",1)[1].strip()
             else:
-                primaryinput = input_string
+                primaryinput = input_string.strip()
                 specification = ""
 
             if primaryinput == "":
                 fetch_album = False
-                input_string, primaryinput, specification = await self.input_from_nowplaying(ctx, fetch_album)
+                input_string, primaryinput, spec = await self.input_from_nowplaying(ctx, fetch_album)
 
             if input_string == "":
                 emoji = util.emoji("load")
