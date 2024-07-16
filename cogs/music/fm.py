@@ -2654,7 +2654,7 @@ class Music_NowPlaying(commands.Cog):
 
         if len(lfm_list) == 0:
             cur.execute("INSERT INTO lastfm VALUES (?, ?, ?, ?, ?)", (user_id, user_name, new_lfm_name, new_lfm_link, details))
-            textmessage = f"Added your LastFM account: `{new_lfm_name}`!"
+            textmessage = f"Added your LastFM account: `{new_lfm_name}`!\n\nIf you want your scrobbles to be imported into the bot use `{self.preifx}u`. This is a one-time thing and the bot will automatically update your scrobbles after that."
         else:
             if new_lfm_name.lower() == lfm_list[0][0].lower().strip():
                 textmessage = f"That's already your lastfm account."
