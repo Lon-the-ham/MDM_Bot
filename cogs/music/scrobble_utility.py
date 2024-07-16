@@ -620,8 +620,8 @@ class Music_Scrobbling(commands.Cog):
             count = v[0]
             time = v[1]
             first = v[2]
-            curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist, track, count, time, first))
-        conFM2.commit()
+            curFM3.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist, track, count, time, first))
+        conFM3.commit()
 
         return len(scrobbles), len(new_scrobbles), sus
 
