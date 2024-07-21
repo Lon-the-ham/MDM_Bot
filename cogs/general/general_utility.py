@@ -12,6 +12,7 @@ import sqlite3
 import math
 import requests
 from emoji import UNICODE_EMOJI
+from langdetect import detect
 
 import traceback
 
@@ -3862,9 +3863,24 @@ class General_Utility(commands.Cog):
     async def _wikipedia(self, ctx: commands.Context, *args):
         """Queries wikipedia for information
         """
+        
+        def url_lang_detect(title):
+            try:
+                lang = detect(str(title))
+                if lang == 'ja':
+                    return 'https://ja.wikipedia.org/w/api.php'
+                elif lang == 'de':
+                    return 'https://de.wikipedia.org/w/api.php'
+                elif lang == 'en':
+                    return 'https://en.wikipedia.org/w/api.php'
+                else:
+                    return 'https://en.wikipedia.org/w/api.php'
+            except:
+                return 'Error detecting language.'
+        
         def get_images_from_wikipedia(title):
             # if (title is jap): url is jap/ elif (): url is eng 
-            url = urleng
+            url = url_lang_detect(str(title))
             params = {
                 "action": "query",
                 "titles": title,
@@ -3880,11 +3896,11 @@ class General_Utility(commands.Cog):
                 images.append(page.get("images", []))
             return images
         
-        def get_image_info(image_title):
-            url = urleng
+        def get_image_info(title):
+            url = url_lang_detect(str(title))
             params = {
                 "action": "query",
-                "titles": image_title,
+                "titles": title,
                 "prop": "imageinfo",
                 "iiprop": "url",
                 "format": "json"
@@ -3897,7 +3913,7 @@ class General_Utility(commands.Cog):
                 return image_info.get("url", [])
 
         def fetch_wikipedia_page(load):
-            url = urleng
+            url = url_lang_detect(load["i"])
             params = {
                 "action": "query",
                 "titles": load["i"],
@@ -3911,7 +3927,7 @@ class General_Utility(commands.Cog):
             return response.json()
 
         def get_wikipedia_info(load, sentences=5):
-            url = urleng
+            url = url_lang_detect(load["i"])
             params = {
                 "action": "query",
                 "format": "json",
@@ -3958,8 +3974,6 @@ class General_Utility(commands.Cog):
         # PARSE ARGUMENTS
 
         string = ' '.join(args)
-        urljap = "https://ja.wikipedia.org/w/api.php"
-        urleng = "https://en.wikipedia.org/w/api.php"
         if string.strip() == "":
             await ctx.send("Command needs arguments.")
             return
