@@ -914,7 +914,7 @@ class General_Utility(commands.Cog):
                     continue
             else:
                 emoji = util.emoji("disappointed")
-                await ctx.send(f"None of the mirrors seem to work {emoji}\nMods can try to fix it via `{self.prefix}update`.")
+                await ctx.send(f"Either the language code (1st arg) is faulty or none of the mirrors seem to work {emoji}\n(The latter could be fixed by mods via `{self.prefix}update`.)")
                 return
 
             # reorder
