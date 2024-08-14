@@ -1855,7 +1855,7 @@ class Roles(commands.Cog):
         embed.set_thumbnail(url="https://c.tenor.com/kekA7AIajFsAAAAd/tenor.gif")
         await botspamchannel.send(embed=embed)
 
-        # UPDATE INACTIVIT DB
+        # UPDATE INACTIVITY DB
 
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
         conUA = sqlite3.connect('databases/useractivity.db')
