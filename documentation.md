@@ -93,7 +93,7 @@ Optionally add
 
 > encryption_key = `some random letters`
 
-which will be used for encoding and decoding the tokens. Make sure it is long and doesn't contain words. If you don't add this, the bot will randomly generate a key, which is also fine, just ONLY IF YOU USE MULTIPLE INSTNACES make sure to manually add this generated key to the .env or the activity .db of the other instances.
+which will be used for encoding and decoding the tokens. Make sure it is long and doesn't contain words. If you don't add this, the bot will randomly generate a key, which is also fine, just ONLY IF YOU USE MULTIPLE INSTANCES make sure to manually add this generated key to the .env or the activity .db of the other instances.
 
 Regardless of whether you added a dropbox connection, this bot will regularly make backups of all (non-scrobble) databases and send them as zip-file to your bot notification channel if you restart it via start_discordbot.sh. If you provide a dropbox token it will additionally also make backups of the scrobble databases and upload them to the cloud.
 
