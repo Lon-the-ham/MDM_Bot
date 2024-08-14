@@ -1119,8 +1119,15 @@ class Utils():
         """tries to convert string to ISO country code
         can return ERROR string if no matches found"""
         ISO3166 = Utils.isolist()
+        substitute_dict = {
+                'UK': 'GB',
+        }
 
         if len(s) < 4:
+            if s.upper() in substitute_dict.keys():
+                v = substitute_dict[s.upper()]
+                return v
+                
             return s.upper()
 
         for k,v in ISO3166.items():
