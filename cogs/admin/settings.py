@@ -3635,10 +3635,10 @@ class Administration_of_Settings(commands.Cog):
                 days_string = inactivityfilter_setting[0][1]
                 if util.represents_integer(days_string):
                     days = int(days_string)
-                    if days < 7:
-                        days = 7
+                    if days < 90:
+                        days = 90
                 else:
-                    days = 7
+                    days = 90
 
             conUA = sqlite3.connect('databases/useractivity.db')
             curUA = conUA.cursor()
