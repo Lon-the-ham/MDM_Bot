@@ -879,6 +879,10 @@ class Music_Scrobbling(commands.Cog):
             return artist, album, song, artist_thumbnail, album_cover, tags
 
         except Exception as e:
+            if "503 service unavailable" in str(rjson).lower():
+                # under construction: fetch artist album song from discord rich presence instead
+                raise ValueError(f"Last FM is not responding. Try in a few seconds again or try command with explicit arguments instead.")
+
             raise ValueError(f"{str(rjson)} - {e}")
 
 
