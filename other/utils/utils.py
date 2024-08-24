@@ -2825,16 +2825,23 @@ class Utils():
 
     async def get_libretranslate_mirrors():
         try:
-            raise ValueError("mirror fetcher under construction, loading hard-coded mirrors instead")
-
             session = requests.session()
-
             burp0_url = "https://github.com:443/LibreTranslate/LibreTranslate?tab=readme-ov-file"
             burp0_headers = {"Sec-Ch-Ua": "\"Not-A.Brand\";v=\"99\", \"Chromium\";v=\"124\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.118 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate, br", "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7", "Priority": "u=0, i", "Connection": "close"}
             response = session.get(burp0_url, headers=burp0_headers)
+
+            soup = BeautifulSoup(response.text.split("href=\"#mirrors\"")[1].split("Mirrors")[0], "html.parser")
+
+            url_list = []
+
+            for a in soup.find_all('a', href=True):
+                link = str(a['href']).strip()
+
+                if link not in ["https://libretranslate.com", "https://portal.libretranslate.com", "https://status.libretranslate.com/"]:
+                    url_list.append(link)
         except Exception as e:
-            print("Error:", e)
-            url_list = ["translate.terraprint.co", "trans.zillyhuhn.com", "libretranslate.eownerdead.dedyn.io", "translate.lotigara.ru"]
+            print("Error while trying to fetch libre-translate mirrors:", e)
+            url_list = ["translate.terraprint.co", "trans.zillyhuhn.com", "translate.lotigara.ru"]
 
         return url_list
 
