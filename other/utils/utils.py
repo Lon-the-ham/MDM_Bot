@@ -2838,7 +2838,7 @@ class Utils():
                 link = str(a['href']).strip()
 
                 if link not in ["https://libretranslate.com", "https://portal.libretranslate.com", "https://status.libretranslate.com/"]:
-                    url_list.append(link)
+                    url_list.append(link.replace("https://", ""))
         except Exception as e:
             print("Error while trying to fetch libre-translate mirrors:", e)
             url_list = ["translate.terraprint.co", "trans.zillyhuhn.com", "translate.lotigara.ru"]
