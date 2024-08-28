@@ -2839,6 +2839,9 @@ class Utils():
 
                 if link not in ["https://libretranslate.com", "https://portal.libretranslate.com", "https://status.libretranslate.com/"]:
                     url_list.append(link.replace("https://", ""))
+
+            if len(url_list) == 0:
+                raise ValueError("Could not find URLs in the webscraped mirror section. Either there are no working mirrors listed at the moment, or the webpage changed in which case this is a case for the devs to fix.")
         except Exception as e:
             print("Error while trying to fetch libre-translate mirrors:", e)
             url_list = ["translate.terraprint.co", "trans.zillyhuhn.com", "translate.lotigara.ru"]
