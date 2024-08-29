@@ -203,16 +203,21 @@ class Administration_of_Bot_Instance(commands.Cog):
 
             lastedited = 0
             lastchanged = 0
-            for filename in os.listdir(db_directory):
-                if str(filename).endswith(".db"):
-                    if ("activity.db" in str(filename)) or ("scrobbledata.db" in str(filename)) or ("scrobbledata_releasewise.db" in str(filename)) or ("scrobbledata_trackwise.db" in str(filename)) or ("scrobblestats.db" in str(filename)) or ("scrobblemeta.db" in str(filename)):
+            for filename_full in os.listdir(db_directory):
+                if "/" in filename_full:
+                    filename = str(filename_full).split["/"][-1]
+                else:
+                    filename = str(filename_full)
+
+                if filename.endswith(".db"):
+                    if ("activity.db" == filename) or ("scrobbledata.db" in filename) or ("scrobbledata_releasewise.db" in filename) or ("scrobbledata_trackwise.db" in filename) or ("scrobblestats.db" in filename) or ("scrobblemeta.db" in filename):
                         continue
                         
                     zf.write(os.path.join(db_directory, filename), filename)
                     edittime = int(os.path.getmtime(os.path.join(db_directory, filename)))
-                    if (edittime > lastedited) and ("activity.db" not in str(filename)) and ("scrobbledata.db" not in str(filename)) and ("scrobbledata_releasewise.db" not in str(filename)) and ("scrobbledata_trackwise.db" not in str(filename)) and ("scrobblestats.db" not in str(filename)) and ("scrobblemeta.db" not in str(filename)):
+                    if (edittime > lastedited) and ("activity.db" != filename) and ("scrobbledata.db" not in filename) and ("scrobbledata_releasewise.db" not in filename) and ("scrobbledata_trackwise.db" not in filename) and ("scrobblestats.db" not in filename) and ("scrobblemeta.db" not in filename):
                         lastedited = edittime
-                    if str(filename) == "aftermostchange.db":
+                    if filename == "aftermostchange.db":
                         try:
                             conL = sqlite3.connect(f'databases/aftermostchange.db')
                             curL = conL.cursor()
@@ -221,7 +226,7 @@ class Administration_of_Bot_Instance(commands.Cog):
                         except Exception as e:
                             print(f"Error while trying to read out aftermostchange.db: {e}")
                 else:
-                    print(f"Ignoring file: {str(filename)}")
+                    print(f"Ignoring file: {filename}")
             zf.close()
 
             if last_activity == "active":
