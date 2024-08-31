@@ -184,10 +184,21 @@ class YataBot(commands.Bot):
                             os.remove(f"{sys.path[0]}/temp/{filename}")
                 except Exception as e:
                     print("Error while trying to clear temp folder:", e)
+
             else:
                 stat_name = "standby mode"
                 await self.change_presence(activity=discord.Game(name=stat_name))
                 print(f'status: standby mode')
+
+            # INSTANCES WIDE ACTIVITY CHECK
+
+            try:
+                print("\n")
+                #print("Instances-wide activity check not implemented yet.")
+
+            except Exception as e:
+                print(f"Instances-wide activity check failed: {e}")
+
         except Exception as e:
             print(f"error in executing on_ready: {e}")
             activity = "failed loading"
