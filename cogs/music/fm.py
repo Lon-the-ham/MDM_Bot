@@ -2565,7 +2565,7 @@ class Music_NowPlaying(commands.Cog):
 
 
     @commands.command(name='activities', aliases = ['activity'])
-    @commands.has_permissions(manage_guild=True)
+    #@commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
     async def _useractivities(self, ctx: commands.Context, *args):
@@ -2579,19 +2579,20 @@ class Music_NowPlaying(commands.Cog):
         i = 0
         for activity in member.activities:
             i += 1
-            string = f"`{i}.` " + util.cleantext2(activity.name)
+            string = f"`{i}.` **" + util.cleantext2(activity.name) + "**"
             try:
-                string += " [type: " + util.cleantext2(str(activity.type)) + "]"
+                string += "\n[type: " + util.cleantext2(str(activity.type)) + "]"
             except:
                 pass
             try:
-                string += " [details: " + util.cleantext2(str(activity.details)) + "]"
+                string += "\n[details: " + util.cleantext2(str(activity.details)) + "]"
             except:
                 pass
             try:
-                string += " [state: " + util.cleantext2(str(activity.state)) + "]"
+                string += "\n[state: " + util.cleantext2(str(activity.state)) + "]"
             except:
                 pass
+            string += "\n"
             activity_list.append(string)
 
         text = '\n'.join(activity_list)
@@ -2599,8 +2600,7 @@ class Music_NowPlaying(commands.Cog):
         if text.strip() == "":
             text = "None"
 
-        embed = discord.Embed(description=text,
-                            color = member.color)
+        embed = discord.Embed(description=text, color = member.color)
         embed.set_author(name=f"{member.display_name}'s activities" , icon_url=member.avatar)
         await ctx.send(embed=embed)
     @_useractivities.error
