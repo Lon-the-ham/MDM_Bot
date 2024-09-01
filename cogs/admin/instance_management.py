@@ -695,6 +695,28 @@ class Administration_of_Bot_Instance(commands.Cog):
 
 
 
+    @commands.command(name='upgrade', aliases = ["upgrades"])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_host)
+    @commands.check(util.is_main_server)
+    async def _upgrade(self, ctx):
+        """🔒 Fetches the newest version of the bot from GitHub
+
+        You can also manually upgrade the bot by fetching the newest version from https://github.com/Lon-the-ham/MDM_Bot and replacing all files except for the `.env` file and the entirety of the `\\databases\\` folder.
+        """
+
+        await ctx.send("under construction")
+
+        return
+
+        await ctx.send(f"Please restart this application and then use `{self.prefix}update` to complete the process.")
+
+    @_upgrade.error
+    async def upgrade_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
 async def setup(bot: commands.bot) -> None:
     await bot.add_cog(
         Administration_of_Bot_Instance(bot),
