@@ -373,8 +373,7 @@ class Music_Scrobbling(commands.Cog):
                         print("continue...")
                 else:
                     print("Cancelled action.")
-                    await ctx.send(f"Error: {e}")
-                    continue
+                    raise ValueError("could not fetch information from Last.FM")
 
                 if i == -1: # first page
                     i = int(total)
