@@ -3231,7 +3231,7 @@ class Utils():
 
 
 
-    async def scrobble_update(lfm_name, allow_from_scratch):
+    async def scrobble_update(lfm_name, allow_from_scratch, bot):
         def to_thread(func: typing.Callable) -> typing.Coroutine:
             """wrapper for blocking functions"""
             @functools.wraps(func)
@@ -3430,7 +3430,11 @@ class Utils():
                 page_int += 1
                 page_string = str(page_int)
 
-                for t in [5,10,15]:
+                try_list = [5,10,15]
+                if page_int <= 1:
+                    try_list.append(30)
+
+                for t in try_list:
                     try:
                         tracklist, total_pages, total = await get_userscrobbles_from_page(lfm_name, page_string)
                         break
@@ -3539,6 +3543,14 @@ class Utils():
             await Utils.changetimeupdate()
         except Exception as e:
             print("Error:", e)
+
+            if str(e).startswith("Unable to fetch scrobble data from:"):
+                text = f"Could not fetch last.fm information from user `{lfm_name}`.\nIf this error persists it is recommended to either scrobble-ban them or purge their data from the np-settings database.\n\n(At the moment these features are not properly implemented and probably require dev support.)"
+            else:
+                text = f"There was a problem while handling data of user `{lfm_name}`.\n\n`Error message:` {e}"
+
+            title = "⚠️ Scrobble Auto-Update Error"
+            await Utils.bot_spam_send(bot, title, text)
 
 
 

@@ -713,7 +713,7 @@ class TimeLoops(commands.Cog):
 
                 allow_from_scratch = False
                 try:
-                    await util.scrobble_update(lfm_name, allow_from_scratch)
+                    await util.scrobble_update(lfm_name, allow_from_scratch, self.bot)
                 except Exception as e:
                     print(f"Error while fetching info from {lfm_name}: {e}")
                     try:
