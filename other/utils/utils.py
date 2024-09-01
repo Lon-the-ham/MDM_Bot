@@ -3440,6 +3440,7 @@ class Utils():
                         print("continue...")
                 else:
                     print("Cancelled action.")
+                    raise ValueError(f"Unable to fetch scrobble data from: {lfm_name}")
 
                 if i == -1: # first page
                     i = int(total)
