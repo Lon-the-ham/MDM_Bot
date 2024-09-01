@@ -1820,15 +1820,16 @@ class Roles(commands.Cog):
             for role_id_str in prevrole_idstrings:
                 if util.represents_integer(role_id_str):
                     role_id = int(role_id_str)
-                    try:
-                        role = ctx.guild.get_role(role_id)
-                    except:
-                        pass
-
-                    if role is None:
-                        pass
+                    if role_id != inactivity_role_id:
+                        try:
+                            role = ctx.guild.get_role(role_id)
+                            prevroles.append(role)
+                        except Exception as e:
+                            print(f"Error with role {role_id}: {e}")
                     else:
-                        prevroles.append(role)
+                        print("Warning: For some reason the user has the inactivity role in their previous roles.")
+
+            # SWAP ROLES
 
             if len(prevroles) == 0:
                 await member.remove_roles(inactivity_role)
@@ -1840,8 +1841,6 @@ class Roles(commands.Cog):
             prevroles = []
 
             await member.remove_roles(inactivity_role)
-
-        # SWAP ROLES
 
         await ctx.message.delete()
 
