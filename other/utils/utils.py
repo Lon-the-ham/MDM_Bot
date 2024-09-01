@@ -3196,19 +3196,19 @@ class Utils():
             else:
                 curER.execute("UPDATE USDexchangerate SET last_updated = ? WHERE code = ?", (update_time_string, "USD"))
 
-                for item in currency_list:
-                    currencycode = item[0]
-                    exchangevalue = item[1]
-                    name = item[2]
-                    country = item[3]
-                    if Utils.represents_float(exchangevalue):
-                        counter += 1
-                        if currencycode in known_currencies:
-                            curER.execute("UPDATE USDexchangerate SET value = ?, last_updated = ? WHERE code = ?", (exchangevalue, update_time_string, currencycode))
-                        else:
-                            curER.execute("INSERT INTO USDexchangerate VALUES (?, ?, ?, ?, ?, ?)", (currencycode, exchangevalue, name, country, update_time_string, "0"))
-                conER.commit()
-                conER.close()
+            for item in currency_list:
+                currencycode = item[0]
+                exchangevalue = item[1]
+                name = item[2]
+                country = item[3]
+                if Utils.represents_float(exchangevalue):
+                    counter += 1
+                    if currencycode in known_currencies:
+                        curER.execute("UPDATE USDexchangerate SET value = ?, last_updated = ? WHERE code = ?", (exchangevalue, update_time_string, currencycode))
+                    else:
+                        curER.execute("INSERT INTO USDexchangerate VALUES (?, ?, ?, ?, ?, ?)", (currencycode, exchangevalue, name, country, update_time_string, "0"))
+            conER.commit()
+            conER.close()
 
             await Utils.changetimeupdate()
         except Exception as e:
@@ -3217,10 +3217,17 @@ class Utils():
             success = False
             return message, success
 
-        message = f"Successfully updated {counter} entries in exchangerate database via web scrape."
-        success = True
-        print(f"Successfully updated {counter} entries in exchangerate database via web scrape.")
-        return message, success
+        if counter > 0:
+            message = f"Successfully updated {counter} entries in exchangerate database via web scrape."
+            success = True
+            print(f"Successfully updated {counter} entries in exchangerate database via web scrape.")
+            return message, success
+
+        else:
+            message = f"Could not update any entries in exchangerate database via web scrape."
+            success = False
+            print(f"Could not update any entries in exchangerate database via web scrape.")
+            return message, success
 
 
 
