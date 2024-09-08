@@ -46,11 +46,19 @@ Next you need to install a few packages that the applications uses:
 
 > pip install beautifulsoup4
 
-> pip install dropbox
+> pip install pandas
 
-These are not used yet, but will come eventually later:
+These are optional (more information in the documentation.md):
 
 > pip install asyncpraw
+
+> pip install dropbox
+
+> sudo apt install font-manager
+
+> sudo apt install ffmpeg
+
+> pip install bar-chart-race
 
 
 ### Create a discord application
