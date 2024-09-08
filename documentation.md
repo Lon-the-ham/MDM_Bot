@@ -1,4 +1,5 @@
-...documentation is under construction...
+...documentation is under construction…
+
 
 
 ## Features that need API keys
@@ -79,7 +80,7 @@ You probably have to create a regular last.fm account first if you don't have on
 
 > lfm_registered_to = `your last.fm account name`
 
-Optional:
+Optional Cloud backup:
 
 Per default the scrobbling commands in this bot are disabled. When you enable them via `-set scrobbleautoupdate on` and let users import their scrobble data from lastfm you get comparably large databases on your device, which are often times too large for discord. Due to this backups of databases exclude these scrobble databases. In case you want to create regular backups of these as well go to https://www.dropbox.com/developers/apps?_tk=pilot_lp&_ad=topbar4&_camp=myapps and create a dropbox account as well as an application. Get `client id` and `client secret` and follow these instructions https://www.dropboxforum.com/t5/Dropbox-API-Support-Feedback/Get-refresh-token-from-access-token/td-p/596739 to get a `refresh token`. Then save these in the `.env`-file as follows:
 
@@ -97,6 +98,10 @@ which will be used for encoding and decoding the tokens. Make sure it is long an
 
 Regardless of whether you added a dropbox connection, this bot will regularly make backups of all (non-scrobble) databases and send them as zip-file to your bot notification channel if you restart it via start_discordbot.sh. If you provide a dropbox token it will additionally also make backups of the scrobble databases and upload them to the cloud.
 
+Also do not forget to install the python module
+
+> pip install dropbox
+
 
 ### MusicBrainz
 
@@ -105,6 +110,13 @@ It can be nice to have the bot fetch genre tags from the MusicBrainz database, i
 > contact_email = `e-mail address`
 
 The bot will then automatically include it in the header of an api inquiry.
+
+
+### Reddit
+
+not implemented yet
+
+> pip install asyncpraw
 
 
 ### Spotify
@@ -131,6 +143,15 @@ You can integrate wiki information by creating an account on https://api.wikimed
 
 > wikipedia_token = `Token`
 
+---
+
+## Niche features
+
+Some features are optional, because we thought they are a bit more niche and require python modules you may not necessarily want to install. This includes for example the bar chart race feature for your lastfm scrobbles. These require you to install
+
+> sudo apt install ffmpeg
+
+> pip install bar-chart-race
 
 ---
 
