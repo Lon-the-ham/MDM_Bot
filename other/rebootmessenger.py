@@ -12,13 +12,18 @@ import contextlib
 import six
 import time
 import unicodedata
-import dropbox
 import functools
 import typing
 import requests
 import random
 import string
 import base64
+
+try:
+    import dropbox
+    dropbox_enabled = True
+except:
+    dropbox_enabled = False
 
 
 load_dotenv()
@@ -151,8 +156,10 @@ async def sendit(string, d_client):
             #    await asyncio.sleep(waitingtime)
             #except:
             #    pass
-
-            await cloud_upload_scrobble_backup()
+            if dropbox_enabled:
+                await cloud_upload_scrobble_backup()
+            else:
+                channel.send("No cloud syncing of potential scrobble data, since Dropbox module not installed.")
 
     except Exception as e:
         await channel.send(f"Error while trying to backup data.```{e}```")
