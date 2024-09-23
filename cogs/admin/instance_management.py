@@ -21,7 +21,12 @@ import contextlib
 import six
 import time
 import unicodedata
-import dropbox
+
+try:
+    import dropbox
+    dropbox_enabled = True
+except:
+    dropbox_enabled = False
 
 
 
@@ -253,10 +258,12 @@ class Administration_of_Bot_Instance(commands.Cog):
                 pass
             
             try:
-                #async with ctx.typing():
-                print("Starting scrobble db backup:")
-                await util.cloud_upload_scrobble_backup(self.bot, ctx, app_id)
-                await channel.send("Finished backup.")
+                if dropbox_enabled:
+                    print("Starting scrobble db backup:")
+                    await util.cloud_upload_scrobble_backup(self.bot, ctx, app_id)
+                    await channel.send("Finished backup.")
+                else:
+                    await channel.send("No cloud syncing of scrobble DBs, since Dropbox module is not installed.")
             except Exception as e:
                 await channel.send(f"Cloud error: {e}")
                 print(traceback.format_exc())
@@ -610,7 +617,7 @@ class Administration_of_Bot_Instance(commands.Cog):
         """🔒 Backup of all databases
 
         Makes a .zip of all .db files (except scrobble data) and puts them into the botspam channel.
-        If scrobbling is enabled and a dropbox API token is provided then scrobble data will be uploaded to cloud as well.
+        If dropbox module is installed and scrobbling is enabled and a dropbox API token is provided then scrobble data will be uploaded to cloud as well.
 
         Warning: This is a blocking function that will prevent the bot from executing any other code while it's running.
 
