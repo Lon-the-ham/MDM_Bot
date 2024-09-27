@@ -1138,7 +1138,11 @@ class Administration_of_Server(commands.Cog):
                     try:
                         await ctx.guild.kick(member, reason=reason)
                         gunemoji = util.emoji("gun")
-                        await ctx.send(f'Yeeted <@{user_id}> (for {reason}) {gunemoji}')
+                        try:
+                            user_name = member.name
+                        except:
+                            user_name = "?"
+                        await ctx.send(f'Yeeted `{user_name}`/<@{user_id}> (for {reason}) {gunemoji}')
                         print(f"yeeted {str(member)}")
                     except:
                         emoji = util.emoji("hold_head")
