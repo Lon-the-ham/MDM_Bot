@@ -12,9 +12,14 @@ import sqlite3
 import math
 import requests
 from emoji import UNICODE_EMOJI
-from langdetect import detect
-
 import traceback
+
+try:
+    from langdetect import detect
+    langdetect_enabled = True
+except:
+    #print("Not importing Language Detect library (for wikipedia command)")
+    langdetect_enabled = False
 
 try:
     from googletrans import Translator
@@ -45,26 +50,17 @@ except:
 
 
 class GU_Check():
+    def is_langdetect_enabled(*ctx):
+        return langdetect_enabled
+
     def is_googletrans_enabled(*ctx):
-        if googletrans_enabled:
-            return True
-        else:
-            return False
-            #raise ValueError("GoogleTranslate module was not imported.")
+        return googletrans_enabled
 
     def is_reddit_enabled(*ctx):
-        if reddit_enabled:
-            return True
-        else:
-            return False
-            #raise ValueError("AsyncPraw module (for Reddit) was not imported.")
+        return reddit_enabled
 
     def is_gpt_enabled(*ctx):
-        if gpt_enabled:
-            return True
-        else:
-            return False
-            #raise ValueError("OpenAI module was not imported.")
+        return gpt_enabled
 
 
 class General_Utility(commands.Cog):
@@ -1590,7 +1586,7 @@ class General_Utility(commands.Cog):
                             else:
                                 message = f"{currency_name} currency conversion\n"
                                 message += "none of the given exchange currencies were recognised... :("
-                            await ctx.send(message[:4096])
+                            await ctx.send(message)
                     except Exception as e:
                         emoji = util.emoji("derpy_playful")
                         await ctx.send(f'Error: Currency conversion crashed. {emoji}\n{e}')
@@ -1719,22 +1715,49 @@ class General_Utility(commands.Cog):
         conER = sqlite3.connect('databases/exchangerate.db')
         curER = conER.cursor()
         curER.execute('''CREATE TABLE IF NOT EXISTS USDexchangerate (code text, value text, currency text, country text, last_updated text, time_stamp text)''')
-        known_currencies = [[item[0],item[1]] for item in curER.execute("SELECT code, value FROM USDexchangerate").fetchall()]
+        known_currencies = [[item[0],item[1],item[2]] for item in curER.execute("SELECT code, value, currency FROM USDexchangerate").fetchall()]
 
         if len(known_currencies) == 0:
             await ctx.send(f"Currency database is empty atm. Ask mods to use {self.prefix}update.")
             return
-        currency_list = []
+
+        known_currencies.sort(key=lambda x: x[0])
+        currency_text_list = []
         for item in known_currencies:
             c_code = item[0]
-            c_value = item [1]
+            c_value = item[1]
+            c_name = item[2]
             if (not c_code is None or c_code == "") and (not c_value is None or c_value == "") and (util.represents_float(c_value)):
-                currency_list.append(c_code)
+                currency_text_list.append(f"[**{c_code}**](https://www.google.com/search?q=USD+to+{c_code}) {c_name}")
 
-        currency_list.sort()
-        embed=discord.Embed(title="Supported currencies", description=', '.join(currency_list), color=0x000000)
-        embed.set_footer(text=f"Use e.g. '{self.prefix}con 100 USD to JPY' to convert currencies.")
-        await ctx.send(embed=embed)
+        count = 0
+        k = 0
+        content_list = [[]]
+        for text in currency_text_list:
+            if len(text) > 4096:
+                continue
+            if count + len(text) + 2 * len(content_list[k]) > 4096:
+                count = len(text)
+                k += 1
+                content_list.append([text])
+            else:
+                count += len(text)
+                content_list[k].append(text)
+
+        for i in range(len(content_list)):
+            if i == 0:
+                title = "Supported currencies"
+            else:
+                title = ""
+
+            sub_list = content_list[i]
+            embed=discord.Embed(title=title, description=', '.join(sub_list), color=0x000000)
+
+            if i >= len(content_list)-1:
+                embed.set_footer(text=f"Use e.g. '{self.prefix}con 100 USD to JPY' to convert currencies.")
+
+            await ctx.send(embed=embed)
+
     @_supportedcurrencies.error
     async def supportedcurrencies_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -3862,21 +3885,25 @@ class General_Utility(commands.Cog):
     @commands.check(util.is_active)
     async def _wikipedia(self, ctx: commands.Context, *args):
         """Queries wikipedia for information
+
+        Command is currently work in progress.
         """
         
         def url_lang_detect(title):
-            try:
-                lang = detect(str(title))
-                if lang == 'ja':
-                    return 'https://ja.wikipedia.org/w/api.php'
-                elif lang == 'de':
-                    return 'https://de.wikipedia.org/w/api.php'
-                elif lang == 'en':
-                    return 'https://en.wikipedia.org/w/api.php'
-                else:
-                    return 'https://en.wikipedia.org/w/api.php'
-            except:
-                return 'Error detecting language.'
+            if GU_Check.is_langdetect_enabled():
+                try:
+                    lang = detect(str(title))
+                    if lang == 'ja':
+                        return 'https://ja.wikipedia.org/w/api.php'
+                    elif lang == 'en':
+                        return 'https://en.wikipedia.org/w/api.php'
+                    else:
+                        return 'https://en.wikipedia.org/w/api.php'
+                except Exception as e:
+                    print(f'Error detecting language: {e}')
+                    raise ValueError("Language detection failed.")
+            else:
+                return 'https://en.wikipedia.org/w/api.php'
         
         def get_images_from_wikipedia(title):
             # if (title is jap): url is jap/ elif (): url is eng 
