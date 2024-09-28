@@ -153,6 +153,7 @@ Some features are optional, because we thought they are a bit more niche and req
 
 > pip install bar-chart-race
 
+
 ---
 
 # Customization
