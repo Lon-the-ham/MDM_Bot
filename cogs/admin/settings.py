@@ -29,6 +29,7 @@ import asyncio
 import sqlite3
 from emoji import UNICODE_EMOJI
 import traceback
+import random
 
 
 class Administration_of_Settings(commands.Cog):
@@ -336,8 +337,8 @@ class Administration_of_Settings(commands.Cog):
                     print("Warning: there are multiple rules message id entries in the database")
                 rulesfirstreaction = rulesfirstreaction_list[0]
 
-            desctext_general.append(f" ⮡  turing test task: {rulesmessage} ↔ {rulesfirstreaction}")
-            desctext_features.append(f" ⮡  turing test task: {rulesmessage} ↔ {rulesfirstreaction}")
+            desctext_general.append(f" → turing test task: {rulesmessage} ↔ {rulesfirstreaction}")
+            desctext_features.append(f" → turing test task: {rulesmessage} ↔ {rulesfirstreaction}")
 
             turingbanmessage_list = [[item[0],item[1]] for item in cur.execute("SELECT value, details FROM serversettings WHERE name = ?", ("turing ban message",)).fetchall()]
             if len(turingbanmessage_list) == 0:
@@ -359,8 +360,8 @@ class Administration_of_Settings(commands.Cog):
                 else:
                     tbm_type = "text: `custom`"
 
-            desctext_general.append(f" ⮡  turing ban message: `{turingbanmessage_switch}` ({tbm_type})")
-            desctext_features.append(f" ⮡  turing ban message: `{turingbanmessage_switch}` ({tbm_type})")
+            desctext_general.append(f" → turing ban message: `{turingbanmessage_switch}` ({tbm_type})")
+            desctext_features.append(f" → turing ban message: `{turingbanmessage_switch}` ({tbm_type})")
 
 
         elif accesswall == "off":
@@ -432,7 +433,7 @@ class Administration_of_Settings(commands.Cog):
                 print("Warning: there are multiple inactivity filter on/off entries in the database")
             inactivityfilter = inactivityfilter_list[0][0]
             if inactivityfilter == "on":
-                inactivitydays = " (" + inactivityfilter_list[0][1] + ")"
+                inactivitydays = " (" + inactivityfilter_list[0][1] + " days)"
         desctext_general.append(f"Inactivity filter: `{inactivityfilter}`{inactivitydays}")
         desctext_features.append(f"Inactivity filter: `{inactivityfilter}`{inactivitydays}")
 
@@ -852,6 +853,42 @@ class Administration_of_Settings(commands.Cog):
             desctext_keys.append("Contact E-Mail: none 🚫")
 
         try:
+            dropbox_auth = os.getenv("dropbox_auth")
+            if dropbox_auth is None:
+                desctext_keys.append("Dropbox Auth: none 🚫")
+            else:
+                desctext_keys.append("Dropbox Auth: provided ✅")
+        except:
+            desctext_keys.append("Dropbox Auth: none 🚫")
+
+        try:
+            dropbox_key = os.getenv("dropbox_key")
+            if dropbox_key is None:
+                desctext_keys.append("Dropbox Key: none 🚫")
+            else:
+                desctext_keys.append("Dropbox Key: provided ✅")
+        except:
+            desctext_keys.append("Dropbox Key: none 🚫")
+
+        try:
+            dropbox_secret = os.getenv("dropbox_secret")
+            if dropbox_secret is None:
+                desctext_keys.append("Dropbox Secret: none 🚫")
+            else:
+                desctext_keys.append("Dropbox Secret: provided ✅")
+        except:
+            desctext_keys.append("Dropbox Secret: none 🚫")
+
+        try:
+            dropbox_refresh_token = os.getenv("dropbox_refresh_token")
+            if dropbox_refresh_token is None:
+                desctext_keys.append("Dropbox Refresh Token: none 🚫")
+            else:
+                desctext_keys.append("Dropbox Refresh Token: provided ✅")
+        except:
+            desctext_keys.append("Dropbox Refresh Token: none 🚫")
+
+        try:
             exchangerate_key = os.getenv("exchangerate_key")
             if exchangerate_key is None:
                 desctext_keys.append("Exchangerate Key: none 🚫")
@@ -870,6 +907,15 @@ class Administration_of_Settings(commands.Cog):
             desctext_keys.append("Google Image Search Key: none 🚫")
 
         try:
+            google_search_engine_id = os.getenv("google_search_engine_id")
+            if google_search_engine_id is None:
+                desctext_keys.append("Google Search Engine ID: none 🚫")
+            else:
+                desctext_keys.append("Google Search Engine ID: provided ✅")
+        except:
+            desctext_keys.append("Google Search Engine ID: none 🚫")
+
+        try:
             LFM_API_KEY = os.getenv("lfm_api_key")
             if LFM_API_KEY is None:
                 desctext_keys.append("LastFM Key: none 🚫")
@@ -886,6 +932,15 @@ class Administration_of_Settings(commands.Cog):
                 desctext_keys.append("LastFM Secret: provided ✅")
         except:
             desctext_keys.append("LastFM Secret: none 🚫")
+
+        try:
+            openai_secret_key = os.getenv("openai_secret_key")
+            if openai_secret_key is None:
+                desctext_keys.append("OpenAI Key: none 🚫")
+            else:
+                desctext_keys.append("OpenAI Key: provided ✅")
+        except:
+            desctext_keys.append("OpenAI Key: none 🚫")
 
         try:
             openweather_key = os.getenv("openweathermap_key")
@@ -913,6 +968,42 @@ class Administration_of_Settings(commands.Cog):
                 desctext_keys.append("Spotify Client Secret: provided ✅")
         except:
             desctext_keys.append("Spotify Client Secret: none 🚫")
+
+        try:
+            wikipedia_id = os.getenv("wikipedia_id")
+            if wikipedia_id is None:
+                desctext_keys.append("Wikipedia ID: none 🚫")
+            else:
+                desctext_keys.append("Wikipedia ID: provided ✅")
+        except:
+            desctext_keys.append("Wikipedia ID: none 🚫")
+
+        try:
+            wikipedia_secret = os.getenv("wikipedia_secret")
+            if wikipedia_secret is None:
+                desctext_keys.append("Wikipedia Secret: none 🚫")
+            else:
+                desctext_keys.append("Wikipedia Secret: provided ✅")
+        except:
+            desctext_keys.append("Wikipedia Secret: none 🚫")
+
+        try:
+            wikipedia_token = os.getenv("wikipedia_token")
+            if wikipedia_token is None:
+                desctext_keys.append("Wikipedia Token: none 🚫")
+            else:
+                desctext_keys.append("Wikipedia Token: provided ✅")
+        except:
+            desctext_keys.append("Wikipedia Token: none 🚫")
+
+        try:
+            wolframalpha_id = os.getenv("wolframalpha_id")
+            if wolframalpha_id is None:
+                desctext_keys.append("WolframAlpha ID: none 🚫")
+            else:
+                desctext_keys.append("WolframAlpha ID: provided ✅")
+        except:
+            desctext_keys.append("WolframAlpha ID: none 🚫")
 
         # under construction
 
@@ -3984,6 +4075,19 @@ class Administration_of_Settings(commands.Cog):
         else:
             if len(hostdata_reboot_list) > 1:
                 print("Warning: Multiple reboot time entries in activity.db")
+        hostdata_dailyupdate_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", ("daily update time",)).fetchall()]
+        if len(hostdata_dailyupdate_list) == 0:
+            hour = random.randint(0, 2)
+            if hour == 0:
+                minute = random.randint(1, 58)
+            else:
+                minute = random.randint(0, 58)
+            curA.execute("INSERT INTO hostdata VALUES (?,?,?,?)", ("daily update time", f"{str(hour)}:{str(minute)}", "", "UTC"))
+            conA.commit()
+            print("Updated hostdata table: daily update time")
+        else:
+            if len(hostdata_dailyupdate_list) > 1:
+                print("Warning: Multiple daily update time entries in activity.db")
         hostdata_rym_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", ("rym scraping",)).fetchall()]
         if len(hostdata_rym_list) == 0:
             curA.execute("INSERT INTO hostdata VALUES (?,?,?,?)", ("rym scraping", "off", "", ""))
@@ -4674,7 +4778,7 @@ class Administration_of_Settings(commands.Cog):
             curC.execute('''CREATE TABLE IF NOT EXISTS cooldowns (service text, last_used text, limit_seconds text, limit_type text, long_limit_seconds text, long_limit_amount text)''') # soft limit type: delay, hard limit type: stop request
 
             cooldown_db_list = [item[0] for item in curC.execute("SELECT service FROM cooldowns").fetchall()]
-            cooldowns_light = ["applemusic", "gpt", "metallum", "musicbrainz", "lastfm", "openweathermap", "spotify", "wikipedia", "wolframalpha"]
+            cooldowns_light = ["applemusic", "bar_chart_race", "gpt", "metallum", "musicbrainz", "lastfm", "openweathermap", "spotify", "wikipedia", "wolframalpha"]
             cooldowns_medium = ["googlesearch"]
             cooldowns_critical = ["rym"]
             cooldowns_update = ["lastfm_update"]
@@ -4697,6 +4801,10 @@ class Administration_of_Settings(commands.Cog):
             conC.commit()
 
             curC.execute('''CREATE TABLE IF NOT EXISTS scrobbleupdate (userid text, username text, time_stamp text)''')
+            curC.execute("DELETE FROM scrobbleupdate")
+            conC.commit()
+
+            curC.execute('''CREATE TABLE IF NOT EXISTS gfx_generation (service text, userid text, username text, time_stamp text)''')
             curC.execute("DELETE FROM scrobbleupdate")
             conC.commit()
 
@@ -4729,7 +4837,7 @@ class Administration_of_Settings(commands.Cog):
             conSM = sqlite3.connect('databases/scrobblemeta.db')
             curSM = conSM.cursor()
             curSM.execute('''CREATE TABLE IF NOT EXISTS albuminfo (artist text, artist_filtername text, album text, album_filtername text, tags text, cover_url text, last_update integer)''')
-
+            curSM.execute('''CREATE TABLE IF NOT EXISTS artist_aliases (alias_name text, artist_key text)''')
 
             # SHENANIGANS
 
@@ -5772,6 +5880,7 @@ class Administration_of_Settings(commands.Cog):
 
         arguments needs to be one of the following:
         - `reboot time` with 2nd arg `<hour>:<minute>` (colon, no spaces) or `none`
+        - `daily update` with 2nd arg `<hour>:<minute>` (colon, no spaces) or `none`
         - `rym scraping` with 2nd arg `on` or `off`
         
         """
@@ -5785,7 +5894,10 @@ class Administration_of_Settings(commands.Cog):
         argument1 = ' '.join(args[:-1]).replace("_", " ").strip().lower()
         argument2 = args[-1].strip().lower()
 
-        if argument1 in ["reboot time"]:
+        if argument1 in ["daily update", "daily check", "day update"]:
+            argument1 = "daily update time"
+
+        if argument1 in ["reboot time", "daily update time"]:
             if argument2 == "none":
                 pass
 
@@ -5821,7 +5933,11 @@ class Administration_of_Settings(commands.Cog):
         curA.execute("UPDATE hostdata SET value = ? WHERE name = ?", (argument2, argument1))
         conA.commit()
 
-        await ctx.send(f"Set {argument1} to {argument2}.")
+        extra_note = ""
+        if argument1 == "daily update time":
+            extra_note = "\nNote that this change only takes effect after a reboot."
+
+        await ctx.send(f"Set {argument1} to {argument2}.{extra_note}")
 
     @_hostsetting.error
     async def hostsetting_error(self, ctx, error):
