@@ -16,16 +16,22 @@ from bs4 import BeautifulSoup
 import json
 from emoji import UNICODE_EMOJI
 from calendar import monthrange
+
 # cloud stuff
 import contextlib
 import six
 import time
 import unicodedata
-import dropbox
 import functools
 import typing
 import base64
 import string
+
+try:
+    import dropbox
+    dropbox_enabled = True
+except:
+    dropbox_enabled = False
 
 
 
@@ -298,6 +304,58 @@ class Utils():
         return key
 
 
+
+    ####################################################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     ############################################### GENERAL UTILITY FUNCTIONS (sorted alphabetically)
 
 
@@ -481,20 +539,37 @@ class Utils():
     def compactaddendumfilter(input_string, *info):
         intermediate_string = input_string
 
-        if info == ("artist",):
-            if input_string.endswith(" - Topic"):
-                intermediate_string = input_string.replace(" - Topic", "")
-        elif info == ("album",):
-            if input_string.endswith(" - EP"):
-                intermediate_string = input_string.replace(" - EP", "")
+        if len(info) > 0 :
+            if info[0] == "artist":
+                if input_string.endswith(" - Topic"):
+                    intermediate_string = input_string.replace(" - Topic", "")
+            elif info[0] == "album":
+                if input_string.endswith(" - EP"):
+                    intermediate_string = input_string.replace(" - EP", "")
 
-        if not info == ("track",):
+        if (len(info) == 0 or (len(info) > 0 and info[0] != "track")):
             if "(" in intermediate_string and not intermediate_string.startswith("("):
                 intermediate_string = intermediate_string.split("(",1)[0]
             if "[" in intermediate_string and not intermediate_string.startswith("["):
                 intermediate_string = intermediate_string.split("[",1)[0]
 
         return intermediate_string
+
+
+
+    def compactaliasconvert(input_string):
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+        
+        alias_list = [item[0] for item in curSM.execute("SELECT artist_key FROM artist_aliases WHERE alias_name = ?", (input_string,)).fetchall()]
+
+        if len(alias_list) == 0:
+            return input_string
+
+        else:
+            result_string = alias_list[-1]
+
+            return result_string
 
 
 
@@ -515,65 +590,16 @@ class Utils():
             else:
                 intermediate_string = filtered_string
 
+            if len(info) > 1 and info[0] == "artist" and info[1] == "alias":
+                intermediate_string = Utils.compactaliasconvert(intermediate_string)
+
             # adapt accents
-            diacritics = {
-                ord("Æ"): "AE",
-                ord("Ã"): "A",
-                ord("Å"): "A",
-                ord("Ā"): "A",
-                ord("Ä"): "A",
-                ord("Â"): "A",
-                ord("À"): "A",
-                ord("Á"): "A",
-                ord("Å"): "A",
-                ord("Ầ"): "A",
-                ord("Ấ"): "A",
-                ord("Ẫ"): "A",
-                ord("Ẩ"): "A",
-                ord("Ç"): "C",
-                ord("Č"): "C",
-                ord("Ď"): "D",
-                ord("Ė"): "E",
-                ord("Ê"): "E",
-                ord("Ë"): "E",
-                ord("È"): "E",
-                ord("É"): "E",
-                ord("Ě"): "E",
-                ord("Ğ"): "G",
-                ord("Í"): "I",
-                ord("İ"): "I",
-                ord("Ñ"): "N",
-                ord("Ń"): "N",
-                ord("Ň"): "N",
-                ord("Ō"): "O",
-                ord("Ø"): "O",
-                ord("Õ"): "O",
-                ord("Œ"): "OE",
-                ord("Ó"): "O",
-                ord("Ò"): "O",
-                ord("Ô"): "O",
-                ord("Ö"): "O",
-                ord("Ř"): "R",
-                ord("Š"): "S",
-                ord("ẞ"): "SS",
-                ord("Ś"): "S",
-                ord("Š"): "S",
-                ord("Ş"): "S",
-                ord("Ť"): "T",
-                ord("Ū"): "U",
-                ord("Ù"): "U",
-                ord("Ú"): "U",
-                ord("Û"): "U",
-                ord("Ü"): "U",
-                ord("Ů"): "U",
-                ord("Ý"): "Y",
-                ord("Ž"): "Z",
-            }
-            new_string = intermediate_string.translate(diacritics)
+            new_string = Utils.diacritic_uppercase_translation(intermediate_string)
             return new_string
 
         except Exception as e:
             print(f"Error: {e}")
+            print(traceback.format_exc())
             return intermediate_string
 
 
@@ -606,6 +632,86 @@ class Utils():
             string = string.split("Pt. ")[0]
 
         return string.strip()
+
+
+
+    def diacritic_translation(old_string):
+        new_string = ""
+        for c in old_string:
+            c_up = c.upper()
+            if c == c_up:
+                new_string += Utils.diacritic_uppercase_translation(c)
+            else:
+                new_string += Utils.diacritic_uppercase_translation(c_up).lower()
+
+        return new_string
+
+
+
+    def diacritic_uppercase_translation(old_string):
+        diacritics = {
+            ord("Æ"): "AE",
+            ord("Ã"): "A",
+            ord("Å"): "A",
+            ord("Ā"): "A",
+            ord("Ä"): "A",
+            ord("Â"): "A",
+            ord("À"): "A",
+            ord("Á"): "A",
+            ord("Å"): "A",
+            ord("Ầ"): "A",
+            ord("Ấ"): "A",
+            ord("Ẫ"): "A",
+            ord("Ẩ"): "A",
+            ord("Ą"): "A",
+            ord("Ç"): "C",
+            ord("Č"): "C",
+            ord("Ď"): "D",
+            ord("Ė"): "E",
+            ord("Ê"): "E",
+            ord("Ë"): "E",
+            ord("È"): "E",
+            ord("É"): "E",
+            ord("Ě"): "E",
+            ord("Ē"): "E",
+            ord("Ę"): "E",
+            ord("Ğ"): "G",
+            ord("Í"): "I",
+            ord("İ"): "I",
+            ord("Î"): "I",
+            ord("Ī"): "I",
+            ord("Ł"): "L",
+            ord("Ñ"): "N",
+            ord("Ń"): "N",
+            ord("Ň"): "N",
+            ord("Ō"): "O",
+            ord("Ø"): "O",
+            ord("Õ"): "O",
+            ord("Œ"): "OE",
+            ord("Ó"): "O",
+            ord("Ò"): "O",
+            ord("Ô"): "O",
+            ord("Ö"): "O",
+            ord("Ř"): "R",
+            ord("Š"): "S",
+            ord("ẞ"): "SS",
+            ord("Ś"): "S",
+            ord("Š"): "S",
+            ord("Ş"): "S",
+            ord("Ť"): "T",
+            ord("Ū"): "U",
+            ord("Ù"): "U",
+            ord("Ú"): "U",
+            ord("Û"): "U",
+            ord("Ü"): "U",
+            ord("Ů"): "U",
+            ord("Ý"): "Y",
+            ord("Ÿ"): "Y",
+            ord("Ž"): "Z",
+        }
+        new_string = old_string.translate(diacritics)
+
+        return new_string
 
 
 
@@ -897,7 +1003,7 @@ class Utils():
                 # GET COUNT
 
                 try:
-                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM [{lfm_name}] WHERE artist_name = ?", (Utils.compactnamefilter(artist,"artist"),))
+                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM [{lfm_name}] WHERE artist_name = ?", (Utils.compactnamefilter(artist,"artist","alias"),))
 
                     try:
                         rtuple = result.fetchone()
@@ -982,6 +1088,12 @@ class Utils():
         except Exception as e:
             print(f"Error in utils.get_rank(): {e}")
             return "", None
+
+
+
+    def get_server_created_utc(ctx):
+        creation_time = ctx.guild.created_at
+        return int((creation_time.replace(tzinfo=None) - datetime(1970, 1, 1)).total_seconds())
 
 
 
@@ -1929,6 +2041,25 @@ class Utils():
 
 
 
+    def setting_enabled(name):
+        """Checks if a setting is enabled and returns True or False"""
+        conB = sqlite3.connect(f'databases/botsettings.db')
+        curB = conB.cursor()
+        setting_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", (name,)).fetchall()]
+        if len(setting_list) == 0:
+            setting = "off"
+        else:
+            if len(setting_list) > 1:
+                print(f"Warning: Multiple '{name}' entries in serversettings.")
+            setting = setting_list[0].lower().strip()
+
+        if setting == "on":
+            return True
+        else:
+            return False
+
+
+
     def shortnum(s):
         """converts number to shortform for readability
             accepts string or integer
@@ -2140,6 +2271,53 @@ class Utils():
         diff = (future - today).days
         seconds = diff * 24*60*60
         return seconds
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     ############################################### BOT SPECIFIC FUNCTIONS (sorted alphabetically)
@@ -3475,7 +3653,7 @@ class Utils():
                     i -= 1
 
                     # prepare for inserting into releasewise DB
-                    artist_filtername = Utils.compactnamefilter(item[0],"artist") #''.join([x for x in item[0].upper() if x.isalnum()])
+                    artist_filtername = Utils.compactnamefilter(item[0],"artist","alias") #''.join([x for x in item[0].upper() if x.isalnum()])
                     album_filtername = Utils.compactnamefilter(item[1],"album") #''.join([x for x in item[1].upper() if x.isalnum()])
                     track_filtername = Utils.compactnamefilter(item[2],"track")
                     
@@ -3545,7 +3723,7 @@ class Utils():
             print("Error:", e)
 
             if str(e).startswith("Unable to fetch scrobble data from:"):
-                text = f"Could not fetch last.fm information from user `{lfm_name}`.\nIf this error persists it is recommended to either scrobble-ban them or purge their data from the np-settings database.\n\n(At the moment these features are not properly implemented and probably require dev support.)"
+                text = f"Could not fetch last.fm information from user `{lfm_name}`.\nCheck on https://www.last.fm/user/{lfm_name} whether the page still exists. If not and this error persists it is recommended to either scrobble-ban them or purge their data from the np-settings database.\n\n(At the moment these features are not properly implemented and probably require dev support.)"
             else:
                 text = f"There was a problem while handling data of user `{lfm_name}`.\n\n`Error message:` {e}"
 
@@ -4008,6 +4186,10 @@ class Utils():
 
 
     async def cloud_upload_scrobble_backup(bot, ctx, app_id):
+        if not dropbox_enabled:
+            await ctx.send("Error: Dropbox module not installed. Not syncing scrobble databases.")
+            return
+
         # ZIP ALL DATABASES
         con = sqlite3.connect(f'databases/botsettings.db')
         cur = con.cursor()
@@ -4420,5 +4602,3 @@ class Utils():
         except Exception as e:
             Utils.unblock_scrobbleupdate()
             await ctx.send(f"Error: {e}")
-
-
