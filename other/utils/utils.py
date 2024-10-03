@@ -2962,6 +2962,46 @@ class Utils():
 
 
 
+    async def fetch_update_lastfm_artistalbuminfo(artist, album):
+        cooldown = False # is ok?
+        payload = {
+            'method': 'album.getInfo',
+            'album': album,
+            'artist': artist,
+        }
+        response = await util.lastfm_get(ctx, payload, cooldown)
+        if response == "rate limit":
+            raise ValueError("rate limit")
+        try:
+            rjson = response.json()
+            artist_name = rjson['album']['artist']
+            album_name = rjson['album']['name']
+
+            try:
+                thumbnail = rjson['album']['image'][-1]['#text']
+            except:
+                thumbnail = ""
+
+            tags = []
+            try:
+                for tag in rjson['album']['tags']['tag']:
+                    try:
+                        tagname = tag['name'].lower()
+                        tags.append(tagname)
+                    except Exception as e:
+                        print("Tag error:", e)
+            except:
+                pass
+
+        except:
+            raise ValueError("Could not find `artist - album`.")
+
+        await Utils.update_lastfm_artistalbuminfo(artist, album, thumbnail, tags)
+
+        return thumbnail, tags
+
+
+
     async def get_all_integers(args):
         indices = []
         for arg in args:
@@ -3869,6 +3909,23 @@ class Utils():
                 timeseconds = str(total_seconds)
 
                 return timeseconds, timetext, rest
+
+
+
+    async def update_lastfm_artistalbuminfo(artist, album, thumbnail, tags):
+        now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+        artistcompact = util.compactnamefilter(artist, "artist", "alias")
+        albumcompact = util.compactnamefilter(album, "album")
+        tag_string = ';'.join(tags)
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+        artistinfo_list = [item for item in curSM.execute("SELECT tags, cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+
+        if len(artistinfo_list) == 0:
+            curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?)", (artist, artistcompact, album, albumcompact, tag_string, thumbnail, now))
+        else:
+            curSM.execute("UPDATE albuminfo SET artist = ?, album = ?, tags = ?, cover_url = ? WHERE artist_filtername = ? AND album_filtername = ?", (artist, album, tag_string, thumbnail, artistcompact, albumcompact))
+        conSM.commit()
 
 
 
