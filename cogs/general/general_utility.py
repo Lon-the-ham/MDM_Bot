@@ -1211,7 +1211,7 @@ class General_Utility(commands.Cog):
                 from_arguments.append(arg)
 
         #parse from_convert
-        argument_string = ''.join(from_arguments).replace(",","")
+        argument_string = ''.join(from_arguments).replace(",",".")
         derpy = util.emoji("derpy")
         think = util.emoji("think")
         try:
