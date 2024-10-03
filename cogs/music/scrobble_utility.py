@@ -3340,25 +3340,6 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    @commands.command(name='chart', aliases = ["c"])
-    @commands.check(ScrobblingCheck.scrobbling_enabled)
-    @commands.check(util.is_active)
-    async def _chart(self, ctx: commands.Context, *args):
-        """Shows chart of recent music
-        
-        under construction:
-        specify size...
-        specify timeframe...
-        """
-
-        await ctx.send("Under construction")
-
-    @_chart.error
-    async def chart_error(self, ctx, error):
-        await util.error_handling(ctx, error)
-
-
-
     @commands.command(name='ms', aliases = ["milestone", "scrobble"])
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
@@ -5527,6 +5508,16 @@ class Music_Scrobbling(commands.Cog):
             else:
                 print(f"> no need to adjust table {table}")
 
+        ###########################################################
+        # ADJUST META DB
+        print(">>> Checking meta database...")
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSS.cursor()
+        curSM.execute("UPDATE albuminfo SET artist_filtername = ? WHERE artist_filtername = ?", (artist, alias))
+
+        ###########################################################
+        print(">>> fin.")
+        
 
 
     @to_thread
@@ -5536,6 +5527,8 @@ class Music_Scrobbling(commands.Cog):
         # ADJUST TRACK-WISE DB
 
         # ADJUST STATS DB
+
+        # ADJUST META DB
         pass
 
 
@@ -5547,6 +5540,8 @@ class Music_Scrobbling(commands.Cog):
         # ADJUST TRACK-WISE DB
 
         # ADJUST STATS DB
+
+        # ADJUST META DB
         pass
 
 
