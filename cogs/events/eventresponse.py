@@ -86,9 +86,9 @@ class Event_Response(commands.Cog):
             if image.strip() != "":
                 embed.set_thumbnail(url=image)
 
-            if author != None and author != "":
+            if author != None and str(author) != "":
                 try:
-                    embed.set_author(name=author.name, icon_url=author.avatar)
+                    embed.set_author(name=author.name, icon_url=str(author.avatar))
                 except Exception as e:
                     print(e)
             await botspam_channel.send(embed=embed)
@@ -248,18 +248,18 @@ class Event_Response(commands.Cog):
 
         title = "Member joined"
         try:
-            created_utc = member.created_at
-            now_utc = datetime.datetime.utcnow()
+            created_utc = member.created_at.astimezone(pytz.utc)
+            now_utc = datetime.datetime.now(datetime.timezone.utc)
             age = now_utc - created_utc
-            age_seconds = age.total_seconds
+            age_seconds = age.total_seconds()
             now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
-            age_string = await util.seconds_to_readabletime(age_seconds, now)
+            age_string = util.seconds_to_readabletime(age_seconds, now)
         except Exception as e:
             print(e)
             age_string = "error"
-        text = f"<@{member_id}>\nAccount Age: {age_string}"
-        footer = f"NAME: {member.name}, ID: {member_id}"   
-        image = member.avatar
+        text = f"<@{user_id}>\nAccount Age: {age_string}"
+        footer = f"NAME: {member.name}, ID: {user_id}"   
+        image = str(member.avatar)
         color = 0x3cb043
         await self.botspam_send(title, text, footer, image, None, color, None)
 
@@ -301,7 +301,7 @@ class Event_Response(commands.Cog):
         title = "Member left"
         text = f"<@{user.id}>"
         footer = f"NAME: {user.name}, ID: {user.id}"   
-        image = user.avatar
+        image = str(user.avatar)
         color = 0xd30000
         await self.botspam_send(title, text, footer, image, None, color, None)
 
@@ -422,7 +422,7 @@ class Event_Response(commands.Cog):
         emoji = util.emoji("ban")
         text = f"<@{user.id}> {emoji}"
         footer = f"NAME: {user.name}, ID: {user.id}"   
-        image = user.avatar
+        image = str(user.avatar)
         color = 0xd30000
         await self.botspam_send(title, text, footer, image, None, color, None)
 
@@ -450,7 +450,7 @@ class Event_Response(commands.Cog):
         emoji = util.emoji("ban")
         text = f"<@{user.id}> {emoji}"
         footer = f"NAME: {user.name}, ID: {user.id}"   
-        image = user.avatar
+        image = str(user.avatar)
         color = 0x0e4c92
         await self.botspam_send(title, text, footer, image, None, color, None)
 
