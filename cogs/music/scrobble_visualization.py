@@ -748,11 +748,11 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     # adjust
                     if width < min_size:
                         width = min_size
-                    if width > max_size
+                    if width > max_size:
                         width = max_size
                     if height < min_size:
                         height = min_size
-                    if height > max_size
+                    if height > max_size:
                         height = max_size
                     # set dict parameters
                     arg_dict["top"] = width*height
@@ -811,7 +811,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
     @to_thread
-    def get_album_details_from_compact(self, artistcompact, albumcompact)
+    def get_album_details_from_compact(self, artistcompact, albumcompact):
         conSM = sqlite3.connect('databases/scrobblemeta.db')
         curSM = conSM.cursor()
         artistinfo_list = [[item[0], item[1], item[2]] for item in curSM.execute("SELECT artist, album, cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
@@ -829,8 +829,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
 
-    @to_thread
-    def get_album_cover_url(self, artist_name, album_name)
+    async def get_album_cover_url(self, artist_name, album_name):
         # first try compact get from db
         artistcompact = util.compactnamefilter(artist_name, "artist", "alias")
         albumcompact = util.compactnamefilter(album_name, "album")
@@ -849,8 +848,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
 
-    @to_thread
-    def get_chart_data(self, ctx, arg_dict):
+    async def get_chart_data(self, ctx, arg_dict):
         # extract args
         top = arg_dict["top"]
         width = arg_dict["width"]
