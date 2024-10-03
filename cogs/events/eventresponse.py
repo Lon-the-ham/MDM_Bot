@@ -311,8 +311,6 @@ class Event_Response(commands.Cog):
     async def on_member_update(self, before, after):
         if self.is_inactive():
             return
-        if before.bot:
-            return
         member = before
         server = member.guild
         if not server:
@@ -325,18 +323,19 @@ class Event_Response(commands.Cog):
             #print(f"{member.name} updated in {server.name}")
             return
 
-        if not self.setting_enabled("user name change notification"):
-            return
-
         updated_smth_to_notify = False
         title = ""
         text = ""
 
         if before.nick != after.nick: # nickname change
+            if not self.setting_enabled("user name change notification"):
+                return
             text += f"<@{member.id}>'s changed nickname from {before.nick} to {after.nick}.\n"
             updated_smth_to_notify = True
 
         if before.roles != after.roles: # roles change
+            if not self.setting_enabled("assign role notification"):
+                return
             added_roles = []
             removed_roles = []
 
@@ -356,14 +355,18 @@ class Event_Response(commands.Cog):
                 text += f"<@{member.id}> was removed from the " + removed_roles[0] + "role." 
             elif len(removed_roles) > 1:
                 text += f"<@{member.id}> was removed from the roles: " + ', '.join(removed_roles) + ".\n"
+            updated_smth_to_notify = True
 
         if before.timed_out_until is None and after.timed_out_until is not None: # timeout (the discord internal one)
+            if not self.setting_enabled("user mute/ban/kick notification"):
+                return
             endtime = after.timed_out_until
             now_utc = datetime.datetime.utcnow()
             remaining = (endtime - now_utc).total_seconds()
             now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
             remaining_string = util.seconds_to_readabletime(remaining, now)
             text += f"<@{member.id}> was timed out via the discord internal time out feature.\n{remaining_string}\n"
+            updated_smth_to_notify = True
 
 
         footer = f"ID: {member.id}"
