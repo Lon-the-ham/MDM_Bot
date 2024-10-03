@@ -19,6 +19,14 @@ except:
     print("Not importing bar chart race library")
     barchartrace_enabled = False
 
+try:
+    from PIL import Image, ImageDraw, ImageFont
+    from io import BytesIO
+    from urllib.request import urlopen
+    image_charts_enabled = True
+except:
+    image_charts_enabled = False
+
 
 
 
@@ -40,10 +48,10 @@ class ScrobbleVisualsCheck():
                 return False
 
     def is_barchartrace_enabled(*ctx):
-        if barchartrace_enabled:
-            return True
-        else:
-            return False
+        return image_charts_enabled
+
+    def is_imagechart_enabled(*ctx):
+        return barchartrace_enabled
 
     ### CHECK BLOCK UNBLOCK
 
@@ -76,6 +84,10 @@ class ScrobbleVisualsCheck():
 
 
 
+################################################################################################################################################################
+
+
+
 class Music_Scrobbling_Visuals(commands.Cog):
     def __init__(self, bot: commands.bot) -> None:
         self.bot = bot
@@ -94,7 +106,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
 
-    ###################################################################################
+    ##################################### BAR CHART RACE ##############################################
 
 
 
@@ -597,6 +609,492 @@ class Music_Scrobbling_Visuals(commands.Cog):
             ScrobbleVisualsCheck.unblock_gfx_generation("bar_chart_race")
         except Exception as e:
             print("Error in error handler:", e)
+        await util.error_handling(ctx, error)
+
+
+
+
+    ######################################################### TOP CHART ########################################################################
+
+
+
+    @to_thread
+    def create_chart(self, caption_dict, image_dict, chart_name, width, height):
+        """takes a dictionary of image_url_names->image_caption_names and makes a collage out of them"""
+
+        #SETTINGS
+        caption_font = "other/resources/Arimo-Regular.ttf"
+        fontColor = 0xFFFFFF
+        TINT_COLOR = (0, 0, 0)  # Black
+        TRANSPARENCY = .5  # Degree of transparency, 0-100%
+        OPACITY = int(255 * TRANSPARENCY)
+
+        #determine grid
+        if width == 0 or width == None or height == 0 or height == None:
+            grid_size = 1
+            for q in range(2,11):
+                if len(image_dict) >= q*q:
+                    grid_size = q
+            width = grid_size
+            height = grid.size
+
+        grid_size = max(width, height)
+
+        #creates a new empty image, RGB mode, and size ~1200 by 1200.
+        img_size = min(round(1200 / grid_size), 300)
+        collage_img = Image.new('RGB', (img_size * width, img_size * height))
+
+        font_size = round(img_size / 10)
+        font = ImageFont.truetype(caption_font, font_size)
+
+        x = 0
+        y = 0
+        for img_key in image_dict.keys():
+            try:
+                #opens an image:
+                img_loc = image_dict[img_key]
+                if img_loc.startswith("temp/"):
+                    img = Image.open(open(f"temp/{img_key}.jpg", 'rb'))
+                elif img_loc.startswith("http"):
+                    with BytesIO(urlopen(img_loc).read()) as file:
+                        img = Image.open(file)
+                        img = img.convert("RGB")
+                elif img_loc.strip() == "":
+                    img = Image.open(open(f"other/resources/lastfm_default.jpg", 'rb'))
+                else:
+                    raise ValueError("Invalid image")
+
+                #resize opened image, so it is no bigger than img_size^2
+                img.thumbnail((img_size, img_size))
+
+                #pre-caption (to get text size etc)
+                caption = caption_dict[img_key]
+                if len(caption) > 20:
+                    caption = caption[:18] + "..."
+
+                drawC = ImageDraw.Draw(img)
+                _, _, w, h = drawC.textbbox((0,0), text="Ff Gg Jj Pp Qq Yy Zz", font=font)
+
+                #Make semi-transparent overlay
+                img = img.convert("RGBA")
+                drawO = ImageDraw.Draw(img)
+                overlay = Image.new('RGBA', img.size, TINT_COLOR+(0,))
+                drawO = ImageDraw.Draw(overlay)  # Create a context for drawing things on it.
+                drawO.rectangle(((0, img_size - h*1.1), (img_size, img_size)), fill=TINT_COLOR+(OPACITY,))
+
+                #Alpha composite these two images together to obtain the desired result.
+                img = Image.alpha_composite(img, overlay)
+                img = img.convert("RGB") # Remove alpha for saving in jpg format.
+
+                #actual caption
+                drawC2 = ImageDraw.Draw(img)
+                _, _, w, _ = drawC2.textbbox((0,0), text=caption, font=font)
+                drawC2.text(((img_size-w)/2, (img_size-h)*0.99), caption, font=font, fill=fontColor)
+                
+
+                #paste the image at location x,y:
+                collage_img.paste(img, (y,x))
+
+                y += img_size
+                if y >= img_size * width:
+                    y = 0
+                    x += img_size
+
+            except Exception as e:
+                print("Error:", e)
+                if str(e) == "Invalid image":
+                    raise ValueError("Invalid image")
+
+        collage_img.save(f"temp/{chart_name}.jpg", "JPEG")
+
+
+
+    def parse_topchart_args(self, ctx, args):
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        arg_dict = {
+            "timecut": now - 7*24*60*60,
+            "top": 9,
+            "height": 3,
+            "width": 3,    
+            "scope": "user",
+        }
+
+        arguments = []
+        args_intermediate = ' '.join(args).replace(";",",").split(",")
+        for arg in args_intermediate:
+            arguments.append(''.join([x for x in arg.lower() if x.isalnum()]).strip())
+
+            arg_strip = arg.strip()
+            if arg_strip.startswith("<@") and arg_strip.endswith(">") and len(arg_strip) >= 19:
+                if util.represents_integer(arg_strip[2:-1]):
+                    arg_dict["scope"] = arg_strip[2:-1]
+
+        min_size = 1
+        max_size = 10
+
+        for arg in arguments:
+            if "x" in arg:
+                if arg.startswith("size"):
+                    arg2 = arg[4:]
+                else:
+                    arg2 = arg
+                size_args = arg2.split("x")
+                width_str = size_args[0].strip()
+                height_str = size_args[1].strip()
+                if util.represents_integer(width_str) and util.represents_integer(height_str):
+                    width = util.forceinteger(width_str)
+                    height = util.forceinteger(height_str)
+                    # adjust
+                    if width < min_size:
+                        width = min_size
+                    if width > max_size
+                        width = max_size
+                    if height < min_size:
+                        height = min_size
+                    if height > max_size
+                        height = max_size
+                    # set dict parameters
+                    arg_dict["top"] = width*height
+                    arg_dict["width"] = width
+                    arg_dict["height"] = height
+
+            elif arg.startswith("top") and len(arg) > 3:
+                val = util.forceinteger(arg[3:])
+                found = False
+                if val >= min_size*min_size and val <= max_size*max_size:
+                    arg_dict["top"] = val
+                    found = True
+                elif arg[3:] == "max":
+                    arg_dict["top"] = max_size*max_size
+                    found = True
+                elif arg[3:] == "min":
+                    arg_dict["top"] = min_size*min_size
+                    found = True
+                # adjust size
+                if found:
+                    square_size = math.ceil(math.sqrt(min_size*min_size))
+                    arg_dict["width"] = square_size
+                    arg_dict["height"] = square_size
+
+            elif arg.startswith("scope") and len(arg) > 5:
+                val = arg[5:]
+                if val in ["server", "guild"]:
+                    arg_dict["scope"] = "server"
+                else:
+                    val2 = util.forceinteger(util.alphanum(val))
+                    if val2 > 9999999999999999:
+                        arg_dict["scope"] = str(val2)
+
+            elif arg.startswith("time") and len(arg) > 4:
+                val = util.forceinteger(arg[4:])
+                if val > 0 and val <= now - 24*60*60:
+                    arg_dict["timecut"] = val
+                else:
+                    val2 = arg[4:]
+                    possible_timecut = self.get_timecut_seconds(now, val2)
+                    if possible_timecut >= 0:
+                        arg_dict["timecut"] = possible_timecut
+
+        # parse time argument
+
+        try:
+            for arg in arguments:
+                possible_timecut = self.get_timecut_seconds(now, arg)
+                if possible_timecut >= 0:
+                    arg_dict["timecut"] = possible_timecut
+        except:
+            arg_dict["timecut"] = now - 7*24*60*60
+
+        return arg_dict
+
+
+
+    @to_thread
+    def get_album_details_from_compact(self, artistcompact, albumcompact)
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+        artistinfo_list = [[item[0], item[1], item[2]] for item in curSM.execute("SELECT artist, album, cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+
+        if len(artistinfo_list) > 0:
+            artist = artistinfo_list[-1][0]
+            album = artistinfo_list[-1][1]
+            url = artistinfo_list[-1][2]
+        else:
+            artist = None
+            album = None
+            url = None
+
+        return artist, album, url
+
+
+
+    @to_thread
+    def get_album_cover_url(self, artist_name, album_name)
+        # first try compact get from db
+        artistcompact = util.compactnamefilter(artist_name, "artist", "alias")
+        albumcompact = util.compactnamefilter(album_name, "album")
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+        artistinfo_list = [item[0] for item in curSM.execute("SELECT cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+
+        if len(artistinfo_list) > 0:
+            url = artistinfo_list[-1]
+            return url
+
+        # otherwise get info from lastfm and save data in albuminfo
+        url, tags = await util.fetch_update_lastfm_artistalbuminfo(artist_name, album_name)
+
+        return url
+
+
+
+    @to_thread
+    def get_chart_data(self, ctx, arg_dict):
+        # extract args
+        top = arg_dict["top"]
+        width = arg_dict["width"]
+        height = arg_dict["height"]
+        timecut = arg_dict["timecut"]
+        scope = arg_dict["scope"]
+
+        # connect to databases
+        conFM = sqlite3.connect('databases/scrobbledata.db')
+        curFM = conFM.cursor()
+        conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+        curFM2 = conFM2.cursor()
+        conNP = sqlite3.connect('databases/npsettings.db')
+        curNP = conNP.cursor()
+        conSS = sqlite3.connect('databases/scrobblestats.db')
+        curSS = conSS.cursor()
+
+        caption_dict = {}
+        image_dict = {}
+
+        if scope == "server":
+            user_name = ctx.guild.name
+
+            # fetch entire server (minus scrobble banned/inactive users)
+            output_name = "server"
+            userid_list = [str(u.id) for u in ctx.guild.members]
+            lfm_list = [[item[0],str(item[1]).lower().strip(), item[2]] for item in curNP.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
+
+            scrobble_list = []
+            aa_scrobble_dict = {}
+            artist_scrobble_dict = {}
+            artist_album_dict = {}
+            aa_first_found_in = {}
+            
+            for lfm_entry in lfm_list:
+                user_id = lfm_entry[0]
+                lfm_name = lfm_entry[1]
+                scrobble_restriction = lfm_entry[2]
+
+                if user_id not in userid_list:
+                    continue
+                if scrobble_restriction.startswith(("scrobble_banned", "wk_banned", "crown_banned")) or scrobble_restriction.endswith("inactive"):
+                    continue
+
+                if timecut == 0:
+                    artist_album_scrobble_list = [[item[0], item[1], item[2]] for item in curFM2.execute(f"SELECT artist_name, album_name, count FROM [{lfm_name}]").fetchall()]
+
+                    for item in artist_scrobble_pairs:
+                        artist_compact = item[0]
+                        album_compact = item[1]
+                        count = util.forceinteger(item[2])
+                        aa_tuple = (artist_compact, album_compact)
+
+                        artist_scrobble_dict[artist_compact] = artist_scrobble_dict.get(artist_compact, 0) + count
+                        aa_scrobble_dict[aa_tuple] = aa_scrobble_dict.get(aa_tuple, 0) + count
+
+                        if aa_tuple not in aa_first_found_in:
+                            aa_first_found_in[aa_tuple] = lfm_name
+
+                else:
+                    scrobble_list += [[item[0], item[1]] for item in curFM.execute(f"SELECT artist_name, album_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts DESC", (timecut,)).fetchall()]
+
+                    for item in scrobble_list:
+                        artist = item[0]
+                        album = item[1]
+                        artist_compact = util.compactnamefilter(artist, "artist", "alias")
+                        album_compact = util.compactnamefilter(album, "album")
+                        aa_tuple = (artist_compact, album_compact)
+
+                        artist_scrobble_dict[artist_compact] = artist_scrobble_dict.get(artist_compact, 0) + 1
+                        aa_scrobble_dict[aa_tuple] = aa_scrobble_dict.get(aa_tuple, 0) + 1
+
+                        if aa_tuple not in artist_album_dict:
+                            artist_album_dict[aa_tuple] = (artist, album)
+
+        else:
+            if scope == "user":
+                user_id = ctx.author.id
+            else:
+                user_id = scope
+
+            lfm_list = [[item[0],str(item[1]).lower().strip()] for item in curNP.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (str(user_id),)).fetchall()]
+
+            if len(lfm_list) == 0:
+                raise ValueError("no such user found on this server")
+            elif lfm_list[-1][1].startswith("scrobble_banned"):
+                raise ValueError("this user is scrobble banned")
+
+            lfm_name = lfm_list[-1][0]
+            user_name = lfm_name
+
+            if timecut == 0:
+                artist_album_scrobble_list = [[item[0], item[1], item[2]] for item in curFM2.execute(f"SELECT artist_name, album_name, count FROM [{lfm_name}]").fetchall()]
+
+                for item in artist_scrobble_pairs:
+                    artist_compact = item[0]
+                    album_compact = item[1]
+                    count = util.forceinteger(item[2])
+                    aa_tuple = (artist_compact, album_compact)
+
+                    artist_scrobble_dict[artist_compact] = artist_scrobble_dict.get(artist_compact, 0) + count
+                    aa_scrobble_dict[aa_tuple] = aa_scrobble_dict.get(aa_tuple, 0) + count
+
+            else:
+                scrobble_list += [[item[0], item[1]] for item in curFM.execute(f"SELECT artist_name, album_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts DESC", (timecut,)).fetchall()]
+
+                for item in scrobble_list:
+                    artist = item[0]
+                    album = item[1]
+                    artist_compact = util.compactnamefilter(artist, "artist", "alias")
+                    album_compact = util.compactnamefilter(album, "album")
+                    aa_tuple = (artist_compact, album_compact)
+
+                    artist_scrobble_dict[artist_compact] = artist_scrobble_dict.get(artist_compact, 0) + 1
+                    aa_scrobble_dict[aa_tuple] = aa_scrobble_dict.get(aa_tuple, 0) + 1
+
+                    if aa_tuple not in artist_album_dict:
+                        artist_album_dict[aa_tuple] = (artist, album)
+
+        # GET THE TOP ENTRIES
+        count_list = []
+        for artistcompact, count in artist_scrobble_dict:
+            count_list.append([artistcompact, count])
+
+        count_list.sort(key=lambda x: x[1], reverse=True)
+        m = min(top, len(count_list))
+        count_list = count_list[:m]
+
+        if len(artist_album_dict) == 0:
+            needs_scrobble_loading = True
+
+            for item in count_list:
+                artistcompact = item[0]
+
+                album_count_list = []
+                for aa_tuple in aa_scrobble_dict.keys():
+                    if aa_tuple[0] == artistcompact:
+                        count = aa_scrobble_dict[aa_tuple]
+                        album_count_list.append([aa_tuple, count])
+
+                album_count_list.sort(key=lambda x: x[1], reverse=True)
+                aa_compact = album_count_list[0]
+                albumcompact = aa_compact[1]
+
+                # GET THE FULL NAMES OF THE ARTISTS/ALBUMS
+                artist_name, album_name, image_url = util.get_album_details_from_compact(artistcompact, albumcompact)
+
+                if image_url is None or image_url == "":
+                    if scope == "server":
+                        lfm_name = aa_first_found_in[artistcompact]
+                    if needs_scrobble_loading:
+                        check_scrobble_list = [[item[0], item[1]] for item in curFM.execute(f"SELECT artist_name, album_name FROM [{lfm_name}] SORT BY date_uts DESC").fetchall()]
+                        first_time = False
+
+                    for item in check_scrobble_list:
+                        check_artist = item[0]
+                        check_album = item[1]
+                        check_artistcompact = util.compactnamefilter(check_artist, "artist", "alias")
+                        check_albumcompact = util.compactnamefilter(check_album, "album")
+
+                        if check_artistcompact == artistcompact and check_albumcompact == albumcompact:
+                            artist_name = check_artist
+                            album_name = check_album
+                            image_dict[i] = await util.get_album_cover_url(artist_name, album_name)
+                            break
+                    else:
+                        raise ValueError("internal search error")
+                else:
+                    image_dict[i] = image_url
+
+                caption_dict[i] = artist_name
+
+        else:
+            i = 0
+            for item in count_list:
+                i += 1
+                artistcompact = item[0]
+                artist_name = artist_dict[artistcompact]
+                caption_dict[i] = artist_name
+
+                album_count_list = []
+                for aa_tuple in aa_scrobble_dict.keys():
+                    if aa_tuple[0] == artistcompact:
+                        count = aa_scrobble_dict[aa_tuple]
+                        album_count_list.append([aa_tuple, count])
+
+                album_count_list.sort(key=lambda x: x[1], reverse=True)
+                aa_compact = album_count_list[0]
+                album_name = artist_album_dict[aa_compact]
+
+                image_dict[i] = await util.get_album_cover_url(artist_name, album_name)
+
+        return caption_dict, image_dict, user_name
+
+
+
+
+    @commands.command(name='chart', aliases = ["c"])
+    @commands.check(ScrobbleVisualsCheck.scrobbling_enabled)
+    @commands.check(ScrobbleVisualsCheck.is_imagechart_enabled)
+    @commands.check(util.is_active)
+    async def _chart(self, ctx: commands.Context, *args):
+        """Shows chart of recent music
+        
+        under construction:
+        specify size...
+        specify timeframe...
+        """
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        # PARSE ARGUMENTS
+
+        arg_dict = self.parse_topchart_args(ctx, args)
+
+        top = arg_dict["top"]
+        width = arg_dict["width"]
+        height = arg_dict["height"]
+        timecut = arg_dict["timecut"]
+        scope = arg_dict["scope"]
+
+        if timecut <= 1000000000:
+            timestring = "`all time`"
+        else:
+            timestring = f"<t:{timecut}:R>"
+
+        # GET DATA
+
+        caption_dict, image_dict, lfm_name = await self.get_chart_data(ctx, arg_dict)
+
+        # MAKE CHART
+
+        chart_name = f"chart_{ctx.author.id}_{now}"
+
+        await self.create_chart(caption_dict, image_dict, chart_name, width, height)
+
+        try:
+            await ctx.reply(f"**{lfm_name}'s top {len(image_dict)} artists chart from** {timestring} **up to now**", file=discord.File(rf"temp/{chart_name}.jpg"), mention_author=False)
+        except Exception as e:
+            await ctx.reply(f"Error: {e}", mention_author=False)
+
+        os.remove(f"temp/{chart_name}.jpg")
+
+    @_chart.error
+    async def chart_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
