@@ -90,6 +90,7 @@ class Event_Response(commands.Cog):
                 try:
                     embed.set_author(name=author.name, icon_url=str(author.avatar))
                 except Exception as e:
+                    embed.set_author(name=author.name, icon_url="https://cdn.discordapp.com/embed/avatars/0.png")
                     print(e)
             await botspam_channel.send(embed=embed)
         except Exception as e:
