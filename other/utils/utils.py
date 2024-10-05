@@ -576,6 +576,7 @@ class Utils():
     def compactnamefilter(input_string, *info):
         # https://en.wikipedia.org/wiki/List_of_Latin-script_letters
         # get rid of bracket info
+        intermediate_string = ""
         try:
             if len(info) > 0:
                 intermediate_string = Utils.compactaddendumfilter(input_string, info[0])
@@ -778,10 +779,10 @@ class Utils():
                     elif len(second_choice_list) > 0:
                         emote = random.choice(second_choice_list)
 
-            if emote == "":                
+            if emote.strip() == "":                
                 print(f"Notice: Emoji with name '{name}' returned an empty string.")
 
-            return emote
+            return emote.strip()
 
         except Exception as e:
             print("Error:", e)
@@ -1074,16 +1075,18 @@ class Utils():
             # GET CROWN HOLDER
 
             crown_user = None
+            crown_count = None
 
             try:
                 conSS = sqlite3.connect('databases/scrobblestats.db')
                 curSS = conSS.cursor()
-                crowns_list = [item[0] for item in curSS.execute(f"SELECT crown_holder FROM crowns_{ctx.guild.id} WHERE UPPER(artist) = ?", (artist.upper(),)).fetchall()]
-                crown_user = crowns_list[0]
+                crowns_list = [[item[0],item[1]] for item in curSS.execute(f"SELECT crown_holder, playcount FROM crowns_{ctx.guild.id} WHERE UPPER(artist) = ?", (artist.upper(),)).fetchall()]
+                crown_user = crowns_list[0][0]
+                crown_count = crowns_list[0][1]
             except:
                 pass
 
-            return ctx_rank_string, crown_user
+            return ctx_rank_string, crown_user, crown_count
 
         except Exception as e:
             print(f"Error in utils.get_rank(): {e}")
@@ -2962,14 +2965,14 @@ class Utils():
 
 
 
-    async def fetch_update_lastfm_artistalbuminfo(artist, album):
+    async def fetch_update_lastfm_artistalbuminfo(ctx, artist, album):
         cooldown = False # is ok?
         payload = {
             'method': 'album.getInfo',
             'album': album,
             'artist': artist,
         }
-        response = await util.lastfm_get(ctx, payload, cooldown)
+        response = await Utils.lastfm_get(ctx, payload, cooldown)
         if response == "rate limit":
             raise ValueError("rate limit")
         try:
@@ -3914,17 +3917,17 @@ class Utils():
 
     async def update_lastfm_artistalbuminfo(artist, album, thumbnail, tags):
         now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
-        artistcompact = util.compactnamefilter(artist, "artist", "alias")
-        albumcompact = util.compactnamefilter(album, "album")
+        artistcompact = Utils.compactnamefilter(artist, "artist", "alias")
+        albumcompact = Utils.compactnamefilter(album, "album")
         tag_string = ';'.join(tags)
         conSM = sqlite3.connect('databases/scrobblemeta.db')
         curSM = conSM.cursor()
         artistinfo_list = [item for item in curSM.execute("SELECT tags, cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
 
         if len(artistinfo_list) == 0:
-            curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?)", (artist, artistcompact, album, albumcompact, tag_string, thumbnail, now))
+            curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?)", (artist, str(artistcompact), str(album), albumcompact, tag_string, thumbnail, now))
         else:
-            curSM.execute("UPDATE albuminfo SET artist = ?, album = ?, tags = ?, cover_url = ? WHERE artist_filtername = ? AND album_filtername = ?", (artist, album, tag_string, thumbnail, artistcompact, albumcompact))
+            curSM.execute("UPDATE albuminfo SET artist = ?, album = ?, tags = ?, cover_url = ?, last_update = ? WHERE artist_filtername = ? AND album_filtername = ?", (artist, album, tag_string, thumbnail, now, artistcompact, albumcompact))
         conSM.commit()
 
 
