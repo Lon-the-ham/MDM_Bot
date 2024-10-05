@@ -743,7 +743,12 @@ class Music_Scrobbling_Visuals(commands.Cog):
         }
 
         arguments = []
-        args_intermediate = ' '.join(args).replace(";",",").split(",")
+        argsjoin = ' '.join(args)
+        if ":" in argsjoin or "user" in argsjoin or "scope" in argsjoin:
+            args_intermediate = argsjoin.replace(";",",").split(",")
+        else:
+            args_intermediate = argsjoin.split()
+
         for arg in args_intermediate:
             arguments.append(''.join([x for x in arg.lower() if x.isalnum()]).strip())
 
@@ -1135,18 +1140,106 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
 
+    def parse_chart_list_from_api(self, response):
+        caption_image_list = []
+        rjson = response.json()
+        topalbums = rjson['topalbums']['album']
+
+        for entry in topalbums:
+            artist = entry['artist']['name']
+            album = entry['name']
+            image = entry['image'][-1]['#text']
+            #playount = entry['playcount']
+
+            caption_image_list.append([artist, album, image])
+
+        return caption_image_list
+
+
+
     async def get_chart_data_from_api(self, ctx, arg_dict):
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
         # extract args
         top = arg_dict["top"]
         width = arg_dict["width"]
         height = arg_dict["height"]
         timecut = arg_dict["timecut"]
         scope = arg_dict["scope"]
-
         charttype = arg_dict["charttype"]
 
-        raise ValueError("API call not implemented yet")
-        # under construction
+        if scope == "user":
+            user_id = ctx.author.id
+        else:
+            user_id = scope
+
+        conNP = sqlite3.connect('databases/npsettings.db')
+        curNP = conNP.cursor()
+        lfm_list = [[item[0],str(item[1]).lower().strip()] for item in curNP.execute("SELECT lfm_name, details FROM lastfm WHERE id = ?", (str(user_id),)).fetchall()]
+        if len(lfm_list) == 0:
+            raise ValueError("no such user found on this server")
+        elif lfm_list[-1][1].startswith("scrobble_banned"):
+            raise ValueError("this user is scrobble banned")
+
+        lfm_name = lfm_list[-1][0]
+
+        payload = {
+                    'user': lfm_name,
+                    'limit': min(50, top),
+                    'page': 1,
+                }
+
+        if charttype == "artists":
+            payload['method'] = 'library.getArtists'
+
+            raise ValueError("under construction")
+
+        else:
+            payload['method'] = 'user.getTopAlbums'
+
+            if (now-timecut) < (24*3600) * 10:
+                payload['period'] = "7day"
+            elif (now-timecut) < (24*3600) * 33:
+                payload['period'] = "1month"
+            elif (now-timecut) < (24*3600) * 100:
+                payload['period'] = "3month"
+            elif (now-timecut) < (24*3600) * 200:
+                payload['period'] = "6month "
+            elif (now-timecut) < (24*3600) * 400:
+                payload['period'] = "12month"
+            else:
+                payload['period'] = "overall"
+
+        cooldown = True
+        response = await util.lastfm_get(ctx, payload, cooldown, "lastfm")
+
+        caption_image_list = self.parse_chart_list_from_api(response)
+
+        if top > 50:
+            payload['limit'] = min(50, top-50)
+            payload['page'] = 2
+            cooldown = False
+            response2 = await util.lastfm_get(ctx, payload, cooldown, "lastfm")
+            caption_image_list += self.parse_chart_list_from_api(response2)
+
+        caption_dict = {}
+        image_dict  = {}
+        i = 0
+
+        for item in caption_image_list:
+            i += 1
+            artist = item[0] 
+            album = item[1]
+            image = item[2]
+
+            if charttype == "artists":
+                caption_dict[i] = artist
+            else:
+                caption_dict[i] = f"{artist}\n{album}"
+
+            image_dict[i] = image
+
+        return caption_dict, image_dict, lfm_name
 
 
 
