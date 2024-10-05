@@ -901,24 +901,36 @@ class Music_NowPlaying(commands.Cog):
             if lfm_name != None:
                 rank = None
                 crown_holder = None
+                crown_count = None
                 artistcount = None
                 albumcount = None
                 trackcount = None
 
-                if crown == "on" or lastfm_rank == "on":
+                if (crown == "on" or crown == "only_own") or lastfm_rank == "on":
                     try:
-                        rank, crown_holder = util.get_rank(ctx, lfm_name, subst_artist)
+                        rank, crown_holder, crown_count = util.get_rank(ctx, lfm_name, subst_artist)
                     except Exception as e:
                         print("Error while calling util.get_rank():", e)
                         rank = ""
                         crown_holder = None
+                        crown_count = None
 
-                if crown == "on":
-                    if ((type(crown_holder) is str) and (str(lfm_name).upper().strip() == crown_holder.upper().strip())) and (scrobble_status not in ["wk_banned", "crown_banned"]):
-                        emoji = util.emoji("crown")
-                        if emoji.strip() == "":
-                            emoji = "♕"
-                        user_stats += f"{emoji} "
+                if crown == "on" or crown == "only_own":
+                    mention_crownuser = False
+                    crown_text = ""
+                    emoji = util.emoji("crown")
+                    if emoji == "" or (emoji.startswith("<") and emoji.endswith(">") and emoji.count(":") > 1):
+                        emoji = "♕"
+
+                    if scrobble_status not in ["wk_banned", "crown_banned"]:
+                        if (type(crown_holder) is str) and (crown_holder.strip() != ""):
+                            if (str(lfm_name).upper().strip() == crown_holder.upper().strip()):
+                                user_stats += f"{emoji} "
+                            elif crown == "on":
+                                mention_crownuser = True
+                                if crown_count is not None:
+                                    crown_count_formatted = "{:,}".format(crown_count)
+                                    crown_text = f"{self.tagseparator} {emoji}{crown_count_formatted} ({crown_holder})"
 
                 if lastfm_artistscrobbles == "on":
                     try:
@@ -985,7 +997,15 @@ class Music_NowPlaying(commands.Cog):
                             user_stats = user_stats[:-2] + ") "
 
                 if lastfm_rank == "on" and type(rank) == str:
-                    user_stats += rank
+                    if crown == "on":
+                        if mention_crownuser:
+                            # a different user is crown holder:
+                            if rank != "":
+                                rank2 = "server rank: " + rank.replace("[", "").replace("]", "")
+                                user_stats += f"\n{rank2} {crown_text}"
+                        else:
+                            # command invoker is crown holder:
+                            user_stats += rank
 
             if rym_albumrating == "on":
                 # rym import under construction
