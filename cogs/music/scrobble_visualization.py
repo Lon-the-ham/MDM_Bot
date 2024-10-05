@@ -620,13 +620,16 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
     @to_thread
     def create_chart(self, caption_dict, image_dict, chart_name, width, height):
-        """takes a dictionary of image_url_names->image_caption_names and makes a collage out of them"""
+        """takes dictionaries of image_url_names and image_caption_names and makes a collage out of them"""
 
         #SETTINGS
-        caption_font = "other/resources/Arimo-Regular.ttf"
+        try:
+            caption_font = "other/resources/Arial Unicode MS.ttf"
+        except:
+            caption_font = "other/resources/Arimo-Regular.ttf"
         fontColor = 0xFFFFFF
         TINT_COLOR = (0, 0, 0)  # Black
-        TRANSPARENCY = .5  # Degree of transparency, 0-100%
+        TRANSPARENCY = .6  # Degree of transparency, 0-100%
         OPACITY = int(255 * TRANSPARENCY)
 
         #determine grid
@@ -652,25 +655,39 @@ class Music_Scrobbling_Visuals(commands.Cog):
         for img_key in image_dict.keys():
             try:
                 #opens an image:
-                img_loc = image_dict[img_key]
-                if img_loc.startswith("temp/"):
-                    img = Image.open(open(f"temp/{img_key}.jpg", 'rb'))
-                elif img_loc.startswith("http"):
-                    with BytesIO(urlopen(img_loc).read()) as file:
-                        img = Image.open(file)
-                        img = img.convert("RGB")
-                elif img_loc.strip() == "":
+                try:
+                    img_loc = image_dict[img_key]
+                    if img_loc.startswith("temp/"):
+                        img = Image.open(open(f"temp/{img_key}.jpg", 'rb'))
+                    elif img_loc.startswith("http"):
+                        with BytesIO(urlopen(img_loc).read()) as file:
+                            img = Image.open(file)
+                            img = img.convert("RGB")
+                    else:
+                        raise ValueError("Invalid image")
+                except Exception as e:
                     img = Image.open(open(f"other/resources/lastfm_default.jpg", 'rb'))
-                else:
-                    raise ValueError("Invalid image")
 
                 #resize opened image, so it is no bigger than img_size^2
                 img.thumbnail((img_size, img_size))
 
                 #pre-caption (to get text size etc)
+                line_number = 1
                 caption = caption_dict[img_key]
-                if len(caption) > 20:
-                    caption = caption[:18] + "..."
+                if "\n" in caption:
+                    caption_lines = caption.split("\n")
+                    line_number = len(caption_lines)
+                    caption_list = []
+                    for cap_line in caption_lines:
+                        if len(cap_line) > 20:
+                            cap_line2 = cap_line[:17] + "..."
+                            caption_list.append(cap_line2)
+                        else:
+                            caption_list.append(cap_line)
+                    caption = '\n'.join(caption_list)  
+                else:
+                    if len(caption) > 20:
+                        caption = caption[:17] + "..."
 
                 drawC = ImageDraw.Draw(img)
                 _, _, w, h = drawC.textbbox((0,0), text="Ff Gg Jj Pp Qq Yy Zz", font=font)
@@ -680,7 +697,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                 drawO = ImageDraw.Draw(img)
                 overlay = Image.new('RGBA', img.size, TINT_COLOR+(0,))
                 drawO = ImageDraw.Draw(overlay)  # Create a context for drawing things on it.
-                drawO.rectangle(((0, img_size - h*1.1), (img_size, img_size)), fill=TINT_COLOR+(OPACITY,))
+                drawO.rectangle(((0, img_size - h*line_number*1.1), (img_size, img_size)), fill=TINT_COLOR+(OPACITY,))
 
                 #Alpha composite these two images together to obtain the desired result.
                 img = Image.alpha_composite(img, overlay)
@@ -688,9 +705,14 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
                 #actual caption
                 drawC2 = ImageDraw.Draw(img)
-                _, _, w, _ = drawC2.textbbox((0,0), text=caption, font=font)
-                drawC2.text(((img_size-w)/2, (img_size-h)*0.99), caption, font=font, fill=fontColor)
-                
+
+                caption_lines = caption.split("\n")
+                i = len(caption_lines)
+
+                for caption_line in caption_lines:
+                    _, _, w, _ = drawC2.textbbox((0,0), text=caption_line, font=font)
+                    drawC2.text(((img_size-w)/2, (img_size-h*i)*0.99), caption_line, font=font, fill=fontColor)
+                    i -= 1
 
                 #paste the image at location x,y:
                 collage_img.paste(img, (y,x))
@@ -786,6 +808,15 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     if val2 > 9999999999999999:
                         arg_dict["scope"] = str(val2)
 
+            elif arg.startswith("user") and len(arg) > 4:
+                val = arg[4:]
+                if val in ["server", "guild"]:
+                    arg_dict["scope"] = "server"
+                else:
+                    val2 = util.forceinteger(util.alphanum(val))
+                    if val2 > 9999999999999999:
+                        arg_dict["scope"] = str(val2)
+
             elif arg.startswith("time") and len(arg) > 4:
                 val = util.forceinteger(arg[4:])
                 if val > 0 and val <= now - 24*60*60:
@@ -829,7 +860,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
 
-    async def get_album_cover_url(self, artist_name, album_name):
+    async def get_album_cover_url(self, ctx, artist_name, album_name):
         # first try compact get from db
         artistcompact = util.compactnamefilter(artist_name, "artist", "alias")
         albumcompact = util.compactnamefilter(album_name, "album")
@@ -842,19 +873,21 @@ class Music_Scrobbling_Visuals(commands.Cog):
             return url
 
         # otherwise get info from lastfm and save data in albuminfo
-        url, tags = await util.fetch_update_lastfm_artistalbuminfo(artist_name, album_name)
+        url, tags = await util.fetch_update_lastfm_artistalbuminfo(ctx, artist_name, album_name)
 
         return url
 
 
 
-    async def get_chart_data(self, ctx, arg_dict):
+    @to_thread
+    def get_relevant_chart_dictionaries(self, ctx, arg_dict):
         # extract args
         top = arg_dict["top"]
         width = arg_dict["width"]
         height = arg_dict["height"]
         timecut = arg_dict["timecut"]
         scope = arg_dict["scope"]
+        charttype = arg_dict["charttype"]
 
         # connect to databases
         conFM = sqlite3.connect('databases/scrobbledata.db')
@@ -866,8 +899,12 @@ class Music_Scrobbling_Visuals(commands.Cog):
         conSS = sqlite3.connect('databases/scrobblestats.db')
         curSS = conSS.cursor()
 
-        caption_dict = {}
-        image_dict = {}
+        scrobble_list = []
+        aa_scrobble_dict = {}
+        artist_scrobble_dict = {}
+        artist_dict = {}
+        artist_album_dict = {}
+        aa_first_found_in = {}
 
         if scope == "server":
             user_name = ctx.guild.name
@@ -876,12 +913,6 @@ class Music_Scrobbling_Visuals(commands.Cog):
             output_name = "server"
             userid_list = [str(u.id) for u in ctx.guild.members]
             lfm_list = [[item[0],str(item[1]).lower().strip(), item[2]] for item in curNP.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
-
-            scrobble_list = []
-            aa_scrobble_dict = {}
-            artist_scrobble_dict = {}
-            artist_album_dict = {}
-            aa_first_found_in = {}
             
             for lfm_entry in lfm_list:
                 user_id = lfm_entry[0]
@@ -896,7 +927,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                 if timecut == 0:
                     artist_album_scrobble_list = [[item[0], item[1], item[2]] for item in curFM2.execute(f"SELECT artist_name, album_name, count FROM [{lfm_name}]").fetchall()]
 
-                    for item in artist_scrobble_pairs:
+                    for item in artist_album_scrobble_list:
                         artist_compact = item[0]
                         album_compact = item[1]
                         count = util.forceinteger(item[2])
@@ -923,7 +954,8 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
                         if aa_tuple not in artist_album_dict:
                             artist_album_dict[aa_tuple] = (artist, album)
-
+                        if artist_compact not in artist_dict:
+                            artist_dict[artist_compact] = artist
         else:
             if scope == "user":
                 user_id = ctx.author.id
@@ -943,7 +975,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
             if timecut == 0:
                 artist_album_scrobble_list = [[item[0], item[1], item[2]] for item in curFM2.execute(f"SELECT artist_name, album_name, count FROM [{lfm_name}]").fetchall()]
 
-                for item in artist_scrobble_pairs:
+                for item in artist_album_scrobble_list:
                     artist_compact = item[0]
                     album_compact = item[1]
                     count = util.forceinteger(item[2])
@@ -967,90 +999,163 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
                     if aa_tuple not in artist_album_dict:
                         artist_album_dict[aa_tuple] = (artist, album)
+                    if artist_compact not in artist_dict:
+                            artist_dict[artist_compact] = artist
 
         # GET THE TOP ENTRIES
         count_list = []
-        for artistcompact, count in artist_scrobble_dict:
-            count_list.append([artistcompact, count])
+
+        if charttype == "artists":
+            for artistcompact, count in artist_scrobble_dict.items():
+                count_list.append([artistcompact, count])
+        else:
+            for aa_compact, count in aa_scrobble_dict.items():
+                count_list.append([aa_compact, count])
 
         count_list.sort(key=lambda x: x[1], reverse=True)
         m = min(top, len(count_list))
         count_list = count_list[:m]
 
+        return user_name, count_list, artist_dict, artist_album_dict, aa_scrobble_dict, aa_first_found_in
+
+
+
+    async def get_chart_data_from_db(self, ctx, arg_dict):
+        top = arg_dict["top"]
+        width = arg_dict["width"]
+        height = arg_dict["height"]
+        timecut = arg_dict["timecut"]
+        scope = arg_dict["scope"]
+        charttype = arg_dict["charttype"]
+
+        caption_dict = {}
+        image_dict = {}
+
+        print("create lists and maps...")
+        user_name, count_list, artist_dict, artist_album_dict, aa_scrobble_dict, aa_first_found_in = await self.get_relevant_chart_dictionaries(ctx, arg_dict)
+
         if len(artist_album_dict) == 0:
+            print("get full names and cover images...")
             needs_scrobble_loading = True
 
-            for item in count_list:
-                artistcompact = item[0]
-
-                album_count_list = []
-                for aa_tuple in aa_scrobble_dict.keys():
-                    if aa_tuple[0] == artistcompact:
-                        count = aa_scrobble_dict[aa_tuple]
-                        album_count_list.append([aa_tuple, count])
-
-                album_count_list.sort(key=lambda x: x[1], reverse=True)
-                aa_compact = album_count_list[0]
-                albumcompact = aa_compact[1]
-
-                # GET THE FULL NAMES OF THE ARTISTS/ALBUMS
-                artist_name, album_name, image_url = util.get_album_details_from_compact(artistcompact, albumcompact)
-
-                if image_url is None or image_url == "":
-                    if scope == "server":
-                        lfm_name = aa_first_found_in[artistcompact]
-                    if needs_scrobble_loading:
-                        check_scrobble_list = [[item[0], item[1]] for item in curFM.execute(f"SELECT artist_name, album_name FROM [{lfm_name}] SORT BY date_uts DESC").fetchall()]
-                        first_time = False
-
-                    for item in check_scrobble_list:
-                        check_artist = item[0]
-                        check_album = item[1]
-                        check_artistcompact = util.compactnamefilter(check_artist, "artist", "alias")
-                        check_albumcompact = util.compactnamefilter(check_album, "album")
-
-                        if check_artistcompact == artistcompact and check_albumcompact == albumcompact:
-                            artist_name = check_artist
-                            album_name = check_album
-                            image_dict[i] = await util.get_album_cover_url(artist_name, album_name)
-                            break
-                    else:
-                        raise ValueError("internal search error")
-                else:
-                    image_dict[i] = image_url
-
-                caption_dict[i] = artist_name
-
-        else:
             i = 0
             for item in count_list:
                 i += 1
-                artistcompact = item[0]
-                artist_name = artist_dict[artistcompact]
-                caption_dict[i] = artist_name
+                if charttype == "artists":
+                    artistcompact = item[0]
+                    album_count_list = []
+                    for aa_tuple in aa_scrobble_dict.keys():
+                        if aa_tuple[0] == artistcompact:
+                            count = aa_scrobble_dict[aa_tuple]
+                            album_count_list.append([aa_tuple, count])
 
-                album_count_list = []
-                for aa_tuple in aa_scrobble_dict.keys():
-                    if aa_tuple[0] == artistcompact:
-                        count = aa_scrobble_dict[aa_tuple]
-                        album_count_list.append([aa_tuple, count])
+                    album_count_list.sort(key=lambda x: x[1], reverse=True)
+                    aa_compact = album_count_list[0]
+                    albumcompact = aa_compact[1]
+                else:
+                    artistcompact = item[0][0]
+                    albumcompact = item[0][1]
 
-                album_count_list.sort(key=lambda x: x[1], reverse=True)
-                aa_compact = album_count_list[0]
-                album_name = artist_album_dict[aa_compact]
+                # GET THE FULL NAMES OF THE ARTISTS/ALBUMS
+                artist_name, album_name, image_url = await self.get_album_details_from_compact(artistcompact, albumcompact)
 
-                image_dict[i] = await util.get_album_cover_url(artist_name, album_name)
+                #if image_url is None or image_url == "":
+                #    if scope == "server":
+                #        lfm_name = aa_first_found_in[artistcompact]
+                #    else:
+                #        lfm_name = user_name
+                #    if needs_scrobble_loading:
+                #        conFM = sqlite3.connect('databases/scrobbledata.db')
+                #        curFM = conFM.cursor()
+                #        check_scrobble_list = [[item[0], item[1]] for item in curFM.execute(f"SELECT artist_name, album_name FROM [{lfm_name}] ORDER BY date_uts DESC").fetchall()]
+                #        first_time = False
+
+                #    for item in check_scrobble_list:
+                #        check_artist = item[0]
+                #        check_album = item[1]
+                #        check_artistcompact = util.compactnamefilter(check_artist, "artist", "alias")
+                #        check_albumcompact = util.compactnamefilter(check_album, "album")
+
+                #        if check_artistcompact == artistcompact and check_albumcompact == albumcompact:
+                #            artist_name = check_artist
+                #            album_name = check_album
+                #            image_dict[i] = await self.get_album_cover_url(ctx, artist_name, album_name)
+                #            break
+                #    else:
+                #        # empty last fm cover
+                #        image_dict[i] = "https://i.imgur.com/ZJKiTyT.jpeg"
+                #else:
+                #    image_dict[i] = image_url
+
+                if artist_name is None or image_url is None:
+                    print("under construction: using placeholder image and names")
+
+                    image_dict[i] = "https://i.imgur.com/ZJKiTyT.jpeg"
+                    if charttype == "artists":
+                        caption_dict[i] = f"{artistcompact}"
+                    else:
+                        caption_dict[i] = f"{artistcompact}\n{albumcompact}"
+                else:
+                    image_dict[i] = await self.get_album_cover_url(ctx, artist_name, album_name)
+                    if charttype == "artists":
+                        caption_dict[i] = f"{artist_name}"
+                    else:
+                        caption_dict[i] = f"{artist_name}\n{album_name}"
+
+        else:
+            print("get cover images...")
+            i = 0
+            for item in count_list:
+                i += 1
+                if charttype == "artists":
+                    artistcompact = item[0]
+                    artist_name = artist_dict[artistcompact]
+                    caption_dict[i] = artist_name
+
+                    album_count_list = []
+                    for aa_tuple in aa_scrobble_dict.keys():
+                        if aa_tuple[0] == artistcompact:
+                            count = aa_scrobble_dict[aa_tuple]
+                            album_count_list.append([aa_tuple, count])
+
+                    album_count_list.sort(key=lambda x: x[1], reverse=True)
+                    aa_compact = album_count_list[0][0]
+                    album_name = artist_album_dict[aa_compact][1]
+                else:
+                    artistcompact = item[0][0]
+                    albumcompact = item[0][1]
+                    aa_full = artist_album_dict[(artistcompact, albumcompact)]
+                    artist_name = aa_full[0]
+                    album_name = aa_full[1]
+                    caption_dict[i] = f"{artist_name}\n{album_name}"
+
+                image_dict[i] = await self.get_album_cover_url(ctx, artist_name, album_name)
 
         return caption_dict, image_dict, user_name
 
 
 
+    async def get_chart_data_from_api(self, ctx, arg_dict):
+        # extract args
+        top = arg_dict["top"]
+        width = arg_dict["width"]
+        height = arg_dict["height"]
+        timecut = arg_dict["timecut"]
+        scope = arg_dict["scope"]
 
-    @commands.command(name='chart', aliases = ["c"])
+        charttype = arg_dict["charttype"]
+
+        raise ValueError("API call not implemented yet")
+        # under construction
+
+
+
+
+    @commands.command(name='chart', aliases = ["c", "albumchart"])
     @commands.check(ScrobbleVisualsCheck.scrobbling_enabled)
     @commands.check(ScrobbleVisualsCheck.is_imagechart_enabled)
     @commands.check(util.is_active)
-    async def _chart(self, ctx: commands.Context, *args):
+    async def _topalbumchart(self, ctx: commands.Context, *args):
         """Shows chart of recent music
         
         under construction:
@@ -1059,40 +1164,113 @@ class Music_Scrobbling_Visuals(commands.Cog):
         """
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
-        # PARSE ARGUMENTS
+        async with ctx.typing():
+            # PARSE ARGUMENTS
 
-        arg_dict = self.parse_topchart_args(ctx, args)
+            print("chart command: parse args...")
+            arg_dict = self.parse_topchart_args(ctx, args)
 
-        top = arg_dict["top"]
-        width = arg_dict["width"]
-        height = arg_dict["height"]
-        timecut = arg_dict["timecut"]
-        scope = arg_dict["scope"]
+            top = arg_dict["top"]
+            width = arg_dict["width"]
+            height = arg_dict["height"]
+            timecut = arg_dict["timecut"]
+            scope = arg_dict["scope"]
 
-        if timecut <= 1000000000:
-            timestring = "`all time`"
-        else:
-            timestring = f"<t:{timecut}:R>"
+            charttype = "albums"
+            arg_dict["charttype"] = charttype
 
-        # GET DATA
+            if timecut <= 1000000000:
+                timestring = "`all time`"
+            else:
+                timestring = f"<t:{timecut}:R>"
 
-        caption_dict, image_dict, lfm_name = await self.get_chart_data(ctx, arg_dict)
+            # GET DATA
 
-        # MAKE CHART
+            print("chart command: fetch data...")
+            try:
+                caption_dict, image_dict, lfm_name = await self.get_chart_data_from_api(ctx, arg_dict)
+            except Exception as e:
+                print("API error while trying to fetch chart data:", e)
+                caption_dict, image_dict, lfm_name = await self.get_chart_data_from_db(ctx, arg_dict)
 
-        chart_name = f"chart_{ctx.author.id}_{now}"
+            # MAKE CHART
 
-        await self.create_chart(caption_dict, image_dict, chart_name, width, height)
+            print("chart command: create image...")
+            chart_name = f"chart_{ctx.author.id}_{now}"
 
-        try:
-            await ctx.reply(f"**{lfm_name}'s top {len(image_dict)} artists chart from** {timestring} **up to now**", file=discord.File(rf"temp/{chart_name}.jpg"), mention_author=False)
-        except Exception as e:
-            await ctx.reply(f"Error: {e}", mention_author=False)
+            await self.create_chart(caption_dict, image_dict, chart_name, width, height)
+
+            try:
+                await ctx.reply(f"**{lfm_name}'s top {len(image_dict)} album chart from** {timestring} **up to now**", file=discord.File(rf"temp/{chart_name}.jpg"), mention_author=False)
+            except Exception as e:
+                await ctx.reply(f"Error: {e}", mention_author=False)
 
         os.remove(f"temp/{chart_name}.jpg")
 
-    @_chart.error
-    async def chart_error(self, ctx, error):
+    @_topalbumchart.error
+    async def topalbumchart_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='top', aliases = ["topartistchart", "topchart"])
+    @commands.check(ScrobbleVisualsCheck.scrobbling_enabled)
+    @commands.check(ScrobbleVisualsCheck.is_imagechart_enabled)
+    @commands.check(util.is_active)
+    async def _topartistchart(self, ctx: commands.Context, *args):
+        """Shows chart of recent music
+        
+        under construction:
+        specify size...
+        specify timeframe...
+        """
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        async with ctx.typing():
+            # PARSE ARGUMENTS
+
+            print("top command: parse args...")
+            arg_dict = self.parse_topchart_args(ctx, args)
+
+            top = arg_dict["top"]
+            width = arg_dict["width"]
+            height = arg_dict["height"]
+            timecut = arg_dict["timecut"]
+            scope = arg_dict["scope"]
+
+            charttype = "artists"
+            arg_dict["charttype"] = charttype
+
+            if timecut <= 1000000000:
+                timestring = "`all time`"
+            else:
+                timestring = f"<t:{timecut}:R>"
+
+            # GET DATA
+
+            print("top command: fetch data...")
+            try:
+                caption_dict, image_dict, lfm_name = await self.get_chart_data_from_api(ctx, arg_dict)
+            except Exception as e:
+                print("API error while trying to fetch chart data:", e)
+                caption_dict, image_dict, lfm_name = await self.get_chart_data_from_db(ctx, arg_dict)
+
+            # MAKE CHART
+
+            print("top command: create image...")
+            chart_name = f"chart_{ctx.author.id}_{now}"
+
+            await self.create_chart(caption_dict, image_dict, chart_name, width, height)
+
+            try:
+                await ctx.reply(f"**{lfm_name}'s top {len(image_dict)} artists chart from** {timestring} **up to now**", file=discord.File(rf"temp/{chart_name}.jpg"), mention_author=False)
+            except Exception as e:
+                await ctx.reply(f"Error: {e}", mention_author=False)
+
+        os.remove(f"temp/{chart_name}.jpg")
+
+    @_topartistchart.error
+    async def topartistchart_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
