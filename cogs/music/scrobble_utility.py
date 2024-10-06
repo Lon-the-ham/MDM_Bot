@@ -872,8 +872,15 @@ class Music_Scrobbling(commands.Cog):
                 print("Error while fetching artist info:", e)
                 return artist, album, song, "", "", []
 
+            # UPDATE DATABASES
             if len(tags) > 0:
                 self.update_artistinfo(artist, artist_thumbnail, tags)
+
+            try:
+                if album.strip() != "" and album_cover.strip() != "":
+                    await util.update_lastfm_artistalbuminfo(artist, album, album_cover, tags)
+            except Exception as e:
+                print("Error while trying to update albuminfo database:", e)
 
             return artist, album, song, artist_thumbnail, album_cover, tags
 
@@ -1010,6 +1017,19 @@ class Music_Scrobbling(commands.Cog):
             else:
                 raise ValueError("Could not parse artist and album.")
 
+            # SEARCH IN DATABASE
+
+            artistcompact = util.compactnamefilter(artist, "artist", "alias")
+            albumcompact = util.compactnamefilter(album, "album")
+            artist_name, album_name, thumbnail, details, tagstring, last_updated = await util.get_album_details_from_compact(artistcompact, albumcompact)
+
+            if (artist_name is not None) and (last_updated is not None):
+                now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                if last_updated > now - 30*24*60*60:
+                    return artist_name, album_name, thumbnail, tagstring.split(";")
+
+            # SEARCH VIA API
+
             payload = {
                 'method': 'album.getInfo',
                 'album': album,
@@ -1028,7 +1048,10 @@ class Music_Scrobbling(commands.Cog):
                     raise ValueError("No LastFM API key provided to search for artist and track. Ask mods to add one to the bot's environment file.")
                 else:
                     print(f"Issue while trying to find matching artist+track on last.fm - {e}")
-                    return artist, album, "", []
+                    if (artist_name is not None) and (album_name is not None):
+                        return artist_name, album_name, thumbnail, tagstring.split(";")
+                    else:
+                        return artist, album, "", []
 
             try:
                 rjson = response.json()
@@ -1051,6 +1074,13 @@ class Music_Scrobbling(commands.Cog):
                             print("Tag error:", e)
                 except:
                     pass
+
+                # UPDATE DATABASES
+                try:
+                    if album_name.strip() != "" and thumbnail.strip() != "":
+                        await util.update_lastfm_artistalbuminfo(artist_name, album_name, thumbnail, tags)
+                except Exception as e:
+                    print("Error while trying to update albuminfo database:", e)
 
                 return artist_name, album_name, thumbnail, tags
             except Exception as e:
@@ -1101,6 +1131,11 @@ class Music_Scrobbling(commands.Cog):
                 track_name = rjson['track']['name']
 
                 try:
+                    album_name = rjson['track']['album']['name']
+                except:
+                    album_name = ""
+
+                try:
                     thumbnail = rjson['track']['album']['image'][-1]['#text']
                 except:
                     thumbnail = ""
@@ -1115,6 +1150,13 @@ class Music_Scrobbling(commands.Cog):
                             print("Tag error:", e)
                 except:
                     pass
+
+                # UPDATE DATABASES
+                try:
+                    if album_name.strip() != "" and thumbnail.strip() != "":
+                        await util.update_lastfm_artistalbuminfo(artist_name, album_name, thumbnail, None)
+                except Exception as e:
+                    print("Error while trying to update albuminfo database:", e)
 
                 return artist_name, track_name, thumbnail, tags
 
@@ -1153,7 +1195,6 @@ class Music_Scrobbling(commands.Cog):
                     header = "Album: " + util.compactaddendumfilter(album,"album")
                 else:
                     raise ValueError(f"while parsing artist/album - {e}")
-                    return
 
         elif wk_type == "track":
             try:
@@ -1170,7 +1211,6 @@ class Music_Scrobbling(commands.Cog):
                     header = "Track: " + util.compactaddendumfilter(track,"track")
                 else:
                     raise ValueError(f"while parsing artist/track - {e}")
-                    return
         else:
             raise ValueError("unknown WK type")
 
@@ -2432,7 +2472,7 @@ class Music_Scrobbling(commands.Cog):
     async def get_albumcover(self, ctx, artist, album, *track):
         conSM = sqlite3.connect('databases/scrobblemeta.db')
         curSM = conSM.cursor()
-        curSM.execute('''CREATE TABLE IF NOT EXISTS albuminfo (artist text, artist_filtername text, album text, album_filtername text, tags text, cover_url text, last_update integer)''')
+        curSM.execute('''CREATE TABLE IF NOT EXISTS albuminfo (artist text, artist_filtername text, album text, album_filtername text, tags text, cover_url text, last_update integer, details text)''')
         albuminfo = [[item[0],item[1],item[2],item[3]] for item in curSM.execute("SELECT artist, album, tags, cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (util.compactnamefilter(artist,"artist","alias"), util.compactnamefilter(album,"album"))).fetchall()]
 
         if len(albuminfo) > 0:
@@ -2488,6 +2528,7 @@ class Music_Scrobbling(commands.Cog):
                 rjson = response.json()
                 artist_name = rjson['track']['artist']['name']
                 track_name = rjson['track']['name']
+                album_name = rjson['track']['album']['name']
                 thumbnail = rjson['track']['album']['image'][-1]['#text']
 
                 tags = []
@@ -2501,7 +2542,11 @@ class Music_Scrobbling(commands.Cog):
                 except:
                     pass
 
-            # under construction: insert into scrobblemeta.db
+            #insert into scrobblemeta.db
+            try:
+                await util.update_lastfm_artistalbuminfo(artist_name, album_name, thumbnail, tags)
+            except Exception as e:
+                print("Error while trying to save albuminfo:", e)
 
             return thumbnail
         except Exception as e:
@@ -3455,13 +3500,6 @@ class Music_Scrobbling(commands.Cog):
     async def _cover(self, ctx: commands.Context, *args):
         """Shows lastfm stats
         """
-        await ctx.send("under construction")
-
-        return
-
-        # download and upload picture instead
-        # check for nsfw and spoiler in that case 
-
         color = 0x880000
         argument = ' '.join(args)
 
@@ -3480,11 +3518,22 @@ class Music_Scrobbling(commands.Cog):
                 raise ValueError(f"while parsing artist/album - {e}")
                 return
 
-        text = f"{artist} - {album}"
-        embed = discord.Embed(title="", description=text, color=color)
+        if thumbnail.strip() != "":
+            is_nsfw = util.album_is_nsfw(artist, album)
+            if is_nsfw:
+                extra = "\n`(cover is marked as NSFW)`"
+                await ctx.send(f"||{thumbnail}||")
+            else:
+                extra = ""
+                await ctx.send(thumbnail)
 
-        await ctx.send(thumbnail)
-        await ctx.send(embed=embed)
+            text = f"{artist} - {album}"
+            embed = discord.Embed(title="", description=text+extra, color=color)
+            await ctx.send(embed=embed)
+
+        else:
+            emoji = util.emoji("disappointed")
+            await ctx.send(f"`was unable to find album cover on last.fm` {emoji}")
 
     @_cover.error
     async def cover_error(self, ctx, error):
@@ -5311,7 +5360,20 @@ class Music_Scrobbling(commands.Cog):
         specify alias or redirect name
         """
 
-        # under construction: block update pipe
+        # block update pipe
+        cooldown_list = util.check_active_scrobbleupdate()
+        if len(cooldown_list) > 0:
+            print("Skipping scrobble auto-update. Update pipe in use:", cooldown_list)
+            usernames = []
+            for item in cooldown_list:
+                usernames.append(item[1])
+            usernamestring = ', '.join(usernames)
+            raise ctx.send(f"Update pipe in use by: {usernamestring}")
+            return
+
+        util.block_scrobbleupdate("mod action")
+
+        # PARSE ARGUMENTS
 
         conSM = sqlite3.connect('databases/scrobblemeta.db')
         curSM = conSM.cursor()
@@ -5346,6 +5408,8 @@ class Music_Scrobbling(commands.Cog):
 
         if len(artists_list) == 0 and len(alias_list) == 0:
             await ctx.send("No matching alias or name found. Nothing to remove.")
+
+        util.unblock_scrobbleupdate()
 
     @_remove_alias.error
     async def remove_alias_error(self, ctx, error):
@@ -5531,6 +5595,8 @@ class Music_Scrobbling(commands.Cog):
         # ADJUST META DB
         pass
 
+        # under construction
+
 
 
     @to_thread
@@ -5543,6 +5609,8 @@ class Music_Scrobbling(commands.Cog):
 
         # ADJUST META DB
         pass
+
+        # under construction
 
 
 
