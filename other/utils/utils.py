@@ -484,6 +484,21 @@ class Utils():
 
 
 
+    def album_is_nsfw(artist, album):
+        is_nsfw = False
+        artistcompact = Utils.compactnamefilter(artist, "artist", "alias")
+        albumcompact = Utils.compactnamefilter(album, "album")
+
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+        artistinfo_list = [item[0] for item in curSM.execute("SELECT details FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+
+        if len(artistinfo_list) > 0 and artistinfo_list[-1].lower().strip() == "nsfw":
+            is_nsfw = True
+
+        return is_nsfw
+
+
 
     def alphanum(text, *args):
         if len(args) > 0:
@@ -899,6 +914,31 @@ class Utils():
             except:
                 i = 0
         return i
+
+
+
+    @to_thread
+    def get_album_details_from_compact(artistcompact, albumcompact):
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+        artistinfo_list = [[item[0], item[1], item[2], item[3], item[4], item[5]] for item in curSM.execute("SELECT artist, album, cover_url, details, tags, last_update FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+
+        if len(artistinfo_list) > 0:
+            artist = artistinfo_list[-1][0]
+            album = artistinfo_list[-1][1]
+            url = artistinfo_list[-1][2]
+            details = str(artistinfo_list[-1][3])
+            tagstring = artistinfo_list[-1][4]
+            last_updated = artistinfo_list[-1][5]
+        else:
+            artist = None
+            album = None
+            url = None
+            details = None
+            tagstring = None
+            last_updated = None
+
+        return artist, album, url, details, tagstring, last_updated
 
 
 
@@ -3916,18 +3956,25 @@ class Utils():
 
 
     async def update_lastfm_artistalbuminfo(artist, album, thumbnail, tags):
+        """first 3 arguments must be strings, 
+        tags must be either a list of strings or can be None object if changes there are unwanted"""
         now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
         artistcompact = Utils.compactnamefilter(artist, "artist", "alias")
         albumcompact = Utils.compactnamefilter(album, "album")
-        tag_string = ';'.join(tags)
+        if tags is not None:
+            tag_string = ';'.join(tags)
+        else:
+            tag_string = ""
         conSM = sqlite3.connect('databases/scrobblemeta.db')
         curSM = conSM.cursor()
-        artistinfo_list = [item for item in curSM.execute("SELECT tags, cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+        artistinfo_list = [item[0] for item in curSM.execute("SELECT now FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
 
         if len(artistinfo_list) == 0:
-            curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?)", (artist, str(artistcompact), str(album), albumcompact, tag_string, thumbnail, now))
+            curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (artist, str(artistcompact), str(album), albumcompact, tag_string, thumbnail, now, ""))
         else:
-            curSM.execute("UPDATE albuminfo SET artist = ?, album = ?, tags = ?, cover_url = ?, last_update = ? WHERE artist_filtername = ? AND album_filtername = ?", (artist, album, tag_string, thumbnail, now, artistcompact, albumcompact))
+            curSM.execute("UPDATE albuminfo SET artist = ?, album = ?, cover_url = ?, last_update = ? WHERE artist_filtername = ? AND album_filtername = ?", (artist, album, thumbnail, now, artistcompact, albumcompact))
+            if tags is not None:
+                curSM.execute("UPDATE albuminfo SET tags = ? WHERE artist_filtername = ? AND album_filtername = ?", (tag_string, artistcompact, albumcompact))
         conSM.commit()
 
 
