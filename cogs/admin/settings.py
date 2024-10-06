@@ -4836,7 +4836,7 @@ class Administration_of_Settings(commands.Cog):
 
             conSM = sqlite3.connect('databases/scrobblemeta.db')
             curSM = conSM.cursor()
-            curSM.execute('''CREATE TABLE IF NOT EXISTS albuminfo (artist text, artist_filtername text, album text, album_filtername text, tags text, cover_url text, last_update integer)''')
+            curSM.execute('''CREATE TABLE IF NOT EXISTS albuminfo (artist text, artist_filtername text, album text, album_filtername text, tags text, cover_url text, last_update integer, details text)''')
             curSM.execute('''CREATE TABLE IF NOT EXISTS artist_aliases (alias_name text, artist_key text)''')
 
             # SHENANIGANS
@@ -5070,7 +5070,31 @@ class Administration_of_Settings(commands.Cog):
 
                 curSS.execute(f'''CREATE TABLE IF NOT EXISTS crowns_{guild.id} (artist text, crown_holder text, discord_name text, playcount integer)''')
 
+            # fix scrobblemeta->albuminfo
 
+            try:
+                conSM = sqlite3.connect('databases/scrobblemeta.db')
+                curSM = conSM.cursor()
+                
+                cursorSM = conSM.execute(f'SELECT * FROM albuminfo')
+                column_names = list(map(lambda x: x[0], cursorSM.description))
+                cursorSM.close()
+                column_number = len(column_names)
+                    
+                if column_number <= 7:
+                    conSM.execute(f'ALTER TABLE albuminfo ADD COLUMN details text;')
+                    conSM.execute(f"UPDATE albuminfo SET details = ?", ("",))
+                    conSM.commit()
+                    changes_happened = True
+
+                if changes_happened:
+                    print("added details column to albuminfo table")
+
+            except Exception as e:
+                print("Error:", e)
+                print(traceback.format_exc())
+
+            # command restrictions
             try:
                 conB = sqlite3.connect('databases/botsettings.db')
                 curB= conB.cursor()
