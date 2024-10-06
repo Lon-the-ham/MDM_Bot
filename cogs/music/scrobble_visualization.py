@@ -846,41 +846,24 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
 
-    @to_thread
-    def get_album_details_from_compact(self, artistcompact, albumcompact):
-        conSM = sqlite3.connect('databases/scrobblemeta.db')
-        curSM = conSM.cursor()
-        artistinfo_list = [[item[0], item[1], item[2]] for item in curSM.execute("SELECT artist, album, cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
-
-        if len(artistinfo_list) > 0:
-            artist = artistinfo_list[-1][0]
-            album = artistinfo_list[-1][1]
-            url = artistinfo_list[-1][2]
-        else:
-            artist = None
-            album = None
-            url = None
-
-        return artist, album, url
-
-
-
     async def get_album_cover_url(self, ctx, artist_name, album_name):
         # first try compact get from db
         artistcompact = util.compactnamefilter(artist_name, "artist", "alias")
         albumcompact = util.compactnamefilter(album_name, "album")
         conSM = sqlite3.connect('databases/scrobblemeta.db')
         curSM = conSM.cursor()
-        artistinfo_list = [item[0] for item in curSM.execute("SELECT cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+        artistinfo_list = [[item[0], item[1]] for item in curSM.execute("SELECT cover_url, details FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
 
         if len(artistinfo_list) > 0:
-            url = artistinfo_list[-1]
-            return url
+            url = artistinfo_list[-1][0]
+            details = str(artistinfo_list[-1][1])
+            return url, details
 
         # otherwise get info from lastfm and save data in albuminfo
         url, tags = await util.fetch_update_lastfm_artistalbuminfo(ctx, artist_name, album_name)
+        details = ""
 
-        return url
+        return url, details
 
 
 
@@ -1035,6 +1018,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
         caption_dict = {}
         image_dict = {}
+        is_nsfw = False
 
         print("create lists and maps...")
         user_name, count_list, artist_dict, artist_album_dict, aa_scrobble_dict, aa_first_found_in = await self.get_relevant_chart_dictionaries(ctx, arg_dict)
@@ -1062,7 +1046,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     albumcompact = item[0][1]
 
                 # GET THE FULL NAMES OF THE ARTISTS/ALBUMS
-                artist_name, album_name, image_url = await self.get_album_details_from_compact(artistcompact, albumcompact)
+                artist_name, album_name, image_url, details, tagstring, last_updated = await util.get_album_details_from_compact(artistcompact, albumcompact)
 
                 #if image_url is None or image_url == "":
                 #    if scope == "server":
@@ -1101,11 +1085,14 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     else:
                         caption_dict[i] = f"{artistcompact}\n{albumcompact}"
                 else:
-                    image_dict[i] = await self.get_album_cover_url(ctx, artist_name, album_name)
+                    image_dict[i], details = await self.get_album_cover_url(ctx, artist_name, album_name)
                     if charttype == "artists":
                         caption_dict[i] = f"{artist_name}"
                     else:
                         caption_dict[i] = f"{artist_name}\n{album_name}"
+
+                if str(details).lower().strip() == "nsfw":
+                    is_nsfw = True
 
         else:
             print("get cover images...")
@@ -1134,9 +1121,11 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     album_name = aa_full[1]
                     caption_dict[i] = f"{artist_name}\n{album_name}"
 
-                image_dict[i] = await self.get_album_cover_url(ctx, artist_name, album_name)
+                image_dict[i], details = await self.get_album_cover_url(ctx, artist_name, album_name)
+                if str(details).lower().strip() == "nsfw":
+                    is_nsfw = True
 
-        return caption_dict, image_dict, user_name
+        return caption_dict, image_dict, user_name, is_nsfw
 
 
 
@@ -1281,15 +1270,18 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
             print("chart command: fetch data...")
             try:
-                caption_dict, image_dict, lfm_name = await self.get_chart_data_from_api(ctx, arg_dict)
+                caption_dict, image_dict, lfm_name, is_nsfw = await self.get_chart_data_from_api(ctx, arg_dict)
             except Exception as e:
                 print("API error while trying to fetch chart data:", e)
-                caption_dict, image_dict, lfm_name = await self.get_chart_data_from_db(ctx, arg_dict)
+                caption_dict, image_dict, lfm_name, is_nsfw = await self.get_chart_data_from_db(ctx, arg_dict)
 
             # MAKE CHART
 
             print("chart command: create image...")
-            chart_name = f"chart_{ctx.author.id}_{now}"
+            if is_nsfw:
+                chart_name = f"SPOILER_chart_{ctx.author.id}_{now}"
+            else:
+                chart_name = f"chart_{ctx.author.id}_{now}"
 
             await self.create_chart(caption_dict, image_dict, chart_name, width, height)
 
@@ -1343,15 +1335,18 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
             print("top command: fetch data...")
             try:
-                caption_dict, image_dict, lfm_name = await self.get_chart_data_from_api(ctx, arg_dict)
+                caption_dict, image_dict, lfm_name, is_nsfw = await self.get_chart_data_from_api(ctx, arg_dict)
             except Exception as e:
                 print("API error while trying to fetch chart data:", e)
-                caption_dict, image_dict, lfm_name = await self.get_chart_data_from_db(ctx, arg_dict)
+                caption_dict, image_dict, lfm_name, is_nsfw = await self.get_chart_data_from_db(ctx, arg_dict)
 
             # MAKE CHART
 
             print("top command: create image...")
-            chart_name = f"chart_{ctx.author.id}_{now}"
+            if is_nsfw:
+                chart_name = f"SPOILER_chart_{ctx.author.id}_{now}"
+            else:
+                chart_name = f"chart_{ctx.author.id}_{now}"
 
             await self.create_chart(caption_dict, image_dict, chart_name, width, height)
 
