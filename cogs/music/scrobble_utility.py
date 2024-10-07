@@ -2767,6 +2767,97 @@ class Music_Scrobbling(commands.Cog):
 
 
 
+    @to_thread
+    def spelling_search(self, lfm_name, wk_type, artist, album, track):
+        conFM = sqlite3.connect('databases/scrobbledata.db')
+        curFM = conFM.cursor()
+        
+        compact_artist = util.compactnamefilter(artist, "artist", "alias")
+
+        try:
+            compact_album = util.compactnamefilter(album, "album")
+        except:
+            compact_album = ""
+        try:
+            compact_track = util.compactnamefilter(track, "track")
+        except:
+            compact_track = ""
+
+        match_count = {}
+
+        if wk_type == "artist":
+            scrobbles = [item[0] for item in curFM.execute(f"SELECT artist_name FROM [{lfm_name}]").fetchall()]    
+
+            for exact_artist in scrobbles:
+                item_artist = util.compactnamefilter(exact_artist, "artist", "alias")
+
+                if item_artist == compact_artist:
+                    exact_expr = f"**{exact_artist}**"
+                    match_count[exact_expr] = match_count.get(exact_expr, 0) + 1
+
+        elif wk_type == "album":
+            scrobbles = [[item[0],item[1]] for item in curFM.execute(f"SELECT artist_name, album_name FROM [{lfm_name}]").fetchall()]    
+
+            for item in scrobbles:
+                exact_artist = item[0]
+                exact_album  = item[1]
+                item_artist  = util.compactnamefilter(exact_artist, "artist", "alias")
+                item_album   = util.compactnamefilter(exact_album, "album")
+
+                if item_artist == compact_artist and item_album == compact_album:
+                    exact_expr = f"**{exact_artist}** - {exact_album}"
+                    match_count[exact_expr] = match_count.get(exact_expr, 0) + 1
+
+        elif wk_type == "track":
+            scrobbles = [[item[0],item[1]] for item in curFM.execute(f"SELECT artist_name, track_name FROM [{lfm_name}] ORDER BY date_uts ASC").fetchall()]    
+
+            for item in scrobbles:
+                exact_artist = item[0]
+                exact_track = item[1]
+                item_artist = util.compactnamefilter(exact_artist, "artist", "alias")
+                item_track = util.compactnamefilter(exact_track, "track")
+
+                if item_artist == compact_artist and item_track == compact_track:
+                    exact_expr = f"**{exact_artist}** - {exact_track}"
+                    match_count[exact_expr] = match_count.get(exact_expr, 0) + 1
+
+        elif wk_type == "album without artist":
+            scrobbles = [[item[0],item[1]] for item in curFM.execute(f"SELECT artist_name, album_name FROM [{lfm_name}]").fetchall()]    
+
+            for item in scrobbles:
+                exact_artist = item[0]
+                exact_album = item[1]
+                item_album = util.compactnamefilter(exact_album, "album")
+
+                if item_album == compact_album:
+                    exact_expr = f"**{exact_artist}** - {exact_album}"
+                    match_count[exact_expr] = match_count.get(exact_expr, 0) + 1
+
+        elif wk_type == "track without artist":
+            for item in scrobbles:
+                scrobbles = [[item[0],item[1]] for item in curFM.execute(f"SELECT artist_name, track_name FROM [{lfm_name}] ORDER BY date_uts ASC").fetchall()]   
+
+                exact_artist = item[0]
+                exact_track = item[1]
+                item_track = util.compactnamefilter(exact_track, "track")
+
+                if item_track == compact_track:
+                    exact_expr = f"**{exact_artist}** - {exact_track}"
+                    match_count[exact_expr] = match_count.get(exact_expr, 0) + 1
+        else:
+            raise ValueError("unknown wk_type")
+
+        plays = 0
+        countlist = []
+        for k,v in match_count.items():
+            countlist.append([k,v])
+            plays += v
+
+        countlist.sort(key=lambda x: x[1], reverse = True)
+        return countlist, plays
+
+
+
     async def database_spelling(self, ctx, argument, wk_type):
         # GET USER
         try:
@@ -2788,6 +2879,10 @@ class Music_Scrobbling(commands.Cog):
         lfm_name = lfm_list[0][0]
 
         # GET ARTIST/ALBUM/TRACK
+
+        artist = None
+        album  = None
+        track  = None
 
         if wk_type == "artist":
             artist, thumbnail, tags = await self.wk_artist_match(ctx, argument)
@@ -2836,102 +2931,12 @@ class Music_Scrobbling(commands.Cog):
 
         header += " DB spellings"
 
-        conFM = sqlite3.connect('databases/scrobbledata.db')
-        curFM = conFM.cursor()
-
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
+        ############################
         # FETCH FROM DATABASE
 
-        scrobbles = [[item[0],item[1],item[2]] for item in curFM.execute(f"SELECT artist_name, album_name, track_name FROM [{lfm_name}] ORDER BY date_uts ASC").fetchall()]    
-        
-        compact_artist = util.compactnamefilter(artist, "artist","alias")
-        try:
-            compact_album = util.compactnamefilter(album, "album")
-        except:
-            compact_album = ""
-        try:
-            compact_track = util.compactnamefilter(track, "track")
-        except:
-            compact_track = ""
-
-        match_count = {}
-
-        if wk_type == "artist":
-            for item in scrobbles:
-                exact_artist = item[0]
-                item_artist = util.compactnamefilter(exact_artist, "artist","alias")
-
-                if item_artist == compact_artist:
-                    exact_pair = f"**{exact_artist}**"
-                    if exact_pair in match_count:
-                        match_count[exact_pair] += 1
-                    else:
-                        match_count[exact_pair] = 1
-
-        elif wk_type == "album":
-            for item in scrobbles:
-                exact_artist = item[0]
-                exact_album = item[1]
-                item_artist = util.compactnamefilter(exact_artist, "artist","alias")
-                item_album = util.compactnamefilter(exact_album, "album")
-
-                if item_artist == compact_artist and item_album == compact_album:
-                    exact_pair = f"**{exact_artist}** - {exact_album}"
-                    if exact_pair in match_count:
-                        match_count[exact_pair] += 1
-                    else:
-                        match_count[exact_pair] = 1
-
-        elif wk_type == "track":
-            for item in scrobbles:
-                exact_artist = item[0]
-                exact_track = item[2]
-                item_artist = util.compactnamefilter(exact_artist, "artist","alias")
-                item_track = util.compactnamefilter(exact_track, "track")
-
-                if item_artist == compact_artist and item_track == compact_track:
-                    exact_pair = f"**{exact_artist}** - {exact_track}"
-                    if exact_pair in match_count:
-                        match_count[exact_pair] += 1
-                    else:
-                        match_count[exact_pair] = 1
-
-        elif wk_type == "album without artist":
-            for item in scrobbles:
-                exact_artist = item[0]
-                exact_album = item[1]
-                item_album = util.compactnamefilter(exact_album, "album")
-
-                if item_album == compact_album:
-                    exact_pair = f"**{exact_artist}** - {exact_album}"
-                    if exact_pair in match_count:
-                        match_count[exact_pair] += 1
-                    else:
-                        match_count[exact_pair] = 1
-
-        elif wk_type == "track without artist":
-            for item in scrobbles:
-                exact_artist = item[0]
-                exact_track = item[2]
-                item_track = util.compactnamefilter(exact_track, "track")
-
-                if item_track == compact_track:
-                    exact_pair = f"**{exact_artist}** - {exact_track}"
-                    if exact_pair in match_count:
-                        match_count[exact_pair] += 1
-                    else:
-                        match_count[exact_pair] = 1
-        else:
-            raise ValueError("unknown wk_type")
-
-        plays = 0
-        countlist = []
-        for k,v in match_count.items():
-            countlist.append([k,v])
-            plays += v
-
-        countlist.sort(key=lambda x: x[1], reverse = True)
+        countlist, plays = await self.spelling_search(lfm_name, wk_type, artist, album, track)
 
         ###################### EMBED
 
@@ -5258,6 +5263,126 @@ class Music_Scrobbling(commands.Cog):
     @_crownseed.error
     async def crownseed_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
+
+
+    ######################### NSFW HANDLING  ####################################################################################################
+
+
+
+    @commands.command(name='setnsfw', aliases = ["marknsfw"])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _setnsfw(self, ctx: commands.Context, *args):
+        """🔒 mark an album as NSFW
+
+        Use with argument `<artist> - <album>` to set an album cover as Not Safe For Work. You can leave out all non-alphanumeric characters from the artist and album argument (especially hyphens as they might confuse the parser).
+
+        This will lead to the `<prefix>cover` command spoiler this image, as well as charts from `<prefix>chart` containing this cover.
+        """
+        argument = ' '.join(args)
+        if "-" not in argument:
+            await ctx.send("Command needs a hyphen-separated artist-album argument.")
+            return
+
+        if " - " in argument:
+            artist = argument.split(" - ", 1)[0].strip()
+            album = argument.split(" - ", 1)[1].strip()
+        else:
+            artist = argument.split("-", 1)[0].strip()
+            album = argument.split("-", 1)[1].strip()
+
+        artistcompact = util.compactnamefilter(artist, "artist", "alias")
+        albumcompact = util.compactnamefilter(album, "album")
+
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+        artistinfo_list = [(item[0], item[1], item[2]) for item in curSM.execute("SELECT artist, album, details FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+
+        if len(artistinfo_list) == 0:
+            curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", ("", artistcompact, "", albumcompact, "", "", 0, "nsfw"))
+            conSM.commit()
+
+            # UNDER CONSTRUCTION
+
+            await ctx.send("Album not found in database: Marking it as NSFW in advance. 🔞")
+            await ctx.send("under construction: try to fetch album image")
+
+        else:
+            found_artist    = artistinfo_list[-1][0]
+            found_album     = artistinfo_list[-1][1]
+            found_details   = artistinfo_list[-1][2]
+
+            if found_details == "nsfw":
+                await ctx.send(f"`{found_artist} - {found_album}` album cover already marked as NSFW. 🔞")
+            else:
+                curSM.execute("UPDATE albuminfo SET details = ? WHERE artist_filtername = ? AND album_filtername = ?", ("nsfw", artistcompact, albumcompact))
+                conSM.commit()
+
+                await ctx.send(f"Successfully marked the `{found_artist} - {found_album}` album cover as NSFW. 🔞")
+
+    @_setnsfw.error
+    async def setnsfw_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='setsfw', aliases = ["marksfw", "unmarknsfw"])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _setsfw(self, ctx: commands.Context, *args):
+        """🔒 remove the NSFW marking from an album
+
+        Use with argument `<artist> - <album>` to set an album as Safe For Work.
+        """
+
+        argument = ' '.join(args)
+        if "-" not in argument:
+            await ctx.send("Command needs a hyphen-separated artist-album argument.")
+            return
+
+        if " - " in argument:
+            artist = argument.split(" - ", 1)[0].strip()
+            album = argument.split(" - ", 1)[1].strip()
+        else:
+            artist = argument.split("-", 1)[0].strip()
+            album = argument.split("-", 1)[1].strip()
+
+        artistcompact = util.compactnamefilter(artist, "artist", "alias")
+        albumcompact = util.compactnamefilter(album, "album")
+
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+        artistinfo_list = [(item[0], item[1], item[2]) for item in curSM.execute("SELECT artist, album, details FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+
+        if len(artistinfo_list) == 0:
+            await ctx.send("Album not found in database: No need to remove NSFW marking. 🚸")
+
+        else:
+            found_artist    = artistinfo_list[-1][0]
+            found_album     = artistinfo_list[-1][1]
+            found_details   = artistinfo_list[-1][2]
+
+            if found_details == "":
+                await ctx.send(f"`{found_artist} - {found_album}` album cover already recognized as SFW. 🚸")
+            else:
+                curSM.execute("UPDATE albuminfo SET details = ? WHERE artist_filtername = ? AND album_filtername = ?", ("", artistcompact, albumcompact))
+                conSM.commit()
+
+                await ctx.send(f"Successfully set the `{found_artist} - {found_album}` album cover to SFW. 🚸")
+
+    @_setsfw.error
+    async def setsfw_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    # export/import functions: under construction
+
 
 
 
