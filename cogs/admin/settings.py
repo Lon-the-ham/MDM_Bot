@@ -4836,6 +4836,7 @@ class Administration_of_Settings(commands.Cog):
 
             conSM = sqlite3.connect('databases/scrobblemeta.db')
             curSM = conSM.cursor()
+            curSM.execute('''CREATE TABLE IF NOT EXISTS artistinfo (artist text, filtername text, mbid text, tags_lfm text, lfm_update integer, spotify_id text, thumbnail text, tags_spotify text, spotify_update integer)''')
             curSM.execute('''CREATE TABLE IF NOT EXISTS albuminfo (artist text, artist_filtername text, album text, album_filtername text, tags text, cover_url text, last_update integer, details text)''')
             curSM.execute('''CREATE TABLE IF NOT EXISTS artist_aliases (alias_name text, artist_key text)''')
 
