@@ -16,6 +16,8 @@ from bs4 import BeautifulSoup
 import json
 from emoji import UNICODE_EMOJI
 from calendar import monthrange
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
 
 # cloud stuff
 import contextlib
@@ -3161,6 +3163,106 @@ class Utils():
 
 
 
+    async def get_database_artistimage(artist):
+        artist_fltr = Utils.compactnamefilter(artist,"artist","alias")
+
+        try:
+            conSM = sqlite3.connect('databases/scrobblemeta.db')
+            curSM = conSM.cursor()
+            result = curSM.execute("SELECT thumbnail, spotify_update FROM artistinfo WHERE filtername = ?", (artist_fltr,))
+            rtuple = result.fetchone()
+
+            if rtuple is None:
+                return "", 0
+
+            thumbnail = str(rtuple[0])
+            update_time = Utils.forceinteger(rtuple[1])
+
+            if thumbnail == "https://lastfm.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png":
+                thumbnail = ""
+        except Exception as e:
+            print("Error:", e)
+            thumbnail = ""
+            update_time = 0
+
+        return thumbnail, update_time
+
+
+
+    async def get_spotify_artistimage(artist, lfm_name):
+        try:
+            ClientID = os.getenv("Spotify_ClientID")
+            ClientSecret = os.getenv("Spotify_ClientSecret")
+            if ClientID is None:
+                raise ValueError("No SpotiPy API provided")
+        except Exception as e:
+            print("Error while trying to fetch artist images:", e)
+            return ""
+
+        auth_manager = SpotifyClientCredentials(client_id=ClientID, client_secret=ClientSecret)
+        sp = spotipy.Spotify(auth_manager=auth_manager)
+
+        try:
+            if lfm_name is None:
+                raise ValueError("unknown user, cannot fetch album info from database, fetching artist info directly")
+
+            fetch_with_albuminfo = True
+
+            # GET ALBUM INFO
+            now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+            cutofftime = now - 365*24*60*60
+            conFM = sqlite3.connect('databases/scrobbledata.db')
+            curFM = conFM.cursor()
+            result = [item[0] for item in curFM.execute(f"SELECT album_name FROM [{lfm_name}] WHERE UPPER(artist_name) = ? AND album_name != ? AND date_uts > ? ORDER BY date_uts DESC LIMIT 1", (artist.upper(), "", cutofftime)).fetchall()]
+
+            if len(result) == 0:
+                raise ValueError("could not find recent album entry in database")
+
+            if len(result) > 0 and result[0] != "":
+                album = Utils.compactaddendumfilter(result[0], "album")
+                query = f"artist:{artist} album:{album}"
+                response = sp.search(q=query, type="album", limit=1)
+                try:
+                    album_dict = response['albums']['items'][0]
+                    artist_id = album_dict['artists'][0]['id']
+                except Exception as e:
+                    raise ValueError(f"could not find artist/album combination on spotify, searching for artist only instead")
+            else:
+                raise ValueError("could not find recent valid album entry in database")
+
+        except Exception as e:
+            print("Artist Info Warning:", e)
+            fetch_with_albuminfo = False
+
+            # FETCH ARTIST DIRECTLY
+            query = f"artist:{artist}"
+            response = sp.search(q=query, type="artist", limit=1)
+            try:
+                artist_id = response['artists']['items'][0]['id']
+            except:
+                return ""
+
+        try:
+            artist_info = sp.artist(artist_id)
+            image = artist_info['images'][0]['url']
+            try:
+                tags = artist_info["genres"]
+            except:
+                tags = []
+
+            try:
+                if image != "":
+                    if fetch_with_albuminfo:
+                        await Utils.update_spotify_artist_info(artist, artist_id, image, tags)
+            except Exception as e:
+                print("Failed to update artist info in scrobble meta database:", e)
+        except:
+            image = ""
+
+        return image
+
+
+
     async def lastfm_get(ctx, payload, cooldown, *args):
         if cooldown:
             cooldown_slot = "lastfm"
@@ -3967,7 +4069,7 @@ class Utils():
             tag_string = ""
         conSM = sqlite3.connect('databases/scrobblemeta.db')
         curSM = conSM.cursor()
-        artistinfo_list = [item[0] for item in curSM.execute("SELECT now FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+        artistinfo_list = [item[0] for item in curSM.execute("SELECT last_update FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
 
         if len(artistinfo_list) == 0:
             curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (artist, str(artistcompact), str(album), albumcompact, tag_string, thumbnail, now, ""))
@@ -3976,6 +4078,42 @@ class Utils():
             if tags is not None:
                 curSM.execute("UPDATE albuminfo SET tags = ? WHERE artist_filtername = ? AND album_filtername = ?", (tag_string, artistcompact, albumcompact))
         conSM.commit()
+
+
+
+    async def update_spotify_artist_info(artist, spotify_id, image, tags):
+        artist_fltr = Utils.compactnamefilter(artist,"artist","alias")
+        now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+
+        try:
+            conSM = sqlite3.connect('databases/scrobblemeta.db')
+            curSM = conSM.cursor()
+            result = curSM.execute(f"SELECT thumbnail, tags_spotify, spotify_update FROM artistinfo WHERE filtername = ?", (artist_fltr,))
+            rtuple = result.fetchone()
+
+            try:
+                thumbnail = str(rtuple[0])
+                tagstring = str(rtuple[1])
+                update_time = Utils.forceinteger(rtuple[2])
+                entry_exists = True
+            except:
+                entry_exists = False
+
+            tags_standardised = []
+            for tag in tags:
+                if tag not in tags_standardised:
+                    tags_standardised.append(tag.lower().strip())
+            tagstring = ';'.join(tags_standardised)
+
+            if entry_exists:
+                curSM.execute(f"UPDATE artistinfo SET thumbnail = ?, tags_spotify = ?, spotify_update = ? WHERE filtername = ?", (image, tagstring, now, artist_fltr))
+            else:
+                curSM.execute(f"INSERT INTO artistinfo VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (artist, artist_fltr, "", "", 0, spotify_id, image, tagstring, now))
+            conSM.commit()
+
+        except Exception as e:
+            print("Error while trying to update artist info with Spotify data:", e)
+
 
 
 
