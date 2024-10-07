@@ -658,18 +658,21 @@ class Music_Scrobbling_Visuals(commands.Cog):
                 try:
                     img_loc = image_dict[img_key]
                     if img_loc.startswith("temp/"):
-                        img = Image.open(open(f"temp/{img_key}.jpg", 'rb'))
+                        img_cell = Image.open(open(f"temp/{img_key}.jpg", 'rb'))
                     elif img_loc.startswith("http"):
                         with BytesIO(urlopen(img_loc).read()) as file:
-                            img = Image.open(file)
-                            img = img.convert("RGB")
+                            img_cell = Image.open(file)
+                            img_cell = img_cell.convert("RGB")
                     else:
                         raise ValueError("Invalid image")
                 except Exception as e:
-                    img = Image.open(open(f"other/resources/lastfm_default.jpg", 'rb'))
+                    img_cell = Image.open(open(f"other/resources/lastfm_default.jpg", 'rb'))
 
                 #resize opened image, so it is no bigger than img_size^2
-                img.thumbnail((img_size, img_size))
+                img_cell.thumbnail((img_size, img_size))
+
+                img = Image.new('RGB', (img_size, img_size))
+                img.paste(img_cell, (0,0))
 
                 #pre-caption (to get text size etc)
                 line_number = 1
@@ -735,7 +738,6 @@ class Music_Scrobbling_Visuals(commands.Cog):
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
         arg_dict = {
-            "timecut": now - 7*24*60*60,
             "top": 9,
             "height": 3,
             "width": 3,    
@@ -834,13 +836,27 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
         # parse time argument
 
+        if arg_dict["top"] >= 100:
+            default_timecut = 0
+        elif arg_dict["top"] >= 67:
+            default_timecut = now - 180*24*60*60
+        elif arg_dict["top"] >= 50:
+            default_timecut = now - 90*24*60*60
+        elif arg_dict["top"] >= 25:
+            default_timecut = now - 30*24*60*60
+        else:
+            default_timecut = now - 7*24*60*60
+
         try:
             for arg in arguments:
                 possible_timecut = self.get_timecut_seconds(now, arg)
                 if possible_timecut >= 0:
                     arg_dict["timecut"] = possible_timecut
         except:
-            arg_dict["timecut"] = now - 7*24*60*60
+            arg_dict["timecut"] = default_timecut
+
+        if "timecut" not in arg_dict.keys():
+            arg_dict["timecut"] = default_timecut
 
         return arg_dict
 
@@ -1129,20 +1145,53 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
 
-    def parse_chart_list_from_api(self, response):
+    async def parse_chart_list_from_api(self, response, charttype, lfm_name, top, check_list):
         caption_image_list = []
         rjson = response.json()
-        topalbums = rjson['topalbums']['album']
+        i = len(check_list)
 
-        for entry in topalbums:
-            artist = entry['artist']['name']
-            album = entry['name']
-            image = entry['image'][-1]['#text']
-            #playount = entry['playcount']
+        if charttype == "artists":
+            topartists = rjson['topartists']['artist']
 
-            caption_image_list.append([artist, album, image])
+            now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
-        return caption_image_list
+            for entry in topartists:
+                artist = entry['name']
+                mbid = 'mbid'
+
+                image, update_time = await util.get_database_artistimage(artist)
+                if image == "" or update_time < now - 30*24*60*60:
+                    image = await util.get_spotify_artistimage(artist, lfm_name)
+
+                if artist in check_list:
+                    pass
+                else:
+                    check_list.append(artist)
+                    caption_image_list.append([artist, "", image])
+                    i += 1
+
+                    if i == top:
+                        break
+
+        else:
+            topalbums = rjson['topalbums']['album']
+
+            for entry in topalbums:
+                artist = entry['artist']['name']
+                album = entry['name']
+                image = entry['image'][-1]['#text']
+
+                if (artist, album) in check_list:
+                    pass
+                else:
+                    check_list.append((artist, album))
+                    caption_image_list.append([artist, album, image])
+                    i += 1
+
+                    if i == top:
+                        break
+
+        return caption_image_list, check_list
 
 
 
@@ -1156,6 +1205,10 @@ class Music_Scrobbling_Visuals(commands.Cog):
         timecut = arg_dict["timecut"]
         scope = arg_dict["scope"]
         charttype = arg_dict["charttype"]
+        is_nsfw = False
+
+        if scope == "server":
+            raise ValueError("switch to database fetch")
 
         if scope == "user":
             user_id = ctx.author.id
@@ -1174,42 +1227,49 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
         payload = {
                     'user': lfm_name,
-                    'limit': min(50, top),
+                    'limit': 50,
                     'page': 1,
                 }
 
+        if (now-timecut) < (24*3600) * 10:
+            payload['period'] = "7day"
+        elif (now-timecut) < (24*3600) * 33:
+            payload['period'] = "1month"
+        elif (now-timecut) < (24*3600) * 100:
+            payload['period'] = "3month"
+        elif (now-timecut) < (24*3600) * 200:
+            payload['period'] = "6month "
+        elif (now-timecut) < (24*3600) * 400:
+            payload['period'] = "12month"
+        else:
+            payload['period'] = "overall"
+
         if charttype == "artists":
-            payload['method'] = 'library.getArtists'
-
-            raise ValueError("under construction")
-
+            payload['method'] = 'user.getTopArtists'
         else:
             payload['method'] = 'user.getTopAlbums'
-
-            if (now-timecut) < (24*3600) * 10:
-                payload['period'] = "7day"
-            elif (now-timecut) < (24*3600) * 33:
-                payload['period'] = "1month"
-            elif (now-timecut) < (24*3600) * 100:
-                payload['period'] = "3month"
-            elif (now-timecut) < (24*3600) * 200:
-                payload['period'] = "6month "
-            elif (now-timecut) < (24*3600) * 400:
-                payload['period'] = "12month"
-            else:
-                payload['period'] = "overall"
 
         cooldown = True
         response = await util.lastfm_get(ctx, payload, cooldown, "lastfm")
 
-        caption_image_list = self.parse_chart_list_from_api(response)
+        caption_image_list, check_list = await self.parse_chart_list_from_api(response, charttype, lfm_name, top, [])
 
-        if top > 50:
-            payload['limit'] = min(50, top-50)
-            payload['page'] = 2
-            cooldown = False
-            response2 = await util.lastfm_get(ctx, payload, cooldown, "lastfm")
-            caption_image_list += self.parse_chart_list_from_api(response2)
+        while top > len(caption_image_list):
+            if payload['page'] > 3:
+                break
+            try:
+                payload['limit'] = 50
+                payload['page'] += 1
+                cooldown = False
+                response = await util.lastfm_get(ctx, payload, cooldown, "lastfm")
+                new_caption_image_list, new_check_list = await self.parse_chart_list_from_api(response, charttype, lfm_name, top, check_list)
+
+                caption_image_list += new_caption_image_list
+                check_list = new_check_list
+            except:
+                break
+
+        caption_image_list = caption_image_list[:top]
 
         caption_dict = {}
         image_dict  = {}
@@ -1228,7 +1288,10 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
             image_dict[i] = image
 
-        return caption_dict, image_dict, lfm_name
+            if (charttype != "artists") and (not is_nsfw):
+                is_nsfw = util.album_is_nsfw(artist, album)
+
+        return caption_dict, image_dict, lfm_name, is_nsfw
 
 
 
@@ -1240,9 +1303,10 @@ class Music_Scrobbling_Visuals(commands.Cog):
     async def _topalbumchart(self, ctx: commands.Context, *args):
         """Shows chart of recent music
         
-        under construction:
-        specify size...
-        specify timeframe...
+        Specify a time argument: week, month, quarter, half, year, alltime
+        Specify a size in the format `3x3`, `4x5`, `10x10` etc.
+        Ping a user to get their chart.
+
         """
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
@@ -1271,9 +1335,11 @@ class Music_Scrobbling_Visuals(commands.Cog):
             print("chart command: fetch data...")
             try:
                 caption_dict, image_dict, lfm_name, is_nsfw = await self.get_chart_data_from_api(ctx, arg_dict)
+                fetched_from_api = True
             except Exception as e:
                 print("API error while trying to fetch chart data:", e)
                 caption_dict, image_dict, lfm_name, is_nsfw = await self.get_chart_data_from_db(ctx, arg_dict)
+                fetched_from_api = False
 
             # MAKE CHART
 
@@ -1285,8 +1351,15 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
             await self.create_chart(caption_dict, image_dict, chart_name, width, height)
 
+            # SEND
+
+            if fetched_from_api:
+                source = "`[from last.fm api]`"
+            else:
+                source = "`[from local database]`"
+
             try:
-                await ctx.reply(f"**{lfm_name}'s top {len(image_dict)} album chart from** {timestring} **up to now**", file=discord.File(rf"temp/{chart_name}.jpg"), mention_author=False)
+                await ctx.reply(f"**{lfm_name}'s top {len(image_dict)} album chart from** {timestring} **up to now** {source}", file=discord.File(rf"temp/{chart_name}.jpg"), mention_author=False)
             except Exception as e:
                 await ctx.reply(f"Error: {e}", mention_author=False)
 
@@ -1305,9 +1378,9 @@ class Music_Scrobbling_Visuals(commands.Cog):
     async def _topartistchart(self, ctx: commands.Context, *args):
         """Shows chart of recent music
         
-        under construction:
-        specify size...
-        specify timeframe...
+        Specify a time argument: week, month, quarter, half, year, alltime
+        Specify a size in the format `3x3`, `4x5`, `10x10` etc.
+        Ping a user to get their chart.
         """
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
@@ -1336,9 +1409,11 @@ class Music_Scrobbling_Visuals(commands.Cog):
             print("top command: fetch data...")
             try:
                 caption_dict, image_dict, lfm_name, is_nsfw = await self.get_chart_data_from_api(ctx, arg_dict)
+                fetched_from_api = True
             except Exception as e:
                 print("API error while trying to fetch chart data:", e)
                 caption_dict, image_dict, lfm_name, is_nsfw = await self.get_chart_data_from_db(ctx, arg_dict)
+                fetched_from_api = False
 
             # MAKE CHART
 
@@ -1350,8 +1425,15 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
             await self.create_chart(caption_dict, image_dict, chart_name, width, height)
 
+            # SEND
+
+            if fetched_from_api:
+                source = "`[from last.fm api]`"
+            else:
+                source = "`[from local database]`"
+
             try:
-                await ctx.reply(f"**{lfm_name}'s top {len(image_dict)} artists chart from** {timestring} **up to now**", file=discord.File(rf"temp/{chart_name}.jpg"), mention_author=False)
+                await ctx.reply(f"**{lfm_name}'s top {len(image_dict)} artists chart from** {timestring} **up to now** {source}", file=discord.File(rf"temp/{chart_name}.jpg"), mention_author=False)
             except Exception as e:
                 await ctx.reply(f"Error: {e}", mention_author=False)
 
