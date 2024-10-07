@@ -593,6 +593,9 @@ class Utils():
     def compactnamefilter(input_string, *info):
         # https://en.wikipedia.org/wiki/List_of_Latin-script_letters
         # get rid of bracket info
+        if input_string is None or input_string == "":
+            return ""
+
         intermediate_string = ""
         try:
             if len(info) > 0:
@@ -1853,7 +1856,7 @@ class Utils():
 
         unit_seconds = Utils.unit_seconds()
 
-        if len(from_timestamp) == 0:
+        if len(from_timestamp) == 0 or from_timestamp[0] == None:
 
             # NAIVE WAY TO CALCULATE
 
@@ -3245,17 +3248,27 @@ class Utils():
         try:
             artist_info = sp.artist(artist_id)
             image = artist_info['images'][0]['url']
+            fetched_artist = artist_info['name']
             try:
                 tags = artist_info["genres"]
             except:
                 tags = []
 
-            try:
-                if image != "":
-                    if fetch_with_albuminfo:
+            if image != "":
+                if fetch_with_albuminfo:
+                    # higher confidence of accuracy if album info is used
+                    try:
                         await Utils.update_spotify_artist_info(artist, artist_id, image, tags)
-            except Exception as e:
-                print("Failed to update artist info in scrobble meta database:", e)
+                    except Exception as e:
+                        print("Failed to update artist info in scrobble meta database:", e)
+                else:
+                    # otherwise check whether the artist name even resembles the original search
+                    compact_artist = Utils.compactnamefilter(artist, "artist", "alias")
+                    compact_fetched_artist = Utils.compactnamefilter(fetched_artist, "artist", "alias")
+
+                    if compact_artist != compact_fetched_artist:
+                        print("Spotify delivered a presumably wrong artist... using default picture instead")
+                        return ""
         except:
             image = ""
 
