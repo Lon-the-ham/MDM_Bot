@@ -784,6 +784,7 @@ class Music_Scrobbling(commands.Cog):
             except:
                 db_entry_exists = False
             if db_entry_exists:
+                # do not update thumbnail
                 curSS.execute(f"UPDATE artistinfo SET tags_lfm = ?, last_update = ? WHERE filtername = ? OR filteralias = ?", (tags_lfm, now, artist_fltr, artist_fltr))
             else:
                 curSS.execute(f"INSERT INTO artistinfo VALUES (?, ?, ?, ?, ?, ?, ?)", (artist, artist_thumbnail, tags_lfm, "", now, artist_fltr, ""))
@@ -894,12 +895,18 @@ class Music_Scrobbling(commands.Cog):
 
 
     async def wk_artist_match(self, ctx, argument):
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+        
         if argument.strip() == "":
             artist, album, song, thumbnail, cover, tags = await self.get_last_track(ctx)
+            if thumbnail in ["", "https://lastfm.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png"]:
+                thumbnail, update_time = await util.get_database_artistimage(artist)
+                if thumbnail == "" or update_time < now - 30*24*60*60:
+                    lfm_name, status = util.get_lfmname(ctx.author.id)
+                    thumbnail = await util.get_spotify_artistimage(artist, lfm_name)
             return artist, thumbnail, tags
 
         else:
-            now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
             fetch_api_info = False
 
             conSS = sqlite3.connect('databases/scrobblestats.db')
@@ -932,6 +939,12 @@ class Music_Scrobbling(commands.Cog):
 
                 if len(tags) == 0:
                     raise ValueError("no tags in DB, better fetch from API again")
+
+                if thumbnail in ["", "https://lastfm.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png"]:
+                    thumbnail, update_time = await util.get_database_artistimage(artist)
+                    if thumbnail == "" or update_time < now - 30*24*60*60:
+                        lfm_name, status = util.get_lfmname(ctx.author.id)
+                        thumbnail = await util.get_spotify_artistimage(artist, lfm_name)
 
                 return artist, thumbnail, tags
 
@@ -974,6 +987,12 @@ class Music_Scrobbling(commands.Cog):
                     if len(tags) > 0:
                         self.update_artistinfo(artist, thumbnail, tags)
 
+                    if thumbnail in ["", "https://lastfm.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png"]:
+                        thumbnail, update_time = await util.get_database_artistimage(artist)
+                        if thumbnail == "" or update_time < now - 30*24*60*60:
+                            lfm_name, status = util.get_lfmname(ctx.author.id)
+                            thumbnail = await util.get_spotify_artistimage(artist, lfm_name)
+
                     return artist, thumbnail, tags
 
                 except Exception as e:
@@ -993,6 +1012,12 @@ class Music_Scrobbling(commands.Cog):
                             tag_filtered = tag.lower().strip()
                             if tag_filtered != "":
                                 tags.append(tag_filtered)
+
+                        if thumbnail in ["", "https://lastfm.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png"]:
+                            thumbnail, update_time = await util.get_database_artistimage(artist)
+                            if thumbnail == "" or update_time < now - 30*24*60*60:
+                                lfm_name, status = util.get_lfmname(ctx.author.id)
+                                thumbnail = await util.get_spotify_artistimage(artist, lfm_name)
 
                         return artist, thumbnail, tags
 
@@ -5620,11 +5645,15 @@ class Music_Scrobbling(commands.Cog):
     async def _show_alias(self, ctx: commands.Context, *args):
         """show artist name alias/redirect
         """
+        if len(args) == 0:
+            await ctx.send("Use this command with an artistname to check for aliases beyond alphanumerical matching.")
+            return
+
         conSM = sqlite3.connect('databases/scrobblemeta.db')
         curSM = conSM.cursor()
 
         argument_string = ' '.join(args)
-        input_string = ''.join([x for x in argument_string.upper() if x.isalnum()])
+        input_string = util.compactnamefilter(argument_string, "artist")
 
         artists_list = [item[0] for item in curSM.execute("SELECT artist_key FROM artist_aliases WHERE alias_name = ?", (input_string,)).fetchall()]
         alias_list = [item[0] for item in curSM.execute("SELECT alias_name FROM artist_aliases WHERE artist_key = ?", (input_string,)).fetchall()]
@@ -5636,7 +5665,7 @@ class Music_Scrobbling(commands.Cog):
             text += f"{input_string} will be redirected to: {artist}\n\n"
 
         if len(alias_list) > 0:
-            aliases = ', '.join(alias_list.sort())
+            aliases = ', '.join(sorted(alias_list))
             text += f"Artist names that will be redirected to {input_string}: {aliases}\n\n"
 
         if len(artists_list) == 0 and len(alias_list) == 0:
