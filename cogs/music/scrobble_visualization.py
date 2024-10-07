@@ -135,8 +135,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
         arg_dict = {
             "timecut": 0,
-            "top": 10,
-            "steps": 60,    
+            "top": 10,  
             "scope": "user",
         }
 
@@ -153,7 +152,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
         min_bars = 1
         max_bars = 50
         min_steps = 7
-        max_steps = 500
+        max_steps = 200
 
         for arg in arguments:
             if arg.startswith("bars") and len(arg) > 4:
@@ -219,6 +218,11 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     possible_timecut = self.get_timecut_seconds(now, val2)
                     if possible_timecut >= 0:
                         arg_dict["timecut"] = possible_timecut
+                    else:
+                        timeseconds, timetext, rest = await util.timeparse(arg[4:])
+                        timesec_int = util.forceinteger(timeseconds)
+                        if timesec_int > 24*60*60:
+                            arg_dict["timecut"] = max(now - timesec_int, 0)
 
         # parse time argument
 
@@ -229,6 +233,15 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     arg_dict["timecut"] = possible_timecut
         except:
             arg_dict["timecut"] = 0
+
+        # set default step count
+
+        if "steps" not in arg_dict:
+            if arg_dict["timecut"] > 1000000000:
+                months_covered = round((now - arg_dict["timecut"]) / (60*60*24*30))
+                arg_dict["steps"] = min(max(months_covered, min_steps), max_steps)
+            else:
+                arg_dict["steps"] = 60
 
         return arg_dict
 
@@ -401,6 +414,8 @@ class Music_Scrobbling_Visuals(commands.Cog):
                         artist2 = artist2[2:]
                     if artist2.endswith(("'", '"')):
                         artist2 = artist2[:-1]
+                    if len(artist2) > 30:
+                        artist2 = artist2[:27] + "..."
                     #add
                     data_filtered[artist2] = scrob_count_list
 
@@ -445,9 +460,9 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
         You can provide a time argument, bar number argument and a step number argument. These arguments have to preceded by its name, and separated by a comma or semicolon.
         Use e.g. 
-        `<prefix>rce time: year, bars: 10, steps: 60`
+        `<prefix>bcr time: year, bars: 10, steps: 60`
         or
-        `<prefix>rce quarter, bars: 10`
+        `<prefix>bcr quarter, bars: 10`
         """
 
         # check if pipe is blocked
@@ -623,10 +638,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
         """takes dictionaries of image_url_names and image_caption_names and makes a collage out of them"""
 
         #SETTINGS
-        try:
-            caption_font = "other/resources/arial-unicode-ms.ttf"
-        except:
-            caption_font = "other/resources/arimo-regular.ttf"
+        caption_font = "other/resources/arial-unicode-ms.ttf"
 
         fontColor = 0xFFFFFF
         TINT_COLOR = (0, 0, 0)  # Black
@@ -751,7 +763,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
         arguments = []
         argsjoin = ' '.join(args)
-        if ":" in argsjoin or "user" in argsjoin or "scope" in argsjoin:
+        if ": " in argsjoin or "," in argsjoin or "user" in argsjoin or "scope" in argsjoin:
             args_intermediate = argsjoin.replace(";",",").split(",")
         else:
             args_intermediate = argsjoin.split()
@@ -765,7 +777,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     arg_dict["scope"] = arg_strip[2:-1]
 
         min_size = 1
-        max_size = 10
+        max_size = 12
 
         for arg in arguments:
             if "x" in arg:
@@ -841,16 +853,18 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
         # parse time argument
 
-        if arg_dict["top"] >= 100:
-            default_timecut = 0
-        elif arg_dict["top"] >= 67:
-            default_timecut = now - 180*24*60*60
-        elif arg_dict["top"] >= 50:
-            default_timecut = now - 90*24*60*60
-        elif arg_dict["top"] >= 25:
-            default_timecut = now - 30*24*60*60
-        else:
-            default_timecut = now - 7*24*60*60
+        default_timecut = now - 7*24*60*60
+
+        #if arg_dict["top"] >= 100:
+        #    default_timecut = 0
+        #elif arg_dict["top"] >= 67:
+        #    default_timecut = now - 180*24*60*60
+        #elif arg_dict["top"] >= 50:
+        #    default_timecut = now - 90*24*60*60
+        #elif arg_dict["top"] >= 25:
+        #    default_timecut = now - 30*24*60*60
+        #else:
+        #    default_timecut = now - 7*24*60*60
 
         try:
             for arg in arguments:
@@ -1311,7 +1325,8 @@ class Music_Scrobbling_Visuals(commands.Cog):
         Specify a time argument: week, month, quarter, half, year, alltime
         Specify a size in the format `3x3`, `4x5`, `10x10` etc.
         Ping a user to get their chart.
-
+        
+        Default shows your 3x3 week chart.
         """
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
@@ -1376,7 +1391,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
 
-    @commands.command(name='top', aliases = ["topartistchart", "topchart"])
+    @commands.command(name='top', aliases = ["topartistchart", "topchart", "artistchart"])
     @commands.check(ScrobbleVisualsCheck.scrobbling_enabled)
     @commands.check(ScrobbleVisualsCheck.is_imagechart_enabled)
     @commands.check(util.is_active)
@@ -1386,6 +1401,8 @@ class Music_Scrobbling_Visuals(commands.Cog):
         Specify a time argument: week, month, quarter, half, year, alltime
         Specify a size in the format `3x3`, `4x5`, `10x10` etc.
         Ping a user to get their chart.
+
+        Default shows your 3x3 week chart.
         """
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
