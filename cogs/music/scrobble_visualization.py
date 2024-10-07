@@ -624,9 +624,10 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
         #SETTINGS
         try:
-            caption_font = "other/resources/Arial Unicode MS.ttf"
+            caption_font = "other/resources/arial-unicode-ms.ttf"
         except:
-            caption_font = "other/resources/Arimo-Regular.ttf"
+            caption_font = "other/resources/arimo-regular.ttf"
+
         fontColor = 0xFFFFFF
         TINT_COLOR = (0, 0, 0)  # Black
         TRANSPARENCY = .6  # Degree of transparency, 0-100%
@@ -648,7 +649,11 @@ class Music_Scrobbling_Visuals(commands.Cog):
         collage_img = Image.new('RGB', (img_size * width, img_size * height))
 
         font_size = round(img_size / 10)
-        font = ImageFont.truetype(caption_font, font_size)
+
+        try:
+            font = ImageFont.truetype(caption_font, font_size)
+        except:
+            font = ImageFont.truetype("arial.ttf", font_size)
 
         x = 0
         y = 0
