@@ -209,10 +209,16 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     if val2 > 9999999999999999:
                         arg_dict["scope"] = str(val2)
 
-            elif arg.startswith("time") and len(arg) > 4:
+            elif arg.startswith(("time", "from")) and len(arg) > 4:
                 val = util.forceinteger(arg[4:])
                 if val > 0 and val <= now - 24*60*60:
-                    arg_dict["timecut"] = val
+                    if val > 9999 or val < 1970:
+                        arg_dict["timecut"] = val
+                    else:
+                        try:
+                            arg_dict["timecut"] = int((datetime.datetime(val, 1, 1) - datetime.datetime(1970, 1, 1)).total_seconds())
+                        except Exception as e:
+                            print("Error:", e)
                 else:
                     val2 = arg[4:]
                     possible_timecut = self.get_timecut_seconds(now, val2)
@@ -308,7 +314,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                 if different_user:
                     raise ValueError(f"Could not find user with ID `{user_id}`.")
                 else:
-                    raise ValueError(f"You haven't set your lastfm account yet.\nUse `{self.prefix}setfm <your username>` to set your account.")
+                    raise ValueError(f"You haven't set your lastfm account yet.\nUse `{self.prefix}setfm <your username>` to set your account and then `{self.prefix}u` to import your scrobbles.")
 
             lfm_name = lfm_list[-1][0]
             lfm_status = lfm_list[-1][1]
@@ -481,6 +487,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
             await util.cooldown(ctx, "bar_chart_race")
         except Exception as e:
             await ctx.reply("Bar Chart Race cooldown. Please wait a few seconds.", mention_author=False)
+            ScrobbleVisualsCheck.unblock_gfx_generation("bar_chart_race")
             return
 
         async with ctx.typing():
@@ -731,6 +738,17 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
                 for caption_line in caption_lines:
                     _, _, w, _ = drawC2.textbbox((0,0), text=caption_line, font=font)
+
+                    tries = 0
+                    while w > img_size:
+                        tries += 1
+                        if caption_line.endswith("..."):
+                            caption_line = caption_line[:-3]
+                        caption_line = caption_line[:-1] + "..."
+                        _, _, w, _ = drawC2.textbbox((0,0), text=caption_line, font=font)
+                        if tries > 10:
+                            break
+
                     drawC2.text(((img_size-w)/2, (img_size-h*i)*0.99), caption_line, font=font, fill=fontColor)
                     i -= 1
 
@@ -759,11 +777,12 @@ class Music_Scrobbling_Visuals(commands.Cog):
             "height": 3,
             "width": 3,    
             "scope": "user",
+            "source": "api",
         }
 
         arguments = []
         argsjoin = ' '.join(args)
-        if ": " in argsjoin or "," in argsjoin or "user" in argsjoin or "scope" in argsjoin:
+        if ": " in argsjoin or "," in argsjoin or ";" in argsjoin or "=" in argsjoin or "user" in argsjoin or "scope" in argsjoin:
             args_intermediate = argsjoin.replace(";",",").split(",")
         else:
             args_intermediate = argsjoin.split()
@@ -850,6 +869,18 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     possible_timecut = self.get_timecut_seconds(now, val2)
                     if possible_timecut >= 0:
                         arg_dict["timecut"] = possible_timecut
+
+            elif arg.startswith("source") and len(arg) > 6:
+                val = arg[6:].lower()
+                if val in ["loc", "local", "db", "database"]:
+                    arg_dict["source"] = "local"
+                elif val in ["lastfm", "lfm", "api"]:
+                    arg_dict["source"] = "api"
+
+            elif arg.lower() == "local":
+                arg_dict["source"] = "local"
+            elif arg.lower() == "api":
+                arg_dict["source"] = "api"
 
         # parse time argument
 
@@ -1180,7 +1211,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
                 image, update_time = await util.get_database_artistimage(artist)
                 if image == "" or update_time < now - 30*24*60*60:
-                    image = await util.get_spotify_artistimage(artist, lfm_name)
+                    image = await util.get_spotify_artistimage(artist, lfm_name, image)
 
                 if artist in check_list:
                     pass
@@ -1341,6 +1372,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
             height = arg_dict["height"]
             timecut = arg_dict["timecut"]
             scope = arg_dict["scope"]
+            source = arg_dict["source"]
 
             charttype = "albums"
             arg_dict["charttype"] = charttype
@@ -1354,10 +1386,13 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
             print("chart command: fetch data...")
             try:
+                if source == "local":
+                    raise ValueError("local data inquired")
                 caption_dict, image_dict, lfm_name, is_nsfw = await self.get_chart_data_from_api(ctx, arg_dict)
                 fetched_from_api = True
             except Exception as e:
-                print("API error while trying to fetch chart data:", e)
+                if str(e) != "local data inquired":
+                    print("API error while trying to fetch chart data:", e)
                 caption_dict, image_dict, lfm_name, is_nsfw = await self.get_chart_data_from_db(ctx, arg_dict)
                 fetched_from_api = False
 
@@ -1417,6 +1452,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
             height = arg_dict["height"]
             timecut = arg_dict["timecut"]
             scope = arg_dict["scope"]
+            source = arg_dict["source"]
 
             charttype = "artists"
             arg_dict["charttype"] = charttype
@@ -1430,10 +1466,13 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
             print("top command: fetch data...")
             try:
+                if source == "local":
+                    raise ValueError("local data inquired")
                 caption_dict, image_dict, lfm_name, is_nsfw = await self.get_chart_data_from_api(ctx, arg_dict)
                 fetched_from_api = True
             except Exception as e:
-                print("API error while trying to fetch chart data:", e)
+                if str(e) != "local data inquired":
+                    print("API error while trying to fetch chart data:", e)
                 caption_dict, image_dict, lfm_name, is_nsfw = await self.get_chart_data_from_db(ctx, arg_dict)
                 fetched_from_api = False
 
