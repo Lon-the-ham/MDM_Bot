@@ -630,6 +630,29 @@ class Utils():
 
 
 
+    def convert_lfmname_to_discordname(ctx, lfmname):
+        """if not possible it keeps the name but precedes it with >>lfm:<<"""
+        try:
+            substitute = "lfm:" + lfmname
+
+            conNP = sqlite3.connect('databases/npsettings.db')
+            curNP = conNP.cursor()
+            try:
+                result = curNP.execute("SELECT id FROM lastfm WHERE lfm_name = ?", (lfmname,)).fetchone()
+                user_id = str(result[0])
+            except Exception as e:
+                return substitute
+
+            for member in ctx.guild.members:
+                if str(member.id) == user_id:
+                    return member.name
+            else:
+                return substitute
+        except:
+            return substitute
+
+
+
     def convert_stringlist(object_list):
         result = []
         for obj in object_list:
@@ -2729,7 +2752,8 @@ class Utils():
 
 
 
-    async def embed_pages(ctx, bot, header, description_list, color, footer):
+    async def embed_pages(ctx, bot, header, description_list, color, footer, reply=False, show_author=False):
+        """show_author can be a bool or a tuple of user_id and author text"""
         pages = len(description_list)
         if pages == 0:
             await ctx.send("Error: empty pages")
@@ -2745,8 +2769,26 @@ class Utils():
 
         cur_page = 1
         embed=discord.Embed(title=header, description=(f"{description_list[cur_page-1][:4096]}"), color=color)
+        if show_author == True:
+            try:
+                embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar)
+            except Exception as e:
+                print("Utils.embed_pages raised error:", e)
+        elif len(show_author) == 2:
+            try:
+                user_id = int(show_author[0])
+                text = show_author[1]
+                member = ctx.guild.get_member(bot.application_id)
+                embed.set_author(name=text, icon_url=member.avatar)
+            except Exception as e:
+                print("Utils.embed_pages raised error:", e)
+
         embed.set_footer(text=f"Page {cur_page}/{pages}{smalltext}")
-        message = await ctx.send(embed=embed)
+
+        if reply:
+            message = await ctx.reply(embed=embed, mention_author=False)
+        else:
+            message = await ctx.send(embed=embed)
 
         if pages > 1:
             if pages > 2:
@@ -3192,7 +3234,7 @@ class Utils():
 
 
 
-    async def get_spotify_artistimage(artist, lfm_name):
+    async def get_spotify_artistimage(artist, lfm_name, substitute=""):
         try:
             ClientID = os.getenv("Spotify_ClientID")
             ClientSecret = os.getenv("Spotify_ClientSecret")
@@ -3243,7 +3285,7 @@ class Utils():
             try:
                 artist_id = response['artists']['items'][0]['id']
             except:
-                return ""
+                return substitute
 
         try:
             artist_info = sp.artist(artist_id)
@@ -3268,9 +3310,9 @@ class Utils():
 
                     if compact_artist != compact_fetched_artist:
                         print("Spotify delivered a presumably wrong artist... using default picture instead")
-                        return ""
+                        return substitute
         except:
-            image = ""
+            image = substitute
 
         return image
 
