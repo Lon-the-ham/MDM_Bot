@@ -1893,8 +1893,10 @@ class Music_Scrobbling(commands.Cog):
                 #if counter > 99:
                 #    break
 
-            # SEND EMBED MESSAGE
-            await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer)
+        # SEND EMBED MESSAGE
+        reply = True
+        show_author = False
+        await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer, reply, show_author)
 
 
 
@@ -2051,8 +2053,9 @@ class Music_Scrobbling(commands.Cog):
                 break
 
         # SEND EMBED MESSAGE
-
-        await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer)
+        reply = True
+        show_author = False
+        await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer, reply, show_author)
 
 
 
@@ -2467,8 +2470,9 @@ class Music_Scrobbling(commands.Cog):
                 contents.append(itemstring)
 
         footer = f"{i} {wk_type}s - {plays} plays"
-
-        await util.embed_pages(ctx, self.bot, header, contents, color, footer)
+        reply = True
+        show_author = False
+        await util.embed_pages(ctx, self.bot, header, contents, color, footer, reply, show_author)
         
 
 
@@ -2972,8 +2976,9 @@ class Music_Scrobbling(commands.Cog):
             else:
                 k = k+1
                 contents.append(itemstring)
-
-        await util.embed_pages(ctx, self.bot, header, contents, color, footer)
+        reply = True
+        show_author = False
+        await util.embed_pages(ctx, self.bot, header, contents, color, footer, reply, show_author)
         
 
 
@@ -3310,8 +3315,9 @@ class Music_Scrobbling(commands.Cog):
                 contents.append(crowninfo)
 
         # SEND EMBED MESSAGE
-
-        await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer)
+        reply = True
+        show_author = False
+        await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer, reply, show_author)
 
     @_crowns.error
     async def crowns_error(self, ctx, error):
@@ -3406,8 +3412,9 @@ class Music_Scrobbling(commands.Cog):
         color = 0x9d2933
 
         # SEND EMBED MESSAGE
-
-        await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer)
+        reply = True
+        show_author = False
+        await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer, reply, show_author)
 
     @_servercrowns.error
     async def servercrowns_error(self, ctx, error):
@@ -4119,8 +4126,9 @@ class Music_Scrobbling(commands.Cog):
             header = f"{ctx.author.display_name}'s {spec}streaks 🔥"
             color = ctx.author.color
             footer = str(len(streaks_filtered)) + " streaks"
-
-            await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer)
+            reply = True
+            show_author = False
+        await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer, reply, show_author)
 
 
 
@@ -4574,8 +4582,9 @@ class Music_Scrobbling(commands.Cog):
                     contents.append(itemstring)
 
             footer = f"{plays} artist plays"
-
-            await util.embed_pages(ctx, self.bot, header, contents, color, footer)
+            reply = True
+            show_author = False
+        await util.embed_pages(ctx, self.bot, header, contents, color, footer, reply, show_author)
 
     @_albumtracks.error
     async def albumtracks_error(self, ctx, error):
@@ -5287,6 +5296,8 @@ class Music_Scrobbling(commands.Cog):
             await ctx.send("Command needs a hyphen-separated artist-album argument.")
             return
 
+        emoji = util.emoji("nsfw")
+
         if " - " in argument:
             artist = argument.split(" - ", 1)[0].strip()
             album = argument.split(" - ", 1)[1].strip()
@@ -5302,13 +5313,11 @@ class Music_Scrobbling(commands.Cog):
         artistinfo_list = [(item[0], item[1], item[2]) for item in curSM.execute("SELECT artist, album, details FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
 
         if len(artistinfo_list) == 0:
+            panda
+
             curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", ("", artistcompact, "", albumcompact, "", "", 0, "nsfw"))
             conSM.commit()
-
-            # UNDER CONSTRUCTION
-
-            await ctx.send("Album not found in database: Marking it as NSFW in advance. 🔞")
-            await ctx.send("under construction: try to fetch album image")
+            await ctx.send(f"Album not found in database: Marking it as NSFW in advance. {emoji}")
 
         else:
             found_artist    = artistinfo_list[-1][0]
@@ -5316,12 +5325,12 @@ class Music_Scrobbling(commands.Cog):
             found_details   = artistinfo_list[-1][2]
 
             if found_details == "nsfw":
-                await ctx.send(f"`{found_artist} - {found_album}` album cover already marked as NSFW. 🔞")
+                await ctx.send(f"`{found_artist} - {found_album}` album cover already marked as NSFW. {emoji}")
             else:
                 curSM.execute("UPDATE albuminfo SET details = ? WHERE artist_filtername = ? AND album_filtername = ?", ("nsfw", artistcompact, albumcompact))
                 conSM.commit()
 
-                await ctx.send(f"Successfully marked the `{found_artist} - {found_album}` album cover as NSFW. 🔞")
+                await ctx.send(f"Successfully marked the `{found_artist} - {found_album}` album cover as NSFW. {emoji}")
 
     @_setnsfw.error
     async def setnsfw_error(self, ctx, error):
@@ -5345,6 +5354,8 @@ class Music_Scrobbling(commands.Cog):
             await ctx.send("Command needs a hyphen-separated artist-album argument.")
             return
 
+        emoji = util.emoji("sfw")
+
         if " - " in argument:
             artist = argument.split(" - ", 1)[0].strip()
             album = argument.split(" - ", 1)[1].strip()
@@ -5360,7 +5371,7 @@ class Music_Scrobbling(commands.Cog):
         artistinfo_list = [(item[0], item[1], item[2]) for item in curSM.execute("SELECT artist, album, details FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
 
         if len(artistinfo_list) == 0:
-            await ctx.send("Album not found in database: No need to remove NSFW marking. 🚸")
+            await ctx.send(f"Album not found in database: No need to remove NSFW marking. {emoji}")
 
         else:
             found_artist    = artistinfo_list[-1][0]
@@ -5368,12 +5379,12 @@ class Music_Scrobbling(commands.Cog):
             found_details   = artistinfo_list[-1][2]
 
             if found_details == "":
-                await ctx.send(f"`{found_artist} - {found_album}` album cover already recognized as SFW. 🚸")
+                await ctx.send(f"`{found_artist} - {found_album}` album cover already recognized as SFW. {emoji}")
             else:
                 curSM.execute("UPDATE albuminfo SET details = ? WHERE artist_filtername = ? AND album_filtername = ?", ("", artistcompact, albumcompact))
                 conSM.commit()
 
-                await ctx.send(f"Successfully set the `{found_artist} - {found_album}` album cover to SFW. 🚸")
+                await ctx.send(f"Successfully set the `{found_artist} - {found_album}` album cover to SFW. {emoji}")
 
     @_setsfw.error
     async def setsfw_error(self, ctx, error):
@@ -5726,8 +5737,10 @@ class Music_Scrobbling(commands.Cog):
         # ADJUST META DB
         print(">>> Checking meta database...")
         conSM = sqlite3.connect('databases/scrobblemeta.db')
-        curSM = conSS.cursor()
+        curSM = conSM.cursor()
         curSM.execute("UPDATE albuminfo SET artist_filtername = ? WHERE artist_filtername = ?", (artist, alias))
+        curSM.execute("UPDATE artistinfo SET filtername = ? WHERE filtername = ?", (artist, alias))
+        curSM.execute("UPDATE trackinfo SET artist_filtername = ? WHERE artist_filtername = ?", (artist, alias))
 
         ###########################################################
         print(">>> fin.")
