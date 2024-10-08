@@ -929,8 +929,9 @@ class Music_NowPlaying(commands.Cog):
                             elif crown == "on":
                                 mention_crownuser = True
                                 if crown_count is not None:
+                                    crown_holder_discord = util.convert_lfmname_to_discordname(ctx, crown_holder)
                                     crown_count_formatted = "{:,}".format(crown_count)
-                                    crown_text = f"{self.tagseparator} {emoji}{crown_count_formatted} ({crown_holder})"
+                                    crown_text = f"{self.tagseparator} {emoji}{crown_count_formatted} ({crown_holder_discord})"
 
                 if lastfm_artistscrobbles == "on":
                     try:
@@ -1001,11 +1002,18 @@ class Music_NowPlaying(commands.Cog):
                         if mention_crownuser:
                             # a different user is crown holder:
                             if rank != "":
-                                rank2 = "server rank: " + rank.replace("[", "").replace("]", "")
+                                if len(crown_text) <= 29:
+                                    rank2 = "server rank: " + rank.replace("[", "").replace("]", "")
+                                else:
+                                    rank2 = "rank: " + rank.replace("[", "").replace("]", "")
                                 user_stats += f"\n{rank2} {crown_text}"
                         else:
                             # command invoker is crown holder:
                             user_stats += rank
+                            #if len(user_stats) > 42:
+                            #    user_stats += "\nserver rank: " + rank.replace("[", "").replace("]", "")
+                            #else:
+                            #    user_stats += rank
 
             if rym_albumrating == "on":
                 # rym import under construction
