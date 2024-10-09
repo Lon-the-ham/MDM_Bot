@@ -133,21 +133,26 @@ class Music_Scrobbling_Visuals(commands.Cog):
     async def parse_barchartrace_args(self, args):
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
-        arg_dict = {
-            "timecut": 0,
-            "top": 10,  
-            "scope": "user",
-        }
+        # set default values
+
+        default_timecut = 0
+        default_top = 10
+        default_scope = "user"
+
+        # initialise args
+
+        arg_dict = {}
 
         arguments = []
         args_intermediate = ' '.join(args).replace(";",",").split(",")
         for arg in args_intermediate:
             arguments.append(''.join([x for x in arg.lower() if x.isalnum()]).strip())
 
-            arg_strip = arg.strip()
-            if arg_strip.startswith("<@") and arg_strip.endswith(">") and len(arg_strip) >= 19:
-                if util.represents_integer(arg_strip[2:-1]):
-                    arg_dict["scope"] = arg_strip[2:-1]
+            if "scope" not in arg_dict:
+                arg_strip = arg.strip()
+                if arg_strip.startswith("<@") and arg_strip.endswith(">") and len(arg_strip) >= 19:
+                    if util.represents_integer(arg_strip[2:-1]):
+                        arg_dict["scope"] = arg_strip[2:-1]
 
         min_bars = 1
         max_bars = 50
@@ -155,52 +160,52 @@ class Music_Scrobbling_Visuals(commands.Cog):
         max_steps = 200
 
         for arg in arguments:
-            if arg.startswith("bars") and len(arg) > 4:
+            if arg.startswith("bars") and len(arg) > 4 and "top" not in arg_dict:
                 val = util.forceinteger(arg[4:])
                 if val >= min_bars and val <= max_bars:
                     arg_dict["top"] = val
-                elif arg[4:] == "max":
+                elif arg[4:] == "max" or val > max_bars:
                     arg_dict["top"] = max_bars
-                elif arg[4:] == "min":
+                elif arg[4:] == "min" or (val < min_bars and val > 0):
                     arg_dict["top"] = min_bars
 
-            elif arg.startswith(("top", "bar")) and len(arg) > 3:
+            elif arg.startswith(("top", "bar")) and len(arg) > 3 and "top" not in arg_dict:
                 val = util.forceinteger(arg[3:])
                 if val >= min_bars and val <= max_bars:
                     arg_dict["top"] = val
-                elif arg[3:] == "max":
+                elif arg[3:] == "max" or val > max_bars:
                     arg_dict["top"] = max_bars
-                elif arg[3:] == "min":
+                elif arg[3:] == "min" or (val < min_bars and val > 0):
                     arg_dict["top"] = min_bars
 
-            elif arg.startswith("points") and len(arg) > 6:
+            elif arg.startswith("points") and len(arg) > 6 and "steps" not in arg_dict:
                 val = util.forceinteger(arg[6:])
                 if val >= min_steps and val <= max_steps:
                     arg_dict["steps"] = val
-                elif arg[6:] == "max":
-                    arg_dict["steps"] = max_bars
-                elif arg[6:] == "min":
-                    arg_dict["steps"] = min_bars
+                elif arg[6:] == "max" or val > max_steps:
+                    arg_dict["steps"] = max_steps
+                elif arg[6:] == "min" or (val < min_steps and val > 0):
+                    arg_dict["steps"] = min_steps
 
-            elif arg.startswith(("steps", "point")) and len(arg) > 5:
+            elif arg.startswith(("steps", "point")) and len(arg) > 5 and "steps" not in arg_dict:
                 val = util.forceinteger(arg[5:])
                 if val >= min_steps and val <= max_steps:
                     arg_dict["steps"] = val
-                elif arg[5:] == "max":
-                    arg_dict["steps"] = max_bars
-                elif arg[5:] == "min":
-                    arg_dict["steps"] = min_bars
+                elif arg[5:] == "max" or val > max_steps:
+                    arg_dict["steps"] = max_steps
+                elif arg[5:] == "min" or (val < min_steps and val > 0):
+                    arg_dict["steps"] = min_steps
 
-            elif arg.startswith("step") and len(arg) > 4:
+            elif arg.startswith("step") and len(arg) > 4 and "steps" not in arg_dict:
                 val = util.forceinteger(arg[4:])
                 if val >= min_steps and val <= max_steps:
                     arg_dict["steps"] = val
-                elif arg[4:] == "max":
-                    arg_dict["steps"] = max_bars
-                elif arg[4:] == "min":
-                    arg_dict["steps"] = min_bars
+                elif arg[4:] == "max" or val > max_steps:
+                    arg_dict["steps"] = max_steps
+                elif arg[4:] == "min" or (val < min_steps and val > 0):
+                    arg_dict["steps"] = min_steps
 
-            elif arg.startswith("scope") and len(arg) > 5:
+            elif arg.startswith("scope") and len(arg) > 5 and "scope" not in arg_dict:
                 val = arg[5:]
                 if val in ["server", "guild"]:
                     arg_dict["scope"] = "server"
@@ -209,7 +214,16 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     if val2 > 9999999999999999:
                         arg_dict["scope"] = str(val2)
 
-            elif arg.startswith(("time", "from")) and len(arg) > 4:
+            elif arg.startswith("user") and len(arg) > 4 and "scope" not in arg_dict:
+                val = arg[4:]
+                if val in ["server", "guild"]:
+                    arg_dict["scope"] = "server"
+                else:
+                    val2 = util.forceinteger(util.alphanum(val))
+                    if val2 > 9999999999999999:
+                        arg_dict["scope"] = str(val2)
+
+            elif arg.startswith(("time", "from")) and len(arg) > 4 and "timecut" not in arg_dict:
                 val = util.forceinteger(arg[4:])
                 if val > 0 and val <= now - 24*60*60:
                     if val > 9999 or val < 1970:
@@ -232,15 +246,25 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
         # parse time argument
 
-        try:
-            for arg in arguments:
-                possible_timecut = self.get_timecut_seconds(now, arg)
-                if possible_timecut >= 0:
-                    arg_dict["timecut"] = possible_timecut
-        except:
-            arg_dict["timecut"] = 0
+        if "timecut" not in arg_dict:
+            try:
+                for arg in arguments:
+                    possible_timecut = self.get_timecut_seconds(now, arg)
+                    if possible_timecut >= 0:
+                        arg_dict["timecut"] = possible_timecut
+            except:
+                arg_dict["timecut"] = default_timecut
 
         # set default step count
+
+        if "scope" not in arg_dict:
+            arg_dict["scope"] = default_scope
+
+        if "top" not in arg_dict:
+            arg_dict["top"] = default_top
+
+        if "timecut" not in arg_dict:
+            arg_dict["timecut"] = default_timecut
 
         if "steps" not in arg_dict:
             if arg_dict["timecut"] > 1000000000:
@@ -263,6 +287,8 @@ class Music_Scrobbling_Visuals(commands.Cog):
         user_id = str(ctx.author.id)
 
         # check arguments
+
+        print(arg_dict)
 
         n = arg_dict["steps"]
         top = arg_dict["top"]
@@ -772,13 +798,18 @@ class Music_Scrobbling_Visuals(commands.Cog):
     def parse_topchart_args(self, ctx, args):
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
-        arg_dict = {
-            "top": 9,
-            "height": 3,
-            "width": 3,    
-            "scope": "user",
-            "source": "api",
-        }
+        # set defaults 
+
+        default_timecut = now - 7*24*60*60
+        default_top = 9
+        default_height = 3
+        default_width = 3
+        default_scope = "user"
+        default_source = "api"
+
+        # initialise args
+
+        arg_dict = {}
 
         arguments = []
         argsjoin = ' '.join(args)
@@ -799,7 +830,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
         max_size = 12
 
         for arg in arguments:
-            if "x" in arg:
+            if ("x" in arg) and ("top" not in arg_dict.keys() or "width" not in arg_dict.keys() or "height" not in arg_dict.keys()):
                 if arg.startswith("size"):
                     arg2 = arg[4:]
                 else:
@@ -824,7 +855,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     arg_dict["width"] = width
                     arg_dict["height"] = height
 
-            elif arg.startswith("top") and len(arg) > 3:
+            elif arg.startswith("top") and len(arg) > 3 and "top" not in arg_dict.keys():
                 val = util.forceinteger(arg[3:])
                 found = False
                 if val >= min_size*min_size and val <= max_size*max_size:
@@ -842,7 +873,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     arg_dict["width"] = square_size
                     arg_dict["height"] = square_size
 
-            elif arg.startswith("scope") and len(arg) > 5:
+            elif arg.startswith("scope") and len(arg) > 5 and "scope" not in arg_dict.keys():
                 val = arg[5:]
                 if val in ["server", "guild"]:
                     arg_dict["scope"] = "server"
@@ -851,7 +882,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     if val2 > 9999999999999999:
                         arg_dict["scope"] = str(val2)
 
-            elif arg.startswith("user") and len(arg) > 4:
+            elif arg.startswith("user") and len(arg) > 4 and "scope" not in arg_dict.keys():
                 val = arg[4:]
                 if val in ["server", "guild"]:
                     arg_dict["scope"] = "server"
@@ -860,7 +891,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     if val2 > 9999999999999999:
                         arg_dict["scope"] = str(val2)
 
-            elif arg.startswith("time") and len(arg) > 4:
+            elif arg.startswith("time") and len(arg) > 4 and "timecut" not in arg_dict.keys():
                 val = util.forceinteger(arg[4:])
                 if val > 0 and val <= now - 24*60*60:
                     arg_dict["timecut"] = val
@@ -870,43 +901,47 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     if possible_timecut >= 0:
                         arg_dict["timecut"] = possible_timecut
 
-            elif arg.startswith("source") and len(arg) > 6:
+            elif arg.startswith("source") and len(arg) > 6 and "source" not in arg_dict.keys():
                 val = arg[6:].lower()
                 if val in ["loc", "local", "db", "database"]:
                     arg_dict["source"] = "local"
                 elif val in ["lastfm", "lfm", "api"]:
                     arg_dict["source"] = "api"
 
-            elif arg.lower() == "local":
+            elif arg.lower() == "local" and "source" not in arg_dict.keys():
                 arg_dict["source"] = "local"
-            elif arg.lower() == "api":
+            elif arg.lower() == "api" and "source" not in arg_dict.keys():
                 arg_dict["source"] = "api"
 
         # parse time argument
+        if "timecut" not in arg_dict.keys():
+            try:
+                for arg in arguments:
+                    possible_timecut = self.get_timecut_seconds(now, arg)
+                    if possible_timecut >= 0:
+                        arg_dict["timecut"] = possible_timecut
+            except:
+                arg_dict["timecut"] = default_timecut
 
-        default_timecut = now - 7*24*60*60
-
-        #if arg_dict["top"] >= 100:
-        #    default_timecut = 0
-        #elif arg_dict["top"] >= 67:
-        #    default_timecut = now - 180*24*60*60
-        #elif arg_dict["top"] >= 50:
-        #    default_timecut = now - 90*24*60*60
-        #elif arg_dict["top"] >= 25:
-        #    default_timecut = now - 30*24*60*60
-        #else:
-        #    default_timecut = now - 7*24*60*60
-
-        try:
-            for arg in arguments:
-                possible_timecut = self.get_timecut_seconds(now, arg)
-                if possible_timecut >= 0:
-                    arg_dict["timecut"] = possible_timecut
-        except:
-            arg_dict["timecut"] = default_timecut
+        # set missing parameters to default values
 
         if "timecut" not in arg_dict.keys():
             arg_dict["timecut"] = default_timecut
+
+        if "top" not in arg_dict.keys():
+            arg_dict["top"] = default_top
+
+        if "height" not in arg_dict.keys():
+            arg_dict["height"] = default_height
+            
+        if "width" not in arg_dict.keys():
+            arg_dict["width"] = default_width
+
+        if "scope" not in arg_dict.keys():
+            arg_dict["scope"] = default_scope
+
+        if "source" not in arg_dict.keys():
+            arg_dict["source"] = default_source
 
         return arg_dict
 
