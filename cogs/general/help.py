@@ -11,10 +11,18 @@ class Help(commands.Cog):
 
 
 
-    async def get_cogs_and_commands_dictionary(self, ctx, lower):
+    async def get_cogs_and_commands_dictionary(self, ctx, lower, only_locks, ignore_locks):
         # first fetch all commands and their cogs, and sort the cogs
         commands_list = []
         for x in self.bot.commands:
+
+            if only_locks:
+                if not str(x.help).startswith("🔒"):
+                    continue
+            elif ignore_locks:
+                if str(x.help).startswith("🔒"):
+                    continue
+
             total_check = True
 
             for check_function in x.checks:
@@ -84,16 +92,34 @@ class Help(commands.Cog):
         """shows command info
         
         Use without arguments to get an overview of all commands.
-        Use with command name or cog name to get info on that command or cog."""
+        Use with command name or cog name to get info on that command or cog.
+
+        Users with extra permissions may use `-help simple` to filter out all mod commands,
+        or even use `-help mod` to only show mod-locked commands."""
         async with ctx.typing():
-            if len(args) == 0:
-                # If there are no arguments, just list the commands:
-                commands_dict = await self.get_cogs_and_commands_dictionary(ctx, False)
+
+            # filter for commands with descriptions starting with a lock emoji
+            if len(args) == 1 and args[0].lower() in ["memberview", "simple", "pleb"]:
+                only_locks = False
+                ignore_locks = True
+            elif len(args) == 1 and args[0].lower() in ["mod", "mods", "moderator", "moderation", "moderators"]: 
+                only_locks = True
+                ignore_locks = False
+            else:
+                only_locks = False
+                ignore_locks = False
+
+            # distinguish
+            if len(args) == 0 or only_locks or ignore_locks:
+
+                # If there are no commandname/cogname arguments, just list the commands:
+                commands_dict = await self.get_cogs_and_commands_dictionary(ctx, False, only_locks, ignore_locks)
                 title = "Commands"
                 description = ""
                 help_part = ""
 
                 for cog in {key:commands_dict[key] for key in sorted(commands_dict.keys())}:
+
                     # under construction 1: exclude commands where help is restricted
                     if cog.lower() == "help":
                         help_part += f"__**{cog}**__\n"
@@ -167,7 +193,7 @@ class Help(commands.Cog):
 
                     else:
                         # if the argument is a cog, get the cog commands
-                        commands_dict = await self.get_cogs_and_commands_dictionary(ctx, True)
+                        commands_dict = await self.get_cogs_and_commands_dictionary(ctx, True, only_locks, ignore_locks)
 
                         if argument.replace("cog", "").replace(" ","") in commands_dict:
                             title = "Command Cog/Category"
