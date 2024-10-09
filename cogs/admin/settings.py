@@ -5094,6 +5094,38 @@ class Administration_of_Settings(commands.Cog):
                 if changes_happened:
                     print("added details column to albuminfo table")
 
+                curSM.execute("DELETE FROM albuminfo WHERE artist = ?", ("",))
+                conSM.commit()
+
+            except Exception as e:
+                print("Error:", e)
+                print(traceback.format_exc())
+
+            # fix scrobblemeta->artistinfo
+
+            try:
+                conSM = sqlite3.connect('databases/scrobblemeta.db')
+                curSM = conSM.cursor()
+                
+                cursorSM = conSM.execute(f'SELECT * FROM artistinfo')
+                column_names = list(map(lambda x: x[0], cursorSM.description))
+                cursorSM.close()
+                column_number = len(column_names)
+                    
+                if column_number <= 9:
+                    conSM.execute(f'ALTER TABLE artistinfo ADD COLUMN location text;')
+                    conSM.execute(f'ALTER TABLE artistinfo ADD COLUMN associated text;')
+                    conSM.execute(f"UPDATE artistinfo SET location = ?", ("",))
+                    conSM.execute(f"UPDATE artistinfo SET associated = ?", ("",))
+                    conSM.commit()
+                    changes_happened = True
+
+                if changes_happened:
+                    print("added location/associated columns to artistinfo table")
+
+                curSM.execute("DELETE FROM artistinfo WHERE artist = ?", ("",))
+                conSM.commit()
+
             except Exception as e:
                 print("Error:", e)
                 print(traceback.format_exc())
@@ -5867,7 +5899,7 @@ class Administration_of_Settings(commands.Cog):
     @commands.command(name="update", aliases = ["botupdate"], pass_context=True)
     @commands.has_permissions(manage_guild=True) # this command needs to be available outside of the main server
     async def _botupdate(self, ctx, *args):
-        """Update bot
+        """🔒 Update bot
 
         Only needed when updating the version of the bot from GitHub.
         i.e. New features will be included in the databases and automatically turned "off". Without this errors might occur because the setting is missing entirely.
@@ -5885,7 +5917,7 @@ class Administration_of_Settings(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     async def _botsetup(self, ctx, *args):
-        """Set up bot
+        """🔒 Set up bot
 
         For first-time setup of the bot,
         but also for re-setting up the bot.
@@ -5904,7 +5936,7 @@ class Administration_of_Settings(commands.Cog):
     @commands.check(util.is_host)
     @commands.check(util.is_active)
     async def _hostsetting(self, ctx, *args):
-        """Settings only for the host of this bot
+        """🔒 Settings only for the host of this bot
 
         arguments needs to be one of the following:
         - `reboot time` with 2nd arg `<hour>:<minute>` (colon, no spaces) or `none`
