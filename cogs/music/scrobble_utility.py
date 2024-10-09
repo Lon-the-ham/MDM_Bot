@@ -486,9 +486,20 @@ class Music_Scrobbling(commands.Cog):
                 conFM.commit()
                 if argument.strip().startswith("--force"):
                     await self.reload_userdbs(lfm_name)
+                    try:
+                        print("scrobble meta update")
+                        scrobble_list_distinct = [("", item[0], item[1]) for item in curFM.execute(f"SELECT DISTINCT artist_name, album_name FROM [{lfm_name}]").fetchall()]
+                        await util.scrobble_metaupdate(scrobble_list_distinct)
+                    except Exception as e:
+                        print(e)
                 else:
                     await self.releasewise_insert(lfm_name, item_dict)
                     await self.trackwise_insert(lfm_name, track_dict)
+                    try:
+                        print("scrobble meta update")
+                        await util.scrobble_metaupdate(scrobble_list)
+                    except Exception as e:
+                        print(e)
                 #await util.changetimeupdate()
             print("done")
 
@@ -752,6 +763,12 @@ class Music_Scrobbling(commands.Cog):
 
             try:
                 i += await self.reload_userdbs(lfm_name)
+                try:
+                    print("scrobble meta update")
+                    scrobble_list = [("", item[0], item[1]) for item in curFM.execute(f"SELECT DISTINCT artist_name, album_name FROM [{lfm_name}]").fetchall()]
+                    await util.scrobble_metaupdate(scrobble_list)
+                except Exception as e:
+                    print(e)
                 print("done")
             except Exception as e:
                 print("Error:", e)
@@ -5287,7 +5304,7 @@ class Music_Scrobbling(commands.Cog):
     async def _setnsfw(self, ctx: commands.Context, *args):
         """🔒 mark an album as NSFW
 
-        Use with argument `<artist> - <album>` to set an album cover as Not Safe For Work. You can leave out all non-alphanumeric characters from the artist and album argument (especially hyphens as they might confuse the parser).
+        Use with argument `<artist> - <album>` to set an album cover as Not Safe For Work. You can leave out special characters from the artist and album argument (especially hyphens as they might confuse the parser).
 
         This will lead to the `<prefix>cover` command spoiler this image, as well as charts from `<prefix>chart` containing this cover.
         """
@@ -5313,11 +5330,17 @@ class Music_Scrobbling(commands.Cog):
         artistinfo_list = [(item[0], item[1], item[2]) for item in curSM.execute("SELECT artist, album, details FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
 
         if len(artistinfo_list) == 0:
-            panda
-
-            curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", ("", artistcompact, "", albumcompact, "", "", 0, "nsfw"))
-            conSM.commit()
-            await ctx.send(f"Album not found in database: Marking it as NSFW in advance. {emoji}")
+            try:
+                thumbnail, tags = await util.fetch_update_lastfm_artistalbuminfo(ctx, artist, album)
+                curSM.execute("UPDATE albuminfo SET details = ? WHERE artist_filtername = ? AND album_filtername = ?", ("nsfw", artistcompact, albumcompact))
+                conSM.commit()
+                await ctx.send(f"Album info downloaded and added to database, marked as NSFW as well. {emoji}")
+            except Exception as e:
+                print("Error:", e)
+                #curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", ("", artistcompact, "", albumcompact, "", "", 0, "nsfw"))
+                #conSM.commit()
+                #await ctx.send(f"Album not found in database: Marking it as NSFW in advance. {emoji}")
+                await ctx.send(f"Album not found...")
 
         else:
             found_artist    = artistinfo_list[-1][0]
@@ -5853,6 +5876,67 @@ class Music_Scrobbling(commands.Cog):
 
     @_import_alias.error
     async def import_alias_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+
+    ###################################################################################
+
+
+
+    @commands.command(name='setimage', aliases = ["fiximage"])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _setimage(self, ctx: commands.Context, *args):
+        """🔒 Set artist or album image
+
+        Use 
+        `<prefix>setimage <artistname>; <url>`
+        or
+        `<prefix>setimage <artistname>; <albumname>; <url>`
+        with semicolons separating the arguments.
+        """
+        arguments = ' '.join(args).split(";")
+
+        if len(arguments) < 2:
+            await ctx.send(f"This command needs 2 arguments to set an artist image, and 3 to set an album image.")
+            return
+
+        await ctx.send(f"Under construction.")
+        #under construction
+
+    @_setimage.error
+    async def setimage_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='removeimage', aliases = ["delimage"])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _removeimage(self, ctx: commands.Context, *args):
+        """🔒 Remove artist or album image
+
+        Use 
+        `<prefix>removeimage <artistname>; <url>`
+        or
+        `<prefix>removeimage <artistname>; <albumname>; <url>`
+        with semicolons separating the arguments.
+        """
+        arguments = ' '.join(args).split(";")
+
+        if len(arguments) < 2:
+            await ctx.send(f"This command needs 2 arguments to set an artist image, and 3 to set an album image.")
+            return
+
+        await ctx.send(f"Under construction.")
+        #under construction
+
+    @_removeimage.error
+    async def removeimage_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
