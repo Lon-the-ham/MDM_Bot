@@ -1007,6 +1007,19 @@ class Utils():
 
 
 
+    def get_main_server_id():
+        try:
+            con = sqlite3.connect(f'databases/botsettings.db')
+            cur = con.cursor()
+            return int([item[0] for item in cur.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id",)).fetchall()][0])
+        except:
+            try:
+                return int(os.getenv("guild_id"))
+            except:
+                return 0
+
+
+
     def get_milestonelist():
         milestone_list = [1]
         for x in [1,2,3,4,5,6,7,8,9]:
@@ -2774,6 +2787,8 @@ class Utils():
                 embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar)
             except Exception as e:
                 print("Utils.embed_pages raised error:", e)
+        elif show_author == False:
+            pass
         elif len(show_author) == 2:
             try:
                 user_id = int(show_author[0])
@@ -3086,7 +3101,7 @@ class Utils():
         except:
             raise ValueError("Could not find `artist - album`.")
 
-        await Utils.update_lastfm_artistalbuminfo(artist, album, thumbnail, tags)
+        await Utils.update_lastfm_artistalbuminfo(artist_name, album_name, thumbnail, tags)
 
         return thumbnail, tags
 
@@ -3649,6 +3664,32 @@ class Utils():
 
 
 
+    @to_thread 
+    def scrobble_metaupdate(scrobble_list):
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+
+        artist_list = [item[0] for item in curSM.execute("SELECT filtername FROM artistinfo").fetchall()]
+        aa_list = [(item[0], item[1]) for item in curSM.execute("SELECT artist_filtername, album_filtername FROM albuminfo").fetchall()]
+
+        for item in scrobble_list:
+            artist_name = item[1]
+            album_name = item[2]
+
+            artist_filtername = Utils.compactnamefilter(artist_name, "artist", "alias")
+            album_filter = Utils.compactnamefilter(album_name, "album")
+
+            if artist_filtername not in artist_list:
+                curSM.execute("INSERT INTO artistinfo VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (artist_name, artist_filtername, "", "", 0, "", "", "", 0, "", ""))
+                artist_list.append(artist_filtername)
+
+            if (artist_filtername, album_filter) not in aa_list:
+                curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (artist_name, artist_filtername, album_name, album_filter, "", "", 0, ""))
+                aa_list.append((artist_filtername, album_filter))
+        conSM.commit()
+
+
+
     async def scrobble_update(lfm_name, allow_from_scratch, bot):
         def to_thread(func: typing.Callable) -> typing.Coroutine:
             """wrapper for blocking functions"""
@@ -3958,6 +3999,10 @@ class Utils():
             conFM.commit()
             await releasewise_insert(lfm_name, item_dict)
             await trackwise_insert(lfm_name, track_dict)
+            try:
+                await Utils.scrobble_metaupdate(scrobble_list)
+            except Exception as e:
+                print("Error:", e)
             await Utils.changetimeupdate()
         except Exception as e:
             print("Error:", e)
@@ -4163,7 +4208,7 @@ class Utils():
             if entry_exists:
                 curSM.execute(f"UPDATE artistinfo SET thumbnail = ?, tags_spotify = ?, spotify_update = ? WHERE filtername = ?", (image, tagstring, now, artist_fltr))
             else:
-                curSM.execute(f"INSERT INTO artistinfo VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (artist, artist_fltr, "", "", 0, spotify_id, image, tagstring, now))
+                curSM.execute(f"INSERT INTO artistinfo VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (artist, artist_fltr, "", "", 0, spotify_id, image, tagstring, now, "", ""))
             conSM.commit()
 
         except Exception as e:
