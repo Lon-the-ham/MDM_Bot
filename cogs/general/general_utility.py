@@ -448,7 +448,7 @@ class General_Utility(commands.Cog):
         e.g. `<prefix>roll 8D20d3` to drop the 3 lowest die rolls
         e.g. `<prefix>roll 8D20k3` to keep the 3 highest die rolls
         e.g. `<prefix>roll 8D20dh3` to drop the 3 highest die rolls
-        e.g. `<prefix>roll 8D20kl3` to keep the 3 highest die rolls
+        e.g. `<prefix>roll 8D20kl3` to keep the 3 lowest die rolls
         You can also use +/- for bonus/malus or string together multiple dice rolls with + as well (or - if you want to subtract the dice roll).
 
         (when no argument is given, the command gives out a random number between 1 and 6)
