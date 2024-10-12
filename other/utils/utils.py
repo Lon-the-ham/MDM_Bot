@@ -3223,6 +3223,34 @@ class Utils():
 
 
 
+    async def get_database_albumimage(artist, album, substitute=""):
+        if substitute == "https://lastfm.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png":
+            substitute = ""
+
+        artist_fltr = Utils.compactnamefilter(artist, "artist", "alias")
+        album_fltr = Utils.compactnamefilter(album, "album")
+
+        try:
+            conSM = sqlite3.connect('databases/scrobblemeta.db')
+            curSM = conSM.cursor()
+            result = curSM.execute("SELECT cover_url, last_update FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artist_fltr, album_fltr))
+            rtuple = result.fetchone()
+
+            if rtuple is None:
+                return substitute, 0
+
+            image = str(rtuple[0])
+            last_update = int(rtuple[1])
+
+        except Exception as e:
+            print("Error:", e)
+            image = substitute
+            last_update = 0
+
+        return image, last_update
+
+
+
     async def get_database_artistimage(artist):
         artist_fltr = Utils.compactnamefilter(artist,"artist","alias")
 
