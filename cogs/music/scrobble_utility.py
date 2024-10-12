@@ -2518,7 +2518,6 @@ class Music_Scrobbling(commands.Cog):
     async def get_albumcover(self, ctx, artist, album, *track):
         conSM = sqlite3.connect('databases/scrobblemeta.db')
         curSM = conSM.cursor()
-        curSM.execute('''CREATE TABLE IF NOT EXISTS albuminfo (artist text, artist_filtername text, album text, album_filtername text, tags text, cover_url text, last_update integer, details text)''')
         albuminfo = [[item[0],item[1],item[2],item[3]] for item in curSM.execute("SELECT artist, album, tags, cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (util.compactnamefilter(artist,"artist","alias"), util.compactnamefilter(album,"album"))).fetchall()]
 
         if len(albuminfo) > 0:
@@ -3599,7 +3598,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _stats(self, ctx: commands.Context, *args):
-        """Shows lastfm stats
+        """🔜 Shows lastfm stats
         """
 
         await ctx.send("Under construction")
@@ -4621,6 +4620,8 @@ class Music_Scrobbling(commands.Cog):
         The score is calculated via the sum of squareroot of plays over all listeners.
         """
 
+        # UNDER CONSTRUCTION
+
         try:
             async with ctx.typing():
                 argument = ' '.join(args)
@@ -4645,6 +4646,8 @@ class Music_Scrobbling(commands.Cog):
         Sorting is per default by `score`, but you can also specify `plays` or `listeners`.
         The score is calculated via the sum of squareroot of plays over all listeners.
         """
+
+        # UNDER CONSTRUCTION
 
         try:
             async with ctx.typing():
@@ -4671,6 +4674,8 @@ class Music_Scrobbling(commands.Cog):
         The score is calculated via the sum of squareroot of plays over all listeners.
         """
 
+        # UNDER CONSTRUCTION
+
         try:
             async with ctx.typing():
                 argument = ' '.join(args)
@@ -4690,6 +4695,9 @@ class Music_Scrobbling(commands.Cog):
     async def _serverartistalbums(self, ctx: commands.Context, *args):
         """Serverwide top albums of an artist
         """
+
+        # UNDER CONSTRUCTION
+
         try:
             async with ctx.typing():
                 argument = ' '.join(args)
@@ -4709,6 +4717,9 @@ class Music_Scrobbling(commands.Cog):
     async def _serverartisttracks(self, ctx: commands.Context, *args):
         """Serverwide top tracks of an artist
         """
+
+        # UNDER CONSTRUCTION
+
         try:
             async with ctx.typing():
                 argument = ' '.join(args)
@@ -4873,7 +4884,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _artistinfo(self, ctx: commands.Context, *args):
-        """
+        """🔜 Information about an artist
         """
 
         await ctx.send("Under construction")
@@ -4888,7 +4899,9 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _fromcountry(self, ctx: commands.Context, *args):
-        """
+        """🔜 Artists from a given place
+
+        Artists from (or associated with) a certain region.
         """
 
         await ctx.send("Under construction")
@@ -4903,7 +4916,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _usergenres(self, ctx: commands.Context, *args):
-        """
+        """🔜 Your most listened genres
         """
 
         await ctx.send("Under construction")
@@ -4918,7 +4931,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _genreartists(self, ctx: commands.Context, *args):
-        """
+        """🔜 Artists of a given genre
         """
 
         await ctx.send("Under construction")
@@ -4933,7 +4946,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _crownpeek(self, ctx: commands.Context, *args):
-        """Show how many crowns you *could* get.
+        """🔜 Show how many crowns you *could* get.
         """
 
         await ctx.send("Under construction")
@@ -5201,7 +5214,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _whoknowsban(self, ctx: commands.Context, *args):
-        """🔒 ban user from being displayed on whoknows lists
+        """🔜 🔒 ban user from being displayed on whoknows lists
 
         """
 
@@ -5222,7 +5235,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _whoknowsunban(self, ctx: commands.Context, *args):
-        """🔒 unban user from being displayed on whoknows lists
+        """🔜 🔒 unban user from being displayed on whoknows lists
 
         """
 
@@ -5241,7 +5254,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _scrobbleban(self, ctx: commands.Context, *args):
-        """🔒 ban user from having their scrobbles saved in local database
+        """🔜 🔒 ban user from having their scrobbles saved in local database
 
         """
 
@@ -5262,7 +5275,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _scrobbleunban(self, ctx: commands.Context, *args):
-        """🔒 unban user from having their scrobbles saved in local database
+        """🔜 🔒 unban user from having their scrobbles saved in local database
 
         """
 
@@ -5281,7 +5294,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _crownseed(self, ctx: commands.Context, *args):
-        """🔒 seeds crowns to server members
+        """🔜 🔒 seeds crowns to server members
         """
 
         await ctx.send(f"Under construction.")
@@ -5305,55 +5318,59 @@ class Music_Scrobbling(commands.Cog):
         """🔒 mark an album as NSFW
 
         Use with argument `<artist> - <album>` to set an album cover as Not Safe For Work. You can leave out special characters from the artist and album argument (especially hyphens as they might confuse the parser).
+        You can provide multiple argument pairs by separating them with a semicolon.
 
         This will lead to the `<prefix>cover` command spoiler this image, as well as charts from `<prefix>chart` containing this cover.
         """
-        argument = ' '.join(args)
-        if "-" not in argument:
-            await ctx.send("Command needs a hyphen-separated artist-album argument.")
-            return
+        argument_list = ' '.join(args).split(";")
 
-        emoji = util.emoji("nsfw")
+        for argument in argument_list:
+            arg_clean = argument.split().replace("`", "'")
+            if "-" not in argument:
+                await ctx.send(f"Error with `{arg_clean}`: Command needs hyphen-separated artist-album arguments.")
+                continue
 
-        if " - " in argument:
-            artist = argument.split(" - ", 1)[0].strip()
-            album = argument.split(" - ", 1)[1].strip()
-        else:
-            artist = argument.split("-", 1)[0].strip()
-            album = argument.split("-", 1)[1].strip()
+            emoji = util.emoji("nsfw")
 
-        artistcompact = util.compactnamefilter(artist, "artist", "alias")
-        albumcompact = util.compactnamefilter(album, "album")
-
-        conSM = sqlite3.connect('databases/scrobblemeta.db')
-        curSM = conSM.cursor()
-        artistinfo_list = [(item[0], item[1], item[2]) for item in curSM.execute("SELECT artist, album, details FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
-
-        if len(artistinfo_list) == 0:
-            try:
-                thumbnail, tags = await util.fetch_update_lastfm_artistalbuminfo(ctx, artist, album)
-                curSM.execute("UPDATE albuminfo SET details = ? WHERE artist_filtername = ? AND album_filtername = ?", ("nsfw", artistcompact, albumcompact))
-                conSM.commit()
-                await ctx.send(f"Album info downloaded and added to database, marked as NSFW as well. {emoji}")
-            except Exception as e:
-                print("Error:", e)
-                #curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", ("", artistcompact, "", albumcompact, "", "", 0, "nsfw"))
-                #conSM.commit()
-                #await ctx.send(f"Album not found in database: Marking it as NSFW in advance. {emoji}")
-                await ctx.send(f"Album not found...")
-
-        else:
-            found_artist    = artistinfo_list[-1][0]
-            found_album     = artistinfo_list[-1][1]
-            found_details   = artistinfo_list[-1][2]
-
-            if found_details == "nsfw":
-                await ctx.send(f"`{found_artist} - {found_album}` album cover already marked as NSFW. {emoji}")
+            if " - " in argument:
+                artist = argument.split(" - ", 1)[0].strip()
+                album = argument.split(" - ", 1)[1].strip()
             else:
-                curSM.execute("UPDATE albuminfo SET details = ? WHERE artist_filtername = ? AND album_filtername = ?", ("nsfw", artistcompact, albumcompact))
-                conSM.commit()
+                artist = argument.split("-", 1)[0].strip()
+                album = argument.split("-", 1)[1].strip()
 
-                await ctx.send(f"Successfully marked the `{found_artist} - {found_album}` album cover as NSFW. {emoji}")
+            artistcompact = util.compactnamefilter(artist, "artist", "alias")
+            albumcompact = util.compactnamefilter(album, "album")
+
+            conSM = sqlite3.connect('databases/scrobblemeta.db')
+            curSM = conSM.cursor()
+            artistinfo_list = [(item[0], item[1], item[2]) for item in curSM.execute("SELECT artist, album, details FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+
+            if len(artistinfo_list) == 0:
+                try:
+                    _, _ = await util.fetch_update_lastfm_artistalbuminfo(ctx, artist, album)
+                    curSM.execute("UPDATE albuminfo SET details = ? WHERE artist_filtername = ? AND album_filtername = ?", ("nsfw", artistcompact, albumcompact))
+                    conSM.commit()
+                    await ctx.send(f"`{arg_clean}`: Album info downloaded and added to database, marked as NSFW as well. {emoji}")
+                except Exception as e:
+                    print("Error:", e)
+                    #curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", ("", artistcompact, "", albumcompact, "", "", 0, "nsfw"))
+                    #conSM.commit()
+                    #await ctx.send(f"Album not found in database: Marking it as NSFW in advance. {emoji}")
+                    await ctx.send(f"Album `{arg_clean}` not found...")
+
+            else:
+                found_artist    = artistinfo_list[-1][0]
+                found_album     = artistinfo_list[-1][1]
+                found_details   = artistinfo_list[-1][2]
+
+                if found_details == "nsfw":
+                    await ctx.send(f"`{found_artist} - {found_album}` album cover already marked as NSFW. {emoji}")
+                else:
+                    curSM.execute("UPDATE albuminfo SET details = ? WHERE artist_filtername = ? AND album_filtername = ?", ("nsfw", artistcompact, albumcompact))
+                    conSM.commit()
+
+                    await ctx.send(f"Successfully marked the `{found_artist} - {found_album}` album cover as NSFW. {emoji}")
 
     @_setnsfw.error
     async def setnsfw_error(self, ctx, error):
@@ -5846,7 +5863,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _export_alias(self, ctx: commands.Context, *args):
-        """🔒 export artist name alias/redirect list
+        """🔜🔒 export artist name alias/redirect list
 
         ....
         """
@@ -5866,7 +5883,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _import_alias(self, ctx: commands.Context, *args):
-        """🔒 import artist name alias/redirect list
+        """🔜🔒 import artist name alias/redirect list
 
         ....
         """
@@ -5885,7 +5902,7 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    @commands.command(name='setimage', aliases = ["fiximage"])
+    @commands.command(name='setimage', aliases = ["addimage"])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
@@ -5900,12 +5917,82 @@ class Music_Scrobbling(commands.Cog):
         """
         arguments = ' '.join(args).split(";")
 
-        if len(arguments) < 2:
-            await ctx.send(f"This command needs 2 arguments to set an artist image, and 3 to set an album image.")
+        try:
+            if len(arguments) == 1:
+                arguments = arguments[0].split("http", 1)
+                arguments[1] = "http" + arguments[1]
+
+            if len(arguments) == 2:
+                arguments = arguments[0].split(" - ", 1) + [arguments[1]]
+        except:
+            await ctx.reply(f"Argument error: This command needs 2 semicolon-separated arguments to set an artist image, and 3 to set an album image.", mention_author=False)
             return
 
-        await ctx.send(f"Under construction.")
-        #under construction
+        if len(arguments) < 2 or len(arguments) > 3:
+            await ctx.reply(f"This command needs 2 semicolon-separated arguments to set an artist image, and 3 to set an album image.", mention_author=False)
+            return
+
+        # PARSE ARTIST AND URL
+        url_input = arguments[-1].strip()
+        artist_input = arguments[0].strip()
+        artist_compact = util.compactnamefilter(artist_input,"artist","alias")
+
+        #if not url_input.startswith(("http://", "https://", "www.")):
+        #    await ctx.reply("URL argument looks not quite valid.", mention_author=False)
+        #if not url_input.endswith((".jpg", ".jpeg", ".png")):
+        #    await ctx.reply("URL needs to link to an image of type JPG, JPEG or PNG.", mention_author=False)
+
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+
+        year9999 = util.year9999()
+
+        # WITH OR WITHOUT ALBUM ARG
+
+        if len(arguments) == 2:
+            # ARTIST - IMAGE
+            artistinfo_list = [item[0] for item in curSM.execute("SELECT thumbnail FROM artistinfo WHERE filtername = ?", (artist_compact,)).fetchall()]
+
+            if len(artistinfo_list) > 0:
+                curSM.execute("UPDATE artistinfo SET thumbnail = ? WHERE filtername = ?", (url_input, artist_compact))
+                conSM.commit()
+                await ctx.reply("Successfully added image.", mention_author=False)
+            else:
+                artist_clean = artist_input.replace("`","'")
+                response = await util.are_you_sure_msg(ctx, self.bot, f"Artist not in database. Add this artist with spelling `{artist_clean}` as full official name to database?")
+                if response == False:
+                    return
+
+                curSM.execute("INSERT INTO artistinfo VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (artist_clean, artist_compact, "", "", 0, "", url_input, "", year9999, "", ""))
+                conSM.commit()
+                await ctx.reply("Successfully added artist and image.", mention_author=False)
+
+        else:
+            # ALBUM - IMAGE
+            album_input = arguments[1]
+            album_compact = util.compactnamefilter(album_input,"album")
+
+            albuminfo_list = [item[0] for item in curSM.execute("SELECT cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artist_compact, album_compact)).fetchall()]
+
+            if len(albuminfo_list) == 0:
+                try:
+                    _, _ = await util.fetch_update_lastfm_artistalbuminfo(ctx, artist_input, album_input)
+                    albuminfo_list = [item[0] for item in curSM.execute("SELECT cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artist_compact, album_compact)).fetchall()]
+                except:
+                    artist_clean = artist_input.replace("`","'")
+                    album_clean = album_input.replace("`","'")
+                    response = await util.are_you_sure_msg(ctx, self.bot, f"Could not verify this artist & album and their spelling via last.fm. Add this artist & album with `{artist_clean}` - `{album_clean}` as full official name?")
+                    if response == False:
+                        return
+
+            if len(albuminfo_list) > 0:
+                curSM.execute("UPDATE albuminfo SET cover_url = ?, last_update = ? WHERE artist_filtername = ? AND album_filtername = ?", (url_input, year9999, artist_compact, album_compact))
+                conSM.commit()
+                await ctx.reply("Successfully added image.", mention_author=False)
+            else:
+                curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (artist_clean, artist_compact, album_clean, album_compact, "", "", year9999, ""))
+                conSM.commit()
+                await ctx.reply("Successfully added artist, album and image.", mention_author=False)
 
     @_setimage.error
     async def setimage_error(self, ctx, error):
@@ -5921,19 +6008,60 @@ class Music_Scrobbling(commands.Cog):
         """🔒 Remove artist or album image
 
         Use 
-        `<prefix>removeimage <artistname>; <url>`
+        `<prefix>removeimage <artistname>`
         or
-        `<prefix>removeimage <artistname>; <albumname>; <url>`
+        `<prefix>removeimage <artistname>; <albumname>`
         with semicolons separating the arguments.
         """
         arguments = ' '.join(args).split(";")
 
-        if len(arguments) < 2:
-            await ctx.send(f"This command needs 2 arguments to set an artist image, and 3 to set an album image.")
+        try:
+            if len(arguments) == 1:
+                arguments = arguments[0].split(" - ", 1)
+        except:
+            await ctx.reply(f"Argument error: This command needs 1 arguments to remove an artist image, and 2 to remove an album image.", mention_author=False)
             return
 
-        await ctx.send(f"Under construction.")
-        #under construction
+        if len(arguments) < 1 or len(arguments) > 2:
+            await ctx.reply(f"This command needs 1 arguments to remove an artist image, and 2 to remove an album image.", mention_author=False)
+            return
+
+        # PARSE ARTIST AND URL
+        url_input = arguments[-1].strip()
+        artist_input = arguments[0].strip()
+        artist_compact = util.compactnamefilter(artist_input,"artist","alias")
+
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+
+        # WITH OR WITHOUT ALBUM ARG
+
+        if len(arguments) == 1:
+            # ARTIST - IMAGE
+            artistinfo_list = [item[0] for item in curSM.execute("SELECT thumbnail FROM artistinfo WHERE filtername = ?", (artist_compact,)).fetchall()]
+
+            if len(artistinfo_list) > 0:
+                curSM.execute("UPDATE artistinfo SET thumbnail = ? WHERE filtername = ?", ("", artist_compact))
+                conSM.commit()
+                await ctx.reply("Successfully removed image.", mention_author=False)
+            else:
+                emoji = util.emoji("think")
+                await ctx.reply(f"Artist `{artist_compact}` was not found in the database. {emoji}", mention_author=False)
+
+        else:
+            # ALBUM - IMAGE
+            album_input = arguments[1]
+            album_compact = util.compactnamefilter(album_input,"album")
+
+            albuminfo_list = [item[0] for item in curSM.execute("SELECT cover_url FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artist_compact, album_compact)).fetchall()]
+
+            if len(albuminfo_list) > 0:
+                curSM.execute("UPDATE albuminfo SET cover_url = ?, last_update = ? WHERE artist_filtername = ? AND album_filtername = ?", ("", 0, artist_compact, album_compact))
+                conSM.commit()
+                await ctx.reply("Successfully removed image.", mention_author=False)
+            else:
+                emoji = util.emoji("think")
+                await ctx.reply(f"Album `{artist_compact}` - `{album_compact}` was not found in the database. {emoji}", mention_author=False)
 
     @_removeimage.error
     async def removeimage_error(self, ctx, error):
