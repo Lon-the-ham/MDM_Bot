@@ -195,6 +195,13 @@ class TimeLoops(commands.Cog):
         except Exception as e:
             await self.timeloop_error(e, "daily_check:inactivity_filter")
 
+        # sync role database
+        try:
+            # under construction
+            pass
+        except:
+            await self.timeloop_error(e, "daily_check:role_syncing")
+
         # clear old data
         try:
             await self.clear_databases()
