@@ -570,7 +570,7 @@ class Administration_of_Bot_Instance(commands.Cog):
 
 
 
-    @commands.command(name='synchronise', aliases = ["synchronize"])
+    @commands.command(name='sync', aliases = ['synchronise', "synchronize"])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     async def _synchronise(self, ctx):
@@ -707,7 +707,7 @@ class Administration_of_Bot_Instance(commands.Cog):
     @commands.check(util.is_host)
     @commands.check(util.is_main_server)
     async def _upgrade(self, ctx):
-        """🔒 Fetches the newest version of the bot from GitHub
+        """ 🔜🔒 Fetches the newest version of the bot from GitHub
 
         You can also manually upgrade the bot by fetching the newest version from https://github.com/Lon-the-ham/MDM_Bot and replacing all files except for the `.env` file and the entirety of the `\\databases\\` folder.
         """
