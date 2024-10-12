@@ -1568,7 +1568,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
             # PARSE ARGUMENTS
 
             print("top command: parse args...")
-            arg_dict = self.parse_topchart_args(ctx, args)
+            arg_dict = await self.parse_topchart_args(ctx, args)
 
             top = arg_dict["top"]
             width = arg_dict["width"]
