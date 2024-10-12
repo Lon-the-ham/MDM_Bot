@@ -283,7 +283,7 @@ class Roles(commands.Cog):
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
     async def _assign(self, ctx, *args):
-        """Assign role
+        """㊙️ Assign role
 
         Use the role name, id or mention. Only roles that appear in `<prefix>roles` are assignable.
         You can also assign multiple roles at once, but they have to be either role ids/mentions OR role names separated by semicolons.
@@ -307,7 +307,7 @@ class Roles(commands.Cog):
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
     async def _unassign(self, ctx, *args):
-        """Unassign role
+        """㊙️ Unassign role
 
         Use the role name, id or mention. Only roles that appear in `<prefix>roles` are unassignable.
         You can also unassign multiple roles at once, but they have to be either role ids/mentions OR role names separated by semicolons.
@@ -1106,7 +1106,7 @@ class Roles(commands.Cog):
 
 
 
-    @commands.command(name='checkrolemoji', aliases = ['rolemojicheck'])
+    @commands.command(name='checkrolemoji', aliases = ['rolemojicheck', 'checkroleemoji', 'roleemojicheck'])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
