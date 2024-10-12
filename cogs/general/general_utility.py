@@ -42,7 +42,11 @@ except:
 
 try:
     from openai import OpenAI
-    gpt_enabled = True
+    openai_key = os.getenv(openai_secret_key)
+    if openai_secret_key is None:
+        gpt_enabled = False
+    else:
+        gpt_enabled = True
 except:
     print("Not importing OpenAI library")
     gpt_enabled = False
@@ -51,16 +55,28 @@ except:
 
 class GU_Check():
     def is_langdetect_enabled(*ctx):
-        return langdetect_enabled
+        if langdetect_enabled:
+            return True
+        else:
+            raise commands.CheckFailure("This functionality is turned off.")
 
     def is_googletrans_enabled(*ctx):
-        return googletrans_enabled
+        if googletrans_enabled:
+            return True
+        else:
+            raise commands.CheckFailure("This functionality is turned off.")
 
     def is_reddit_enabled(*ctx):
-        return reddit_enabled
+        if reddit_enabled:
+            return True
+        else:
+            raise commands.CheckFailure("This functionality is turned off.")
 
     def is_gpt_enabled(*ctx):
-        return gpt_enabled
+        if gpt_enabled:
+            return True
+        else:
+            raise commands.CheckFailure("This functionality is turned off.")
 
 
 class General_Utility(commands.Cog):
@@ -1055,12 +1071,13 @@ class General_Utility(commands.Cog):
     #@commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate(self, ctx, *args):
-        """translate
+        """Translate
 
-        Translates a word or sentence, first argument must be the destination language code.
+        Translates a word or sentence, first argument must be the destination language code. 
+        Use `<prefix>trx` to also get information about the detected language of your query and the translators confidence.
 
         If GoogleTranslate is enabled, you can use `-languages` to see which languages are supported.
-        If not the command will use LibreTranslate instead.
+        If not the command will use LibreTranslate instead. You can also access the LibreTranslate translations if GoogleTranslate is enabled by using `<prefix>ltr` or `<prefix>ltrx`.
         """
         if len(args) < 2:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
@@ -1069,7 +1086,7 @@ class General_Utility(commands.Cog):
         extra_info = False
 
         try:
-            if GU_Check.is_googletrans_enabled():
+            if googletrans_enabled:
                 await self.google_translate(ctx, args, extra_info)
             else:
                 raise ValueError("GoogleTranslate not imported")
@@ -1086,7 +1103,7 @@ class General_Utility(commands.Cog):
     #@commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate_x(self, ctx, *args):
-        """translate (with detection info)
+        """㊙️ Translate (with detection info)
 
         Translates a word or sentence, first argument must be the destination language code.
         
@@ -1099,7 +1116,7 @@ class General_Utility(commands.Cog):
         extra_info = True
         
         try:
-            if GU_Check.is_googletrans_enabled():
+            if googletrans_enabled:
                 await self.google_translate(ctx, args, extra_info)
             else:
                 raise ValueError("GoogleTranslate not imported")
@@ -1116,7 +1133,9 @@ class General_Utility(commands.Cog):
     @commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _libretranslate(self, ctx, *args):
-        """Translates using LibreTranslate
+        """ ㊙️ Translates using LibreTranslate
+
+        Use `<prefix>ltrx` to also get information about the detected language of your query and the translators confidence.
         """
         if len(args) < 2:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
@@ -1136,7 +1155,7 @@ class General_Utility(commands.Cog):
     @commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _libretranslatex(self, ctx, *args):
-        """Translates using LibreTranslate (with detection info)
+        """㊙️ Translates using LibreTranslate (with detection info)
         """
         if len(args) < 2:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
@@ -1153,24 +1172,14 @@ class General_Utility(commands.Cog):
 
 
     async def show_language_list(self, ctx, args):
-        short = True
-        for arg in args:
-            if arg.lower() in ["detail", "details", "detailed"]:
-                short = False
-
         languagedict = self.get_languagedict("all")
         languagesList = languagedict.values()
         filteredList = sorted(list(dict.fromkeys(languagesList)))
 
-        if short:
-            languagestring = ', '.join(filteredList)
-            await ctx.send(f'`Supported languages:` {languagestring}')
-            return
-
         language_names_dict = self.get_languagedict("name")
         language_reverse_dict = {v: k for k, v in language_names_dict.items()}
 
-        response_text = "**Supported languages:** "
+        response_text = ""
 
         for lang in filteredList:
             if lang in language_reverse_dict:
@@ -1181,7 +1190,9 @@ class General_Utility(commands.Cog):
         if response_text.endswith(", "):
             response_text = response_text[:-2]
 
-        await ctx.send(response_text[:2000])
+        embed = discord.Embed(title="**Supported translation languages**", description=response_text[:4000], color=0x000000)
+        embed.set_footer(text=f"use with command {self.prefix}tr or {self.prefix}trx")
+        await ctx.send(embed=embed)
 
 
     
@@ -1189,9 +1200,7 @@ class General_Utility(commands.Cog):
     @commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate_languages(self, ctx, *args):
-        """list of supported translation languages
-
-        Use with arg `detailed` to get language names alongside language abbreviations."""
+        """list of supported translation languages"""
         await self.show_language_list(ctx, args)
     @_translate_languages.error
     async def translate_languages_error(self, ctx, error):
@@ -2373,6 +2382,7 @@ class General_Utility(commands.Cog):
         await util.changetimeupdate()
         embed=discord.Embed(title="", description=text_removed[:4096], color=0x000000)
         await ctx.send(embed=embed)
+
     @_reminders_remove.error
     async def reminders_remove_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -2472,7 +2482,7 @@ class General_Utility(commands.Cog):
     @commands.check(util.is_active)
     @commands.check(util.is_main_server)
     async def _schedule(self, ctx, *args):
-        """🔒 Schedule a message
+        """🔜🔒 Schedule a message
         """
         await ctx.send("Under construction.")
 
@@ -2654,7 +2664,7 @@ class General_Utility(commands.Cog):
     @commands.group(name="calendar", aliases = ["kalender", "showcalendar"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _calendar(self, ctx):
-        """Calendar functionality 
+        """🔜Calendar functionality 
 
         Has subcommands:
         ```
@@ -2759,7 +2769,7 @@ class General_Utility(commands.Cog):
     @commands.group(name="quote", aliases = ["q"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _quote(self, ctx, *args):
-        """Show quote
+        """🔜Show quote
         """
         await ctx.send("⚠️ under construction")
     @_quote.error
@@ -3235,7 +3245,7 @@ class General_Utility(commands.Cog):
 
 
 
-    @commands.group(name="tz", aliases = ["time","timezone"], pass_context=True, invoke_without_command=True)
+    @commands.group(name="timezone", aliases = ["time","tz"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _timezone_by_location(self, ctx, *args):
         """Show time of given location
@@ -3983,7 +3993,7 @@ class General_Utility(commands.Cog):
         """
         
         def url_lang_detect(title):
-            if GU_Check.is_langdetect_enabled():
+            if langdetect_enabled:
                 try:
                     lang = detect(str(title))
                     if lang == 'ja':
