@@ -23,6 +23,9 @@ class Help(commands.Cog):
                 if str(x.help).startswith("🔒"):
                     continue
 
+            if str(x.help).startswith(("㊙️", "🔜")): # hidden and future commands
+                continue
+
             total_check = True
 
             for check_function in x.checks:
