@@ -22,7 +22,8 @@ except:
 try:
     from PIL import Image, ImageDraw, ImageFont
     from io import BytesIO
-    from urllib.request import urlopen
+    import urllib.request
+    #from urllib.request import urlopen
     image_charts_enabled = True
 except:
     image_charts_enabled = False
@@ -48,10 +49,18 @@ class ScrobbleVisualsCheck():
                 return False
 
     def is_barchartrace_enabled(*ctx):
-        return image_charts_enabled
+        if image_charts_enabled:
+            return True
+        else:
+            raise commands.CheckFailure("This functionality is turned off.")
 
     def is_imagechart_enabled(*ctx):
-        return barchartrace_enabled
+        if barchartrace_enabled:
+            return True
+        else:
+            raise commands.CheckFailure("This functionality is turned off.")
+
+
 
     ### CHECK BLOCK UNBLOCK
 
@@ -136,6 +145,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
         # set default values
 
         default_timecut = 0
+        default_timeend = now + 1
         default_top = 10
         default_scope = "user"
 
@@ -231,6 +241,8 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     else:
                         try:
                             arg_dict["timecut"] = int((datetime.datetime(val, 1, 1) - datetime.datetime(1970, 1, 1)).total_seconds())
+                            arg_dict["timeend"] = int((datetime.datetime(val+1, 1, 1) - datetime.datetime(1970, 1, 1)).total_seconds())
+                            arg_dict["timedisplay"] = str(val)
                         except Exception as e:
                             print("Error:", e)
                 else:
@@ -241,7 +253,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     else:
                         timeseconds, timetext, rest = await util.timeparse(arg[4:])
                         timesec_int = util.forceinteger(timeseconds)
-                        if timesec_int > 24*60*60:
+                        if timesec_int >= 24*60*60:
                             arg_dict["timecut"] = max(now - timesec_int, 0)
 
         # parse time argument
@@ -266,9 +278,15 @@ class Music_Scrobbling_Visuals(commands.Cog):
         if "timecut" not in arg_dict:
             arg_dict["timecut"] = default_timecut
 
+        if "timeend" not in arg_dict:
+            arg_dict["timeend"] = default_timeend
+
+        if "timedisplay" not in arg_dict:
+            arg_dict["timedisplay"] = ""
+
         if "steps" not in arg_dict:
             if arg_dict["timecut"] > 1000000000:
-                months_covered = round((now - arg_dict["timecut"]) / (60*60*24*30))
+                months_covered = round((arg_dict["timeend"] - arg_dict["timecut"]) / (60*60*24*28))
                 arg_dict["steps"] = min(max(months_covered, min_steps), max_steps)
             else:
                 arg_dict["steps"] = 60
@@ -293,6 +311,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
         n = arg_dict["steps"]
         top = arg_dict["top"]
         timecut = arg_dict["timecut"]
+        timeend = arg_dict["timeend"]
         scope = arg_dict["scope"]
 
         # decide whether to fetch userdata or serverdata
@@ -323,7 +342,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                 if scrobble_restriction.startswith(("scrobble_banned", "wk_banned", "crown_banned")) or scrobble_restriction.endswith("inactive"):
                     continue
 
-                scrobbles += [[item[0], item[1]] for item in curFM.execute(f"SELECT artist_name, date_uts FROM [{lfm_name}] WHERE date_uts > ?", (timecut,)).fetchall()]
+                scrobbles += [[item[0], item[1]] for item in curFM.execute(f"SELECT artist_name, date_uts FROM [{lfm_name}] WHERE date_uts > ? AND date_uts < ?", (timecut, timeend)).fetchall()]
 
             #scrobbles.sort(key=lambda x: x[1])
 
@@ -351,7 +370,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
             # fetch scrobble info
 
-            scrobbles = [[item[0], item[1]] for item in curFM.execute(f"SELECT artist_name, date_uts FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts ASC", (timecut,)).fetchall()]
+            scrobbles = [[item[0], item[1]] for item in curFM.execute(f"SELECT artist_name, date_uts FROM [{lfm_name}] WHERE date_uts > ? AND date_uts < ? ORDER BY date_uts ASC", (timecut, timeend)).fetchall()]
             
 
         artist_name_dict = {}
@@ -382,7 +401,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
         # set datapoints
 
-        point_span = (now - smallest_utc) / n
+        point_span = (timeend - smallest_utc) / n
         timestamp_points = []
 
         for i in range(n):
@@ -467,6 +486,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
         n = arg_dict["steps"]
         top = arg_dict["top"]
         timecut = arg_dict["timecut"]
+        timeend = arg_dict["timeend"]
 
         bcr.bar_chart_race( df=df, 
                             filename=f'temp/{user_id}_{now}.mp4', 
@@ -525,11 +545,16 @@ class Music_Scrobbling_Visuals(commands.Cog):
             n = arg_dict["steps"]
             top = arg_dict["top"]
             timecut = arg_dict["timecut"]
+            timeend = arg_dict["timeend"]
+            timedisplay = arg_dict["timedisplay"]
             scope = arg_dict["scope"]
-            if timecut <= 1000000000:
-                timestring = "`all time`"
+            if timedisplay == "":
+                if timecut <= 1000000000:
+                    timestring = "`all time`"
+                else:
+                    timestring = f"<t:{timecut}:R>"
             else:
-                timestring = f"<t:{timecut}:R>"
+                timestring = f"`{timedisplay}`"
 
             title = "bar chart race"
             text0 = f"Settings:\nbars = `{top}`, steps = `{n}`, from = {timestring}"
@@ -700,6 +725,20 @@ class Music_Scrobbling_Visuals(commands.Cog):
         except:
             font = ImageFont.truetype("arial.ttf", font_size)
 
+        try:
+            version = Utils.get_version().replace("version","v").replace(" ","").strip()
+        except:
+            version = "v_X"
+        try:
+            APP_NAME = "_" + os.getenv("lfm_app_name")
+        except:
+            APP_NAME = ""
+        try:
+            REGISTERED_TO = "_by:" + os.getenv("lfm_registered_to")
+        except:
+            REGISTERED_TO = ""
+        USER_AGENT = f'MDM_Bot_{version}{APP_NAME}{REGISTERED_TO}_function:NowPlaying'
+
         x = 0
         y = 0
         for img_key in image_dict.keys():
@@ -710,19 +749,32 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     if img_loc.startswith("temp/"):
                         img_cell = Image.open(open(f"temp/{img_key}.jpg", 'rb'))
                     elif img_loc.startswith("http"):
-                        with BytesIO(urlopen(img_loc).read()) as file:
+                        hdr = { 'User-Agent' : USER_AGENT }
+                        req = urllib.request.Request(img_loc, headers=hdr)
+                        with BytesIO(urllib.request.urlopen(req).read()) as file:
                             img_cell = Image.open(file)
                             img_cell = img_cell.convert("RGB")
                     else:
                         raise ValueError("Invalid image")
                 except Exception as e:
+                    if image_dict[img_key] != "":
+                        print(f"Error with {image_dict[img_key]}:", e)
                     img_cell = Image.open(open(f"other/resources/lastfm_default.jpg", 'rb'))
 
                 #resize opened image, so it is no bigger than img_size^2
                 img_cell.thumbnail((img_size, img_size))
+                w, h = img_cell.size 
+                if (max(w,h) < img_size):
+                    if w > h:
+                        img_cell = img_cell.resize((img_size, int(img_size * (h/w))))
+                    else:
+                        img_cell = img_cell.resize((int(img_size * (w/h)), img_size))
+                w, h = img_cell.size 
 
+                x0 = int((img_size - w) / 2)
+                y0 = int((img_size - h) / 2)
                 img = Image.new('RGB', (img_size, img_size))
-                img.paste(img_cell, (0,0))
+                img.paste(img_cell, (x0,y0))
 
                 #pre-caption (to get text size etc)
                 line_number = 1
@@ -795,12 +847,13 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
 
-    def parse_topchart_args(self, ctx, args):
+    async def parse_topchart_args(self, ctx, args):
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
         # set defaults 
 
         default_timecut = now - 7*24*60*60
+        default_timeend = now + 1
         default_top = 9
         default_height = 3
         default_width = 3
@@ -894,12 +947,25 @@ class Music_Scrobbling_Visuals(commands.Cog):
             elif arg.startswith("time") and len(arg) > 4 and "timecut" not in arg_dict.keys():
                 val = util.forceinteger(arg[4:])
                 if val > 0 and val <= now - 24*60*60:
-                    arg_dict["timecut"] = val
+                    if val > 9999 or val < 1970:
+                        arg_dict["timecut"] = val
+                    else:
+                        try:
+                            arg_dict["timecut"] = int((datetime.datetime(val, 1, 1) - datetime.datetime(1970, 1, 1)).total_seconds())
+                            arg_dict["timeend"] = int((datetime.datetime(val+1, 1, 1) - datetime.datetime(1970, 1, 1)).total_seconds())
+                            arg_dict["timedisplay"] = str(val)
+                        except Exception as e:
+                            print("Error:", e)
                 else:
                     val2 = arg[4:]
                     possible_timecut = self.get_timecut_seconds(now, val2)
                     if possible_timecut >= 0:
                         arg_dict["timecut"] = possible_timecut
+                    else:
+                        timeseconds, timetext, rest = await util.timeparse(arg[4:])
+                        timesec_int = util.forceinteger(timeseconds)
+                        if timesec_int >= 24*60*60:
+                            arg_dict["timecut"] = max(now - timesec_int, 0)
 
             elif arg.startswith("source") and len(arg) > 6 and "source" not in arg_dict.keys():
                 val = arg[6:].lower()
@@ -927,6 +993,12 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
         if "timecut" not in arg_dict.keys():
             arg_dict["timecut"] = default_timecut
+
+        if "timeend" not in arg_dict.keys():
+            arg_dict["timeend"] = default_timeend
+
+        if "timedisplay" not in arg_dict:
+            arg_dict["timedisplay"] = ""
 
         if "top" not in arg_dict.keys():
             arg_dict["top"] = default_top
@@ -961,7 +1033,10 @@ class Music_Scrobbling_Visuals(commands.Cog):
             return url, details
 
         # otherwise get info from lastfm and save data in albuminfo
-        url, tags = await util.fetch_update_lastfm_artistalbuminfo(ctx, artist_name, album_name)
+        try:
+            url, tags = await util.fetch_update_lastfm_artistalbuminfo(ctx, artist_name, album_name)
+        except:
+            url = ""
         details = ""
 
         return url, details
@@ -975,6 +1050,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
         width = arg_dict["width"]
         height = arg_dict["height"]
         timecut = arg_dict["timecut"]
+        timeend = arg_dict["timeend"]
         scope = arg_dict["scope"]
         charttype = arg_dict["charttype"]
 
@@ -1029,7 +1105,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                             aa_first_found_in[aa_tuple] = lfm_name
 
                 else:
-                    scrobble_list += [[item[0], item[1]] for item in curFM.execute(f"SELECT artist_name, album_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts DESC", (timecut,)).fetchall()]
+                    scrobble_list += [[item[0], item[1]] for item in curFM.execute(f"SELECT artist_name, album_name FROM [{lfm_name}] WHERE date_uts > ? AND date_uts < ? ORDER BY date_uts DESC", (timecut, timeend)).fetchall()]
 
                     for item in scrobble_list:
                         artist = item[0]
@@ -1074,7 +1150,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     aa_scrobble_dict[aa_tuple] = aa_scrobble_dict.get(aa_tuple, 0) + count
 
             else:
-                scrobble_list += [[item[0], item[1]] for item in curFM.execute(f"SELECT artist_name, album_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts DESC", (timecut,)).fetchall()]
+                scrobble_list += [[item[0], item[1]] for item in curFM.execute(f"SELECT artist_name, album_name FROM [{lfm_name}] WHERE date_uts > ? AND date_uts < ? ORDER BY date_uts DESC", (timecut, timeend)).fetchall()]
 
                 for item in scrobble_list:
                     artist = item[0]
@@ -1114,6 +1190,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
         width = arg_dict["width"]
         height = arg_dict["height"]
         timecut = arg_dict["timecut"]
+        timeend = arg_dict["timeend"]
         scope = arg_dict["scope"]
         charttype = arg_dict["charttype"]
 
@@ -1188,9 +1265,9 @@ class Music_Scrobbling_Visuals(commands.Cog):
                 else:
                     image_dict[i], details = await self.get_album_cover_url(ctx, artist_name, album_name)
                     if charttype == "artists":
-                        caption_dict[i] = f"{artist_name}"
+                        caption_dict[i] = util.compactaddendumfilter(artist_name, "artist")
                     else:
-                        caption_dict[i] = f"{artist_name}\n{album_name}"
+                        caption_dict[i] = util.compactaddendumfilter(artist_name, "artist") + "\n" + util.compactaddendumfilter(album_name, "album")
 
                 if str(details).lower().strip() == "nsfw":
                     is_nsfw = True
@@ -1202,7 +1279,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                 i += 1
                 if charttype == "artists":
                     artistcompact = item[0]
-                    artist_name = artist_dict[artistcompact]
+                    artist_name = util.compactaddendumfilter(artist_dict[artistcompact], "artist")
                     caption_dict[i] = artist_name
 
                     album_count_list = []
@@ -1218,8 +1295,8 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     artistcompact = item[0][0]
                     albumcompact = item[0][1]
                     aa_full = artist_album_dict[(artistcompact, albumcompact)]
-                    artist_name = aa_full[0]
-                    album_name = aa_full[1]
+                    artist_name = util.compactaddendumfilter(aa_full[0], "artist")
+                    album_name = util.compactaddendumfilter(aa_full[1], "album")
                     caption_dict[i] = f"{artist_name}\n{album_name}"
 
                 image_dict[i], details = await self.get_album_cover_url(ctx, artist_name, album_name)
@@ -1231,14 +1308,14 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
     async def parse_chart_list_from_api(self, response, charttype, lfm_name, top, check_list):
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
         caption_image_list = []
         rjson = response.json()
         i = len(check_list)
 
         if charttype == "artists":
             topartists = rjson['topartists']['artist']
-
-            now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
             for entry in topartists:
                 artist = entry['name']
@@ -1266,6 +1343,11 @@ class Music_Scrobbling_Visuals(commands.Cog):
                 album = entry['name']
                 image = entry['image'][-1]['#text']
 
+                image2, last_update = await util.get_database_albumimage(artist, album, image)
+
+                if last_update > now:
+                    image = image2
+
                 if (artist, album) in check_list:
                     pass
                 else:
@@ -1288,6 +1370,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
         width = arg_dict["width"]
         height = arg_dict["height"]
         timecut = arg_dict["timecut"]
+        timeend = arg_dict["timeend"]
         scope = arg_dict["scope"]
         charttype = arg_dict["charttype"]
         is_nsfw = False
@@ -1400,22 +1483,27 @@ class Music_Scrobbling_Visuals(commands.Cog):
             # PARSE ARGUMENTS
 
             print("chart command: parse args...")
-            arg_dict = self.parse_topchart_args(ctx, args)
+            arg_dict = await self.parse_topchart_args(ctx, args)
 
             top = arg_dict["top"]
             width = arg_dict["width"]
             height = arg_dict["height"]
             timecut = arg_dict["timecut"]
+            timeend = arg_dict["timeend"]
+            timedisplay = arg_dict["timedisplay"]
             scope = arg_dict["scope"]
             source = arg_dict["source"]
 
             charttype = "albums"
             arg_dict["charttype"] = charttype
 
-            if timecut <= 1000000000:
-                timestring = "`all time`"
+            if timedisplay == "":
+                if timecut <= 1000000000:
+                    timestring = "`all time`"
+                else:
+                    timestring = f"<t:{timecut}:R>"
             else:
-                timestring = f"<t:{timecut}:R>"
+                timestring = f"`{timedisplay}`"
 
             # GET DATA
 
@@ -1486,6 +1574,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
             width = arg_dict["width"]
             height = arg_dict["height"]
             timecut = arg_dict["timecut"]
+            timeend = arg_dict["timeend"]
             scope = arg_dict["scope"]
             source = arg_dict["source"]
 
