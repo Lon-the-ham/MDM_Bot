@@ -1868,10 +1868,14 @@ class Music_NowPlaying(commands.Cog):
 
     ########################################################### COMMANDS ###########################################################
 
+
+
     @commands.command(name='spotify', aliases = ['spoofy', 'sp'])
     @commands.check(util.is_active)
     async def _spotify_plain(self, ctx: commands.Context, *args):
         """NowPlaying for Spotify
+
+        Use spx to also get (customisable) tags and info to the track you're playing.
         """
         tags = True
         custom = False
@@ -1885,7 +1889,7 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='spx', aliases = ['spoofyx', 'spotifyx'])
     @commands.check(util.is_active)
     async def _spotify_extra(self, ctx: commands.Context, *args):
-        """NowPlaying for Spotify with customisable tags
+        """㊙️ NowPlaying for Spotify with customisable tags
         """
         tags = True
         custom = True
@@ -1899,7 +1903,9 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='musicbee', aliases = ['bee', 'mb'])
     @commands.check(util.is_active)
     async def _musicbee(self, ctx: commands.Context, *args):
-        """NowPlaying for MusicBee"""
+        """NowPlaying for MusicBee
+
+        Use mbx to also get (customisable) tags and info to the track you're playing."""
         tags = True
         custom = False
         await self.musicbee(ctx, args, tags, custom)
@@ -1912,7 +1918,7 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='mx', aliases = ['musicbeex','beex', 'mbx', 'bx'])
     @commands.check(util.is_active)
     async def _musicbee_extra(self, ctx: commands.Context, *args):
-        """NowPlaying for MusicBee with customisable tags"""
+        """㊙️ NowPlaying for MusicBee with customisable tags"""
         tags = True
         custom = True
         await self.musicbee(ctx, args, tags, custom)
@@ -1925,7 +1931,9 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='applemusic', aliases = ['apple', 'am', 'itunes'])
     @commands.check(util.is_active)
     async def _applemusic(self, ctx: commands.Context, *args):
-        """NowPlaying for Apple Music"""
+        """NowPlaying for Apple Music
+
+        Use apx to also get (customisable) tags and info to the track you're playing."""
         tags = True
         custom = False
         await self.applemusic(ctx, args, tags, custom)
@@ -1938,7 +1946,7 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='apx', aliases = ['applemusicx', 'applex', 'amx', 'itunesx'])
     @commands.check(util.is_active)
     async def _applemusic_extra(self, ctx: commands.Context, *args):
-        """NowPlaying for Apple Music with customisable tags"""
+        """㊙️ NowPlaying for Apple Music with customisable tags"""
         tags = True
         custom = True
         await self.applemusic(ctx, args, tags, custom)
@@ -1948,10 +1956,12 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    @commands.command(name='lastfm', aliases = ['fm', 'lfm'])
+    @commands.command(name='fm', aliases = ['lastfm', 'lfm'])
     @commands.check(util.is_active)
     async def _lastfm(self, ctx: commands.Context, *args):
-        """NowPlaying for LastFM"""
+        """NowPlaying for LastFM
+
+        Use fmx to also get (customisable) tags and info to the track you're playing."""
         tags = True
         custom = False
         await self.lastfm(ctx, args, "api", tags, custom)
@@ -1961,10 +1971,10 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    @commands.command(name='lfmx', aliases = ['fmx', 'lastfmx'])
+    @commands.command(name='fmx', aliases = ['lfmx', 'lastfmx'])
     @commands.check(util.is_active)
     async def _lastfm_extra(self, ctx: commands.Context, *args):
-        """NowPlaying for LastFM with customisable tags"""
+        """㊙️ NowPlaying for LastFM with customisable tags"""
         tags = True
         custom = True
         await self.lastfm(ctx, args, "api", tags, custom)
@@ -2001,7 +2011,9 @@ class Music_NowPlaying(commands.Cog):
     async def _nowplaying(self, ctx: commands.Context, *args):
         """NowPlaying
 
-        going through all integrated music sreaming services: Spotify, MusicBee, AppleMusic, LastFM"""
+        Going through all integrated music sreaming services (Spotify, MusicBee, AppleMusic, LastFM) until it finds a track you are listening to and displays it.
+        Use `<prefix>npx` to also display customisable tags (beyond the standard info), or use `<prefix>n` to display without *any* tags.
+        """
         tags = True
         custom = False
         await self.nowplaying(ctx, args, tags, custom)
@@ -2014,9 +2026,10 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='npx', aliases = ['nowplayingx'])
     @commands.check(util.is_active)
     async def _nowplaying_extra(self, ctx: commands.Context, *args):
-        """NowPlaying with customisable tags
+        """㊙️ NowPlaying with customisable tags
 
-        going through all integrated music sreaming services: Spotify, MusicBee, AppleMusic, LastFM"""
+        Going through all integrated music sreaming services (Spotify, MusicBee, AppleMusic, LastFM) until it finds a track you are listening to and displays it.
+        Use `<prefix>np` to only display standard tags, or use `<prefix>n` to display without *any* tags."""
         tags = True
         custom = True
         await self.nowplaying(ctx, args, tags, custom)
@@ -2026,12 +2039,13 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    @commands.command(name='np0', aliases = ['nowplaying0'])
+    @commands.command(name='n', aliases = ['np0', 'nowplaying0'])
     @commands.check(util.is_active)
     async def _nowplayingzero(self, ctx: commands.Context, *args):
-        """NowPlaying without any tags
+        """㊙️ NowPlaying without any tags
 
-        going through all integrated music sreaming services: Spotify, MusicBee, AppleMusic, LastFM"""
+        Going through all integrated music sreaming services (Spotify, MusicBee, AppleMusic, LastFM) until it finds a track you are listening to and displays it.
+        Use `<prefix>npx` to also display customisable tags, or use `<prefix>np` to only display standard tags."""
         tags = False
         custom = False
         await self.nowplaying(ctx, args, tags, custom)
@@ -3305,7 +3319,7 @@ class Music_NowPlaying(commands.Cog):
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
     async def _removefm(self, ctx: commands.Context, *args):
-        """🔒 removes someone's fm account
+        """🔜🔒 removes someone's fm account
 
         e.g. when someone loses access to their discord account and rejoins with a new one remove the lastfm account from the first discord account.
         """
