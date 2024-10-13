@@ -2433,37 +2433,11 @@ class Administration_of_Settings(commands.Cog):
 
 
 
-    @_set.command(name="assignability", aliases = ["roleassignability"], pass_context=True)
-    @commands.check(util.is_active)
-    @commands.has_permissions(manage_guild=True)
-    @commands.check(util.is_main_server)
-    async def _set_assignability(self, ctx, *args):
-        """Set assignability of roles
+    ### ROLE ASSIGNABILITY
 
-        Use command with role id/mention OR with role category.
 
-        ...
-        On setup per default roles without extra permissions (except special functionality roles) are assingnable while everything else isn't.
-        After setup every new role created with `<prefix>createrole` will be assignable, while every role created otherwise will be set unassignable per default.
-        (This is just the default setting and you can always change assignability with this command provided that the command does not have any extra permissions (beyond viewing certain channels).)
-        """
 
-        if len(args) < 2:
-            await ctx.send("Error: Command needs 1st arg role id/mention or role category name, and 2nd argument `true` or `false`.")
-            return
-
-        assignability = util.cleantext(args[-1].lower()).replace("'","")
-        role_arg = ' '.join(args[:-1])
-
-        # CHECK VALIDITY OF BOOLEAN ARGUMENT
-
-        if assignability in ["true", "t", "yes", "y", "on"]:
-            assignability = "true"
-        elif assignability in ["false", "f", "no", "n", "off"]:
-            assignability = "false"
-        else:
-            await ctx.send(f"Invalid boolean argument: {assignability}. Needs to be `true` or `false`.")
-
+    async def edit_assignability(self, ctx, role_arg, assignability):
         # PARSE ROLE/CATEGORY ARGUMENT
 
         if role_arg.startswith("<@&") and role_arg.endswith(">"):
@@ -2485,20 +2459,20 @@ class Administration_of_Settings(commands.Cog):
         else:
             role_id = "none"
 
-        # update role database
-
-        await util.update_role_database(ctx)
+        if role_id == str(ctx.guild.id):
+            #ignoring @everyone role
+            return
 
         # CHECK VALIDITY OF ROLE/CATEGORY ARGUMENT
 
         con = sqlite3.connect('databases/roles.db')
         cur = con.cursor()
-        all_role_ids = [item[0] for item in cur.execute("SELECT id FROM roles").fetchall()]
+        role_id_matches = [item[0] for item in cur.execute("SELECT id FROM roles WHERE id = ?", (str(role_id),)).fetchall()]
 
         role_found = False
         cat_found = False
 
-        if role_id in all_role_ids:
+        if len(role_id_matches) > 0:
             role_found = True
 
         if not role_found:
@@ -2551,12 +2525,145 @@ class Administration_of_Settings(commands.Cog):
             await ctx.send(embed=embed)
             return
 
-        await ctx.send("Error: Could not find such a role or category of roles.")
+        await ctx.send(f"Error with `{role_arg}`: Could not find such a role or category of roles.")
+
+
+
+    @_set.group(name="assignability", aliases = ["roleassignability"], pass_context=True, invoke_without_command=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_assignability(self, ctx, *args):
+        """Set assignability of roles
+
+        Use command with role id/mention OR with role category, i.e.
+        `<prefix>set assignability <@role> false`
+        or
+        `<prefix>set assignability <category name> true`
+
+        On setup per default roles without extra permissions (except special functionality roles) are assingnable while everything else isn't.
+        After `<prefix>setup` every new role created with `<prefix>createrole` will be assignable, while every role created otherwise will be set unassignable per default.
+        (This is just the default setting and you can always change assignability with this command provided that the role does not have any extra permissions (beyond viewing certain channels).)
+        """
+        if len(args) < 2:
+            await ctx.send("Error: Command needs 1st arg role id/mention or role category name, and 2nd argument `true` or `false`.")
+            return
+
+        assignability = util.cleantext(args[-1].lower()).replace("'","")
+        role_arg = ' '.join(args[:-1])
+
+        # CHECK VALIDITY OF BOOLEAN ARGUMENT
+
+        if assignability in ["true", "t", "yes", "y", "on"]:
+            assignability = "true"
+        elif assignability in ["false", "f", "no", "n", "off"]:
+            assignability = "false"
+        else:
+            await ctx.send(f"Invalid boolean argument: {assignability}. Needs to be `true` or `false`.")
+            return
+
+        # SET
+        await util.update_role_database(ctx)
+
+        await self.edit_assignability(ctx, role_arg, assignability)
 
     @_set_assignability.error
     async def set_assignability_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
+
+
+    @_set_assignability.command(name="allbelow", aliases = ["under"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_assignability_allbelow(self, ctx, *args):
+        """Set role assignability below certain role
+        
+        Give role and assignability argument (true/false) and all roles below and including that role in the role hierarchy will have their assignability set.
+        e.g.
+        `<prefix>set assignability allbelow @role true`
+        """
+        if len(args) < 2:
+            await ctx.send("Error: Command needs 1st arg role id/mention or role category name, and 2nd argument `true` or `false`.")
+            return
+
+        assignability = util.cleantext(args[-1].lower()).replace("'","")
+        role_arg = ' '.join(args[:-1])
+
+        # PARSE ROLE/CATEGORY ID ARGUMENT
+        if role_arg.startswith("<@&") and role_arg.endswith(">"):
+            role_id_str = role_arg.replace("<@&","").replace(">","")
+            try:
+                role_id_int = int(role_id_str)
+                role_id = str(role_id_int)
+            except:
+                await ctx.send("Error: Role mention seems to be incorrect.")
+                return
+
+        elif util.represents_integer(role_arg) and len(role_arg) > 7:
+            try:
+                role_id_int = int(role_arg)
+                role_id = str(role_id_int)
+            except:
+                await ctx.send("Error: Role id seems to be incorrect.")
+                return
+        else:
+            role_id = "none"
+
+        # GO THROUGH ROLES
+
+        await util.update_role_database(ctx)
+
+        try:
+            target_role = ctx.guild.get_role(int(role_id))
+        except:
+            try:
+                for role in ctx.guild.roles:
+                    if role.id == int(role_id):
+                        target_role = role
+                        break
+                else:
+                    raise ValueError("role not found")
+            except:
+                await ctx.send("Cannot fing this role.")
+                return
+
+        for role in ctx.guild.roles:
+            if role.position <= target_role.position and role.id != ctx.guild.id:
+                await self.edit_assignability(ctx, str(role.id), assignability)
+
+    @_set_assignability_allbelow.error
+    async def set_assignability_allbelow_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_set_assignability.command(name="allon", aliases = ["alltrue"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_assignability_allon(self, ctx, *args):
+        """🔜"""
+        pass
+
+    @_set_assignability_allon.error
+    async def set_assignability_allon_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_set_assignability.command(name="alloff", aliases = ["allfalse"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_assignability_alloff(self, ctx, *args):
+        """🔜"""
+        pass
+
+    @_set_assignability_alloff.error
+    async def set_assignability_alloff_error(self, ctx, error):
+        await util.error_handling(ctx, error)
 
 
 
