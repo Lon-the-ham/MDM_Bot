@@ -6098,6 +6098,33 @@ class Music_Scrobbling(commands.Cog):
     #async def scrobblefilter_error(self, ctx, error):
     #    await util.error_handling(ctx, error)
 
+    @commands.command(name='imageimport', aliases = ["importimages"])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _imageimport(self, ctx: commands.Context, *args):
+        """🔜🔒 Import images from TXT or CSV
+
+        The images need to be in a TAB-delimited TXT file or a semicolon-separated CSV file, where the first column is the artist, the second column the album (leave empty if the image is for the artist themselves) and the third column contains an URL to the artist or album image.
+        """
+
+    @_imageimport.error
+    async def imageimport_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+    @commands.command(name='imageexport', aliases = ["exportimages"])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _imageexport(self, ctx: commands.Context, *args):
+        """🔜🔒 Export images in TXT or CSV
+        The images need to be in a TAB-delimited TXT file or a semicolon-separated CSV file, where the first column is the artist, the second column the album (leave empty if the image is for the artist themselves) and the third column contains an URL to the artist or album image.
+        """
+
+    @_imageexport.error
+    async def imageexport_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
 
 
 async def setup(bot: commands.bot) -> None:
