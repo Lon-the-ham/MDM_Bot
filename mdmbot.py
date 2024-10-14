@@ -27,11 +27,11 @@ activity = "loading..."
 class YataBot(commands.Bot):
     def __init__(self):
         super().__init__(
-            application_id = app_id,
-            case_insensitive=True,
-            command_prefix = prefix,
-            help_command = None,
-            intents = discord.Intents.all()
+            application_id   = app_id,
+            case_insensitive = True,
+            command_prefix   = prefix,
+            help_command     = None,
+            intents          = discord.Intents.all()
             )
 
         self.initial_extensions = [
