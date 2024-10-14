@@ -327,10 +327,12 @@ class Music_NowPlaying(commands.Cog):
                     _, _, cover_url, details, _, last_updated = await util.get_album_details_from_compact(artist_compact, album_compact)
                     try:
                         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                        if last_updated is None:
+                            raise ValueError("no image in database as well")
                         if last_updated > now - 180*24*60*60:
                             embed.set_thumbnail(url=cover_url)
                         else:
-                            raise ValueError("image too old")
+                            raise ValueError(f"no image in database for {artist_compact}-{album_compact} as well")
                     except Exception as e:
                         embed.set_thumbnail(url=default_whitestar_image)
             except Exception as e:
@@ -459,6 +461,8 @@ class Music_NowPlaying(commands.Cog):
                 _, _, cover_url, details, _, last_updated = await util.get_album_details_from_compact(artist_compact, album_compact)
                 try:
                     now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                    if last_updated is None:
+                        raise ValueError(f"no image in database for {artist_compact}-{album_compact} as well")
                     if last_updated > now - 180*24*60*60:
                         embed.set_thumbnail(url=cover_url)
                     else:
@@ -2245,7 +2249,7 @@ class Music_NowPlaying(commands.Cog):
                 embed.set_author(name=f"{member.display_name}'s fakenowplaying" , icon_url=member.avatar)
                 try:
                     default_whitestar_image = "https://lastfm.freetls.fastly.net/i/u/68s/2a96cbd8b46e442fc41c2b86b821562f.png"
-                    if albumart != "" and not albumart.endswith("2a96cbd8b46e442fc41c2b86b821562f.png"):
+                    if albumart != "" and albumart != "https://i.imgur.com/0Djj7I6.jpeg" and not albumart.endswith("2a96cbd8b46e442fc41c2b86b821562f.png"):
                         embed.set_thumbnail(url=albumart)
                     else:
                         # try to fetch from database
@@ -2254,12 +2258,15 @@ class Music_NowPlaying(commands.Cog):
                         _, _, cover_url, details, _, last_updated = await util.get_album_details_from_compact(artist_compact, album_compact)
                         try:
                             now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                            if last_updated is None:
+                                raise ValueError(f"no image in database for {artist_compact}-{album_compact} as well")
                             if last_updated > now - 180*24*60*60:
                                 embed.set_thumbnail(url=cover_url)
                             else:
-                                raise ValueError("image too old")
+                                raise ValueError("database image too old")
                         except Exception as e:
-                            embed.set_thumbnail(url=default_whitestar_image)
+                            print(e)
+                            embed.set_thumbnail(url="https://i.imgur.com/0Djj7I6.jpeg")
                 except Exception as e:
                     print(e)
                 if tags == True or tags == "custom":
