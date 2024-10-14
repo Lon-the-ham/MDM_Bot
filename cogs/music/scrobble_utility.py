@@ -5940,7 +5940,7 @@ class Music_Scrobbling(commands.Cog):
         if not url_input.startswith(("http://", "https://", "www.")):
             await ctx.reply("URL argument looks not quite valid.", mention_author=False)
         if not (url_input.split("?")[0]).endswith((".jpg", ".jpeg", ".png", ".webp", ".webm", ".gif")):
-            await ctx.reply("URL needs to link to an image of type JPG, JPEG or PNG.", mention_author=False)
+            await ctx.reply("URL needs to link to an image of type JPG, JPEG, GIF or PNG.", mention_author=False)
 
         conSM = sqlite3.connect('databases/scrobblemeta.db')
         curSM = conSM.cursor()
