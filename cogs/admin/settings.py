@@ -2573,21 +2573,7 @@ class Administration_of_Settings(commands.Cog):
 
 
 
-    @_set_assignability.command(name="allbelow", aliases = ["under"], pass_context=True)
-    @commands.check(util.is_active)
-    @commands.has_permissions(manage_guild=True)
-    @commands.check(util.is_main_server)
-    async def _set_assignability_allbelow(self, ctx, *args):
-        """Set role assignability below certain role
-        
-        Give role and assignability argument (true/false) and all roles below and including that role in the role hierarchy will have their assignability set.
-        e.g.
-        `<prefix>set assignability allbelow @role true`
-        """
-        if len(args) < 2:
-            await ctx.send("Error: Command needs 1st arg role id/mention or role category name, and 2nd argument `true` or `false`.")
-            return
-
+    async def set_assignability_of_all_below_to(self, ctx, args):
         assignability = util.cleantext(args[-1].lower()).replace("'","")
         role_arg = ' '.join(args[:-1])
 
@@ -2629,23 +2615,101 @@ class Administration_of_Settings(commands.Cog):
                 await ctx.send("Cannot fing this role.")
                 return
 
+        async with ctx.typing():
+            for role in ctx.guild.roles:
+                if role.position <= target_role.position and role.id != ctx.guild.id:
+                    await self.edit_assignability(ctx, str(role.id), assignability)
+
+
+
+    async def set_assignability_of_all_true(self, ctx):
+        try:
+            reference_role = await util.get_reference_role(ctx)
+            baseline_perms = [perm[0] for perm in reference_role.permissions if perm[1]]
+
+            # GET PERMS OF EVERYONE ROLE AND ADD THOSE
+            everyone_perm_list = await util.get_everyone_perms(ctx)
+            for perm in everyone_perm_list:
+                if perm not in baseline_perms:
+                    baseline_perms.append(perm)
+
+            # GET SPECIAL ROLES IDS
+            conB = sqlite3.connect(f'databases/botsettings.db')
+            curB = conB.cursor()
+            special_roles = [util.forceinteger(item[0]) for item in curB.execute("SELECT role_id FROM specialroles").fetchall()]  
+        except Exception as e:
+            print(e)
+            await ctx.send("Error with the settings: Cannot fetch the baseline role for permissions. :(")
+            return
+
+        header = "Set assignability to true?"
+        text = f"Are you sure you want to set the assignability of ALL roles with the same (or less) permissions than <@&{reference_role.id}> to `True`?\n\n(Special roles such as the bot display role, timeout role, verified role, auto/community role or inactivity role you might have set are exempt.)"
+        color = 0x000000
+        response = await util.are_you_sure_embed(ctx, self.bot, header, text, color)
+
+        if response == False:
+            return
+
+        # get roles safe to assign
+        roles_without_extra_perms = []
+
         for role in ctx.guild.roles:
-            if role.position <= target_role.position and role.id != ctx.guild.id:
-                await self.edit_assignability(ctx, str(role.id), assignability)
+            if role.id in special_roles:
+                continue
 
-    @_set_assignability_allbelow.error
-    async def set_assignability_allbelow_error(self, ctx, error):
-        await util.error_handling(ctx, error)
+            has_only_lower_permissions = True
+            for perm in role.permissions:
+                if perm[1] and perm[0] not in baseline_perms:
+                    has_only_lower_permissions = False
+                    break
+
+            if has_only_lower_permissions:
+                roles_without_extra_perms.append(role)
+
+        # set to assignable
+        async with ctx.typing():
+            for role in roles_without_extra_perms:
+                await self.edit_assignability(ctx, str(role.id), "True")
 
 
 
-    @_set_assignability.command(name="allon", aliases = ["alltrue"], pass_context=True)
+    async def set_assignability_of_all_false(self, ctx):
+        header = "Set assignability to false?"
+        text = f"Are you sure you want to set the assignability of ALL roles to `False`?"
+        color = 0x000000
+        response = await util.are_you_sure_embed(ctx, self.bot, header, text, color)
+
+        if response == False:
+            return
+
+        async with ctx.typing():
+            for role in ctx.guild.roles:
+                await self.edit_assignability(ctx, str(role.id), "False")
+
+
+
+    @_set_assignability.command(name="allon", aliases = ["alltrue", "all"], pass_context=True)
     @commands.check(util.is_active)
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     async def _set_assignability_allon(self, ctx, *args):
-        """🔜"""
-        pass
+        """🔜 Sets all roles (with no extra perms) to assignable
+
+        Extra perms are those that go beyond the permissions the @everyone roles has.
+        In case you have the accesswall enabled the 'baseline'-role for permissions will be the verified role.
+        In case you have the autorole enabled instead the 'baseline'-role for permissions will be the community role.
+        
+        (Special roles such as the bot display role, timeout role, verified role, auto/community role or inactivity role you might have set are exempt.)
+        """
+        if len(args) > 0 and args[0].lower() in ["off", "false"]:
+            await self.set_assignability_of_all_false(ctx)
+
+        elif len(args) > 0 and args[0].lower() in ["below", "under"]:
+            args2 = args[1:]
+            await self.set_assignability_of_all_below_to(ctx, args2)
+
+        else:
+            await self.set_assignability_of_all_true(ctx)
 
     @_set_assignability_allon.error
     async def set_assignability_allon_error(self, ctx, error):
@@ -2658,11 +2722,34 @@ class Administration_of_Settings(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     async def _set_assignability_alloff(self, ctx, *args):
-        """🔜"""
-        pass
+        """🔜 Sets all roles to NOT assignable"""
+        await self.set_assignability_of_all_false(ctx)
 
     @_set_assignability_alloff.error
     async def set_assignability_alloff_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_set_assignability.command(name="allbelow", aliases = ["under"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_assignability_allbelow(self, ctx, *args):
+        """Set role assignability below certain role
+        
+        Give role and assignability argument (true/false) and all roles below and including that role in the role hierarchy will have their assignability set.
+        e.g.
+        `<prefix>set assignability allbelow @role true`
+        """
+        if len(args) < 2:
+            await ctx.send("Error: Command needs 1st arg role id/mention or role category name, and 2nd argument `true` or `false`.")
+            return
+
+        await self.set_assignability_of_all_below_to(ctx, args)
+
+    @_set_assignability_allbelow.error
+    async def set_assignability_allbelow_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
@@ -3445,7 +3532,7 @@ class Administration_of_Settings(commands.Cog):
         con = sqlite3.connect(f'databases/botsettings.db')
         cur = con.cursor()
 
-        genretagreminder_list = [item[0] for item in curB.execute("SELECT etc FROM serversettings WHERE name = ?", ("genre tag reminder",)).fetchall()]
+        genretagreminder_list = [item[0] for item in cur.execute("SELECT etc FROM serversettings WHERE name = ?", ("genre tag reminder",)).fetchall()]
         if len(genretagreminder_list) == 0:
             cur.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("genre tag reminder", "off", "", ""))
             con.commit()
