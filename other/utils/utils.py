@@ -949,15 +949,15 @@ class Utils():
     def get_album_details_from_compact(artistcompact, albumcompact):
         conSM = sqlite3.connect('databases/scrobblemeta.db')
         curSM = conSM.cursor()
-        artistinfo_list = [[item[0], item[1], item[2], item[3], item[4], item[5]] for item in curSM.execute("SELECT artist, album, cover_url, details, tags, last_update FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+        albuminfo_list = [[item[0], item[1], item[2], item[3], item[4], item[5]] for item in curSM.execute("SELECT artist, album, cover_url, details, tags, last_update FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
 
-        if len(artistinfo_list) > 0:
-            artist = artistinfo_list[-1][0]
-            album = artistinfo_list[-1][1]
-            url = artistinfo_list[-1][2]
-            details = str(artistinfo_list[-1][3])
-            tagstring = artistinfo_list[-1][4]
-            last_updated = artistinfo_list[-1][5]
+        if len(albuminfo_list) > 0:
+            artist = albuminfo_list[-1][0]
+            album = albuminfo_list[-1][1]
+            url = albuminfo_list[-1][2]
+            details = str(albuminfo_list[-1][3])
+            tagstring = albuminfo_list[-1][4]
+            last_updated = albuminfo_list[-1][5]
         else:
             artist = None
             album = None
