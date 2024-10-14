@@ -3174,6 +3174,7 @@ class Utils():
 
 
     async def get_reference_role(ctx):
+        """baseline role for permissions: either @everyone, autorole or verified role"""
         con = sqlite3.connect(f'databases/botsettings.db')
         cur = con.cursor()
 
@@ -3216,8 +3217,12 @@ class Utils():
                 reference_role = discord.utils.get(ctx.guild.roles, id = everyone_role_id)
             except Exception as e:
                 print("Error:", e)
-                raise ValueError(f'Error: Could not find reference role. Application needs renewed setup.')
-                return
+                try:
+                    everyone_role_id = int(os.getenv(guild_id))
+                    reference_role = discord.utils.get(ctx.guild.roles, id = everyone_role_id)
+                except:
+                    raise ValueError(f'Error: Could not find reference role. Application needs renewed setup.')
+                    return
 
         return reference_role
 
