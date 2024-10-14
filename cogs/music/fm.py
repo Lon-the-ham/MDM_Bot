@@ -317,7 +317,22 @@ class Music_NowPlaying(commands.Cog):
             embed = discord.Embed(description=description, color = color)
             embed.set_author(name=f"{lfm_name}'s {recency} on LastFM" , icon_url=member.avatar)
             try:
-                embed.set_thumbnail(url=album_cover)
+                default_whitestar_image = "https://lastfm.freetls.fastly.net/i/u/68s/2a96cbd8b46e442fc41c2b86b821562f.png"
+                if album_cover != "" and not album_cover.endswith("2a96cbd8b46e442fc41c2b86b821562f.png"):
+                    embed.set_thumbnail(url=album_cover)
+                else:
+                    # try to fetch from database
+                    artist_compact = util.compactnamefilter(artist, "artist", "alias")
+                    album_compact = util.compactnamefilter(album, "album")
+                    _, _, cover_url, details, _, last_updated = await util.get_album_details_from_compact(artist_compact, album_compact)
+                    try:
+                        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                        if last_updated > now - 180*24*60*60:
+                            embed.set_thumbnail(url=cover_url)
+                        else:
+                            raise ValueError("image too old")
+                    except Exception as e:
+                        embed.set_thumbnail(url=default_whitestar_image)
             except Exception as e:
                 print(e)
 
@@ -431,13 +446,25 @@ class Music_NowPlaying(commands.Cog):
         embed = discord.Embed(description=description, color = color)
         embed.set_author(name=f"{lfm_name}'s {recency} on LastFM" , icon_url=member.avatar)
         try:
-            if album_cover2.strip() != "":
+            default_whitestar_image = "https://lastfm.freetls.fastly.net/i/u/68s/2a96cbd8b46e442fc41c2b86b821562f.png"
+            if album_cover2 != "" and not album_cover2.endswith("2a96cbd8b46e442fc41c2b86b821562f.png"):
                 try:
                     embed.set_thumbnail(url=album_cover2.strip())
                 except:
                     embed.set_thumbnail(url=album_cover.strip())
             else:
-                embed.set_thumbnail(url=album_cover.strip())
+                # try to fetch from database
+                artist_compact = util.compactnamefilter(artist, "artist", "alias")
+                album_compact = util.compactnamefilter(album, "album")
+                _, _, cover_url, details, _, last_updated = await util.get_album_details_from_compact(artist_compact, album_compact)
+                try:
+                    now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                    if last_updated > now - 180*24*60*60:
+                        embed.set_thumbnail(url=cover_url)
+                    else:
+                        raise ValueError("image too old")
+                except Exception as e:
+                    embed.set_thumbnail(url=default_whitestar_image)
         except Exception as e:
             print(e)
             try:
@@ -2217,7 +2244,22 @@ class Music_NowPlaying(commands.Cog):
                 embed = discord.Embed(description=description, color = member.color)
                 embed.set_author(name=f"{member.display_name}'s fakenowplaying" , icon_url=member.avatar)
                 try:
-                    embed.set_thumbnail(url=albumart)
+                    default_whitestar_image = "https://lastfm.freetls.fastly.net/i/u/68s/2a96cbd8b46e442fc41c2b86b821562f.png"
+                    if albumart != "" and not albumart.endswith("2a96cbd8b46e442fc41c2b86b821562f.png"):
+                        embed.set_thumbnail(url=albumart)
+                    else:
+                        # try to fetch from database
+                        artist_compact = util.compactnamefilter(artist, "artist", "alias")
+                        album_compact = util.compactnamefilter(album, "album")
+                        _, _, cover_url, details, _, last_updated = await util.get_album_details_from_compact(artist_compact, album_compact)
+                        try:
+                            now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                            if last_updated > now - 180*24*60*60:
+                                embed.set_thumbnail(url=cover_url)
+                            else:
+                                raise ValueError("image too old")
+                        except Exception as e:
+                            embed.set_thumbnail(url=default_whitestar_image)
                 except Exception as e:
                     print(e)
                 if tags == True or tags == "custom":
@@ -3339,7 +3381,7 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='tagsettings', aliases = ['settags', 'tags', "tagset", "tag"])
     @commands.check(util.is_active)
     async def _nptags(self, ctx: commands.Context, *args):
-        """Configure np tags"""
+        """🔜 Configure np tags"""
 
         # under construction
 
