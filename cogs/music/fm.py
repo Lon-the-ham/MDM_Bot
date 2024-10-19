@@ -2247,9 +2247,14 @@ class Music_NowPlaying(commands.Cog):
                     description = f"[{track}]({song_link})\nby **{util.cleantext2(artist)}** | {album}"
                 embed = discord.Embed(description=description, color = member.color)
                 embed.set_author(name=f"{member.display_name}'s fakenowplaying" , icon_url=member.avatar)
+
+                # THUMBNAIL
                 try:
+                    default_fnp_image = "https://i.imgur.com/0Djj7I6.jpeg"
                     default_whitestar_image = "https://lastfm.freetls.fastly.net/i/u/68s/2a96cbd8b46e442fc41c2b86b821562f.png"
-                    if albumart != "" and albumart != "https://i.imgur.com/0Djj7I6.jpeg" and not albumart.endswith("2a96cbd8b46e442fc41c2b86b821562f.png"):
+                    default_star_suffix = "2a96cbd8b46e442fc41c2b86b821562f.png"
+
+                    if albumart != "" and albumart != default_fnp_image and not albumart.endswith(default_star_suffix):
                         embed.set_thumbnail(url=albumart)
                     else:
                         # try to fetch from database
@@ -2260,18 +2265,21 @@ class Music_NowPlaying(commands.Cog):
                             now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
                             if last_updated is None:
                                 raise ValueError(f"no image in database for {artist_compact}-{album_compact} as well")
-                            if last_updated > now - 180*24*60*60:
+                            if last_updated > now - 180*24*60*60 and cover_url != "" and not cover_url.endswith(default_star_suffix):
                                 embed.set_thumbnail(url=cover_url)
                             else:
                                 raise ValueError("database image too old")
                         except Exception as e:
                             print(e)
-                            embed.set_thumbnail(url="https://i.imgur.com/0Djj7I6.jpeg")
+                            embed.set_thumbnail(url=default_fnp_image)
                 except Exception as e:
                     print(e)
+
+                # FOOTER
                 if tags == True or tags == "custom":
                     embed.set_footer(text=tag_string[:2048].strip())
 
+                # SEND
                 message = await ctx.send(embed=embed)
             except Exception as e:
                 print("Error:", e)
@@ -3368,12 +3376,45 @@ class Music_NowPlaying(commands.Cog):
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
     async def _removefm(self, ctx: commands.Context, *args):
-        """🔜🔒 removes someone's fm account
+        """🔒 removes someone's fm account
 
         e.g. when someone loses access to their discord account and rejoins with a new one remove the lastfm account from the first discord account.
+        Use command with @mention or user ID.
         """
+        conNP = sqlite3.connect('databases/npsettings.db')
+        curNP = conNP.cursor()
 
-        await ctx.send("under construction")
+        user_id = ''.join(args).replace("<@", "").replace(">","")
+
+        if not util.represents_integer(user_id):
+            await ctx.send("User ID seems to be invalid.. :(")
+            return
+
+        lastfm_name, status = util.get_lfmname(user_id)
+
+        if lastfm_name is None:
+            await ctx.send(f"No lastfm username of user `@{user_id}` found.. :(")
+            return
+
+        async with ctx.typing():
+            conFM = sqlite3.connect('databases/scrobbledata.db')
+            curFM = conFM.cursor()
+            conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+            curFM2 = conFM2.cursor()
+            conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+            curFM3 = conFM3.cursor()
+
+            curFM.execute(f"DROP TABLE IF EXISTS [{lastfm_name}]")
+            conFM.commit()
+            curFM2.execute(f"DROP TABLE IF EXISTS [{lastfm_name}]")
+            conFM2.commit()
+            curFM3.execute(f"DROP TABLE IF EXISTS [{lastfm_name}]")
+            conFM3.commit()
+
+            curNP.execute("DELETE FROM lastfm WHERE id = ?", (user_id,))
+            conNP.commit()
+
+        await ctx.reply(f"Removed scrobble data from {lastfm_name}.", mention_author=False)
 
     @_removefm.error
     async def removefm_error(self, ctx, error):
