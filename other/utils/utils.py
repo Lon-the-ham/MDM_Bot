@@ -4042,7 +4042,7 @@ class Utils():
             print("Error:", e)
 
             if str(e).startswith("Unable to fetch scrobble data from:"):
-                text = f"Could not fetch last.fm information from user `{lfm_name}`.\nCheck on https://www.last.fm/user/{lfm_name} whether the page still exists. If not and this error persists it is recommended to either scrobble-ban them or purge their data from the np-settings database.\n\n(At the moment these features are not properly implemented and probably require dev support.)"
+                text = f"Could not fetch last.fm information from user `{lfm_name}`.\nCheck on https://www.last.fm/user/{lfm_name} whether the page still exists. If not and this error persists it is recommended to either scrobble-ban them or purge their data from the np-settings database via `{self.prefix}removefm`.\n\n"
             else:
                 text = f"There was a problem while handling data of user `{lfm_name}`.\n\n`Error message:` {e}"
 
