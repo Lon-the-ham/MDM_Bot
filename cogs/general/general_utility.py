@@ -43,7 +43,7 @@ except:
 try:
     from openai import OpenAI
     openai_key = os.getenv(openai_secret_key)
-    if openai_secret_key is None:
+    if openai_key is None:
         gpt_enabled = False
     else:
         gpt_enabled = True
