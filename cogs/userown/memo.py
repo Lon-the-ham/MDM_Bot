@@ -1497,7 +1497,7 @@ class Memo(commands.Cog):
 
         # IN CASE OF A CSV FILE
         if fileformat == "csv":
-            with open(f"temp/memo_import_{user_id}.csv", 'w', newline='') as csvfile:
+            with open(f"temp/memo_export_{user_id}.csv", 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
 
                 if header:
@@ -1546,12 +1546,12 @@ class Memo(commands.Cog):
 
             emoji = util.emoji("excited")
             textmessage = f"Here is your memo/backlog export as `;`-delimited `.csv`-file! {emoji}"
-            await ctx.send(textmessage, file=discord.File(rf"temp/memo_import_{user_id}.csv"))
-            os.remove(f"{sys.path[0]}/temp/memo_import_{user_id}.csv")
+            await ctx.send(textmessage, file=discord.File(rf"temp/memo_export_{user_id}.csv"))
+            os.remove(f"{sys.path[0]}/temp/memo_export_{user_id}.csv")
 
         # IN CASE OF A TXT FILE
         elif fileformat == "txt":
-            with open(f"temp/memo_import_{user_id}.txt", 'w') as f:
+            with open(f"temp/memo_export_{user_id}.txt", 'w') as f:
 
                 if header:
                     if naive:
@@ -1597,8 +1597,8 @@ class Memo(commands.Cog):
 
             emoji = util.emoji("excited")
             textmessage = f"Here is your memo/backlog export as `tab`-delimited `.txt`-file! {emoji}"
-            await ctx.send(textmessage, file=discord.File(rf"temp/memo_import_{user_id}.txt"))
-            os.remove(f"{sys.path[0]}/temp/memo_import_{user_id}.txt")
+            await ctx.send(textmessage, file=discord.File(rf"temp/memo_export_{user_id}.txt"))
+            os.remove(f"{sys.path[0]}/temp/memo_export_{user_id}.txt")
 
         else:
             await ctx.send("Error: Unknown file format.")
