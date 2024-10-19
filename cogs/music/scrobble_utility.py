@@ -12,6 +12,8 @@ import random
 import math
 import functools
 import typing
+import csv
+import sys
 import traceback
 
 
@@ -765,6 +767,8 @@ class Music_Scrobbling(commands.Cog):
                 i += await self.reload_userdbs(lfm_name)
                 try:
                     print("scrobble meta update")
+                    onFM = sqlite3.connect('databases/scrobbledata.db')
+                    curFM = conFM.cursor()
                     scrobble_list = [("", item[0], item[1]) for item in curFM.execute(f"SELECT DISTINCT artist_name, album_name FROM [{lfm_name}]").fetchall()]
                     await util.scrobble_metaupdate(scrobble_list)
                 except Exception as e:
@@ -3034,7 +3038,8 @@ class Music_Scrobbling(commands.Cog):
             if send_message:
                 loadingbar = util.get_loadingbar(self.loadingbar_width, 100)
                 if count == 0:
-                    new_embed = discord.Embed(title="", description=f"No new scrobbles to add to database.\n\n{loadingbar} 100%", color=0x00A36C)
+                    emoji = util.emoji("powerful")
+                    new_embed = discord.Embed(title="", description=f"The database is up to date. {emoji}\n(No new scrobbles to add to database.)\n\n{loadingbar} 100%", color=0x00A36C)
                 else:
                     emoji = util.emoji("yay")
                     if count == 1:
@@ -3077,7 +3082,7 @@ class Music_Scrobbling(commands.Cog):
         status = lfm_list[0][2]
 
         if type(status) == str and status.startswith("scrobble_banned"):
-            await ctx.reply(f"You are unfortunately scrobble banned.")
+            await ctx.reply(f"You are unfortunately scrobble banned. welp.")
             return
 
         # check if update is currently running 
@@ -3457,15 +3462,20 @@ class Music_Scrobbling(commands.Cog):
             index_number = "last_ms"
         elif args[0].lower() == "last":
             index_number = "last"
-        elif args[0].lower() in ["rand", "rando", "random"]:
+        elif args[0].lower() in ["r", "rand", "rando", "random"]:
             index_number = "random"
         else:
-            index_number = args[0]
-            if util.represents_integer:
-                index_int = int(index_number)
-                if index_int < 1:
-                    index_int = 1
-            else:
+            try:
+                index_number = args[0]
+                if util.represents_integer:
+                    index_int = int(index_number)
+                    if index_int < 1:
+                        index_int = 1
+                else:
+                    index_number = "last_ms"
+            except:
+                cry_emoji = util.emoji("cry")
+                await ctx.send(f"(did not understand command argument {cry_emoji})")
                 index_number = "last_ms"
 
         # FETCH LASTFM NAME
@@ -5467,15 +5477,27 @@ class Music_Scrobbling(commands.Cog):
         util.block_scrobbleupdate("mod action")
 
         # PARSE ARGUMENTS
-
-        conSM = sqlite3.connect('databases/scrobblemeta.db')
-        curSM = conSM.cursor()
-
         argument_string = ' '.join(args)
         argument_pairs = argument_string.split(";")
 
         while "" in argument_pairs:
             argument_pairs.remove("")
+
+        # CHECK & ADD
+        await self.parse_check_add_alias(ctx, argument_pairs)
+        
+        util.unblock_scrobbleupdate()
+
+    @_add_alias.error
+    async def add_alias_error(self, ctx, error):
+        util.unblock_scrobbleupdate()
+        await util.error_handling(ctx, error)
+
+
+
+    async def parse_check_add_alias(self, ctx, argument_pairs):
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
 
         for pair in argument_pairs:
             if "," not in pair:
@@ -5542,23 +5564,19 @@ class Music_Scrobbling(commands.Cog):
                 await ctx.send(f"🟢 Successfully added alias conversion rule```{alias_string} ➡️ {artist_string}```")
             except Exception as e:
                 await ctx.send(f"Error: {e}")
-        util.unblock_scrobbleupdate()
-
-    @_add_alias.error
-    async def add_alias_error(self, ctx, error):
-        await util.error_handling(ctx, error)
 
 
 
-    @commands.command(name='delalias', aliases = ["removealias"])
+    @commands.command(name='removealias', aliases = ["delalias"])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _remove_alias(self, ctx: commands.Context, *args):
         """🔒 remove artist name alias/redirect
-
-        specify alias or redirect name
+        
+        WARNING: This will take quite some time!
+        Specify alias or redirect name, you can specify multiple ones separated by semicolons.
         """
 
         # block update pipe
@@ -5574,46 +5592,62 @@ class Music_Scrobbling(commands.Cog):
 
         util.block_scrobbleupdate("mod action")
 
+        emoji = util.emoji("load")
+        await ctx.reply(f"This may take a while. {emoji}", mention_author=False)
+
         # PARSE ARGUMENTS
 
         conSM = sqlite3.connect('databases/scrobblemeta.db')
         curSM = conSM.cursor()
 
-        argument_string = ' '.join(args)
-        input_string = ''.join([x for x in argument_string.upper() if x.isalnum()])
+        argument_list = ' '.join(args).split(";")
+        artists_list = []
+        alias_list = []
 
-        artists_list = [item[0] for item in curSM.execute("SELECT artist_key FROM artist_aliases WHERE alias_name = ?", input_string).fetchall()]
-        alias_list = [item[0] for item in curSM.execute("SELECT alias_name FROM artist_aliases WHERE artist_key = ?", input_string).fetchall()]
+        for argument in argument_list:
+            argument_string = argument.strip()
+            input_string = util.compactnamefilter(argument_string, "artist") #''.join([x for x in argument_string.upper() if x.isalnum()])
 
-        if artists_list > 0:
-            for artist in artists_list:
-                curSM.execute("DELETE FROM artist_aliases WHERE alias_name = ?", (input_string,))
-                conSM.commit()
-                await ctx.send(f"Removing redirect to artist `{artist}`...")
-                try:
-                    await self.rwdb_adjust_alias_remove_artist(artist)
-                    await ctx.send(f"Removed conversion ```{input_string} ,  {artist}```")
-                except Exception as e:
-                    await ctx.send(f"Error: {e}")
+            artists_list += [item[0] for item in curSM.execute("SELECT artist_key FROM artist_aliases WHERE alias_name = ?", (input_string,)).fetchall()]
+            alias_list += [item[0] for item in curSM.execute("SELECT alias_name FROM artist_aliases WHERE artist_key = ?", (input_string,)).fetchall()]
 
-        if alias_list > 0:
-            for alias in alias_list:
-                curSM.execute("DELETE FROM artist_aliases WHERE artist_key = ?", (input_string,))
-                conSM.commit()
-                await ctx.send(f"Removing redirect from alias `{alias}`...")
-                try:
-                    await self.rwdb_adjust_alias_remove_alias(alias)
-                    await ctx.send(f"Removed conversion ```{alias} ,  {input_string}```")
-                except Exception as e:
-                    await ctx.send(f"Error: {e}")
+            if len(artists_list) > 0:
+                for artist in artists_list:
+                    curSM.execute("DELETE FROM artist_aliases WHERE alias_name = ?", (input_string,))
+                    conSM.commit()
+                    print(f"Removing redirect to artist `{artist}`...")
+
+            if len(alias_list) > 0:
+                for alias in alias_list:
+                    curSM.execute("DELETE FROM artist_aliases WHERE artist_key = ?", (input_string,))
+                    conSM.commit()
+                    print(f"Removing redirect from alias `{alias}`...")
+
+        artists_list = list(dict.fromkeys(artists_list))
+        alias_list = list(dict.fromkeys(alias_list))
+
+        if len(artists_list) + len(alias_list) > 0:
+            await ctx.send(f"Removing redirects to and from artist `{input_string}`...")
+            try:
+                await self.rwdb_adjust_alias_remove(artists_list, alias_list)
+                print(">> Reloading release-wise and track-wise DBs")
+                reindex = False
+                i = await self.reload_releasewise_database(reindex) # lazy solution
+                print(f">> reloaded {i} scrobbles")
+            except Exception as e:
+                await ctx.send(f"Error: {e}")
 
         if len(artists_list) == 0 and len(alias_list) == 0:
             await ctx.send("No matching alias or name found. Nothing to remove.")
+        else:
+            text = ', '.join(artists_list) + "; " + ', '.join(alias_list)
+            await ctx.reply(f"Removed aliases: {text}"[:2000], mention_author=False)
 
         util.unblock_scrobbleupdate()
 
     @_remove_alias.error
     async def remove_alias_error(self, ctx, error):
+        util.unblock_scrobbleupdate()
         await util.error_handling(ctx, error)
 
 
@@ -5788,32 +5822,158 @@ class Music_Scrobbling(commands.Cog):
 
 
     @to_thread
-    def rwdb_adjust_alias_remove_artist(self, artist):
-        # ADJUST RELEASE-WISE DB
+    def rwdb_adjust_alias_remove(self, artists_list, alias_list):
+        print(">>> Checking releasewise database...")
+        conFM = sqlite3.connect('databases/scrobbledata.db')
+        curFM = conFM.cursor()
+        conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+        curFM2 = conFM2.cursor()
+        conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+        curFM3 = conFM3.cursor()
+        conSS = sqlite3.connect('databases/scrobblestats.db')
+        curSS = conSS.cursor()
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
 
-        # ADJUST TRACK-WISE DB
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+
+        # Get all related redirect names
+        artist_alias_collection = []
+
+        for artist in artists_list + alias_list:
+            artist_compact = util.compactnamefilter(artist, "artist", "alias") 
+            if artist not in artist_alias_collection:
+                artist_alias_collection.append(artist_compact)
 
         # ADJUST STATS DB
+        print(">> Adjusting stats DB")
+        table_list = [item[0] for item in curSS.execute("SELECT name FROM sqlite_master WHERE type = ?", ("table", )).fetchall()]
+
+        for table in table_list:
+            if str(table).startswith("crowns_"):
+                server_id = str(table).split("_")[1]
+                print(f"-Server ID: {server_id}")
+                stats_artists_list = [item[0] for item in curSS.execute(f"SELECT artist FROM [{table}]").fetchall()]
+
+                for stats_artist in stats_artists_list:
+                    compact_artist = util.compactnamefilter(stats_artist, "artist", "alias")
+                    if compact_artist in artist_alias_collection:
+                        #curSS.execute(f"UPDATE [{table}] SET alias = ? WHERE artist = ?", (compact_artist, stats_artist))
+                        curSS.execute(f"DELETE FROM [{table}] WHERE artist = ? OR alias = ?", (stats_artist, compact_artist))
+                conSS.commit()
 
         # ADJUST META DB
-        pass
+        print(">> Adjusting meta DB: artist info")
+        meta_artists_list = [item[0] for item in curSM.execute(f"SELECT artist FROM artistinfo").fetchall()]
+        for meta_artist in meta_artists_list:
+            compact_artist = util.compactnamefilter(meta_artist, "artist", "alias")
+            if compact_artist in artist_alias_collection:
+                curSM.execute(f"UPDATE artistinfo SET filtername = ? WHERE artist = ?", (compact_artist, stats_artist))
+            conSM.commit()
 
-        # under construction
+        print(">> Adjusting meta DB: album info")
+        meta_artists_list = [item[0] for item in curSM.execute(f"SELECT artist FROM albuminfo").fetchall()]
+        for meta_artist in meta_artists_list:
+            compact_artist = util.compactnamefilter(meta_artist, "artist", "alias")
+            if compact_artist in artist_alias_collection:
+                curSM.execute(f"UPDATE albuminfo SET artist_filtername = ? WHERE artist = ?", (compact_artist, stats_artist))
+            conSM.commit()
 
+        print(">> Adjusting meta DB: track info")
+        meta_artists_list = [item[0] for item in curSM.execute(f"SELECT artist FROM trackinfo").fetchall()]
+        for meta_artist in meta_artists_list:
+            compact_artist = util.compactnamefilter(meta_artist, "artist", "alias")
+            if compact_artist in artist_alias_collection:
+                curSM.execute(f"UPDATE trackinfo SET artist_filtername = ? WHERE artist = ?", (compact_artist, stats_artist))
+            conSM.commit()
 
+        # Go through users
+        #table_list = [item[0] for item in curFM.execute("SELECT name FROM sqlite_master WHERE type = ?", ("table",)).fetchall()]
+        
+        #for lfm_name in table_list:
+        #    artist_checklist = []
 
-    @to_thread
-    def rwdb_adjust_alias_remove_alias(self, alias):
-        # ADJUST RELEASE-WISE DB
+        #    artist_release_dict = {}
+        #    artist_track_dict = {}
 
-        # ADJUST TRACK-WISE DB
+        #    release_first_time = {}
+        #    release_last_time = {}
+        #    track_first_time = {}
+        #    track_last_time = {}
 
-        # ADJUST STATS DB
+        #    print(f"adjusting {lfm_name}")
+        #    artist_list = [item[0] for item in curFM.execute(f"SELECT DISTINCT artist_name FROM [{lfm_name}]").fetchall()]
 
-        # ADJUST META DB
-        pass
+        #    for db_artist in artist_list:
+        #        db_artist_compact = util.compactnamefilter(db_artist, "artist", "alias")
 
-        # under construction
+        #        if db_artist_compact in artist_alias_collection:
+        #            print(f"->fixing {db_artist}")
+        #            scrobble_list = [[item[0],item[1],item[2]] for item in curFM.execute(f"SELECT album_name, track_name, date_uts FROM [{lfm_name}] WHERE artist_name = ?", (db_artist,)).fetchall()]
+
+        #            for item in scrobble_list:
+        #                db_album  = item[0]
+        #                db_track  = item[1]
+        #                uts_time  = util.forceinteger(item[2])
+        #                db_album_compact = util.compactnamefilter(db_album, "album")
+        #                db_track_compact = util.compactnamefilter(db_track, "track")
+
+        #                # FIRST DELETE
+        #                if db_artist_compact not in artist_checklist:
+        #                    print(f"->removing {db_artist_compact}")
+        #                    # ADJUST RELEASE-WISE DB
+        #                    curFM2.execute(f"DELETE FROM [{lfm_name}] WHERE artist_name = ?", (db_artist_compact,))
+        #                    conFM2.commit()
+
+        #                    # ADJUST TRACK-WISE DB
+        #                    curFM3.execute(f"DELETE FROM [{lfm_name}] WHERE artist_name = ?", (db_artist_compact,))
+        #                    conFM3.commit()
+
+        #                    artist_checklist.append(db_artist_compact)
+
+        #                # SCROBBLE COUNTING
+        #                release_tuple = (db_artist_compact, db_album_compact)
+        #                track_tuple   = (db_artist_compact, db_track_compact)
+
+        #                artist_release_dict[release_tuple]  = artist_release_dict.get(release_tuple, 0) + 1
+        #                artist_track_dict[track_tuple]      = artist_track_dict.get(track_tuple, 0) + 1
+
+        #                release_prev_first = release_first_time.get(release_tuple, now)
+        #                release_prev_last = release_last_time.get(release_tuple, 0)
+        #                track_prev_first = track_first_time.get(track_tuple, now)
+        #                track_prev_last = track_last_time.get(track_tuple, 0)
+
+        #                if uts_time > 1000000000 and uts_time < release_prev_first:
+        #                    release_first_time[release_tuple] = uts_time
+
+        #                if uts_time > release_prev_last:
+        #                    release_last_time[release_tuple] = uts_time
+
+        #                if uts_time > 1000000000 and uts_time < track_prev_first:
+        #                    track_first_time[track_tuple] = uts_time   
+
+        #                if uts_time > track_prev_last:
+        #                    track_last_time[track_tuple] = uts_time 
+
+        #    #RE-ADD TO DBs
+        #    for release_tuple, count in artist_release_dict.items():
+        #        print(f"->readding {release_tuple}")
+        #        artist_compact = release_tuple[0]
+        #        album_compact = release_tuple[1]
+        #        last_time = release_last_time[release_tuple]
+        #        first_time = release_first_time[release_tuple]
+        #        curFM2.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist_compact, album_compact, count, last_time, first_time))
+        #    conFM2.commit()
+
+        #    for track_tuple, count in artist_track_dict.items():
+        #        print(f"->readding {track_tuple}")
+        #        artist_compact = track_tuple[0]
+        #        track_compact = track_tuple[1]
+        #        last_time = track_last_time[track_tuple]
+        #        first_time = track_first_time[track_tuple]
+        #        curFM3.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", (artist_compact, track_compact, count, last_time, first_time))
+        #    conFM3.commit()
+        #print("done")
 
 
 
@@ -5863,13 +6023,50 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _export_alias(self, ctx: commands.Context, *args):
-        """🔜🔒 export artist name alias/redirect list
+        """🔒 Export artist name alias/redirect list
 
-        ....
+        Per default it will return a TAB-delimited .txt-file.
+        You can specify `csv` to get a semicolon-delimited .csv-file.
         """
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+        alias_list = [[item[0], item[1]] for item in curSM.execute("SELECT alias_name, artist_key FROM artist_aliases").fetchall()]
 
-        await ctx.send(f"Under construction.")
-        #under construction
+        fileformat = "txt"
+        user_id = str(ctx.author.id)
+
+        if len(args) > 0:
+            fileformat = ''.join(args).lower().replace(".", "")
+
+        # IN CASE OF A CSV FILE
+        if fileformat == "csv":
+            with open(f"temp/alias_export_{user_id}.csv", 'w', newline='') as csvfile:
+                writer = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
+
+                for item in alias_list:
+                    writer.writerow(item)
+
+            emoji = util.emoji("cool")
+            textmessage = f"Here is your alias export as `;`-delimited `.csv`-file! {emoji}"
+            await ctx.send(textmessage, file=discord.File(rf"temp/alias_export_{user_id}.csv"))
+            os.remove(f"{sys.path[0]}/temp/alias_export_{user_id}.csv")
+
+        # IN CASE OF A TXT FILE
+        elif fileformat == "txt":
+            with open(f"temp/alias_export_{user_id}.txt", 'w') as f:
+                
+                for item in alias_list:
+                    alias = item[0]
+                    artist = item[1]
+                    f.write(f"{alias}\t{artist}\n")
+
+            emoji = util.emoji("cool")
+            textmessage = f"Here is your alias export as `tab`-delimited `.txt`-file! {emoji}"
+            await ctx.send(textmessage, file=discord.File(rf"temp/alias_export_{user_id}.txt"))
+            os.remove(f"{sys.path[0]}/temp/alias_export_{user_id}.txt")
+
+        else:
+            await ctx.send("Error: Unknown file format.")
 
     @_export_alias.error
     async def export_alias_error(self, ctx, error):
@@ -5883,16 +6080,78 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _import_alias(self, ctx: commands.Context, *args):
-        """🔜🔒 import artist name alias/redirect list
+        """🔒 Import artist name alias/redirect list
 
-        ....
+        Import alias-artist-redirections by attaching a TAB-delimited txt-file or a semicolon-delimited csv-file, where the left argument is the alias and the right argument is the artistname it should be redirected to.
         """
 
-        await ctx.send(f"Under construction.")
-        #under construction
+        user_id = str(ctx.author.id)
+        user_name = str(ctx.author.name)
+        the_message = ctx.message
+        if not the_message.attachments:
+            await ctx.send("No attachment found.")
+            return
+
+        new_alias_pair_list = []
+
+        split_v1 = str(the_message.attachments).split("filename='")[1]
+        filename = str(split_v1).split("' ")[0]
+
+        if filename.endswith(".csv"): # Checks if it is a .csv file
+            # SAVE CSV FILE
+            await the_message.attachments[0].save(fp=f"temp/alias_import_{user_id}.csv")
+            i = 0
+            counter = 0
+            continuing = True
+
+            # OPEN FILE 
+            with open(f"temp/alias_import_{user_id}.csv", newline='') as csvfile:
+                reader = csv.reader(csvfile, delimiter=";", quotechar='|')
+
+                for row in reader:
+                    if len(row) < 2:
+                        continue
+                    alias_compact = util.compactnamefilter(row[0], "artist")
+                    artist_compact = util.compactnamefilter(row[1], "artist")
+
+                    if alias_compact.strip() == "" or artist_compact.strip() == "":
+                        continue
+
+                    new_alias_pair_list.append(f"{alias_compact}, {artist_compact}")
+            os.remove(f"{sys.path[0]}/temp/alias_import_{user_id}.csv")
+
+        elif filename.endswith(".txt"):
+            # SAVE TXT FILE
+            await the_message.attachments[0].save(fp=f"temp/alias_import_{user_id}.txt")
+
+            with open(f'{sys.path[0]}/temp/alias_import_{user_id}.txt', 'r') as txtfile:
+                for line in txtfile:
+                    if "\t" not in line:
+                        continue
+                    LL = line.split("\t")
+                    alias_compact = util.compactnamefilter(LL[0], "artist")
+                    artist_compact = util.compactnamefilter(LL[1], "artist")
+
+                    if alias_compact.strip() == "" or artist_compact.strip() == "":
+                        continue
+
+                    new_alias_pair_list.append(f"{alias_compact}, {artist_compact}")
+            os.remove(f"{sys.path[0]}/temp/alias_import_{user_id}.txt")
+
+        else:
+            await ctx.send("Attachment must be a `.txt` or `.csv` file.\n(Make sure that your .txt file is TAB delimited or your .csv file is semicolon delimited.)")
+            return
+
+        # CHECK & ADD
+        util.block_scrobbleupdate("mod action")
+
+        await self.parse_check_add_alias(ctx, new_alias_pair_list)
+
+        util.unblock_scrobbleupdate()
 
     @_import_alias.error
     async def import_alias_error(self, ctx, error):
+        util.unblock_scrobbleupdate()
         await util.error_handling(ctx, error)
 
 
