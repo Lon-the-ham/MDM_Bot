@@ -596,32 +596,33 @@ class Utils():
         if input_string is None or input_string == "":
             return ""
 
-        intermediate_string = ""
+        edited_string = ""
         try:
             if len(info) > 0:
-                intermediate_string = Utils.compactaddendumfilter(input_string, info[0])
+                edited_string = Utils.compactaddendumfilter(input_string, info[0])
             else:
-                intermediate_string = input_string
+                edited_string = input_string
 
             # get rid of non-alphanumeric
-            filtered_string = ''.join([x for x in intermediate_string.upper() if x.isalnum()])
+            filtered_string = ''.join([x for x in edited_string.upper() if x.isalnum()])
 
             if filtered_string == "":
-                return intermediate_string
+                return edited_string
             else:
-                intermediate_string = filtered_string
-
-            if len(info) > 1 and info[0] == "artist" and info[1] == "alias":
-                intermediate_string = Utils.compactaliasconvert(intermediate_string)
+                edited_string = filtered_string
 
             # adapt accents
-            new_string = Utils.diacritic_uppercase_translation(intermediate_string)
-            return new_string
+            edited_string = Utils.diacritic_uppercase_translation(edited_string)
+
+            if len(info) > 1 and info[0] == "artist" and info[1] == "alias":
+                edited_string = Utils.compactaliasconvert(edited_string)
+
+            return edited_string
 
         except Exception as e:
             print(f"Error: {e}")
             print(traceback.format_exc())
-            return intermediate_string
+            return edited_string
 
 
 
