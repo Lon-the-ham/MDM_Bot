@@ -4883,6 +4883,7 @@ class Administration_of_Settings(commands.Cog):
                             "pensive2" : "😔",
                             "pleading" : "😴",
                             "pout" : "🙎",
+                            "powerful": "💪",
                             "sad" : "😢",
                             "sfw" : "🚸",
                             "shaking" : "🫨",
