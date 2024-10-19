@@ -789,12 +789,17 @@ class General_Utility(commands.Cog):
             
             givenLanguage = args[0]
 
-            if givenLanguage.lower() in ["languages", "language"]:
-                languagesList = languagedict.values()
-                filteredList = sorted(list(dict.fromkeys(languagesList)))
-                languagestring = ', '.join(filteredList)
-                await ctx.send(f'`Supported languages:` {languagestring}')
-                return
+            if len(args) == 1:
+                if givenLanguage.lower() in ["languages", "language"]:
+                    languagesList = languagedict.values()
+                    filteredList = sorted(list(dict.fromkeys(languagesList)))
+                    languagestring = ', '.join(filteredList)
+                    await ctx.send(f'`Supported languages:` {languagestring}')
+                    return
+                else:
+                    msgToTranslate = ""
+            else:
+                msgToTranslate = ' '.join(args[1:])
 
             if givenLanguage in languagedict.values():
                 targetLanguage = givenLanguage
@@ -806,21 +811,17 @@ class General_Utility(commands.Cog):
                 elif givenLanguage.lower() in languagedict:
                     targetLanguage = languagedict[givenLanguage.lower()]
                 else:
-                    targetLanguage = "error"
+                    #default language: English
+                    print("tr command: given language code not found, defaulting to EN")
+                    targetLanguage = "en"
+                    msgToTranslate = ' '.join(args)
 
-            print(f"Target Language: {targetLanguage}")
-
-            if targetLanguage == "error":
-                await ctx.send(f'Language {givenLanguage} is not supported. Use `{self.prefix}language details` to get list of supported languages.')
-                return
-
-            if len(args) == 1:
+            if msgToTranslate.strip() == "":
                 emoji = util.emoji("think")
-                await ctx.send(f'{emoji}')
+                await ctx.send(f'emoji')
                 return
 
             try:
-                msgToTranslate = ' '.join(args[1:])
                 print(f"To translate: {msgToTranslate}")
                 GTranslator = Translator()
                 detection = GTranslator.detect(msgToTranslate)
@@ -852,6 +853,18 @@ class General_Utility(commands.Cog):
             #'api_key': ""
         }
 
+        languagedict = self.get_languagedict("all")
+
+        if language.lower() in languagedict.values():
+            payload['target'] = language.lower()
+        elif language.lower() in languagedict:
+            payload['target'] = languagedict[language.lower()]
+        else:
+            #default language: English
+            print("ltr command: given language code not found, defaulting to EN")
+            payload['target'] = "en"
+            payload['q'] = language + " " + query
+
         response = requests.post(url, data=payload, timeout=4)
         rjson = response.json()
 
@@ -862,12 +875,16 @@ class General_Utility(commands.Cog):
     async def libre_translate(self, ctx, args, extra_info):
         """https://github.com/LibreTranslate/LibreTranslate?tab=readme-ov-file#mirrors"""
 
-        if len(args) < 2:
+        if len(args) < 1:
             await ctx.send("Command needs target language and words to translate as arguments.")
 
         async with ctx.typing():
-            language = args[0]
-            query = ' '.join(args[1:])
+            if len(args) == 1:
+                language = "en"
+                query = args[0]
+            else:
+                language = args[0]
+                query = ' '.join(args[1:])
 
             conB = sqlite3.connect(f'databases/botsettings.db')
             curB = conB.cursor()
@@ -898,7 +915,7 @@ class General_Utility(commands.Cog):
                     continue
             else:
                 emoji = util.emoji("disappointed")
-                await ctx.send(f"Either the language code (1st arg) is faulty or none of the mirrors seem to work {emoji}\n(The latter could be fixed by mods via `{self.prefix}update`.)")
+                await ctx.send(f"Either the language code `{language}` (1st arg) is faulty or none of the mirrors seem to work {emoji}\n(The latter could be fixed by mods via `{self.prefix}update`.)")
                 return
 
             # reorder
@@ -946,7 +963,7 @@ class General_Utility(commands.Cog):
 
 
 
-    @commands.group(name="translate", aliases = ["tr"], pass_context=True, invoke_without_command=True)
+    @commands.group(name="translate", aliases = ["tr", "trans"], pass_context=True, invoke_without_command=True)
     #@commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate(self, ctx, *args):
@@ -958,7 +975,7 @@ class General_Utility(commands.Cog):
         If GoogleTranslate is enabled, you can use `-languages` to see which languages are supported.
         If not the command will use LibreTranslate instead. You can also access the LibreTranslate translations if GoogleTranslate is enabled by using `<prefix>ltr` or `<prefix>ltrx`.
         """
-        if len(args) < 2:
+        if len(args) < 1:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
 
@@ -989,7 +1006,7 @@ class General_Utility(commands.Cog):
         If GoogleTranslate is enabled, you can use `-languages` to see which languages are supported.
         If not the command will use LibreTranslate instead.
         """
-        if len(args) < 2:
+        if len(args) < 1:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
         extra_info = True
@@ -1016,7 +1033,7 @@ class General_Utility(commands.Cog):
 
         Use `<prefix>ltrx` to also get information about the detected language of your query and the translators confidence.
         """
-        if len(args) < 2:
+        if len(args) < 1:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
 
@@ -1036,7 +1053,7 @@ class General_Utility(commands.Cog):
     async def _libretranslatex(self, ctx, *args):
         """㊙️ Translates using LibreTranslate (with detection info)
         """
-        if len(args) < 2:
+        if len(args) < 1:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
 
