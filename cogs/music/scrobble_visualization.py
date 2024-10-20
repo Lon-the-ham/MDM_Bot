@@ -1030,13 +1030,15 @@ class Music_Scrobbling_Visuals(commands.Cog):
         if len(artistinfo_list) > 0:
             url = artistinfo_list[-1][0]
             details = str(artistinfo_list[-1][1])
-            return url, details
+            if url != "" and not url.endswith("/2a96cbd8b46e442fc41c2b86b821562f.png"):
+                return url, details
 
         # otherwise get info from lastfm and save data in albuminfo
         try:
             url, tags = await util.fetch_update_lastfm_artistalbuminfo(ctx, artist_name, album_name)
         except:
             url = ""
+
         details = ""
 
         return url, details
@@ -1630,7 +1632,465 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
 
-    
+    #################################################################################################################################################
+    #################################################################################################################################################
+    #################################################################################################################################################
+    #################################################################################################################################################
+    #################################################################################################################################################
+    #################################################################################################################################################
+    #################################################################################################################################################
+    #################################################################################################################################################
+    #################################################################################################################################################
+
+
+
+    @to_thread
+    def create_artist_album_chart(self, ctx, artist_name, artist_image, caption_list, image_list, chart_name, user_name_list, user_playcount_list, server_artist_count):
+        #SETTINGS
+        caption_font = "other/resources/arial-unicode-ms.ttf"
+
+        coordinates = {
+            -1:(96,43),
+            0: (602,43),
+            1: (930,43),
+            2: (1255,43),
+            3: (602,318),
+            4: (930,318),
+            5: (1255,318),
+            6: (602,593),
+            7: (930,593),
+            8: (1255,593),
+            100: (96, 627),
+            101: (96, 673),
+            102: (96, 719),
+            103: (96, 765),
+            104: (96, 811),
+        }
+
+        artist_size = 384
+        sidesize = 207
+        buffer = 5
+        caption_box_width = 288
+
+        font_size = 24
+        font_smol_size = 20
+        font_big_size = 30
+        font_user_size = 22
+
+        fontColor = 0xFFFFFF
+        TINT_COLOR = (0, 0, 0)  # Black
+        TRANSPARENCY = .6  # Degree of transparency, 0-100%
+        OPACITY = int(255 * TRANSPARENCY)
+
+        try:
+            font = ImageFont.truetype(caption_font, font_size)
+            font_smaller = ImageFont.truetype(caption_font, font_smol_size)
+            font_larger = ImageFont.truetype(caption_font, font_big_size)
+            font_user = ImageFont.truetype(caption_font, font_user_size)
+        except:
+            font = ImageFont.truetype("arial.ttf", font_size)
+            font_smaller = ImageFont.truetype("arial.ttf", font_smol_size)
+            font_larger = ImageFont.truetype("arial.ttf", font_big_size)
+            font_user = ImageFont.truetype("arial.ttf", font_user_size)
+
+        # FETCHES BACKGROUND IMAGE
+
+        collage_img = Image.open(open(f"other/resources/artistalbumchart_template.jpg", 'rb'))
+
+        # SET UP USER AGENT
+
+        try:
+            version = Utils.get_version().replace("version","v").replace(" ","").strip()
+        except:
+            version = "v_X"
+        try:
+            APP_NAME = "_" + os.getenv("lfm_app_name")
+        except:
+            APP_NAME = ""
+        try:
+            REGISTERED_TO = "_by:" + os.getenv("lfm_registered_to")
+        except:
+            REGISTERED_TO = ""
+        USER_AGENT = f'MDM_Bot_{version}{APP_NAME}{REGISTERED_TO}_function:NowPlaying'
+
+        # ADD ARTIST
+
+        #opens an image:
+        try:
+            if artist_image.startswith("http"):
+                hdr = { 'User-Agent' : USER_AGENT }
+                req = urllib.request.Request(artist_image, headers=hdr)
+                with BytesIO(urllib.request.urlopen(req).read()) as file:
+                    img_cell = Image.open(file)
+                    img_cell = img_cell.convert("RGB")
+            else:
+                raise ValueError("Invalid image")
+        except Exception as e:
+            if artist_image != "":
+                print(f"Error with image URL {artist_image}:", e)
+            img_cell = Image.open(open(f"other/resources/lastfm_default.jpg", 'rb'))
+
+        #resize opened image, so it is no bigger than artist_size^2
+        img_cell.thumbnail((artist_size, artist_size))
+        w, h = img_cell.size 
+        if (max(w,h) < artist_size):
+            if w > h:
+                img_cell = img_cell.resize((artist_size, int(artist_size * (h/w))))
+            else:
+                img_cell = img_cell.resize((int(artist_size * (w/h)), artist_size))
+        w, h = img_cell.size 
+
+        x0 = int((artist_size - w) / 2)
+        y0 = int((artist_size - h) / 2)
+        img = Image.new('RGB', (artist_size, artist_size))
+        img.paste(img_cell, (x0,y0))
+
+        #paste the image at location x,y:
+        x, y = coordinates[-1]
+        collage_img.paste(img, (x,y))
+
+        #add artist name (pre-determine width and height)
+        drawC = ImageDraw.Draw(img)
+        _, _, w, h = drawC.textbbox((0,0), text="Ff Gg Jj Pp Qq Yy Zz", font=font)
+
+        #actual caption
+        drawC2 = ImageDraw.Draw(collage_img)
+
+        caption_lines = [artist_name, f"Top albums on {ctx.guild.name}", f"({server_artist_count} scrobbles in total)"]
+        k = 0
+        for caption_line in caption_lines:
+            if (k == 0):
+                font_here = font_larger
+            else:
+                font_here = font
+
+            _, _, w, _ = drawC2.textbbox((0,0), text=caption_line, font=font_here)
+
+            tries = 0
+            while w > artist_size:
+                tries += 1
+                if caption_line.endswith("..."):
+                    caption_line = caption_line[:-3]
+                caption_line = caption_line[:-1] + "..."
+                _, _, w, _ = drawC2.textbbox((0,0), text=caption_line, font=font_here)
+                if tries > 10:
+                    break
+
+            text_x = x + int((artist_size-w)/2)
+            text_y = y + artist_size + 2*(1+k) * buffer + (h * k)
+            drawC2.text((text_x, text_y), caption_line, font=font_here, fill=fontColor)
+            k += 1
+
+        # ADD ALBUMS (COVER, NAME, PLAYCOUNT)
+
+        for i in range(len(caption_list)):
+            caption_orig = caption_list[i]
+            img_loc = image_list[i]
+
+            x, y = coordinates[i]
+            try:
+                #opens an image:
+                try:
+                    if img_loc.startswith("http"):
+                        hdr = { 'User-Agent' : USER_AGENT }
+                        req = urllib.request.Request(img_loc, headers=hdr)
+                        with BytesIO(urllib.request.urlopen(req).read()) as file:
+                            img_cell = Image.open(file)
+                            img_cell = img_cell.convert("RGB")
+                    else:
+                        raise ValueError("Invalid image")
+                except Exception as e:
+                    if img_loc != "":
+                        print(f"Error with image URL {img_loc}:", e)
+                    img_cell = Image.open(open(f"other/resources/lastfm_default.jpg", 'rb'))
+
+                #resize opened image, so it is no bigger than sidesize^2
+                img_cell.thumbnail((sidesize, sidesize))
+                w, h = img_cell.size 
+                if (max(w,h) < sidesize):
+                    if w > h:
+                        img_cell = img_cell.resize((sidesize, int(sidesize * (h/w))))
+                    else:
+                        img_cell = img_cell.resize((int(sidesize * (w/h)), sidesize))
+                w, h = img_cell.size 
+
+                x0 = int((sidesize - w) / 2)
+                y0 = int((sidesize - h) / 2)
+                img = Image.new('RGB', (sidesize, sidesize))
+                img.paste(img_cell, (x0,y0))
+
+                #paste the image at location x,y:
+                collage_img.paste(img, (x,y))
+
+                #pre-caption (to get text size etc)
+                line_number = 1
+                if "\n" in caption_orig:
+                    caption_lines = caption_orig.split("\n")
+                    line_number = len(caption_lines)
+                    caption_linelist = []
+                    for cap_line in caption_lines:
+                        if len(cap_line) > 30:
+                            cap_line2 = cap_line[:17] + "..."
+                            caption_linelist.append(cap_line2)
+                        else:
+                            caption_linelist.append(cap_line)
+                    caption = '\n'.join(caption_linelist)  
+                else:
+                    if len(caption_orig) > 30:
+                        caption = caption_orig[:17] + "..."
+
+                # pre-determine width and height
+                drawC = ImageDraw.Draw(img)
+                _, _, w, h = drawC.textbbox((0,0), text="Ff Gg Jj Pp Qq Yy Zz", font=font)
+
+                #actual caption
+                drawC2 = ImageDraw.Draw(collage_img)
+
+                caption_lines = caption.split("\n")
+                k = 0
+                for caption_line in caption_lines:
+                    if (k == 0):
+                        font_here = font
+                    else:
+                        font_here = font_smaller
+
+                    _, _, w, _ = drawC2.textbbox((0,0), text=caption_line, font=font_here)
+
+                    tries = 0
+                    while w > caption_box_width:
+                        tries += 1
+                        if caption_line.endswith("..."):
+                            caption_line = caption_line[:-3]
+                        caption_line = caption_line[:-1] + "..."
+                        _, _, w, _ = drawC2.textbbox((0,0), text=caption_line, font=font_here)
+                        if tries > 10:
+                            break
+
+                    text_x = x - int((caption_box_width - sidesize)/2) + int((caption_box_width-w)/2)
+                    text_y = y + sidesize + buffer + (h * k)
+                    drawC2.text((text_x, text_y), caption_line, font=font_here, fill=fontColor)
+                    k += 1
+
+            except Exception as e:
+                print("Error:", e)
+                if str(e) == "Invalid image":
+                    raise ValueError("Invalid image")
+
+        # ADD TOP LISTENERS
+
+        for j in range(min(len(user_name_list), 5)):
+            x, y = coordinates[100 + j]
+            user_name = util.convert_lfmname_to_discordname(ctx, user_name_list[j])
+            playcount = user_playcount_list[j]
+
+            drawC2 = ImageDraw.Draw(collage_img)
+            _, _, w1, _ = drawC2.textbbox((0,0), text=user_name, font=font_user)
+            _, _, w2, _ = drawC2.textbbox((0,0), text=str(playcount), font=font_user)
+
+            tries = 0
+            while w1 + w2 + 3 * buffer > artist_size:
+                tries += 1
+                if user_name.endswith("..."):
+                    user_name = user_name[:-3]
+                user_name = user_name[:-1] + "..."
+                _, _, w1, _ = drawC2.textbbox((0,0), text=user_name, font=font_user)
+                if tries > 15:
+                    break
+
+            text_x = x + buffer
+            text_y = y + buffer
+            drawC2.text((text_x, text_y), user_name, font=font_user, fill=fontColor)
+
+            text_x = x + artist_size - buffer - w2
+            drawC2.text((text_x, text_y), str(playcount), font=font_user, fill=fontColor)
+
+        # SAVE
+
+        collage_img.save(f"temp/{chart_name}.jpg", "JPEG")
+
+
+
+    @to_thread
+    def get_full_album_name_from_table_and_time(self, lfm_name, last_time, album_compact = ""):
+        print(f"INPUT: {lfm_name} {last_time} {album_compact}")
+        try:
+            conFM = sqlite3.connect('databases/scrobbledata.db')
+            curFM = conFM.cursor()
+            target_scrobble = curFM.execute(f"SELECT album_name FROM [{lfm_name}] WHERE date_uts = ?", (str(last_time),))
+
+            result_tuple = target_scrobble.fetchone()
+            album_name = result_tuple[0]
+
+            if album_compact != "":
+                if util.compactnamefilter(album_name, "album") != album_compact:
+                    print("Error: Found album doesn't match.")
+                    return None
+
+            print("OUTPUT")
+            return album_name
+
+        except:
+            return None
+
+
+
+    @commands.command(name='serverartistchart', aliases = ["sac"])
+    @commands.check(ScrobbleVisualsCheck.scrobbling_enabled)
+    @commands.check(ScrobbleVisualsCheck.is_imagechart_enabled)
+    @commands.check(util.is_active)
+    async def _serverartistchart(self, ctx: commands.Context, *args):
+        """Shows chart of top albums of an artist
+        
+        """
+        if len(args) == 0:
+            await ctx.send("Command needs an artist argument.")
+            return
+
+        artist, thumbnail = await util.get_artist_name_and_image(' '.join(args))
+
+        artist_compact = util.compactnamefilter(artist, "artist", "alias")
+
+        conNP = sqlite3.connect('databases/npsettings.db')
+        curNP = conNP.cursor()
+        conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+        curFM2 = conFM2.cursor()
+
+        lfm_list = [[item[0],item[1],str(item[2]).lower().strip()] for item in curNP.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
+
+        server_members = [x.id for x in ctx.guild.members]
+
+        # FETCH SCROBBLE COUNT PER ALBUM
+        artist_album_dict = {}
+        user_count_list = []
+
+        fetch_album_name_later = {} # save lfm_name and timestamp to be able to retrieve the full album name later
+
+        server_artist_count = 0
+
+        for useritem in lfm_list:
+            # check user id
+            try:
+                user_id = int(useritem[0])
+                if user_id not in server_members:
+                    continue
+            except Exception as e:
+                print("Error:", e)
+                continue
+
+            # check status
+            status = useritem[2]
+
+            if status.startswith(("wk_banned", "scrobble_banned")) or status.endswith("inactive"):
+                continue
+
+            # fetch scrobbles
+            lfm_name = useritem[1]
+
+            try:
+                artist_scrobbles = [[item[0],item[1],item[2]] for item in curFM2.execute(f"SELECT album_name, count, last_time FROM [{lfm_name}] WHERE artist_name = ?", (artist_compact,)).fetchall()]
+            except Exception as e:
+                print(f"Skipping user {lfm_name}:", e)
+                continue
+
+            totalcount = 0
+
+            for album_count in artist_scrobbles:
+                album_compact = album_count[0]
+                count = album_count[1]
+                totalcount += count
+                artist_album_dict[album_compact] = artist_album_dict.get(album_compact, 0) + count
+
+                if album_compact not in fetch_album_name_later:
+                    last_time = util.forceinteger(album_count[2])
+                    fetch_album_name_later[album_compact] = (lfm_name, last_time)
+            
+            user_count_list.append([lfm_name, totalcount])
+            server_artist_count += totalcount
+
+        # GET TOP 9 ALBUMS
+
+        release_name_dict = {}
+        release_image_dict = {}
+        album_count_sort_list = []
+
+        for album_compact, count in artist_album_dict.items():
+            if album_compact != "":
+                album_count_sort_list.append([album_compact, count])
+
+        album_count_sort_list.sort(key=lambda x: x[1], reverse=True)
+        album_count_sort_list = album_count_sort_list[:9]
+
+        # FETCH FULL ALBUM NAMES AND ALBUM COVERS
+
+        async with ctx.typing():
+            for album_item in album_count_sort_list:
+                album_compact = album_item[0]
+                count = album_item[1]
+
+                print(f">>Checking: {album_compact}")
+                _, album_full, cover_url, _, _, _ = await util.get_album_details_from_compact(artist_compact, album_compact)
+
+                if album_full is None or album_full.strip() == "":
+                    lfm_name, last_time = fetch_album_name_later[album_compact]
+                    album_full = await self.get_full_album_name_from_table_and_time(lfm_name, last_time, album_compact)
+
+                if album_full is None or album_full.strip() == "":
+                    album_full = album_compact
+                    print("Note: could not find full album name")
+
+                album_full = util.compactaddendumfilter(album_full)
+
+                if cover_url is None or (cover_url == "" or cover_url.endswith("/2a96cbd8b46e442fc41c2b86b821562f.png")):
+                    print("Note: could not find cover image in DB, fetching anew")
+                    cover_url, details = await self.get_album_cover_url(ctx, artist, album_full)
+
+                    if cover_url is None or (cover_url == "" or cover_url.endswith("/2a96cbd8b46e442fc41c2b86b821562f.png")):
+                        print("Note: could not find cover image via API as well :(")
+                        cover_url = ""
+
+                release_name_dict[album_compact] = album_full
+                release_image_dict[album_compact] = cover_url
+
+        # FETCH TOP USERS
+
+        user_count_list.sort(key=lambda x: x[1], reverse=True)
+
+        user_name_list = []
+        user_playcount_list = []
+
+        for item in user_count_list:
+            user_name_list.append(item[0])
+            user_playcount_list.append(item[1])
+        
+        # CREATE CHART
+
+        caption_list = []
+        image_list = []
+
+        for album_item in album_count_sort_list:
+            album_compact = album_item[0]
+            count = album_item[1]
+            album_full = release_name_dict[album_compact]
+
+            caption_list.append(f"{album_full}\n{count} plays")
+            image_list.append(release_image_dict[album_compact])
+
+        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+        chart_name = f"server_artist_album_chart_{ctx.author.id}_{now}"
+
+        async with ctx.typing():
+            await self.create_artist_album_chart(ctx, artist, thumbnail, caption_list, image_list, chart_name, user_name_list, user_playcount_list, server_artist_count)
+
+        try:
+            await ctx.reply(file=discord.File(rf"temp/{chart_name}.jpg"), mention_author=False)
+        except Exception as e:
+            await ctx.reply(f"Error: {e}", mention_author=False)
+
+        os.remove(f"temp/{chart_name}.jpg")
+
+    @_serverartistchart.error
+    async def serverartistchart_error(self, ctx, error):
+        await util.error_handling(ctx, error)
 
 
 

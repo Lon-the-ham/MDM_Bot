@@ -3121,6 +3121,68 @@ class Utils():
 
 
 
+    async def get_artist_name_and_image(artistinput):
+        now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+        try:
+            if artistinput.strip() == "":
+                try:
+                    artist, album, song, thumbnail, cover, tags = await Utils.get_last_track(ctx)
+                    if thumbnail in ["", "https://lastfm.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png"]:
+                        thumbnail, update_time = await Utils.get_database_artistimage(artist)
+                        if thumbnail == "" or update_time < now - 30*24*60*60:
+                            lfm_name, status = Utils.get_lfmname(ctx.author.id)
+                            thumbnail = await Utils.get_spotify_artistimage(artist, lfm_name)
+                    return artist, thumbnail
+                except:
+                    return artistinput, ""
+
+            conSM = sqlite3.connect('databases/scrobblemeta.db')
+            curSM = conSM.cursor()
+            artist_fltr = Utils.compactnamefilter(artistinput,"artist","alias")
+
+            try:
+                result = curSM.execute(f"SELECT artist, thumbnail, spotify_update, lfm_update FROM artistinfo WHERE filtername = ?", (artist_fltr,))
+                rtuple = result.fetchone()
+
+                artist = str(rtuple[0])
+                thumbnail = str(rtuple[1])
+                spotify_update = int(rtuple[2])
+                lfm_update = int(rtuple[3])
+                db_entry_exists = True
+            except:
+                artist = artistinput
+                thumbnail = ""
+                db_entry_exists = False
+
+            if not db_entry_exists: #or lfm_update < now - 180*24*60*60:
+                try:
+                    cooldown = True
+                    payload = {'method': 'artist.getInfo'}
+                    payload['artist'] = artist
+
+                    response = await Utils.lastfm_get(ctx, payload, cooldown)
+                    if response == "rate limit":
+                        print("Error: Rate limit.")
+                        return artist, thumbnail
+                    rjson = response.json()
+                    artist = rjson['artist']['name']
+                except:
+                    artist = artistinput
+
+            if thumbnail.strip() in ["", "https://lastfm.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png"] or spotify_update < now - 180*24*60*60:
+                try:
+                    lfm_name, status = Utils.get_lfmname(ctx.author.id)
+                    thumbnail = await Utils.get_spotify_artistimage(artist, lfm_name)
+                except:
+                    pass
+
+            return artist, thumbnail
+
+        except Exception as e:
+            print("Error:", e)
+            return artistinput, ""
+
+
     async def get_defaultperms(ctx):
         # GET PERMS OF REFERENCE ROLE
         reference_role = await Utils.get_reference_role(ctx)
@@ -3144,6 +3206,105 @@ class Utils():
         everyone_role = discord.utils.get(ctx.guild.roles, id = everyone_role_id)
         perm_list = [perm[0] for perm in everyone_role.permissions if perm[1]]
         return perm_list
+
+
+
+    async def get_last_track(ctx): # doubling of the same function in scrobble_utility.py
+        member = ctx.author
+        con = sqlite3.connect('databases/npsettings.db')
+        cur = con.cursor()
+        lfm_list = [item[0] for item in cur.execute("SELECT lfm_name FROM lastfm WHERE id = ?", (str(member.id),)).fetchall()]
+
+        if len(lfm_list) == 0:
+            raise ValueError("no lfm name set")
+
+        lfm_name = lfm_list[0]
+        cooldown = True
+        payload = {
+            'method': 'user.getRecentTracks',
+            'user': lfm_name,
+            'limit': "1",
+        }
+        response = await Utils.lastfm_get(ctx, payload, cooldown)
+        if response == "rate limit":
+            raise ValueError("rate limit")
+
+        try:
+            rjson = response.json()
+            tjson = rjson['recenttracks']['track'][0] # track json
+
+            # PARSE LAST TRACK INFO
+
+            song = tjson['name']
+            #song_link = tjson['url']
+            artist = tjson['artist']['#text']
+            try:
+                album = tjson['album']['#text']
+            except:
+                album = ""
+            try:
+                album_cover = tjson['image'][-1]['#text']
+            except:
+                album_cover = ""
+            try:
+                mbid = tjson['artist']['mbid']
+            except:
+                mbid = ""
+
+            # FETCH ARTIST INFO
+            try:
+                cooldown = False
+                payload = {
+                    'method': 'artist.getInfo',
+                }
+                if mbid.strip() == "":
+                    payload['mbid'] = mbid
+                else:
+                    payload['artist'] = artist
+                response = await Utils.lastfm_get(ctx, payload, cooldown)
+
+                if response == "rate limit":
+                    raise ValueError("rate limit")
+
+                rjson = response.json()
+
+                try:
+                    artist_thumbnail = rjson['artist']['image'][0]['#text']
+                except:
+                    artist_thumbnail = ""
+
+                tags = []
+                try:
+                    for tag in rjson['artist']['tags']['tag']:
+                        try:
+                            tagname = tag['name'].lower()
+                            tags.append(tagname)
+                        except Exception as e:
+                            print("Tag error:", e)
+                except:
+                    pass
+            except Exception as e:
+                print("Error while fetching artist info:", e)
+                return artist, album, song, "", "", []
+
+            # UPDATE DATABASES
+            if len(tags) > 0:
+                self.update_artistinfo(artist, artist_thumbnail, tags)
+
+            try:
+                if album.strip() != "" and album_cover.strip() != "":
+                    await Utils.update_lastfm_artistalbuminfo(artist, album, album_cover, tags)
+            except Exception as e:
+                print("Error while trying to update albuminfo database:", e)
+
+            return artist, album, song, artist_thumbnail, album_cover, tags
+
+        except Exception as e:
+            if "503 service unavailable" in str(rjson).lower():
+                # under construction: fetch artist album song from discord rich presence instead
+                raise ValueError(f"Last FM is not responding. Try in a few seconds again or try command with explicit arguments instead.")
+
+            raise ValueError(f"{str(rjson)} - {e}")
 
 
 
