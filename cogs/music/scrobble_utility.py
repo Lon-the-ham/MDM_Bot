@@ -4843,6 +4843,8 @@ class Music_Scrobbling(commands.Cog):
         """All ways an artist is spelled in your lastfm database
         """
 
+        # under construction: loading bar
+
         async with ctx.typing():
             argument = ' '.join(args)
             wk_type = "artist"
@@ -4861,6 +4863,8 @@ class Music_Scrobbling(commands.Cog):
         """All ways an album is spelled in your lastfm database
         """
 
+        # under construction: loading bar
+
         async with ctx.typing():
             argument = ' '.join(args)
             wk_type = "album"
@@ -4878,6 +4882,8 @@ class Music_Scrobbling(commands.Cog):
     async def _databasetrack(self, ctx: commands.Context, *args):
         """All ways a track is spelled in your lastfm database
         """
+
+        # under construction: loading bar
 
         async with ctx.typing():
             argument = ' '.join(args)
