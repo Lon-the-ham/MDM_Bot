@@ -1943,10 +1943,18 @@ class Music_Scrobbling_Visuals(commands.Cog):
         
         """
         if len(args) == 0:
-            await ctx.send("Command needs an artist argument.")
-            return
+            try:
+                artist, album, song, thumbnail, cover, tags = await util.get_last_track(ctx)
+                if artist is None or artist.strip() == "":
+                    raise ValueError("No current/last track found.")
+            except Exception as e:
+                print("Error:", e)
+                await ctx.send("Command needs an artist argument.")
+                return
 
-        artist, thumbnail = await util.get_artist_name_and_image(' '.join(args))
+            artist, thumbnail = await util.get_artist_name_and_image(artist)
+        else:
+            artist, thumbnail = await util.get_artist_name_and_image(' '.join(args))
 
         artist_compact = util.compactnamefilter(artist, "artist", "alias")
 
