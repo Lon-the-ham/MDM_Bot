@@ -3381,6 +3381,12 @@ class Music_NowPlaying(commands.Cog):
         e.g. when someone loses access to their discord account and rejoins with a new one remove the lastfm account from the first discord account.
         Use command with @mention or user ID.
         """
+
+        response = await util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to remove this users lastfm data and delete all their scrobbles?")
+
+        if response == False:
+            return
+
         conNP = sqlite3.connect('databases/npsettings.db')
         curNP = conNP.cursor()
 
