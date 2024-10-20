@@ -2207,7 +2207,36 @@ class Utils():
                     new_string += " "
                     i += 1
 
-        return new_string.strip()          
+        return new_string.strip()      
+
+
+
+    def update_artistinfo(artist, artist_thumbnail, tags): # doubled from scrobble_utility.py
+        try: # update stats
+            now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+            artist_fltr = Utils.compactnamefilter(artist,"artist","alias")
+            tags_lfm = ';'.join(tags)
+            try:
+                conSS = sqlite3.connect('databases/scrobblestats.db')
+                curSS = conSS.cursor()
+                result = curSS.execute(f"SELECT artist, thumbnail, tags_lfm, tags_other, last_update FROM artistinfo WHERE filtername = ? OR filteralias = ?", (artist_fltr,artist_fltr))
+                rtuple = result.fetchone()
+                #print("DB finding:", rtuple)
+                test1 = str(rtuple[0])
+                test2 = str(rtuple[1])
+                test3 = str(rtuple[2]).split(";") + str(rtuple[3]).split(";")
+                tset4 = int(rtuple[4])
+                db_entry_exists = True
+            except:
+                db_entry_exists = False
+            if db_entry_exists:
+                # do not update thumbnail
+                curSS.execute(f"UPDATE artistinfo SET tags_lfm = ?, last_update = ? WHERE filtername = ? OR filteralias = ?", (tags_lfm, now, artist_fltr, artist_fltr))
+            else:
+                curSS.execute(f"INSERT INTO artistinfo VALUES (?, ?, ?, ?, ?, ?, ?)", (artist, artist_thumbnail, tags_lfm, "", now, artist_fltr, ""))
+            conSS.commit()
+        except Exception as e:
+            print("Error:", e)    
 
 
 
@@ -3289,7 +3318,7 @@ class Utils():
 
             # UPDATE DATABASES
             if len(tags) > 0:
-                self.update_artistinfo(artist, artist_thumbnail, tags)
+                Utils.update_artistinfo(artist, artist_thumbnail, tags)
 
             try:
                 if album.strip() != "" and album_cover.strip() != "":
