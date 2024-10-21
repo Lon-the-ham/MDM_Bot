@@ -1645,7 +1645,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
     @to_thread
-    def create_artist_album_chart(self, ctx, artist_name, artist_image, caption_list, image_list, chart_name, user_name_list, user_playcount_list, server_artist_count):
+    def create_artist_album_chart(self, ctx, artist_name, artist_image, caption_list, image_list, chart_name, user_name_list, user_playcount_list, server_artist_count, total_listeners):
         #SETTINGS
         caption_font = "other/resources/arial-unicode-ms.ttf"
 
@@ -1756,7 +1756,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
         #actual caption
         drawC2 = ImageDraw.Draw(collage_img)
 
-        caption_lines = [artist_name, f"Top albums on {ctx.guild.name}", f"({server_artist_count} scrobbles in total)"]
+        caption_lines = [artist_name, f"Top albums on {ctx.guild.name}", f"({server_artist_count} plays total from {total_listeners} listeners)"]
         k = 0
         for caption_line in caption_lines:
             if (k == 0):
@@ -1883,6 +1883,9 @@ class Music_Scrobbling_Visuals(commands.Cog):
             user_name = util.convert_lfmname_to_discordname(ctx, user_name_list[j])
             playcount = user_playcount_list[j]
 
+            if playcount == 0:
+                break
+
             drawC2 = ImageDraw.Draw(collage_img)
             _, _, w1, _ = drawC2.textbbox((0,0), text=user_name, font=font_user)
             _, _, w2, _ = drawC2.textbbox((0,0), text=str(playcount), font=font_user)
@@ -1939,8 +1942,9 @@ class Music_Scrobbling_Visuals(commands.Cog):
     @commands.check(ScrobbleVisualsCheck.is_imagechart_enabled)
     @commands.check(util.is_active)
     async def _serverartistchart(self, ctx: commands.Context, *args):
-        """Shows chart of top albums of an artist
+        """Chart of artist's top albums on this server
         
+        Provide an artist argument, or invoke command without argument to get the server artist chart for the artist you're currently listening to (on last.fm).
         """
         if len(args) == 0:
             try:
@@ -1952,9 +1956,9 @@ class Music_Scrobbling_Visuals(commands.Cog):
                 await ctx.send("Command needs an artist argument.")
                 return
 
-            artist, thumbnail = await util.get_artist_name_and_image(artist)
+            artist, thumbnail = await util.get_artist_name_and_image(artist, ctx, album)
         else:
-            artist, thumbnail = await util.get_artist_name_and_image(' '.join(args))
+            artist, thumbnail = await util.get_artist_name_and_image(' '.join(args), ctx)
 
         artist_compact = util.compactnamefilter(artist, "artist", "alias")
 
@@ -1974,6 +1978,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
         fetch_album_name_later = {} # save lfm_name and timestamp to be able to retrieve the full album name later
 
         server_artist_count = 0
+        total_listeners = 0
 
         for useritem in lfm_list:
             # check user id
@@ -2014,6 +2019,14 @@ class Music_Scrobbling_Visuals(commands.Cog):
             
             user_count_list.append([lfm_name, totalcount])
             server_artist_count += totalcount
+
+            if totalcount > 0:
+                total_listeners += 1
+
+        if server_artist_count == 0:
+            emoji = util.emoji("disappointed")
+            await ctx.reply(f"No one has listened to this artist. {emoji}", mention_author=False)
+            return
 
         # GET TOP 9 ALBUMS
 
@@ -2059,6 +2072,15 @@ class Music_Scrobbling_Visuals(commands.Cog):
                 release_name_dict[album_compact] = album_full
                 release_image_dict[album_compact] = cover_url
 
+        # IF ARTIST IMAGE WASN'T FOUND TRY AGAIN
+
+        if thumbnail is None or thumbnail == "":
+            try:
+                top_album = release_name_dict[album_count_sort_list[0][0]]
+                _, thumbnail = await util.get_artist_name_and_image(' '.join(args), ctx, top_album)
+            except Exception as e:
+                print("Error while trying to fetch artist image with more information:", e)
+
         # FETCH TOP USERS
 
         user_count_list.sort(key=lambda x: x[1], reverse=True)
@@ -2067,6 +2089,8 @@ class Music_Scrobbling_Visuals(commands.Cog):
         user_playcount_list = []
 
         for item in user_count_list:
+            if item[1] == 0:
+                break
             user_name_list.append(item[0])
             user_playcount_list.append(item[1])
         
@@ -2074,6 +2098,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
         caption_list = []
         image_list = []
+        is_nsfw = False
 
         for album_item in album_count_sort_list:
             album_compact = album_item[0]
@@ -2083,11 +2108,18 @@ class Music_Scrobbling_Visuals(commands.Cog):
             caption_list.append(f"{album_full}\n{count} plays")
             image_list.append(release_image_dict[album_compact])
 
+            if is_nsfw == False:
+                is_nsfw = util.album_is_nsfw(artist, album_compact)
+
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
-        chart_name = f"server_artist_album_chart_{ctx.author.id}_{now}"
+
+        if is_nsfw:
+            chart_name = f"SPOILER_server_artist_album_chart_{ctx.author.id}_{now}"
+        else:
+            chart_name = f"server_artist_album_chart_{ctx.author.id}_{now}"
 
         async with ctx.typing():
-            await self.create_artist_album_chart(ctx, artist, thumbnail, caption_list, image_list, chart_name, user_name_list, user_playcount_list, server_artist_count)
+            await self.create_artist_album_chart(ctx, artist, thumbnail, caption_list, image_list, chart_name, user_name_list, user_playcount_list, server_artist_count, total_listeners)
 
         try:
             await ctx.reply(file=discord.File(rf"temp/{chart_name}.jpg"), mention_author=False)
