@@ -9,6 +9,7 @@ import asyncio
 import sqlite3
 import requests
 from emoji import UNICODE_EMOJI
+import random
 
 
 
@@ -136,7 +137,7 @@ class TimeLoops(commands.Cog):
         except Exception as e:
             await self.timeloop_error(e, "hourly_check:calendar_notif")
 
-        await asyncio.sleep(180)
+        await asyncio.sleep(300)
         # update lastfm
         try:
             await self.lastfm_update()
@@ -194,6 +195,13 @@ class TimeLoops(commands.Cog):
         except Exception as e:
             await self.timeloop_error(e, "daily_check:inactivity_filter")
 
+        # sync role database
+        try:
+            # under construction
+            pass
+        except:
+            await self.timeloop_error(e, "daily_check:role_syncing")
+
         # clear old data
         try:
             await self.clear_databases()
@@ -205,10 +213,21 @@ class TimeLoops(commands.Cog):
         await self.bot.wait_until_ready()
         await asyncio.sleep(40.7)
 
+        try:
+            hours, minutes = await self.get_update_hours()
+        except:
+            hour = random.randint(0, 2)
+            if hour == 0:
+                minute = random.randint(1, 58)
+            else:
+                minute = random.randint(0, 58)
+            hours = [hour]
+            minutes = [minute, minute+1]
+
         for _ in range(60*60*24):  # loop the whole day
             h = datetime.datetime.utcnow().hour
             m = datetime.datetime.utcnow().minute
-            if h in [1] and m in [1,2]:
+            if h in hours and m in minutes:
                 return
             await asyncio.sleep(60)
 
@@ -639,6 +658,37 @@ class TimeLoops(commands.Cog):
     #######################################################################################################################################################
     #######################################################################################################################################################
     #######################################################################################################################################################
+
+    # daily update time
+
+    async def get_update_hours(self):
+        conA = sqlite3.connect(f'databases/activity.db')
+        curA = conA.cursor()
+
+        hostdata_dailyupdate_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", ("daily update time",)).fetchall()]
+        if len(hostdata_dailyupdate_list) == 0:
+            hour = random.randint(0, 2)
+            if hour == 0:
+                minute = random.randint(1, 58)
+            else:
+                minute = random.randint(0, 58)
+            curA.execute("INSERT INTO hostdata VALUES (?,?,?,?)", ("daily update time", f"{str(hour)}:{str(minute)}", "", "UTC"))
+            conA.commit()
+            print("Updated hostdata table: daily update time")
+        else:
+            if len(hostdata_dailyupdate_list) > 1:
+                print("Warning: Multiple daily update time entries in activity.db")
+
+            time_value = hostdata_dailyupdate_list[0]
+
+            hour = util.forceinteger(time_value.split(":")[0].strip())
+            minute = util.forceinteger(time_value.split(":")[1].strip())
+
+        hours = [hour]
+        minutes = [minute, minute+1]
+
+        return hours, minutes
+
 
     # calendar stuff
 

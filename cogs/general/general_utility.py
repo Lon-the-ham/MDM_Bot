@@ -12,9 +12,14 @@ import sqlite3
 import math
 import requests
 from emoji import UNICODE_EMOJI
-from langdetect import detect
-
 import traceback
+
+try:
+    from langdetect import detect
+    langdetect_enabled = True
+except:
+    #print("Not importing Language Detect library (for wikipedia command)")
+    langdetect_enabled = False
 
 try:
     from googletrans import Translator
@@ -37,7 +42,11 @@ except:
 
 try:
     from openai import OpenAI
-    gpt_enabled = True
+    openai_key = os.getenv("openai_secret_key")
+    if openai_key is None:
+        gpt_enabled = False
+    else:
+        gpt_enabled = True
 except:
     print("Not importing OpenAI library")
     gpt_enabled = False
@@ -45,60 +54,35 @@ except:
 
 
 class GU_Check():
+    def is_langdetect_enabled(*ctx):
+        if langdetect_enabled:
+            return True
+        else:
+            raise commands.CheckFailure("This functionality is turned off.")
+
     def is_googletrans_enabled(*ctx):
         if googletrans_enabled:
             return True
         else:
-            return False
-            #raise ValueError("GoogleTranslate module was not imported.")
+            raise commands.CheckFailure("This functionality is turned off.")
 
     def is_reddit_enabled(*ctx):
         if reddit_enabled:
             return True
         else:
-            return False
-            #raise ValueError("AsyncPraw module (for Reddit) was not imported.")
+            raise commands.CheckFailure("This functionality is turned off.")
 
     def is_gpt_enabled(*ctx):
         if gpt_enabled:
             return True
         else:
-            return False
-            #raise ValueError("OpenAI module was not imported.")
+            raise commands.CheckFailure("This functionality is turned off.")
 
 
 class General_Utility(commands.Cog):
     def __init__(self, bot: commands.bot) -> None:
         self.bot = bot
         self.prefix = os.getenv("prefix")
-
-
-
-    @commands.command(name='test')
-    @commands.check(util.is_active)
-    async def _test(self, ctx):
-        """check availability
-
-        The bot will reply with a message if online and active.
-        """    
-        await ctx.send(f'`I am online!`')
-        
-    @_test.error
-    async def test_error(self, ctx, error):
-        await util.error_handling(ctx, error)
-
-
-
-    @commands.command(name='version', aliases = ["v"])
-    @commands.check(util.is_active)
-    async def _botversion(self, ctx):
-        """shows version of the bot
-        """    
-        version = util.get_version()
-        await ctx.send(f"MDM Bot {version}")
-    @_botversion.error
-    async def botversion_error(self, ctx, error):
-        await util.error_handling(ctx, error)
 
 
 
@@ -343,7 +327,7 @@ class General_Utility(commands.Cog):
         e.g. `<prefix>roll 8D20d3` to drop the 3 lowest die rolls
         e.g. `<prefix>roll 8D20k3` to keep the 3 highest die rolls
         e.g. `<prefix>roll 8D20dh3` to drop the 3 highest die rolls
-        e.g. `<prefix>roll 8D20kl3` to keep the 3 highest die rolls
+        e.g. `<prefix>roll 8D20kl3` to keep the 3 lowest die rolls
         You can also use +/- for bonus/malus or string together multiple dice rolls with + as well (or - if you want to subtract the dice roll).
 
         (when no argument is given, the command gives out a random number between 1 and 6)
@@ -805,12 +789,17 @@ class General_Utility(commands.Cog):
             
             givenLanguage = args[0]
 
-            if givenLanguage.lower() in ["languages", "language"]:
-                languagesList = languagedict.values()
-                filteredList = sorted(list(dict.fromkeys(languagesList)))
-                languagestring = ', '.join(filteredList)
-                await ctx.send(f'`Supported languages:` {languagestring}')
-                return
+            if len(args) == 1:
+                if givenLanguage.lower() in ["languages", "language"]:
+                    languagesList = languagedict.values()
+                    filteredList = sorted(list(dict.fromkeys(languagesList)))
+                    languagestring = ', '.join(filteredList)
+                    await ctx.send(f'`Supported languages:` {languagestring}')
+                    return
+                else:
+                    msgToTranslate = ""
+            else:
+                msgToTranslate = ' '.join(args[1:])
 
             if givenLanguage in languagedict.values():
                 targetLanguage = givenLanguage
@@ -822,21 +811,17 @@ class General_Utility(commands.Cog):
                 elif givenLanguage.lower() in languagedict:
                     targetLanguage = languagedict[givenLanguage.lower()]
                 else:
-                    targetLanguage = "error"
+                    #default language: English
+                    print("tr command: given language code not found, defaulting to EN")
+                    targetLanguage = "en"
+                    msgToTranslate = ' '.join(args)
 
-            print(f"Target Language: {targetLanguage}")
-
-            if targetLanguage == "error":
-                await ctx.send(f'Language {givenLanguage} is not supported. Use `{self.prefix}language details` to get list of supported languages.')
-                return
-
-            if len(args) == 1:
+            if msgToTranslate.strip() == "":
                 emoji = util.emoji("think")
-                await ctx.send(f'{emoji}')
+                await ctx.send(f'emoji')
                 return
 
             try:
-                msgToTranslate = ' '.join(args[1:])
                 print(f"To translate: {msgToTranslate}")
                 GTranslator = Translator()
                 detection = GTranslator.detect(msgToTranslate)
@@ -868,6 +853,18 @@ class General_Utility(commands.Cog):
             #'api_key': ""
         }
 
+        languagedict = self.get_languagedict("all")
+
+        if language.lower() in languagedict.values():
+            payload['target'] = language.lower()
+        elif language.lower() in languagedict:
+            payload['target'] = languagedict[language.lower()]
+        else:
+            #default language: English
+            print("ltr command: given language code not found, defaulting to EN")
+            payload['target'] = "en"
+            payload['q'] = language + " " + query
+
         response = requests.post(url, data=payload, timeout=4)
         rjson = response.json()
 
@@ -878,12 +875,16 @@ class General_Utility(commands.Cog):
     async def libre_translate(self, ctx, args, extra_info):
         """https://github.com/LibreTranslate/LibreTranslate?tab=readme-ov-file#mirrors"""
 
-        if len(args) < 2:
+        if len(args) < 1:
             await ctx.send("Command needs target language and words to translate as arguments.")
 
         async with ctx.typing():
-            language = args[0]
-            query = ' '.join(args[1:])
+            if len(args) == 1:
+                language = "en"
+                query = args[0]
+            else:
+                language = args[0]
+                query = ' '.join(args[1:])
 
             conB = sqlite3.connect(f'databases/botsettings.db')
             curB = conB.cursor()
@@ -914,7 +915,7 @@ class General_Utility(commands.Cog):
                     continue
             else:
                 emoji = util.emoji("disappointed")
-                await ctx.send(f"Either the language code (1st arg) is faulty or none of the mirrors seem to work {emoji}\n(The latter could be fixed by mods via `{self.prefix}update`.)")
+                await ctx.send(f"Either the language code `{language}` (1st arg) is faulty or none of the mirrors seem to work {emoji}\n(The latter could be fixed by mods via `{self.prefix}update`.)")
                 return
 
             # reorder
@@ -962,25 +963,26 @@ class General_Utility(commands.Cog):
 
 
 
-    @commands.group(name="translate", aliases = ["tr"], pass_context=True, invoke_without_command=True)
+    @commands.group(name="translate", aliases = ["tr", "trans"], pass_context=True, invoke_without_command=True)
     #@commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate(self, ctx, *args):
-        """translate
+        """Translate
 
-        Translates a word or sentence, first argument must be the destination language code.
+        Translates a word or sentence, first argument must be the destination language code. 
+        Use `<prefix>trx` to also get information about the detected language of your query and the translators confidence.
 
         If GoogleTranslate is enabled, you can use `-languages` to see which languages are supported.
-        If not the command will use LibreTranslate instead.
+        If not the command will use LibreTranslate instead. You can also access the LibreTranslate translations if GoogleTranslate is enabled by using `<prefix>ltr` or `<prefix>ltrx`.
         """
-        if len(args) < 2:
+        if len(args) < 1:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
 
         extra_info = False
 
         try:
-            if GU_Check.is_googletrans_enabled():
+            if googletrans_enabled:
                 await self.google_translate(ctx, args, extra_info)
             else:
                 raise ValueError("GoogleTranslate not imported")
@@ -997,20 +999,20 @@ class General_Utility(commands.Cog):
     #@commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate_x(self, ctx, *args):
-        """translate (with detection info)
+        """㊙️ Translate (with detection info)
 
         Translates a word or sentence, first argument must be the destination language code.
         
         If GoogleTranslate is enabled, you can use `-languages` to see which languages are supported.
         If not the command will use LibreTranslate instead.
         """
-        if len(args) < 2:
+        if len(args) < 1:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
         extra_info = True
         
         try:
-            if GU_Check.is_googletrans_enabled():
+            if googletrans_enabled:
                 await self.google_translate(ctx, args, extra_info)
             else:
                 raise ValueError("GoogleTranslate not imported")
@@ -1027,9 +1029,11 @@ class General_Utility(commands.Cog):
     @commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _libretranslate(self, ctx, *args):
-        """Translates using LibreTranslate
+        """ ㊙️ Translates using LibreTranslate
+
+        Use `<prefix>ltrx` to also get information about the detected language of your query and the translators confidence.
         """
-        if len(args) < 2:
+        if len(args) < 1:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
 
@@ -1047,9 +1051,9 @@ class General_Utility(commands.Cog):
     @commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _libretranslatex(self, ctx, *args):
-        """Translates using LibreTranslate (with detection info)
+        """㊙️ Translates using LibreTranslate (with detection info)
         """
-        if len(args) < 2:
+        if len(args) < 1:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
 
@@ -1064,24 +1068,14 @@ class General_Utility(commands.Cog):
 
 
     async def show_language_list(self, ctx, args):
-        short = True
-        for arg in args:
-            if arg.lower() in ["detail", "details", "detailed"]:
-                short = False
-
         languagedict = self.get_languagedict("all")
         languagesList = languagedict.values()
         filteredList = sorted(list(dict.fromkeys(languagesList)))
 
-        if short:
-            languagestring = ', '.join(filteredList)
-            await ctx.send(f'`Supported languages:` {languagestring}')
-            return
-
         language_names_dict = self.get_languagedict("name")
         language_reverse_dict = {v: k for k, v in language_names_dict.items()}
 
-        response_text = "**Supported languages:** "
+        response_text = ""
 
         for lang in filteredList:
             if lang in language_reverse_dict:
@@ -1092,7 +1086,9 @@ class General_Utility(commands.Cog):
         if response_text.endswith(", "):
             response_text = response_text[:-2]
 
-        await ctx.send(response_text[:2000])
+        embed = discord.Embed(title="**Supported translation languages**", description=response_text[:4000], color=0x000000)
+        embed.set_footer(text=f"use with command {self.prefix}tr or {self.prefix}trx")
+        await ctx.send(embed=embed)
 
 
     
@@ -1100,9 +1096,7 @@ class General_Utility(commands.Cog):
     @commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
     async def _translate_languages(self, ctx, *args):
-        """list of supported translation languages
-
-        Use with arg `detailed` to get language names alongside language abbreviations."""
+        """list of supported translation languages"""
         await self.show_language_list(ctx, args)
     @_translate_languages.error
     async def translate_languages_error(self, ctx, error):
@@ -1215,7 +1209,7 @@ class General_Utility(commands.Cog):
                 from_arguments.append(arg)
 
         #parse from_convert
-        argument_string = ''.join(from_arguments).replace(",","")
+        argument_string = ''.join(from_arguments).replace(",",".")
         derpy = util.emoji("derpy")
         think = util.emoji("think")
         try:
@@ -1590,7 +1584,7 @@ class General_Utility(commands.Cog):
                             else:
                                 message = f"{currency_name} currency conversion\n"
                                 message += "none of the given exchange currencies were recognised... :("
-                            await ctx.send(message[:4096])
+                            await ctx.send(message)
                     except Exception as e:
                         emoji = util.emoji("derpy_playful")
                         await ctx.send(f'Error: Currency conversion crashed. {emoji}\n{e}')
@@ -1719,22 +1713,49 @@ class General_Utility(commands.Cog):
         conER = sqlite3.connect('databases/exchangerate.db')
         curER = conER.cursor()
         curER.execute('''CREATE TABLE IF NOT EXISTS USDexchangerate (code text, value text, currency text, country text, last_updated text, time_stamp text)''')
-        known_currencies = [[item[0],item[1]] for item in curER.execute("SELECT code, value FROM USDexchangerate").fetchall()]
+        known_currencies = [[item[0],item[1],item[2]] for item in curER.execute("SELECT code, value, currency FROM USDexchangerate").fetchall()]
 
         if len(known_currencies) == 0:
             await ctx.send(f"Currency database is empty atm. Ask mods to use {self.prefix}update.")
             return
-        currency_list = []
+
+        known_currencies.sort(key=lambda x: x[0])
+        currency_text_list = []
         for item in known_currencies:
             c_code = item[0]
-            c_value = item [1]
+            c_value = item[1]
+            c_name = item[2]
             if (not c_code is None or c_code == "") and (not c_value is None or c_value == "") and (util.represents_float(c_value)):
-                currency_list.append(c_code)
+                currency_text_list.append(f"[**{c_code}**](https://www.google.com/search?q=USD+to+{c_code}) {c_name}")
 
-        currency_list.sort()
-        embed=discord.Embed(title="Supported currencies", description=', '.join(currency_list), color=0x000000)
-        embed.set_footer(text=f"Use e.g. '{self.prefix}con 100 USD to JPY' to convert currencies.")
-        await ctx.send(embed=embed)
+        count = 0
+        k = 0
+        content_list = [[]]
+        for text in currency_text_list:
+            if len(text) > 4096:
+                continue
+            if count + len(text) + 2 * len(content_list[k]) > 4096:
+                count = len(text)
+                k += 1
+                content_list.append([text])
+            else:
+                count += len(text)
+                content_list[k].append(text)
+
+        for i in range(len(content_list)):
+            if i == 0:
+                title = "Supported currencies"
+            else:
+                title = ""
+
+            sub_list = content_list[i]
+            embed=discord.Embed(title=title, description=', '.join(sub_list), color=0x000000)
+
+            if i >= len(content_list)-1:
+                embed.set_footer(text=f"Use e.g. '{self.prefix}con 100 USD to JPY' to convert currencies.")
+
+            await ctx.send(embed=embed)
+
     @_supportedcurrencies.error
     async def supportedcurrencies_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -2257,6 +2278,7 @@ class General_Utility(commands.Cog):
         await util.changetimeupdate()
         embed=discord.Embed(title="", description=text_removed[:4096], color=0x000000)
         await ctx.send(embed=embed)
+
     @_reminders_remove.error
     async def reminders_remove_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -2356,7 +2378,7 @@ class General_Utility(commands.Cog):
     @commands.check(util.is_active)
     @commands.check(util.is_main_server)
     async def _schedule(self, ctx, *args):
-        """🔒 Schedule a message
+        """🔜🔒 Schedule a message
         """
         await ctx.send("Under construction.")
 
@@ -2538,7 +2560,7 @@ class General_Utility(commands.Cog):
     @commands.group(name="calendar", aliases = ["kalender", "showcalendar"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _calendar(self, ctx):
-        """Calendar functionality 
+        """🔜Calendar functionality 
 
         Has subcommands:
         ```
@@ -2643,7 +2665,7 @@ class General_Utility(commands.Cog):
     @commands.group(name="quote", aliases = ["q"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _quote(self, ctx, *args):
-        """Show quote
+        """🔜Show quote
         """
         await ctx.send("⚠️ under construction")
     @_quote.error
@@ -3119,7 +3141,7 @@ class General_Utility(commands.Cog):
 
 
 
-    @commands.group(name="tz", aliases = ["time","timezone"], pass_context=True, invoke_without_command=True)
+    @commands.group(name="timezone", aliases = ["time","tz"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _timezone_by_location(self, ctx, *args):
         """Show time of given location
@@ -3862,21 +3884,25 @@ class General_Utility(commands.Cog):
     @commands.check(util.is_active)
     async def _wikipedia(self, ctx: commands.Context, *args):
         """Queries wikipedia for information
+
+        Command is currently work in progress.
         """
         
         def url_lang_detect(title):
-            try:
-                lang = detect(str(title))
-                if lang == 'ja':
-                    return 'https://ja.wikipedia.org/w/api.php'
-                elif lang == 'de':
-                    return 'https://de.wikipedia.org/w/api.php'
-                elif lang == 'en':
-                    return 'https://en.wikipedia.org/w/api.php'
-                else:
-                    return 'https://en.wikipedia.org/w/api.php'
-            except:
-                return 'Error detecting language.'
+            if langdetect_enabled:
+                try:
+                    lang = detect(str(title))
+                    if lang == 'ja':
+                        return 'https://ja.wikipedia.org/w/api.php'
+                    elif lang == 'en':
+                        return 'https://en.wikipedia.org/w/api.php'
+                    else:
+                        return 'https://en.wikipedia.org/w/api.php'
+                except Exception as e:
+                    print(f'Error detecting language: {e}')
+                    raise ValueError("Language detection failed.")
+            else:
+                return 'https://en.wikipedia.org/w/api.php'
         
         def get_images_from_wikipedia(title):
             # if (title is jap): url is jap/ elif (): url is eng 

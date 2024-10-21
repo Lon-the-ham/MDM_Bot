@@ -45,7 +45,7 @@ class Pingable_Interests(commands.Cog):
 
 
     
-    @commands.command(name='pingterest', aliases=['pingableinterest', 'createpi', 'newpi', 'pi'])
+    @commands.command(name='pingterest', aliases=['newpingterest', 'pingableinterest', 'createpi', 'newpi', 'pi'])
     @commands.check(PICheck.pingterests_enabled)
     @commands.check(util.is_active)
     async def _pingterest(self, ctx, *args):
@@ -68,7 +68,7 @@ class Pingable_Interests(commands.Cog):
 
         conP = sqlite3.connect('databases/pingterest.db')
         curP = conP.cursor()
-        pi_list = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ?", (pi_name,)).fetchall()]
+        pi_list = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE REPLACE(UPPER(pingterest), ' ', '') = ?", (pi_name.upper().replace(" ",""),)).fetchall()]
         if len(pi_list) == 0:
             curP.execute("INSERT INTO pingterests VALUES (?, ?, ?, ?)", (pi_name, "", "", "template"))
             conP.commit()
@@ -130,7 +130,7 @@ class Pingable_Interests(commands.Cog):
             await ctx.send(f"This pingterest does not exist! {emoji}")
             return
 
-        pi_user = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id))).fetchall()]
+        pi_user = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE REPLACE(UPPER(pingterest), ' ', '') = ? AND userid = ?", (pi_name.upper().replace(" ",""), str(user.id))).fetchall()]
         if len(pi_user) == 0:
             curP.execute("INSERT INTO pingterests VALUES (?, ?, ?, ?)", (pi_name, str(user.id), str(user.name), ""))
             conP.commit()
@@ -162,14 +162,14 @@ class Pingable_Interests(commands.Cog):
         conP = sqlite3.connect('databases/pingterest.db')
         curP = conP.cursor()
 
-        pi_list = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND details = ?", (pi_name, "template")).fetchall()]
+        pi_list = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE REPLACE(UPPER(pingterest), ' ', '') = ? AND details = ?", (pi_name.upper().replace(" ",""), "template")).fetchall()]
 
         if len(pi_list) == 0:
             emoji = util.emoji("attention")
             await ctx.send(f"This pingterest does not exist! {emoji}")
             return
 
-        pi_user = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id))).fetchall()]
+        pi_user = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE REPLACE(UPPER(pingterest), ' ', '') = ? AND userid = ?", (pi_name.upper().replace(" ",""), str(user.id))).fetchall()]
         if len(pi_user) != 0:
             curP.execute("DELETE FROM pingterests WHERE pingterest = ? AND userid = ?", (pi_name, str(user.id)))
             conP.commit()
@@ -236,15 +236,17 @@ class Pingable_Interests(commands.Cog):
         if pi_name == "":
             await ctx.send("Command needs an argument :s")
             return
+
+        serveruser_ids = [str(x.id) for x in ctx.guild.members]
         
-        pi_subs = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ?", (pi_name,)).fetchall()]
+        pi_subs = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE REPLACE(UPPER(pingterest), ' ', '') = ?", (pi_name.upper().replace(" ",""),)).fetchall()]
         
         pisubsstring = ""
         i = 0 # counts elements of pi_subs
         k = 0 # counts actual people
         for pi in pi_subs:
             i += 1
-            if str(pi[1]) == "":
+            if str(pi[1]) == "" or str(pi[1]) not in serveruser_ids:
                 pass 
             else:
                 k += 1
@@ -324,7 +326,7 @@ class Pingable_Interests(commands.Cog):
         curP = conP.cursor()
 
         pi_name = " ".join(args).lower()[:60]
-        pi_entries = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ?", (pi_name,)).fetchall()]
+        pi_entries = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE REPLACE(UPPER(pingterest), ' ', '') = ?", (pi_name.upper().replace(" ",""),)).fetchall()]
         
         if len(pi_entries) == 0:
             emoji = util.emoji("hmm")
@@ -382,15 +384,19 @@ class Pingable_Interests(commands.Cog):
             pi_name = argsstring[:60]
             additional_msg = ""
 
-        all_pis = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE pingterest = ? AND details = ?", (pi_name,"")).fetchall()]
+        all_pis = [[item[0], item[1], item[2], item[3]] for item in curP.execute("SELECT pingterest, userid, username, details FROM pingterests WHERE REPLACE(UPPER(pingterest), ' ', '') = ? AND details = ?", (pi_name.upper().replace(" ", ""),"")).fetchall()]
         
         if len(all_pis) == 0:
             emoji = util.emoji("cry")
             await ctx.send(f"No one has said pingterest {emoji}")
             return
+
+        serveruser_ids = [str(x.id) for x in ctx.guild.members]
         
         wordlist = [f"**New {pi_name} ping!**\n"]
         for pi in all_pis:
+            if str(pi[1]) not in serveruser_ids:
+                continue
             wordlist.append(f"<@{str(pi[1])}>")
         wordlist.append(f'\n\n(If you also wish to be pinged in the future use {self.prefix}joinpi {pi_name}, if you no longer want to be pinged for these events use {self.prefix}leavepi {pi_name})')
         

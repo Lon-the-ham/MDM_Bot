@@ -283,7 +283,7 @@ class Roles(commands.Cog):
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
     async def _assign(self, ctx, *args):
-        """Assign role
+        """㊙️ Assign role
 
         Use the role name, id or mention. Only roles that appear in `<prefix>roles` are assignable.
         You can also assign multiple roles at once, but they have to be either role ids/mentions OR role names separated by semicolons.
@@ -307,7 +307,7 @@ class Roles(commands.Cog):
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
     async def _unassign(self, ctx, *args):
-        """Unassign role
+        """㊙️ Unassign role
 
         Use the role name, id or mention. Only roles that appear in `<prefix>roles` are unassignable.
         You can also unassign multiple roles at once, but they have to be either role ids/mentions OR role names separated by semicolons.
@@ -1106,7 +1106,7 @@ class Roles(commands.Cog):
 
 
 
-    @commands.command(name='checkrolemoji', aliases = ['rolemojicheck'])
+    @commands.command(name='checkrolemoji', aliases = ['rolemojicheck', 'checkroleemoji', 'roleemojicheck'])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
@@ -1768,12 +1768,12 @@ class Roles(commands.Cog):
 
 
 
-    @commands.command(name='letmeout', aliases = ['imactive', 'illbeactiveipromise'])
+    @commands.command(name='letmeout', aliases = ['imactive', 'illbeactiveipromise', 'letmein'])
     @commands.check(util.inactivity_filter_enabled)
     @commands.check(util.is_active) 
     async def _recoverfrominactivity(self, ctx):
         """break out from inactivity channel
-        """    
+        """
 
         # FETCH ROLE
         
@@ -1832,15 +1832,38 @@ class Roles(commands.Cog):
             # SWAP ROLES
 
             if len(prevroles) == 0:
-                await member.remove_roles(inactivity_role)
+                await user.remove_roles(inactivity_role)
             else:
                 await user.edit(roles=prevroles)
 
         except Exception as e:
             print("Error:", e)
+
             prevroles = []
 
-            await member.remove_roles(inactivity_role)
+            # CHECK VERIFIED/COMMUNITY ROLE
+            try:
+                try:
+                    if util.setting_enabled("access wall"):
+                        verified_role_id = int([item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("verified role",)).fetchall()][0])
+                        verified_role = ctx.guild.get_role(verified_role_id)
+                        prevroles.append(verified_role)
+                except Exception as e:
+                    print("Error:", e)
+                try:
+                    if util.setting_enabled("automatic role"):
+                        community_role_id = [item[0].strip() for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("community role",)).fetchall()]
+                        community_role = ctx.guild.get_role(verified_role_id)
+                        prevroles.append(community_role)
+                except Exception as e:
+                    print("Error:", e)
+            except:
+                pass
+
+            try:
+                await user.edit(roles=prevroles)
+            except:
+                await user.remove_roles(inactivity_role)
 
         await ctx.message.delete()
 

@@ -317,7 +317,24 @@ class Music_NowPlaying(commands.Cog):
             embed = discord.Embed(description=description, color = color)
             embed.set_author(name=f"{lfm_name}'s {recency} on LastFM" , icon_url=member.avatar)
             try:
-                embed.set_thumbnail(url=album_cover)
+                default_whitestar_image = "https://lastfm.freetls.fastly.net/i/u/68s/2a96cbd8b46e442fc41c2b86b821562f.png"
+                if album_cover != "" and not album_cover.endswith("2a96cbd8b46e442fc41c2b86b821562f.png"):
+                    embed.set_thumbnail(url=album_cover)
+                else:
+                    # try to fetch from database
+                    artist_compact = util.compactnamefilter(artist, "artist", "alias")
+                    album_compact = util.compactnamefilter(album, "album")
+                    _, _, cover_url, details, _, last_updated = await util.get_album_details_from_compact(artist_compact, album_compact)
+                    try:
+                        now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                        if last_updated is None:
+                            raise ValueError("no image in database as well")
+                        if last_updated > now - 180*24*60*60:
+                            embed.set_thumbnail(url=cover_url)
+                        else:
+                            raise ValueError(f"no image in database for {artist_compact}-{album_compact} as well")
+                    except Exception as e:
+                        embed.set_thumbnail(url=default_whitestar_image)
             except Exception as e:
                 print(e)
 
@@ -431,13 +448,27 @@ class Music_NowPlaying(commands.Cog):
         embed = discord.Embed(description=description, color = color)
         embed.set_author(name=f"{lfm_name}'s {recency} on LastFM" , icon_url=member.avatar)
         try:
-            if album_cover2.strip() != "":
+            default_whitestar_image = "https://lastfm.freetls.fastly.net/i/u/68s/2a96cbd8b46e442fc41c2b86b821562f.png"
+            if album_cover2 != "" and not album_cover2.endswith("2a96cbd8b46e442fc41c2b86b821562f.png"):
                 try:
                     embed.set_thumbnail(url=album_cover2.strip())
                 except:
                     embed.set_thumbnail(url=album_cover.strip())
             else:
-                embed.set_thumbnail(url=album_cover.strip())
+                # try to fetch from database
+                artist_compact = util.compactnamefilter(artist, "artist", "alias")
+                album_compact = util.compactnamefilter(album, "album")
+                _, _, cover_url, details, _, last_updated = await util.get_album_details_from_compact(artist_compact, album_compact)
+                try:
+                    now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                    if last_updated is None:
+                        raise ValueError(f"no image in database for {artist_compact}-{album_compact} as well")
+                    if last_updated > now - 180*24*60*60:
+                        embed.set_thumbnail(url=cover_url)
+                    else:
+                        raise ValueError("image too old")
+                except Exception as e:
+                    embed.set_thumbnail(url=default_whitestar_image)
         except Exception as e:
             print(e)
             try:
@@ -901,24 +932,37 @@ class Music_NowPlaying(commands.Cog):
             if lfm_name != None:
                 rank = None
                 crown_holder = None
+                crown_count = None
                 artistcount = None
                 albumcount = None
                 trackcount = None
 
-                if crown == "on" or lastfm_rank == "on":
+                if (crown == "on" or crown == "only_own") or lastfm_rank == "on":
                     try:
-                        rank, crown_holder = util.get_rank(ctx, lfm_name, subst_artist)
+                        rank, crown_holder, crown_count = util.get_rank(ctx, lfm_name, subst_artist)
                     except Exception as e:
                         print("Error while calling util.get_rank():", e)
                         rank = ""
                         crown_holder = None
+                        crown_count = None
 
-                if crown == "on":
-                    if ((type(crown_holder) is str) and (str(lfm_name).upper().strip() == crown_holder.upper().strip())) and (scrobble_status not in ["wk_banned", "crown_banned"]):
-                        emoji = util.emoji("crown")
-                        if emoji.strip() == "":
-                            emoji = "♕"
-                        user_stats += f"{emoji} "
+                if crown == "on" or crown == "only_own":
+                    mention_crownuser = False
+                    crown_text = ""
+                    emoji = util.emoji("crown")
+                    if emoji == "" or (emoji.startswith("<") and emoji.endswith(">") and emoji.count(":") > 1):
+                        emoji = "♕"
+
+                    if scrobble_status not in ["wk_banned", "crown_banned"]:
+                        if (type(crown_holder) is str) and (crown_holder.strip() != ""):
+                            if (str(lfm_name).upper().strip() == crown_holder.upper().strip()):
+                                user_stats += f"{emoji} "
+                            elif crown == "on":
+                                mention_crownuser = True
+                                if crown_count is not None:
+                                    crown_holder_discord = util.convert_lfmname_to_discordname(ctx, crown_holder)
+                                    crown_count_formatted = "{:,}".format(crown_count)
+                                    crown_text = f"{self.tagseparator} {emoji}{crown_count_formatted} ({crown_holder_discord})"
 
                 if lastfm_artistscrobbles == "on":
                     try:
@@ -985,7 +1029,22 @@ class Music_NowPlaying(commands.Cog):
                             user_stats = user_stats[:-2] + ") "
 
                 if lastfm_rank == "on" and type(rank) == str:
-                    user_stats += rank
+                    if crown == "on":
+                        if mention_crownuser:
+                            # a different user is crown holder:
+                            if rank != "":
+                                if len(crown_text) <= 29:
+                                    rank2 = "server rank: " + rank.replace("[", "").replace("]", "")
+                                else:
+                                    rank2 = "rank: " + rank.replace("[", "").replace("]", "")
+                                user_stats += f"\n{rank2} {crown_text}"
+                        else:
+                            # command invoker is crown holder:
+                            user_stats += rank
+                            #if len(user_stats) > 42:
+                            #    user_stats += "\nserver rank: " + rank.replace("[", "").replace("]", "")
+                            #else:
+                            #    user_stats += rank
 
             if rym_albumrating == "on":
                 # rym import under construction
@@ -1840,10 +1899,14 @@ class Music_NowPlaying(commands.Cog):
 
     ########################################################### COMMANDS ###########################################################
 
+
+
     @commands.command(name='spotify', aliases = ['spoofy', 'sp'])
     @commands.check(util.is_active)
     async def _spotify_plain(self, ctx: commands.Context, *args):
         """NowPlaying for Spotify
+
+        Use spx to also get (customisable) tags and info to the track you're playing.
         """
         tags = True
         custom = False
@@ -1857,7 +1920,7 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='spx', aliases = ['spoofyx', 'spotifyx'])
     @commands.check(util.is_active)
     async def _spotify_extra(self, ctx: commands.Context, *args):
-        """NowPlaying for Spotify with customisable tags
+        """㊙️ NowPlaying for Spotify with customisable tags
         """
         tags = True
         custom = True
@@ -1871,7 +1934,9 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='musicbee', aliases = ['bee', 'mb'])
     @commands.check(util.is_active)
     async def _musicbee(self, ctx: commands.Context, *args):
-        """NowPlaying for MusicBee"""
+        """NowPlaying for MusicBee
+
+        Use mbx to also get (customisable) tags and info to the track you're playing."""
         tags = True
         custom = False
         await self.musicbee(ctx, args, tags, custom)
@@ -1884,7 +1949,7 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='mx', aliases = ['musicbeex','beex', 'mbx', 'bx'])
     @commands.check(util.is_active)
     async def _musicbee_extra(self, ctx: commands.Context, *args):
-        """NowPlaying for MusicBee with customisable tags"""
+        """㊙️ NowPlaying for MusicBee with customisable tags"""
         tags = True
         custom = True
         await self.musicbee(ctx, args, tags, custom)
@@ -1897,7 +1962,9 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='applemusic', aliases = ['apple', 'am', 'itunes'])
     @commands.check(util.is_active)
     async def _applemusic(self, ctx: commands.Context, *args):
-        """NowPlaying for Apple Music"""
+        """NowPlaying for Apple Music
+
+        Use apx to also get (customisable) tags and info to the track you're playing."""
         tags = True
         custom = False
         await self.applemusic(ctx, args, tags, custom)
@@ -1910,7 +1977,7 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='apx', aliases = ['applemusicx', 'applex', 'amx', 'itunesx'])
     @commands.check(util.is_active)
     async def _applemusic_extra(self, ctx: commands.Context, *args):
-        """NowPlaying for Apple Music with customisable tags"""
+        """㊙️ NowPlaying for Apple Music with customisable tags"""
         tags = True
         custom = True
         await self.applemusic(ctx, args, tags, custom)
@@ -1920,10 +1987,12 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    @commands.command(name='lastfm', aliases = ['fm', 'lfm'])
+    @commands.command(name='fm', aliases = ['lastfm', 'lfm'])
     @commands.check(util.is_active)
     async def _lastfm(self, ctx: commands.Context, *args):
-        """NowPlaying for LastFM"""
+        """NowPlaying for LastFM
+
+        Use fmx to also get (customisable) tags and info to the track you're playing."""
         tags = True
         custom = False
         await self.lastfm(ctx, args, "api", tags, custom)
@@ -1933,10 +2002,10 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    @commands.command(name='lfmx', aliases = ['fmx', 'lastfmx'])
+    @commands.command(name='fmx', aliases = ['lfmx', 'lastfmx'])
     @commands.check(util.is_active)
     async def _lastfm_extra(self, ctx: commands.Context, *args):
-        """NowPlaying for LastFM with customisable tags"""
+        """㊙️ NowPlaying for LastFM with customisable tags"""
         tags = True
         custom = True
         await self.lastfm(ctx, args, "api", tags, custom)
@@ -1973,7 +2042,9 @@ class Music_NowPlaying(commands.Cog):
     async def _nowplaying(self, ctx: commands.Context, *args):
         """NowPlaying
 
-        going through all integrated music sreaming services: Spotify, MusicBee, AppleMusic, LastFM"""
+        Going through all integrated music sreaming services (Spotify, MusicBee, AppleMusic, LastFM) until it finds a track you are listening to and displays it.
+        Use `<prefix>npx` to also display customisable tags (beyond the standard info), or use `<prefix>n` to display without *any* tags.
+        """
         tags = True
         custom = False
         await self.nowplaying(ctx, args, tags, custom)
@@ -1986,9 +2057,10 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='npx', aliases = ['nowplayingx'])
     @commands.check(util.is_active)
     async def _nowplaying_extra(self, ctx: commands.Context, *args):
-        """NowPlaying with customisable tags
+        """㊙️ NowPlaying with customisable tags
 
-        going through all integrated music sreaming services: Spotify, MusicBee, AppleMusic, LastFM"""
+        Going through all integrated music sreaming services (Spotify, MusicBee, AppleMusic, LastFM) until it finds a track you are listening to and displays it.
+        Use `<prefix>np` to only display standard tags, or use `<prefix>n` to display without *any* tags."""
         tags = True
         custom = True
         await self.nowplaying(ctx, args, tags, custom)
@@ -1998,12 +2070,13 @@ class Music_NowPlaying(commands.Cog):
 
 
 
-    @commands.command(name='np0', aliases = ['nowplaying0'])
+    @commands.command(name='n', aliases = ['np0', 'nowplaying0'])
     @commands.check(util.is_active)
     async def _nowplayingzero(self, ctx: commands.Context, *args):
-        """NowPlaying without any tags
+        """㊙️ NowPlaying without any tags
 
-        going through all integrated music sreaming services: Spotify, MusicBee, AppleMusic, LastFM"""
+        Going through all integrated music sreaming services (Spotify, MusicBee, AppleMusic, LastFM) until it finds a track you are listening to and displays it.
+        Use `<prefix>npx` to also display customisable tags, or use `<prefix>np` to only display standard tags."""
         tags = False
         custom = False
         await self.nowplaying(ctx, args, tags, custom)
@@ -2174,13 +2247,39 @@ class Music_NowPlaying(commands.Cog):
                     description = f"[{track}]({song_link})\nby **{util.cleantext2(artist)}** | {album}"
                 embed = discord.Embed(description=description, color = member.color)
                 embed.set_author(name=f"{member.display_name}'s fakenowplaying" , icon_url=member.avatar)
+
+                # THUMBNAIL
                 try:
-                    embed.set_thumbnail(url=albumart)
+                    default_fnp_image = "https://i.imgur.com/0Djj7I6.jpeg"
+                    default_whitestar_image = "https://lastfm.freetls.fastly.net/i/u/68s/2a96cbd8b46e442fc41c2b86b821562f.png"
+                    default_star_suffix = "2a96cbd8b46e442fc41c2b86b821562f.png"
+
+                    if albumart != "" and albumart != default_fnp_image and not albumart.endswith(default_star_suffix):
+                        embed.set_thumbnail(url=albumart)
+                    else:
+                        # try to fetch from database
+                        artist_compact = util.compactnamefilter(artist, "artist", "alias")
+                        album_compact = util.compactnamefilter(album, "album")
+                        _, _, cover_url, details, _, last_updated = await util.get_album_details_from_compact(artist_compact, album_compact)
+                        try:
+                            now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
+                            if last_updated is None:
+                                raise ValueError(f"no image in database for {artist_compact}-{album_compact} as well")
+                            if last_updated > now - 180*24*60*60 and cover_url != "" and not cover_url.endswith(default_star_suffix):
+                                embed.set_thumbnail(url=cover_url)
+                            else:
+                                raise ValueError("database image too old")
+                        except Exception as e:
+                            print(e)
+                            embed.set_thumbnail(url=default_fnp_image)
                 except Exception as e:
                     print(e)
+
+                # FOOTER
                 if tags == True or tags == "custom":
                     embed.set_footer(text=tag_string[:2048].strip())
 
+                # SEND
                 message = await ctx.send(embed=embed)
             except Exception as e:
                 print("Error:", e)
@@ -3280,9 +3379,48 @@ class Music_NowPlaying(commands.Cog):
         """🔒 removes someone's fm account
 
         e.g. when someone loses access to their discord account and rejoins with a new one remove the lastfm account from the first discord account.
+        Use command with @mention or user ID.
         """
 
-        await ctx.send("under construction")
+        response = await util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to remove this users lastfm data and delete all their scrobbles?")
+
+        if response == False:
+            return
+
+        conNP = sqlite3.connect('databases/npsettings.db')
+        curNP = conNP.cursor()
+
+        user_id = ''.join(args).replace("<@", "").replace(">","")
+
+        if not util.represents_integer(user_id):
+            await ctx.send("User ID seems to be invalid.. :(")
+            return
+
+        lastfm_name, status = util.get_lfmname(user_id)
+
+        if lastfm_name is None:
+            await ctx.send(f"No lastfm username of user `@{user_id}` found.. :(")
+            return
+
+        async with ctx.typing():
+            conFM = sqlite3.connect('databases/scrobbledata.db')
+            curFM = conFM.cursor()
+            conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+            curFM2 = conFM2.cursor()
+            conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+            curFM3 = conFM3.cursor()
+
+            curFM.execute(f"DROP TABLE IF EXISTS [{lastfm_name}]")
+            conFM.commit()
+            curFM2.execute(f"DROP TABLE IF EXISTS [{lastfm_name}]")
+            conFM2.commit()
+            curFM3.execute(f"DROP TABLE IF EXISTS [{lastfm_name}]")
+            conFM3.commit()
+
+            curNP.execute("DELETE FROM lastfm WHERE id = ?", (user_id,))
+            conNP.commit()
+
+        await ctx.reply(f"Removed scrobble data from {lastfm_name}.", mention_author=False)
 
     @_removefm.error
     async def removefm_error(self, ctx, error):
@@ -3297,7 +3435,7 @@ class Music_NowPlaying(commands.Cog):
     @commands.command(name='tagsettings', aliases = ['settags', 'tags', "tagset", "tag"])
     @commands.check(util.is_active)
     async def _nptags(self, ctx: commands.Context, *args):
-        """Configure np tags"""
+        """🔜 Configure np tags"""
 
         # under construction
 

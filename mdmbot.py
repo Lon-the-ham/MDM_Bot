@@ -27,11 +27,11 @@ activity = "loading..."
 class YataBot(commands.Bot):
     def __init__(self):
         super().__init__(
-            application_id = app_id,
-            case_insensitive=True,
-            command_prefix = prefix,
-            help_command = None,
-            intents = discord.Intents.all()
+            application_id   = app_id,
+            case_insensitive = True,
+            command_prefix   = prefix,
+            help_command     = None,
+            intents          = discord.Intents.all()
             )
 
         self.initial_extensions = [
@@ -48,6 +48,7 @@ class YataBot(commands.Bot):
             "cogs.music.fm",
             "cogs.music.info",
             "cogs.music.scrobble_utility",
+            "cogs.music.scrobble_visualization",
             "cogs.roles.roles",
             "cogs.roles.reactionroles",
             "cogs.userown.memo",
@@ -193,12 +194,45 @@ class YataBot(commands.Bot):
             # INSTANCES WIDE ACTIVITY CHECK
 
             try:
-                print("\n")
-                #print("Instances-wide activity check not implemented yet.")
+                # Check whether bot display role id enabled
+                con = sqlite3.connect(f'databases/botsettings.db')
+                cur = con.cursor()
 
+                bot_display = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("bot display",)).fetchall()][0]
+                if bot_display == "on":
+                    # Check whether role is assinged to bot
+
+                    server = bot.get_guild(guild_id)
+                    if server is None:
+                        server = await bot.fetch_guild(guild_id)
+                        if server is None:
+                            raise ValueError("bot.fetch_guild(<guild_id>) returned None")
+
+                    bot_member = server.get_member(self.application_id)
+                    botrole_id = int([item[0] for item in cur.execute("SELECT role_id FROM specialroles WHERE name = ?", ("bot display role",)).fetchall()][0])                   
+                    bot_display_role = server.get_role(botrole_id)
+
+                    if bot_display_role in bot_member.roles:
+                        # bot has role, no need to set inactive
+                        pass
+
+                    else:
+                        # bot does not have role -> set to inactive
+                        conA = sqlite3.connect(f'databases/activity.db')
+                        curA = conA.cursor()
+                        activity_list = [item[0] for item in curA.execute("SELECT value FROM activity WHERE name = ?", ("activity",)).fetchall()]
+                        this_instances_activity = activity_list[0].lower()
+
+                        if this_instances_activity != "inactive":
+                            curA.execute("UPDATE activity SET value = ? WHERE name = ?", ("inactive", "activity"))
+                            conA.commit()
+                            try:
+                                await channel.send(f'(set inactive)')
+                            except Exception as e:
+                                print(f"Failed to send inactivity setting message: {e}")
             except Exception as e:
-                print(f"Instances-wide activity check failed: {e}")
-
+                print(f"error in serverwide instance activity check: {e}")
+                        
         except Exception as e:
             print(f"error in executing on_ready: {e}")
             activity = "failed loading"

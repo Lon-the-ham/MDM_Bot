@@ -86,12 +86,17 @@ class Event_Response(commands.Cog):
             if image.strip() != "":
                 embed.set_thumbnail(url=image)
 
-            if author != None and author != "":
+            if author != None and str(author) != "":
                 try:
-                    embed.set_author(name=author.name, icon_url=author.avatar)
-                except Exception as e:
-                    print(e)
+                    embed.set_author(name=author.name, icon_url=str(author.avatar))
+                except:
+                    try:
+                        embed.set_author(name=author.name, icon_url="https://cdn.discordapp.com/embed/avatars/0.png")
+                    except:
+                        embed.set_author(name=author.name)
+
             await botspam_channel.send(embed=embed)
+            
         except Exception as e:
             print(e)
             raise ValueError(f"could not send embed")
@@ -248,18 +253,18 @@ class Event_Response(commands.Cog):
 
         title = "Member joined"
         try:
-            created_utc = member.created_at
-            now_utc = datetime.datetime.utcnow()
+            created_utc = member.created_at.astimezone(pytz.utc)
+            now_utc = datetime.datetime.now(datetime.timezone.utc)
             age = now_utc - created_utc
-            age_seconds = age.total_seconds
+            age_seconds = age.total_seconds()
             now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
-            age_string = await util.seconds_to_readabletime(age_seconds, now)
+            age_string = util.seconds_to_readabletime(age_seconds, now)
         except Exception as e:
             print(e)
             age_string = "error"
-        text = f"<@{member_id}>\nAccount Age: {age_string}"
-        footer = f"NAME: {member.name}, ID: {member_id}"   
-        image = member.avatar
+        text = f"<@{user_id}>\nAccount Age: {age_string}"
+        footer = f"NAME: {member.name}, ID: {user_id}"   
+        image = str(member.avatar)
         color = 0x3cb043
         await self.botspam_send(title, text, footer, image, None, color, None)
 
@@ -301,7 +306,7 @@ class Event_Response(commands.Cog):
         title = "Member left"
         text = f"<@{user.id}>"
         footer = f"NAME: {user.name}, ID: {user.id}"   
-        image = user.avatar
+        image = str(user.avatar)
         color = 0xd30000
         await self.botspam_send(title, text, footer, image, None, color, None)
 
@@ -310,8 +315,6 @@ class Event_Response(commands.Cog):
     @commands.Cog.listener()
     async def on_member_update(self, before, after):
         if self.is_inactive():
-            return
-        if before.bot:
             return
         member = before
         server = member.guild
@@ -325,18 +328,19 @@ class Event_Response(commands.Cog):
             #print(f"{member.name} updated in {server.name}")
             return
 
-        if not self.setting_enabled("user name change notification"):
-            return
-
         updated_smth_to_notify = False
         title = ""
         text = ""
 
         if before.nick != after.nick: # nickname change
+            if not self.setting_enabled("user name change notification"):
+                return
             text += f"<@{member.id}>'s changed nickname from {before.nick} to {after.nick}.\n"
             updated_smth_to_notify = True
 
         if before.roles != after.roles: # roles change
+            if not self.setting_enabled("assign role notification"):
+                return
             added_roles = []
             removed_roles = []
 
@@ -356,14 +360,18 @@ class Event_Response(commands.Cog):
                 text += f"<@{member.id}> was removed from the " + removed_roles[0] + "role." 
             elif len(removed_roles) > 1:
                 text += f"<@{member.id}> was removed from the roles: " + ', '.join(removed_roles) + ".\n"
+            updated_smth_to_notify = True
 
         if before.timed_out_until is None and after.timed_out_until is not None: # timeout (the discord internal one)
+            if not self.setting_enabled("user mute/ban/kick notification"):
+                return
             endtime = after.timed_out_until
             now_utc = datetime.datetime.utcnow()
             remaining = (endtime - now_utc).total_seconds()
             now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
             remaining_string = util.seconds_to_readabletime(remaining, now)
             text += f"<@{member.id}> was timed out via the discord internal time out feature.\n{remaining_string}\n"
+            updated_smth_to_notify = True
 
 
         footer = f"ID: {member.id}"
@@ -422,7 +430,7 @@ class Event_Response(commands.Cog):
         emoji = util.emoji("ban")
         text = f"<@{user.id}> {emoji}"
         footer = f"NAME: {user.name}, ID: {user.id}"   
-        image = user.avatar
+        image = str(user.avatar)
         color = 0xd30000
         await self.botspam_send(title, text, footer, image, None, color, None)
 
@@ -450,7 +458,7 @@ class Event_Response(commands.Cog):
         emoji = util.emoji("ban")
         text = f"<@{user.id}> {emoji}"
         footer = f"NAME: {user.name}, ID: {user.id}"   
-        image = user.avatar
+        image = str(user.avatar)
         color = 0x0e4c92
         await self.botspam_send(title, text, footer, image, None, color, None)
 
@@ -1201,7 +1209,6 @@ class Event_Response(commands.Cog):
             await self.botspam_send(title, text, footer, image, member, color, None)
         else:
             print("voice state update")
-
 
 
 

@@ -1497,7 +1497,7 @@ class Memo(commands.Cog):
 
         # IN CASE OF A CSV FILE
         if fileformat == "csv":
-            with open(f"temp/memo_import_{user_id}.csv", 'w', newline='') as csvfile:
+            with open(f"temp/memo_export_{user_id}.csv", 'w', newline='') as csvfile:
                 writer = csv.writer(csvfile, delimiter=';', quotechar='|', quoting=csv.QUOTE_MINIMAL)
 
                 if header:
@@ -1546,12 +1546,12 @@ class Memo(commands.Cog):
 
             emoji = util.emoji("excited")
             textmessage = f"Here is your memo/backlog export as `;`-delimited `.csv`-file! {emoji}"
-            await ctx.send(textmessage, file=discord.File(rf"temp/memo_import_{user_id}.csv"))
-            os.remove(f"{sys.path[0]}/temp/memo_import_{user_id}.csv")
+            await ctx.send(textmessage, file=discord.File(rf"temp/memo_export_{user_id}.csv"))
+            os.remove(f"{sys.path[0]}/temp/memo_export_{user_id}.csv")
 
         # IN CASE OF A TXT FILE
         elif fileformat == "txt":
-            with open(f"temp/memo_import_{user_id}.txt", 'w') as f:
+            with open(f"temp/memo_export_{user_id}.txt", 'w') as f:
 
                 if header:
                     if naive:
@@ -1597,8 +1597,8 @@ class Memo(commands.Cog):
 
             emoji = util.emoji("excited")
             textmessage = f"Here is your memo/backlog export as `tab`-delimited `.txt`-file! {emoji}"
-            await ctx.send(textmessage, file=discord.File(rf"temp/memo_import_{user_id}.txt"))
-            os.remove(f"{sys.path[0]}/temp/memo_import_{user_id}.txt")
+            await ctx.send(textmessage, file=discord.File(rf"temp/memo_export_{user_id}.txt"))
+            os.remove(f"{sys.path[0]}/temp/memo_export_{user_id}.txt")
 
         else:
             await ctx.send("Error: Unknown file format.")
@@ -1635,17 +1635,19 @@ class Memo(commands.Cog):
         Use command with @member mention to see other user's backlog.
         Use command with argument `displaycat` to display categories alongside items.
 
-        `-bl`: Shows backlog
-        `-blc <name>`: Shows backlog of category <name>
-        `-blx <name>`: Shows backlog excluding category <name>
-        `-showcats`: Shows categories in your backlog
+        `<prefix>bl`: Shows backlog
+        `<prefix>blc <name>`: Shows backlog of category <name>
+        `<prefix>blx <name>`: Shows backlog excluding category <name>
+        `<prefix>showcats`: Shows categories in your backlog
 
-        `-add`: Adds to backlog (with default category)
-        `-add [<name>]`: Adds to category <name> in backlog
-        `-del`: Removes from backlog
-        `-edit <index>`: Edits entry nr <index> in backlog
-        `-catedit <index> <name>`: Edits category of entry nr <index> to <name>
-        `-catrename <old name> <new name>`
+        `<prefix>add`: Adds to backlog (with default category)
+        `<prefix>add [<name>]`: Adds to category <name> in backlog
+        `<prefix>del`: Removes from backlog
+        `<prefix>edit <index>`: Edits entry nr <index> in backlog
+        `<prefix>catedit <index> <name>`: Edits category of entry nr <index> to <name>
+        `<prefix>catrename <old name> <new name>`
+
+        (In case you need to have your full backlog on one page you can also use `<prefix>blf`.)
         """
         if len(args) == 0:
             args = ("",)
@@ -1970,13 +1972,15 @@ class Memo(commands.Cog):
 
 
 
-    @commands.command(name='ins', aliases = ['insert', 'in', 'blin', 'blins', 'blinsert'])
+    @commands.command(name='insert', aliases = ['ins', 'in', 'blin', 'blins', 'blinsert'])
     @commands.check(MemoCheck.backlog_enabled)
     @commands.check(util.is_active)
     async def _insert(self, ctx, *args):
         """Insert at index
 
         Adds an item to a given index of your memo/backlog. You can add multiple entries seperated by a semi-colon ;
+        i.e.
+        `<prefix>ins 2 <item name>`
         """
         if len(args) == 0:
             await ctx.send("Command needs argument.")
@@ -2274,7 +2278,8 @@ class Memo(commands.Cog):
     @commands.check(MemoCheck.backlog_enabled)
     @commands.check(util.is_active)
     async def _backlogfull(self, ctx, *args):
-        """Shows entire backlog in one page"""
+        """㊙️ Shows entire backlog in one page
+        """
         await self.backlog_full(ctx)
     @_backlogfull.error
     async def backlogfull_error(self, ctx, error):

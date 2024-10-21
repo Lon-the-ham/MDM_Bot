@@ -16,16 +16,24 @@ from bs4 import BeautifulSoup
 import json
 from emoji import UNICODE_EMOJI
 from calendar import monthrange
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+
 # cloud stuff
 import contextlib
 import six
 import time
 import unicodedata
-import dropbox
 import functools
 import typing
 import base64
 import string
+
+try:
+    import dropbox
+    dropbox_enabled = True
+except:
+    dropbox_enabled = False
 
 
 
@@ -298,6 +306,58 @@ class Utils():
         return key
 
 
+
+    ####################################################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     ############################################### GENERAL UTILITY FUNCTIONS (sorted alphabetically)
 
 
@@ -426,6 +486,21 @@ class Utils():
 
 
 
+    def album_is_nsfw(artist, album):
+        is_nsfw = False
+        artistcompact = Utils.compactnamefilter(artist, "artist", "alias")
+        albumcompact = Utils.compactnamefilter(album, "album")
+
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+        artistinfo_list = [item[0] for item in curSM.execute("SELECT details FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+
+        if len(artistinfo_list) > 0 and artistinfo_list[-1].lower().strip() == "nsfw":
+            is_nsfw = True
+
+        return is_nsfw
+
+
 
     def alphanum(text, *args):
         if len(args) > 0:
@@ -481,14 +556,15 @@ class Utils():
     def compactaddendumfilter(input_string, *info):
         intermediate_string = input_string
 
-        if info == ("artist",):
-            if input_string.endswith(" - Topic"):
-                intermediate_string = input_string.replace(" - Topic", "")
-        elif info == ("album",):
-            if input_string.endswith(" - EP"):
-                intermediate_string = input_string.replace(" - EP", "")
+        if len(info) > 0 :
+            if info[0] == "artist":
+                if input_string.endswith(" - Topic"):
+                    intermediate_string = input_string.replace(" - Topic", "")
+            elif info[0] == "album":
+                if input_string.endswith(" - EP"):
+                    intermediate_string = input_string.replace(" - EP", "")
 
-        if not info == ("track",):
+        if (len(info) == 0 or (len(info) > 0 and info[0] != "track")):
             if "(" in intermediate_string and not intermediate_string.startswith("("):
                 intermediate_string = intermediate_string.split("(",1)[0]
             if "[" in intermediate_string and not intermediate_string.startswith("["):
@@ -498,88 +574,99 @@ class Utils():
 
 
 
+    def compactaliasconvert(input_string):
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+        
+        alias_list = [item[0] for item in curSM.execute("SELECT artist_key FROM artist_aliases WHERE alias_name = ?", (input_string,)).fetchall()]
+
+        if len(alias_list) == 0:
+            return input_string
+
+        else:
+            result_string = alias_list[-1]
+
+            return result_string
+
+
+
     def compactnamefilter(input_string, *info):
         # https://en.wikipedia.org/wiki/List_of_Latin-script_letters
         # get rid of bracket info
+        if input_string is None or input_string == "":
+            return ""
+
+        edited_string = ""
         try:
+            # upper case and remove brackets etc
             if len(info) > 0:
-                intermediate_string = Utils.compactaddendumfilter(input_string, info[0])
+                edited_string = Utils.compactaddendumfilter(input_string, info[0]).upper()
             else:
-                intermediate_string = input_string
+                edited_string = input_string.upper()
+
+            # replace & with AND
+            if " & " in edited_string:
+                edited_string.replace(" & ", " AND ")
+
+            # get rid of starting THE/A/AN
+            if edited_string.startswith("THE "):
+                if len(edited_string) > 4:
+                    edited_string = edited_string[4:]
+            elif edited_string.startswith("A "):
+                if len(edited_string) > 2:
+                    edited_string = edited_string[2:]
+            elif edited_string.startswith("AN "):
+                if len(edited_string) > 3:
+                    edited_string = edited_string[3:]
 
             # get rid of non-alphanumeric
-            filtered_string = ''.join([x for x in intermediate_string.upper() if x.isalnum()])
+            filtered_string = ''.join([x for x in edited_string if x.isalnum()])
 
             if filtered_string == "":
-                return intermediate_string
+                return edited_string
             else:
-                intermediate_string = filtered_string
+                edited_string = filtered_string
 
             # adapt accents
-            diacritics = {
-                ord("Æ"): "AE",
-                ord("Ã"): "A",
-                ord("Å"): "A",
-                ord("Ā"): "A",
-                ord("Ä"): "A",
-                ord("Â"): "A",
-                ord("À"): "A",
-                ord("Á"): "A",
-                ord("Å"): "A",
-                ord("Ầ"): "A",
-                ord("Ấ"): "A",
-                ord("Ẫ"): "A",
-                ord("Ẩ"): "A",
-                ord("Ç"): "C",
-                ord("Č"): "C",
-                ord("Ď"): "D",
-                ord("Ė"): "E",
-                ord("Ê"): "E",
-                ord("Ë"): "E",
-                ord("È"): "E",
-                ord("É"): "E",
-                ord("Ě"): "E",
-                ord("Ğ"): "G",
-                ord("Í"): "I",
-                ord("İ"): "I",
-                ord("Ñ"): "N",
-                ord("Ń"): "N",
-                ord("Ň"): "N",
-                ord("Ō"): "O",
-                ord("Ø"): "O",
-                ord("Õ"): "O",
-                ord("Œ"): "OE",
-                ord("Ó"): "O",
-                ord("Ò"): "O",
-                ord("Ô"): "O",
-                ord("Ö"): "O",
-                ord("Ř"): "R",
-                ord("Š"): "S",
-                ord("ẞ"): "SS",
-                ord("Ś"): "S",
-                ord("Š"): "S",
-                ord("Ş"): "S",
-                ord("Ť"): "T",
-                ord("Ū"): "U",
-                ord("Ù"): "U",
-                ord("Ú"): "U",
-                ord("Û"): "U",
-                ord("Ü"): "U",
-                ord("Ů"): "U",
-                ord("Ý"): "Y",
-                ord("Ž"): "Z",
-            }
-            new_string = intermediate_string.translate(diacritics)
-            return new_string
+            edited_string = Utils.diacritic_uppercase_translation(edited_string)
+
+            if len(info) > 1 and info[0] == "artist" and info[1] == "alias":
+                edited_string = Utils.compactaliasconvert(edited_string)
+
+            return edited_string
 
         except Exception as e:
             print(f"Error: {e}")
-            return intermediate_string
+            print(traceback.format_exc())
+            return edited_string
 
 
 
     def confirmation_check(ctx, message): # checking if it's the same user and channel
         return ((message.author == ctx.author) and (message.channel == ctx.channel))
+
+
+
+    def convert_lfmname_to_discordname(ctx, lfmname):
+        """if not possible it keeps the name but precedes it with >>lfm:<<"""
+        try:
+            substitute = "lfm:" + lfmname
+
+            conNP = sqlite3.connect('databases/npsettings.db')
+            curNP = conNP.cursor()
+            try:
+                result = curNP.execute("SELECT id FROM lastfm WHERE lfm_name = ?", (lfmname,)).fetchone()
+                user_id = str(result[0])
+            except Exception as e:
+                return substitute
+
+            for member in ctx.guild.members:
+                if str(member.id) == user_id:
+                    return member.name
+            else:
+                return substitute
+        except:
+            return substitute
 
 
 
@@ -606,6 +693,86 @@ class Utils():
             string = string.split("Pt. ")[0]
 
         return string.strip()
+
+
+
+    def diacritic_translation(old_string):
+        new_string = ""
+        for c in old_string:
+            c_up = c.upper()
+            if c == c_up:
+                new_string += Utils.diacritic_uppercase_translation(c)
+            else:
+                new_string += Utils.diacritic_uppercase_translation(c_up).lower()
+
+        return new_string
+
+
+
+    def diacritic_uppercase_translation(old_string):
+        diacritics = {
+            ord("Æ"): "AE",
+            ord("Ã"): "A",
+            ord("Å"): "A",
+            ord("Ā"): "A",
+            ord("Ä"): "A",
+            ord("Â"): "A",
+            ord("À"): "A",
+            ord("Á"): "A",
+            ord("Å"): "A",
+            ord("Ầ"): "A",
+            ord("Ấ"): "A",
+            ord("Ẫ"): "A",
+            ord("Ẩ"): "A",
+            ord("Ą"): "A",
+            ord("Ç"): "C",
+            ord("Č"): "C",
+            ord("Ď"): "D",
+            ord("Ė"): "E",
+            ord("Ê"): "E",
+            ord("Ë"): "E",
+            ord("È"): "E",
+            ord("É"): "E",
+            ord("Ě"): "E",
+            ord("Ē"): "E",
+            ord("Ę"): "E",
+            ord("Ğ"): "G",
+            ord("Í"): "I",
+            ord("İ"): "I",
+            ord("Î"): "I",
+            ord("Ī"): "I",
+            ord("Ł"): "L",
+            ord("Ñ"): "N",
+            ord("Ń"): "N",
+            ord("Ň"): "N",
+            ord("Ō"): "O",
+            ord("Ø"): "O",
+            ord("Õ"): "O",
+            ord("Œ"): "OE",
+            ord("Ó"): "O",
+            ord("Ò"): "O",
+            ord("Ô"): "O",
+            ord("Ö"): "O",
+            ord("Ř"): "R",
+            ord("Š"): "S",
+            ord("ẞ"): "SS",
+            ord("Ś"): "S",
+            ord("Š"): "S",
+            ord("Ş"): "S",
+            ord("Ť"): "T",
+            ord("Ū"): "U",
+            ord("Ù"): "U",
+            ord("Ú"): "U",
+            ord("Û"): "U",
+            ord("Ü"): "U",
+            ord("Ů"): "U",
+            ord("Ý"): "Y",
+            ord("Ÿ"): "Y",
+            ord("Ž"): "Z",
+        }
+        new_string = old_string.translate(diacritics)
+
+        return new_string
 
 
 
@@ -672,10 +839,10 @@ class Utils():
                     elif len(second_choice_list) > 0:
                         emote = random.choice(second_choice_list)
 
-            if emote == "":                
+            if emote.strip() == "":                
                 print(f"Notice: Emoji with name '{name}' returned an empty string.")
 
-            return emote
+            return emote.strip()
 
         except Exception as e:
             print("Error:", e)
@@ -795,6 +962,31 @@ class Utils():
 
 
 
+    @to_thread
+    def get_album_details_from_compact(artistcompact, albumcompact):
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+        albuminfo_list = [[item[0], item[1], item[2], item[3], item[4], item[5]] for item in curSM.execute("SELECT artist, album, cover_url, details, tags, last_update FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+
+        if len(albuminfo_list) > 0:
+            artist = albuminfo_list[-1][0]
+            album = albuminfo_list[-1][1]
+            url = albuminfo_list[-1][2]
+            details = str(albuminfo_list[-1][3])
+            tagstring = albuminfo_list[-1][4]
+            last_updated = albuminfo_list[-1][5]
+        else:
+            artist = None
+            album = None
+            url = None
+            details = None
+            tagstring = None
+            last_updated = None
+
+        return artist, album, url, details, tagstring, last_updated
+
+
+
     def get_lfmname(user_id):
         try:
             conNP = sqlite3.connect('databases/npsettings.db')
@@ -829,6 +1021,19 @@ class Utils():
             else:
                 bar += "░"
         return bar
+
+
+
+    def get_main_server_id():
+        try:
+            con = sqlite3.connect(f'databases/botsettings.db')
+            cur = con.cursor()
+            return int([item[0] for item in cur.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id",)).fetchall()][0])
+        except:
+            try:
+                return int(os.getenv("guild_id"))
+            except:
+                return 0
 
 
 
@@ -897,7 +1102,7 @@ class Utils():
                 # GET COUNT
 
                 try:
-                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM [{lfm_name}] WHERE artist_name = ?", (Utils.compactnamefilter(artist,"artist"),))
+                    result = curFM2.execute(f"SELECT SUM(count), MAX(last_time) FROM [{lfm_name}] WHERE artist_name = ?", (Utils.compactnamefilter(artist,"artist","alias"),))
 
                     try:
                         rtuple = result.fetchone()
@@ -968,20 +1173,28 @@ class Utils():
             # GET CROWN HOLDER
 
             crown_user = None
+            crown_count = None
 
             try:
                 conSS = sqlite3.connect('databases/scrobblestats.db')
                 curSS = conSS.cursor()
-                crowns_list = [item[0] for item in curSS.execute(f"SELECT crown_holder FROM crowns_{ctx.guild.id} WHERE UPPER(artist) = ?", (artist.upper(),)).fetchall()]
-                crown_user = crowns_list[0]
+                crowns_list = [[item[0],item[1]] for item in curSS.execute(f"SELECT crown_holder, playcount FROM crowns_{ctx.guild.id} WHERE UPPER(artist) = ?", (artist.upper(),)).fetchall()]
+                crown_user = crowns_list[0][0]
+                crown_count = crowns_list[0][1]
             except:
                 pass
 
-            return ctx_rank_string, crown_user
+            return ctx_rank_string, crown_user, crown_count
 
         except Exception as e:
             print(f"Error in utils.get_rank(): {e}")
             return "", None
+
+
+
+    def get_server_created_utc(ctx):
+        creation_time = ctx.guild.created_at
+        return int((creation_time.replace(tzinfo=None) - datetime(1970, 1, 1)).total_seconds())
 
 
 
@@ -1696,7 +1909,7 @@ class Utils():
 
         unit_seconds = Utils.unit_seconds()
 
-        if len(from_timestamp) == 0:
+        if len(from_timestamp) == 0 or from_timestamp[0] == None:
 
             # NAIVE WAY TO CALCULATE
 
@@ -1929,6 +2142,25 @@ class Utils():
 
 
 
+    def setting_enabled(name):
+        """Checks if a setting is enabled and returns True or False"""
+        conB = sqlite3.connect(f'databases/botsettings.db')
+        curB = conB.cursor()
+        setting_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", (name,)).fetchall()]
+        if len(setting_list) == 0:
+            setting = "off"
+        else:
+            if len(setting_list) > 1:
+                print(f"Warning: Multiple '{name}' entries in serversettings.")
+            setting = setting_list[0].lower().strip()
+
+        if setting == "on":
+            return True
+        else:
+            return False
+
+
+
     def shortnum(s):
         """converts number to shortform for readability
             accepts string or integer
@@ -1991,7 +2223,36 @@ class Utils():
                     new_string += " "
                     i += 1
 
-        return new_string.strip()          
+        return new_string.strip()      
+
+
+
+    def update_artistinfo(artist, artist_thumbnail, tags): # doubled from scrobble_utility.py
+        try: # update stats
+            now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+            artist_fltr = Utils.compactnamefilter(artist,"artist","alias")
+            tags_lfm = ';'.join(tags)
+            try:
+                conSS = sqlite3.connect('databases/scrobblestats.db')
+                curSS = conSS.cursor()
+                result = curSS.execute(f"SELECT artist, thumbnail, tags_lfm, tags_other, last_update FROM artistinfo WHERE filtername = ? OR filteralias = ?", (artist_fltr,artist_fltr))
+                rtuple = result.fetchone()
+                #print("DB finding:", rtuple)
+                test1 = str(rtuple[0])
+                test2 = str(rtuple[1])
+                test3 = str(rtuple[2]).split(";") + str(rtuple[3]).split(";")
+                tset4 = int(rtuple[4])
+                db_entry_exists = True
+            except:
+                db_entry_exists = False
+            if db_entry_exists:
+                # do not update thumbnail
+                curSS.execute(f"UPDATE artistinfo SET tags_lfm = ?, last_update = ? WHERE filtername = ? OR filteralias = ?", (tags_lfm, now, artist_fltr, artist_fltr))
+            else:
+                curSS.execute(f"INSERT INTO artistinfo VALUES (?, ?, ?, ?, ?, ?, ?)", (artist, artist_thumbnail, tags_lfm, "", now, artist_fltr, ""))
+            conSS.commit()
+        except Exception as e:
+            print("Error:", e)    
 
 
 
@@ -2140,6 +2401,53 @@ class Utils():
         diff = (future - today).days
         seconds = diff * 24*60*60
         return seconds
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     ############################################### BOT SPECIFIC FUNCTIONS (sorted alphabetically)
@@ -2503,7 +2811,8 @@ class Utils():
 
 
 
-    async def embed_pages(ctx, bot, header, description_list, color, footer):
+    async def embed_pages(ctx, bot, header, description_list, color, footer, reply=False, show_author=False):
+        """show_author can be a bool or a tuple of user_id and author text"""
         pages = len(description_list)
         if pages == 0:
             await ctx.send("Error: empty pages")
@@ -2519,8 +2828,28 @@ class Utils():
 
         cur_page = 1
         embed=discord.Embed(title=header, description=(f"{description_list[cur_page-1][:4096]}"), color=color)
+        if show_author == True:
+            try:
+                embed.set_author(name=ctx.author.name, icon_url=ctx.author.avatar)
+            except Exception as e:
+                print("Utils.embed_pages raised error:", e)
+        elif show_author == False:
+            pass
+        elif len(show_author) == 2:
+            try:
+                user_id = int(show_author[0])
+                text = show_author[1]
+                member = ctx.guild.get_member(bot.application_id)
+                embed.set_author(name=text, icon_url=member.avatar)
+            except Exception as e:
+                print("Utils.embed_pages raised error:", e)
+
         embed.set_footer(text=f"Page {cur_page}/{pages}{smalltext}")
-        message = await ctx.send(embed=embed)
+
+        if reply:
+            message = await ctx.reply(embed=embed, mention_author=False)
+        else:
+            message = await ctx.send(embed=embed)
 
         if pages > 1:
             if pages > 2:
@@ -2784,6 +3113,46 @@ class Utils():
 
 
 
+    async def fetch_update_lastfm_artistalbuminfo(ctx, artist, album):
+        cooldown = False # is ok?
+        payload = {
+            'method': 'album.getInfo',
+            'album': album,
+            'artist': artist,
+        }
+        response = await Utils.lastfm_get(ctx, payload, cooldown)
+        if response == "rate limit":
+            raise ValueError("rate limit")
+        try:
+            rjson = response.json()
+            artist_name = rjson['album']['artist']
+            album_name = rjson['album']['name']
+
+            try:
+                thumbnail = rjson['album']['image'][-1]['#text']
+            except:
+                thumbnail = ""
+
+            tags = []
+            try:
+                for tag in rjson['album']['tags']['tag']:
+                    try:
+                        tagname = tag['name'].lower()
+                        tags.append(tagname)
+                    except Exception as e:
+                        print("Tag error:", e)
+            except:
+                pass
+
+        except:
+            raise ValueError("Could not find `artist - album`.")
+
+        await Utils.update_lastfm_artistalbuminfo(artist_name, album_name, thumbnail, tags)
+
+        return thumbnail, tags
+
+
+
     async def get_all_integers(args):
         indices = []
         for arg in args:
@@ -2795,6 +3164,74 @@ class Utils():
 
         return indices
 
+
+
+    async def get_artist_name_and_image(artistinput, ctx = None, albuminput = ""):
+        now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+        try:
+            if artistinput.strip() == "":
+                try:
+                    artist, album, song, thumbnail, cover, tags = await Utils.get_last_track(ctx)
+                    if thumbnail.strip() == "" or thumbnail.strip().endswith("/2a96cbd8b46e442fc41c2b86b821562f.png"):
+                        thumbnail, update_time = await Utils.get_database_artistimage(artist)
+                        if thumbnail == "" or update_time < now - 30*24*60*60:
+                            lfm_name, status = Utils.get_lfmname(ctx.author.id)
+                            thumbnail = await Utils.get_spotify_artistimage(artist, lfm_name, "", albuminput)
+                    return artist, thumbnail
+                except Exception as e:
+                    return artistinput, ""
+
+            conSM = sqlite3.connect('databases/scrobblemeta.db')
+            curSM = conSM.cursor()
+            artist_fltr = Utils.compactnamefilter(artistinput,"artist","alias")
+
+            try:
+                result = curSM.execute(f"SELECT artist, thumbnail, spotify_update, lfm_update FROM artistinfo WHERE filtername = ?", (artist_fltr,))
+                rtuple = result.fetchone()
+
+                artist = str(rtuple[0])
+                thumbnail = str(rtuple[1])
+                spotify_update = int(rtuple[2])
+                lfm_update = int(rtuple[3])
+                db_entry_exists = True
+            except:
+                artist = artistinput
+                thumbnail = ""
+                db_entry_exists = False
+
+            if not db_entry_exists: #or lfm_update < now - 180*24*60*60:
+                try:
+                    cooldown = True
+                    payload = {'method': 'artist.getInfo'}
+                    payload['artist'] = artist
+
+                    response = await Utils.lastfm_get(ctx, payload, cooldown)
+                    if response == "rate limit":
+                        print("Error: Rate limit.")
+                        return artist, thumbnail
+                    rjson = response.json()
+                    artist = rjson['artist']['name']
+                except:
+                    artist = artistinput
+
+            if thumbnail.strip() == "" or thumbnail.strip().endswith("/2a96cbd8b46e442fc41c2b86b821562f.png") or spotify_update < now - 180*24*60*60:
+                try:
+                    if ctx is None:
+                        user_id = 0
+                    else:
+                        user_id = ctx.author.id
+
+                    lfm_name, status = Utils.get_lfmname(user_id)
+                    thumbnail = await Utils.get_spotify_artistimage(artist, lfm_name, "", albuminput)
+                    print("thumbail")
+                except Exception as e:
+                    print(e)
+
+            return artist, thumbnail
+
+        except Exception as e:
+            print("Error:", e)
+            return artistinput, ""
 
 
     async def get_defaultperms(ctx):
@@ -2820,6 +3257,105 @@ class Utils():
         everyone_role = discord.utils.get(ctx.guild.roles, id = everyone_role_id)
         perm_list = [perm[0] for perm in everyone_role.permissions if perm[1]]
         return perm_list
+
+
+
+    async def get_last_track(ctx): # doubling of the same function in scrobble_utility.py
+        member = ctx.author
+        con = sqlite3.connect('databases/npsettings.db')
+        cur = con.cursor()
+        lfm_list = [item[0] for item in cur.execute("SELECT lfm_name FROM lastfm WHERE id = ?", (str(member.id),)).fetchall()]
+
+        if len(lfm_list) == 0:
+            raise ValueError("no lfm name set")
+
+        lfm_name = lfm_list[0]
+        cooldown = True
+        payload = {
+            'method': 'user.getRecentTracks',
+            'user': lfm_name,
+            'limit': "1",
+        }
+        response = await Utils.lastfm_get(ctx, payload, cooldown)
+        if response == "rate limit":
+            raise ValueError("rate limit")
+
+        try:
+            rjson = response.json()
+            tjson = rjson['recenttracks']['track'][0] # track json
+
+            # PARSE LAST TRACK INFO
+
+            song = tjson['name']
+            #song_link = tjson['url']
+            artist = tjson['artist']['#text']
+            try:
+                album = tjson['album']['#text']
+            except:
+                album = ""
+            try:
+                album_cover = tjson['image'][-1]['#text']
+            except:
+                album_cover = ""
+            try:
+                mbid = tjson['artist']['mbid']
+            except:
+                mbid = ""
+
+            # FETCH ARTIST INFO
+            try:
+                cooldown = False
+                payload = {
+                    'method': 'artist.getInfo',
+                }
+                if mbid.strip() == "":
+                    payload['mbid'] = mbid
+                else:
+                    payload['artist'] = artist
+                response = await Utils.lastfm_get(ctx, payload, cooldown)
+
+                if response == "rate limit":
+                    raise ValueError("rate limit")
+
+                rjson = response.json()
+
+                try:
+                    artist_thumbnail = rjson['artist']['image'][0]['#text']
+                except:
+                    artist_thumbnail = ""
+
+                tags = []
+                try:
+                    for tag in rjson['artist']['tags']['tag']:
+                        try:
+                            tagname = tag['name'].lower()
+                            tags.append(tagname)
+                        except Exception as e:
+                            print("Tag error:", e)
+                except:
+                    pass
+            except Exception as e:
+                print("Error while fetching artist info:", e)
+                return artist, album, song, "", "", []
+
+            # UPDATE DATABASES
+            if len(tags) > 0:
+                Utils.update_artistinfo(artist, artist_thumbnail, tags)
+
+            try:
+                if album.strip() != "" and album_cover.strip() != "":
+                    await Utils.update_lastfm_artistalbuminfo(artist, album, album_cover, tags)
+            except Exception as e:
+                print("Error while trying to update albuminfo database:", e)
+
+            return artist, album, song, artist_thumbnail, album_cover, tags
+
+        except Exception as e:
+            if "503 service unavailable" in str(rjson).lower():
+                # under construction: fetch artist album song from discord rich presence instead
+                raise ValueError(f"Last FM is not responding. Try in a few seconds again or try command with explicit arguments instead.")
+
+            raise ValueError(f"{str(rjson)} - {e}")
 
 
 
@@ -2851,6 +3387,7 @@ class Utils():
 
 
     async def get_reference_role(ctx):
+        """baseline role for permissions: either @everyone, autorole or verified role"""
         con = sqlite3.connect(f'databases/botsettings.db')
         cur = con.cursor()
 
@@ -2893,10 +3430,166 @@ class Utils():
                 reference_role = discord.utils.get(ctx.guild.roles, id = everyone_role_id)
             except Exception as e:
                 print("Error:", e)
-                raise ValueError(f'Error: Could not find reference role. Application needs renewed setup.')
-                return
+                try:
+                    everyone_role_id = int(os.getenv(guild_id))
+                    reference_role = discord.utils.get(ctx.guild.roles, id = everyone_role_id)
+                except:
+                    raise ValueError(f'Error: Could not find reference role. Application needs renewed setup.')
+                    return
 
         return reference_role
+
+
+
+    async def get_database_albumimage(artist, album, substitute=""):
+        if substitute == "https://lastfm.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png":
+            substitute = ""
+
+        artist_fltr = Utils.compactnamefilter(artist, "artist", "alias")
+        album_fltr = Utils.compactnamefilter(album, "album")
+
+        try:
+            conSM = sqlite3.connect('databases/scrobblemeta.db')
+            curSM = conSM.cursor()
+            result = curSM.execute("SELECT cover_url, last_update FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artist_fltr, album_fltr))
+            rtuple = result.fetchone()
+
+            if rtuple is None:
+                return substitute, 0
+
+            image = str(rtuple[0])
+            last_update = int(rtuple[1])
+
+        except Exception as e:
+            print("Error:", e)
+            image = substitute
+            last_update = 0
+
+        return image, last_update
+
+
+
+    async def get_database_artistimage(artist):
+        artist_fltr = Utils.compactnamefilter(artist,"artist","alias")
+
+        try:
+            conSM = sqlite3.connect('databases/scrobblemeta.db')
+            curSM = conSM.cursor()
+            result = curSM.execute("SELECT thumbnail, spotify_update FROM artistinfo WHERE filtername = ?", (artist_fltr,))
+            rtuple = result.fetchone()
+
+            if rtuple is None:
+                return "", 0
+
+            thumbnail = str(rtuple[0])
+            update_time = Utils.forceinteger(rtuple[1])
+
+            if thumbnail == "https://lastfm.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png":
+                thumbnail = ""
+        except Exception as e:
+            print("Error:", e)
+            thumbnail = ""
+            update_time = 0
+
+        return thumbnail, update_time
+
+
+
+    async def get_spotify_artistimage(artist, lfm_name=None, substitute="", albumname=""):
+        """main idea is to fetch the albumname from a users table.
+        subsitute is an alternative image url if no image is found.
+        in case an albumname is known, just use that.
+        """
+        try:
+            ClientID = os.getenv("Spotify_ClientID")
+            ClientSecret = os.getenv("Spotify_ClientSecret")
+            if ClientID is None:
+                raise ValueError("No SpotiPy API provided")
+        except Exception as e:
+            print("Error while trying to fetch artist images:", e)
+            return ""
+
+        auth_manager = SpotifyClientCredentials(client_id=ClientID, client_secret=ClientSecret)
+        sp = spotipy.Spotify(auth_manager=auth_manager)
+
+        try:
+            if lfm_name is None and albumname == "":
+                raise ValueError("unknown user, cannot fetch album info from database, fetching artist info directly")
+
+            fetch_with_albuminfo = True
+            album = ""
+
+            # GET ALBUM INFO
+
+            if albumname == "":
+                now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+                cutofftime = now - 365*24*60*60
+                conFM = sqlite3.connect('databases/scrobbledata.db')
+                curFM = conFM.cursor()
+                result = [item[0] for item in curFM.execute(f"SELECT album_name FROM [{lfm_name}] WHERE UPPER(artist_name) = ? AND album_name != ? AND date_uts > ? ORDER BY date_uts DESC LIMIT 1", (artist.upper(), "", cutofftime)).fetchall()]
+
+                if len(result) == 0:
+                    raise ValueError("could not find recent album entry in database")
+
+            if (albumname != "") or (albumname == "" and len(result) > 0 and result[0] != ""):
+
+                if (albumname == "" and len(result) > 0 and result[0] != ""):
+                    album = Utils.compactaddendumfilter(result[0], "album")
+                else:
+                    album = albumname
+
+                artist = artist.replace("'","")
+                query = f"artist:{artist} album:{album}"
+                response = sp.search(q=query, type="album", limit=1)
+                try:
+                    album_dict = response['albums']['items'][0]
+                    artist_id = album_dict['artists'][0]['id']
+                except Exception as e:
+                    raise ValueError(f"could not find artist/album combination on spotify, searching for artist only instead")
+            else:
+                raise ValueError("could not find recent valid album entry in database")
+
+        except Exception as e:
+            print(f"Artist Info Warning: {e} --- {artist} - {album}")
+            fetch_with_albuminfo = False
+
+            # FETCH ARTIST DIRECTLY
+            query = f"artist:{artist}"
+            response = sp.search(q=query, type="artist", limit=1)
+            try:
+                artist_id = response['artists']['items'][0]['id']
+            except:
+                return substitute
+
+
+        try:
+            artist_info = sp.artist(artist_id)
+            image = artist_info['images'][0]['url']
+            fetched_artist = artist_info['name']
+            try:
+                tags = artist_info["genres"]
+            except:
+                tags = []
+
+            if image != "":
+                if fetch_with_albuminfo:
+                    # higher confidence of accuracy if album info is used
+                    try:
+                        await Utils.update_spotify_artist_info(artist, artist_id, image, tags)
+                    except Exception as e:
+                        print("Failed to update artist info in scrobble meta database:", e)
+                else:
+                    # otherwise check whether the artist name even resembles the original search
+                    compact_artist = Utils.compactnamefilter(artist, "artist", "alias")
+                    compact_fetched_artist = Utils.compactnamefilter(fetched_artist, "artist", "alias")
+
+                    if compact_artist != compact_fetched_artist:
+                        print("Spotify delivered a presumably wrong artist... using default picture instead")
+                        return substitute
+        except:
+            image = substitute
+
+        return image
 
 
 
@@ -3231,6 +3924,32 @@ class Utils():
 
 
 
+    @to_thread 
+    def scrobble_metaupdate(scrobble_list):
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+
+        artist_list = [item[0] for item in curSM.execute("SELECT filtername FROM artistinfo").fetchall()]
+        aa_list = [(item[0], item[1]) for item in curSM.execute("SELECT artist_filtername, album_filtername FROM albuminfo").fetchall()]
+
+        for item in scrobble_list:
+            artist_name = item[1]
+            album_name = item[2]
+
+            artist_filtername = Utils.compactnamefilter(artist_name, "artist", "alias")
+            album_filter = Utils.compactnamefilter(album_name, "album")
+
+            if artist_filtername not in artist_list:
+                curSM.execute("INSERT INTO artistinfo VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (artist_name, artist_filtername, "", "", 0, "", "", "", 0, "", ""))
+                artist_list.append(artist_filtername)
+
+            if (artist_filtername, album_filter) not in aa_list:
+                curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (artist_name, artist_filtername, album_name, album_filter, "", "", 0, "", 0))
+                aa_list.append((artist_filtername, album_filter))
+        conSM.commit()
+
+
+
     async def scrobble_update(lfm_name, allow_from_scratch, bot):
         def to_thread(func: typing.Callable) -> typing.Coroutine:
             """wrapper for blocking functions"""
@@ -3475,7 +4194,7 @@ class Utils():
                     i -= 1
 
                     # prepare for inserting into releasewise DB
-                    artist_filtername = Utils.compactnamefilter(item[0],"artist") #''.join([x for x in item[0].upper() if x.isalnum()])
+                    artist_filtername = Utils.compactnamefilter(item[0],"artist","alias") #''.join([x for x in item[0].upper() if x.isalnum()])
                     album_filtername = Utils.compactnamefilter(item[1],"album") #''.join([x for x in item[1].upper() if x.isalnum()])
                     track_filtername = Utils.compactnamefilter(item[2],"track")
                     
@@ -3540,12 +4259,16 @@ class Utils():
             conFM.commit()
             await releasewise_insert(lfm_name, item_dict)
             await trackwise_insert(lfm_name, track_dict)
+            try:
+                await Utils.scrobble_metaupdate(scrobble_list)
+            except Exception as e:
+                print("Error:", e)
             await Utils.changetimeupdate()
         except Exception as e:
             print("Error:", e)
 
             if str(e).startswith("Unable to fetch scrobble data from:"):
-                text = f"Could not fetch last.fm information from user `{lfm_name}`.\nIf this error persists it is recommended to either scrobble-ban them or purge their data from the np-settings database.\n\n(At the moment these features are not properly implemented and probably require dev support.)"
+                text = f"Could not fetch last.fm information from user `{lfm_name}`.\nCheck on https://www.last.fm/user/{lfm_name} whether the page still exists. If not and this error persists it is recommended to either scrobble-ban them or purge their data from the np-settings database via `{self.prefix}removefm`.\n\n"
             else:
                 text = f"There was a problem while handling data of user `{lfm_name}`.\n\n`Error message:` {e}"
 
@@ -3691,6 +4414,66 @@ class Utils():
                 timeseconds = str(total_seconds)
 
                 return timeseconds, timetext, rest
+
+
+
+    async def update_lastfm_artistalbuminfo(artist, album, thumbnail, tags):
+        """first 3 arguments must be strings, 
+        tags must be either a list of strings or can be None object if changes there are unwanted"""
+        now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+        artistcompact = Utils.compactnamefilter(artist, "artist", "alias")
+        albumcompact = Utils.compactnamefilter(album, "album")
+        if tags is not None:
+            tag_string = ';'.join(tags)
+        else:
+            tag_string = ""
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+        artistinfo_list = [item[0] for item in curSM.execute("SELECT last_update FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
+
+        if len(artistinfo_list) == 0:
+            curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (artist, str(artistcompact), str(album), albumcompact, tag_string, thumbnail, now, "", 0))
+        else:
+            curSM.execute("UPDATE albuminfo SET artist = ?, album = ?, cover_url = ?, last_update = ? WHERE artist_filtername = ? AND album_filtername = ?", (artist, album, thumbnail, now, artistcompact, albumcompact))
+            if tags is not None:
+                curSM.execute("UPDATE albuminfo SET tags = ? WHERE artist_filtername = ? AND album_filtername = ?", (tag_string, artistcompact, albumcompact))
+        conSM.commit()
+
+
+
+    async def update_spotify_artist_info(artist, spotify_id, image, tags):
+        artist_fltr = Utils.compactnamefilter(artist,"artist","alias")
+        now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+
+        try:
+            conSM = sqlite3.connect('databases/scrobblemeta.db')
+            curSM = conSM.cursor()
+            result = curSM.execute(f"SELECT thumbnail, tags_spotify, spotify_update FROM artistinfo WHERE filtername = ?", (artist_fltr,))
+            rtuple = result.fetchone()
+
+            try:
+                thumbnail = str(rtuple[0])
+                tagstring = str(rtuple[1])
+                update_time = Utils.forceinteger(rtuple[2])
+                entry_exists = True
+            except:
+                entry_exists = False
+
+            tags_standardised = []
+            for tag in tags:
+                if tag not in tags_standardised:
+                    tags_standardised.append(tag.lower().strip())
+            tagstring = ';'.join(tags_standardised)
+
+            if entry_exists:
+                curSM.execute(f"UPDATE artistinfo SET thumbnail = ?, tags_spotify = ?, spotify_update = ? WHERE filtername = ?", (image, tagstring, now, artist_fltr))
+            else:
+                curSM.execute(f"INSERT INTO artistinfo VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (artist, artist_fltr, "", "", 0, spotify_id, image, tagstring, now, "", ""))
+            conSM.commit()
+
+        except Exception as e:
+            print("Error while trying to update artist info with Spotify data:", e)
+
 
 
 
@@ -4008,6 +4791,10 @@ class Utils():
 
 
     async def cloud_upload_scrobble_backup(bot, ctx, app_id):
+        if not dropbox_enabled:
+            await ctx.send("Error: Dropbox module not installed. Not syncing scrobble databases.")
+            return
+
         # ZIP ALL DATABASES
         con = sqlite3.connect(f'databases/botsettings.db')
         cur = con.cursor()
@@ -4420,5 +5207,3 @@ class Utils():
         except Exception as e:
             Utils.unblock_scrobbleupdate()
             await ctx.send(f"Error: {e}")
-
-

@@ -29,6 +29,7 @@ import asyncio
 import sqlite3
 from emoji import UNICODE_EMOJI
 import traceback
+import random
 
 
 class Administration_of_Settings(commands.Cog):
@@ -336,8 +337,8 @@ class Administration_of_Settings(commands.Cog):
                     print("Warning: there are multiple rules message id entries in the database")
                 rulesfirstreaction = rulesfirstreaction_list[0]
 
-            desctext_general.append(f" ⮡  turing test task: {rulesmessage} ↔ {rulesfirstreaction}")
-            desctext_features.append(f" ⮡  turing test task: {rulesmessage} ↔ {rulesfirstreaction}")
+            desctext_general.append(f" → turing test task: {rulesmessage} ↔ {rulesfirstreaction}")
+            desctext_features.append(f" → turing test task: {rulesmessage} ↔ {rulesfirstreaction}")
 
             turingbanmessage_list = [[item[0],item[1]] for item in cur.execute("SELECT value, details FROM serversettings WHERE name = ?", ("turing ban message",)).fetchall()]
             if len(turingbanmessage_list) == 0:
@@ -359,8 +360,8 @@ class Administration_of_Settings(commands.Cog):
                 else:
                     tbm_type = "text: `custom`"
 
-            desctext_general.append(f" ⮡  turing ban message: `{turingbanmessage_switch}` ({tbm_type})")
-            desctext_features.append(f" ⮡  turing ban message: `{turingbanmessage_switch}` ({tbm_type})")
+            desctext_general.append(f" → turing ban message: `{turingbanmessage_switch}` ({tbm_type})")
+            desctext_features.append(f" → turing ban message: `{turingbanmessage_switch}` ({tbm_type})")
 
 
         elif accesswall == "off":
@@ -432,7 +433,7 @@ class Administration_of_Settings(commands.Cog):
                 print("Warning: there are multiple inactivity filter on/off entries in the database")
             inactivityfilter = inactivityfilter_list[0][0]
             if inactivityfilter == "on":
-                inactivitydays = " (" + inactivityfilter_list[0][1] + ")"
+                inactivitydays = " (" + inactivityfilter_list[0][1] + " days)"
         desctext_general.append(f"Inactivity filter: `{inactivityfilter}`{inactivitydays}")
         desctext_features.append(f"Inactivity filter: `{inactivityfilter}`{inactivitydays}")
 
@@ -852,6 +853,42 @@ class Administration_of_Settings(commands.Cog):
             desctext_keys.append("Contact E-Mail: none 🚫")
 
         try:
+            dropbox_auth = os.getenv("dropbox_auth")
+            if dropbox_auth is None:
+                desctext_keys.append("Dropbox Auth: none 🚫")
+            else:
+                desctext_keys.append("Dropbox Auth: provided ✅")
+        except:
+            desctext_keys.append("Dropbox Auth: none 🚫")
+
+        try:
+            dropbox_key = os.getenv("dropbox_key")
+            if dropbox_key is None:
+                desctext_keys.append("Dropbox Key: none 🚫")
+            else:
+                desctext_keys.append("Dropbox Key: provided ✅")
+        except:
+            desctext_keys.append("Dropbox Key: none 🚫")
+
+        try:
+            dropbox_secret = os.getenv("dropbox_secret")
+            if dropbox_secret is None:
+                desctext_keys.append("Dropbox Secret: none 🚫")
+            else:
+                desctext_keys.append("Dropbox Secret: provided ✅")
+        except:
+            desctext_keys.append("Dropbox Secret: none 🚫")
+
+        try:
+            dropbox_refresh_token = os.getenv("dropbox_refresh_token")
+            if dropbox_refresh_token is None:
+                desctext_keys.append("Dropbox Refresh Token: none 🚫")
+            else:
+                desctext_keys.append("Dropbox Refresh Token: provided ✅")
+        except:
+            desctext_keys.append("Dropbox Refresh Token: none 🚫")
+
+        try:
             exchangerate_key = os.getenv("exchangerate_key")
             if exchangerate_key is None:
                 desctext_keys.append("Exchangerate Key: none 🚫")
@@ -870,6 +907,15 @@ class Administration_of_Settings(commands.Cog):
             desctext_keys.append("Google Image Search Key: none 🚫")
 
         try:
+            google_search_engine_id = os.getenv("google_search_engine_id")
+            if google_search_engine_id is None:
+                desctext_keys.append("Google Search Engine ID: none 🚫")
+            else:
+                desctext_keys.append("Google Search Engine ID: provided ✅")
+        except:
+            desctext_keys.append("Google Search Engine ID: none 🚫")
+
+        try:
             LFM_API_KEY = os.getenv("lfm_api_key")
             if LFM_API_KEY is None:
                 desctext_keys.append("LastFM Key: none 🚫")
@@ -886,6 +932,15 @@ class Administration_of_Settings(commands.Cog):
                 desctext_keys.append("LastFM Secret: provided ✅")
         except:
             desctext_keys.append("LastFM Secret: none 🚫")
+
+        try:
+            openai_secret_key = os.getenv("openai_secret_key")
+            if openai_secret_key is None:
+                desctext_keys.append("OpenAI Key: none 🚫")
+            else:
+                desctext_keys.append("OpenAI Key: provided ✅")
+        except:
+            desctext_keys.append("OpenAI Key: none 🚫")
 
         try:
             openweather_key = os.getenv("openweathermap_key")
@@ -913,6 +968,42 @@ class Administration_of_Settings(commands.Cog):
                 desctext_keys.append("Spotify Client Secret: provided ✅")
         except:
             desctext_keys.append("Spotify Client Secret: none 🚫")
+
+        try:
+            wikipedia_id = os.getenv("wikipedia_id")
+            if wikipedia_id is None:
+                desctext_keys.append("Wikipedia ID: none 🚫")
+            else:
+                desctext_keys.append("Wikipedia ID: provided ✅")
+        except:
+            desctext_keys.append("Wikipedia ID: none 🚫")
+
+        try:
+            wikipedia_secret = os.getenv("wikipedia_secret")
+            if wikipedia_secret is None:
+                desctext_keys.append("Wikipedia Secret: none 🚫")
+            else:
+                desctext_keys.append("Wikipedia Secret: provided ✅")
+        except:
+            desctext_keys.append("Wikipedia Secret: none 🚫")
+
+        try:
+            wikipedia_token = os.getenv("wikipedia_token")
+            if wikipedia_token is None:
+                desctext_keys.append("Wikipedia Token: none 🚫")
+            else:
+                desctext_keys.append("Wikipedia Token: provided ✅")
+        except:
+            desctext_keys.append("Wikipedia Token: none 🚫")
+
+        try:
+            wolframalpha_id = os.getenv("wolframalpha_id")
+            if wolframalpha_id is None:
+                desctext_keys.append("WolframAlpha ID: none 🚫")
+            else:
+                desctext_keys.append("WolframAlpha ID: provided ✅")
+        except:
+            desctext_keys.append("WolframAlpha ID: none 🚫")
 
         # under construction
 
@@ -2342,37 +2433,11 @@ class Administration_of_Settings(commands.Cog):
 
 
 
-    @_set.command(name="assignability", aliases = ["roleassignability"], pass_context=True)
-    @commands.check(util.is_active)
-    @commands.has_permissions(manage_guild=True)
-    @commands.check(util.is_main_server)
-    async def _set_assignability(self, ctx, *args):
-        """Set assignability of roles
+    ### ROLE ASSIGNABILITY
 
-        Use command with role id/mention OR with role category.
 
-        ...
-        On setup per default roles without extra permissions (except special functionality roles) are assingnable while everything else isn't.
-        After setup every new role created with `<prefix>createrole` will be assignable, while every role created otherwise will be set unassignable per default.
-        (This is just the default setting and you can always change assignability with this command provided that the command does not have any extra permissions (beyond viewing certain channels).)
-        """
 
-        if len(args) < 2:
-            await ctx.send("Error: Command needs 1st arg role id/mention or role category name, and 2nd argument `true` or `false`.")
-            return
-
-        assignability = util.cleantext(args[-1].lower()).replace("'","")
-        role_arg = ' '.join(args[:-1])
-
-        # CHECK VALIDITY OF BOOLEAN ARGUMENT
-
-        if assignability in ["true", "t", "yes", "y", "on"]:
-            assignability = "true"
-        elif assignability in ["false", "f", "no", "n", "off"]:
-            assignability = "false"
-        else:
-            await ctx.send(f"Invalid boolean argument: {assignability}. Needs to be `true` or `false`.")
-
+    async def edit_assignability(self, ctx, role_arg, assignability):
         # PARSE ROLE/CATEGORY ARGUMENT
 
         if role_arg.startswith("<@&") and role_arg.endswith(">"):
@@ -2394,20 +2459,20 @@ class Administration_of_Settings(commands.Cog):
         else:
             role_id = "none"
 
-        # update role database
-
-        await util.update_role_database(ctx)
+        if role_id == str(ctx.guild.id):
+            #ignoring @everyone role
+            return
 
         # CHECK VALIDITY OF ROLE/CATEGORY ARGUMENT
 
         con = sqlite3.connect('databases/roles.db')
         cur = con.cursor()
-        all_role_ids = [item[0] for item in cur.execute("SELECT id FROM roles").fetchall()]
+        role_id_matches = [item[0] for item in cur.execute("SELECT id FROM roles WHERE id = ?", (str(role_id),)).fetchall()]
 
         role_found = False
         cat_found = False
 
-        if role_id in all_role_ids:
+        if len(role_id_matches) > 0:
             role_found = True
 
         if not role_found:
@@ -2460,12 +2525,232 @@ class Administration_of_Settings(commands.Cog):
             await ctx.send(embed=embed)
             return
 
-        await ctx.send("Error: Could not find such a role or category of roles.")
+        await ctx.send(f"Error with `{role_arg}`: Could not find such a role or category of roles.")
+
+
+
+    @_set.group(name="assignability", aliases = ["roleassignability"], pass_context=True, invoke_without_command=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_assignability(self, ctx, *args):
+        """Set assignability of roles
+
+        Use command with role id/mention OR with role category, i.e.
+        `<prefix>set assignability <@role> false`
+        or
+        `<prefix>set assignability <category name> true`
+
+        On setup per default roles without extra permissions (except special functionality roles) are assingnable while everything else isn't.
+        After `<prefix>setup` every new role created with `<prefix>createrole` will be assignable, while every role created otherwise will be set unassignable per default.
+        (This is just the default setting and you can always change assignability with this command provided that the role does not have any extra permissions (beyond viewing certain channels).)
+        """
+        if len(args) < 2:
+            await ctx.send("Error: Command needs 1st arg role id/mention or role category name, and 2nd argument `true` or `false`.")
+            return
+
+        assignability = util.cleantext(args[-1].lower()).replace("'","")
+        role_arg = ' '.join(args[:-1])
+
+        # CHECK VALIDITY OF BOOLEAN ARGUMENT
+
+        if assignability in ["true", "t", "yes", "y", "on"]:
+            assignability = "true"
+        elif assignability in ["false", "f", "no", "n", "off"]:
+            assignability = "false"
+        else:
+            await ctx.send(f"Invalid boolean argument: {assignability}. Needs to be `true` or `false`.")
+            return
+
+        # SET
+        await util.update_role_database(ctx)
+
+        await self.edit_assignability(ctx, role_arg, assignability)
 
     @_set_assignability.error
     async def set_assignability_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
+
+
+    async def set_assignability_of_all_below_to(self, ctx, args):
+        assignability = util.cleantext(args[-1].lower()).replace("'","")
+        role_arg = ' '.join(args[:-1])
+
+        # PARSE ROLE/CATEGORY ID ARGUMENT
+        if role_arg.startswith("<@&") and role_arg.endswith(">"):
+            role_id_str = role_arg.replace("<@&","").replace(">","")
+            try:
+                role_id_int = int(role_id_str)
+                role_id = str(role_id_int)
+            except:
+                await ctx.send("Error: Role mention seems to be incorrect.")
+                return
+
+        elif util.represents_integer(role_arg) and len(role_arg) > 7:
+            try:
+                role_id_int = int(role_arg)
+                role_id = str(role_id_int)
+            except:
+                await ctx.send("Error: Role id seems to be incorrect.")
+                return
+        else:
+            role_id = "none"
+
+        # GO THROUGH ROLES
+
+        await util.update_role_database(ctx)
+
+        try:
+            target_role = ctx.guild.get_role(int(role_id))
+        except:
+            try:
+                for role in ctx.guild.roles:
+                    if role.id == int(role_id):
+                        target_role = role
+                        break
+                else:
+                    raise ValueError("role not found")
+            except:
+                await ctx.send("Cannot fing this role.")
+                return
+
+        async with ctx.typing():
+            for role in ctx.guild.roles:
+                if role.position <= target_role.position and role.id != ctx.guild.id:
+                    await self.edit_assignability(ctx, str(role.id), assignability)
+
+
+
+    async def set_assignability_of_all_true(self, ctx):
+        try:
+            reference_role = await util.get_reference_role(ctx)
+            baseline_perms = [perm[0] for perm in reference_role.permissions if perm[1]]
+
+            # GET PERMS OF EVERYONE ROLE AND ADD THOSE
+            everyone_perm_list = await util.get_everyone_perms(ctx)
+            for perm in everyone_perm_list:
+                if perm not in baseline_perms:
+                    baseline_perms.append(perm)
+
+            # GET SPECIAL ROLES IDS
+            conB = sqlite3.connect(f'databases/botsettings.db')
+            curB = conB.cursor()
+            special_roles = [util.forceinteger(item[0]) for item in curB.execute("SELECT role_id FROM specialroles").fetchall()]  
+        except Exception as e:
+            print(e)
+            await ctx.send("Error with the settings: Cannot fetch the baseline role for permissions. :(")
+            return
+
+        header = "Set assignability to true?"
+        text = f"Are you sure you want to set the assignability of ALL roles with the same (or less) permissions than <@&{reference_role.id}> to `True`?\n\n(Special roles such as the bot display role, timeout role, verified role, auto/community role or inactivity role you might have set are exempt.)"
+        color = 0x000000
+        response = await util.are_you_sure_embed(ctx, self.bot, header, text, color)
+
+        if response == False:
+            return
+
+        # get roles safe to assign
+        roles_without_extra_perms = []
+
+        for role in ctx.guild.roles:
+            if role.id in special_roles:
+                continue
+
+            has_only_lower_permissions = True
+            for perm in role.permissions:
+                if perm[1] and perm[0] not in baseline_perms:
+                    has_only_lower_permissions = False
+                    break
+
+            if has_only_lower_permissions:
+                roles_without_extra_perms.append(role)
+
+        # set to assignable
+        async with ctx.typing():
+            for role in roles_without_extra_perms:
+                await self.edit_assignability(ctx, str(role.id), "True")
+
+
+
+    async def set_assignability_of_all_false(self, ctx):
+        header = "Set assignability to false?"
+        text = f"Are you sure you want to set the assignability of ALL roles to `False`?"
+        color = 0x000000
+        response = await util.are_you_sure_embed(ctx, self.bot, header, text, color)
+
+        if response == False:
+            return
+
+        async with ctx.typing():
+            for role in ctx.guild.roles:
+                await self.edit_assignability(ctx, str(role.id), "False")
+
+
+
+    @_set_assignability.command(name="allon", aliases = ["alltrue", "all"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_assignability_allon(self, ctx, *args):
+        """🔜 Sets all roles (with no extra perms) to assignable
+
+        Extra perms are those that go beyond the permissions the @everyone roles has.
+        In case you have the accesswall enabled the 'baseline'-role for permissions will be the verified role.
+        In case you have the autorole enabled instead the 'baseline'-role for permissions will be the community role.
+        
+        (Special roles such as the bot display role, timeout role, verified role, auto/community role or inactivity role you might have set are exempt.)
+        """
+        if len(args) > 0 and args[0].lower() in ["off", "false"]:
+            await self.set_assignability_of_all_false(ctx)
+
+        elif len(args) > 0 and args[0].lower() in ["below", "under"]:
+            args2 = args[1:]
+            await self.set_assignability_of_all_below_to(ctx, args2)
+
+        else:
+            await self.set_assignability_of_all_true(ctx)
+
+    @_set_assignability_allon.error
+    async def set_assignability_allon_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_set_assignability.command(name="alloff", aliases = ["allfalse"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_assignability_alloff(self, ctx, *args):
+        """🔜 Sets all roles to NOT assignable"""
+        await self.set_assignability_of_all_false(ctx)
+
+    @_set_assignability_alloff.error
+    async def set_assignability_alloff_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @_set_assignability.command(name="allbelow", aliases = ["under"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_assignability_allbelow(self, ctx, *args):
+        """Set role assignability below certain role
+        
+        Give role and assignability argument (true/false) and all roles below and including that role in the role hierarchy will have their assignability set.
+        e.g.
+        `<prefix>set assignability allbelow @role true`
+        """
+        if len(args) < 2:
+            await ctx.send("Error: Command needs 1st arg role id/mention or role category name, and 2nd argument `true` or `false`.")
+            return
+
+        await self.set_assignability_of_all_below_to(ctx, args)
+
+    @_set_assignability_allbelow.error
+    async def set_assignability_allbelow_error(self, ctx, error):
+        await util.error_handling(ctx, error)
 
 
 
@@ -3247,7 +3532,7 @@ class Administration_of_Settings(commands.Cog):
         con = sqlite3.connect(f'databases/botsettings.db')
         cur = con.cursor()
 
-        genretagreminder_list = [item[0] for item in curB.execute("SELECT etc FROM serversettings WHERE name = ?", ("genre tag reminder",)).fetchall()]
+        genretagreminder_list = [item[0] for item in cur.execute("SELECT etc FROM serversettings WHERE name = ?", ("genre tag reminder",)).fetchall()]
         if len(genretagreminder_list) == 0:
             cur.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("genre tag reminder", "off", "", ""))
             con.commit()
@@ -3984,6 +4269,19 @@ class Administration_of_Settings(commands.Cog):
         else:
             if len(hostdata_reboot_list) > 1:
                 print("Warning: Multiple reboot time entries in activity.db")
+        hostdata_dailyupdate_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", ("daily update time",)).fetchall()]
+        if len(hostdata_dailyupdate_list) == 0:
+            hour = random.randint(0, 2)
+            if hour == 0:
+                minute = random.randint(1, 58)
+            else:
+                minute = random.randint(0, 58)
+            curA.execute("INSERT INTO hostdata VALUES (?,?,?,?)", ("daily update time", f"{str(hour)}:{str(minute)}", "", "UTC"))
+            conA.commit()
+            print("Updated hostdata table: daily update time")
+        else:
+            if len(hostdata_dailyupdate_list) > 1:
+                print("Warning: Multiple daily update time entries in activity.db")
         hostdata_rym_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", ("rym scraping",)).fetchall()]
         if len(hostdata_rym_list) == 0:
             curA.execute("INSERT INTO hostdata VALUES (?,?,?,?)", ("rym scraping", "off", "", ""))
@@ -4577,6 +4875,7 @@ class Administration_of_Settings(commands.Cog):
                             "no" : "🙅",
                             "no_stonks" : "📉",
                             "note" : "📝",
+                            "nsfw" : "🔞",
                             "ohh" : "😮",
                             "pain" : "💀",
                             "panic" : "😱",
@@ -4584,7 +4883,9 @@ class Administration_of_Settings(commands.Cog):
                             "pensive2" : "😔",
                             "pleading" : "😴",
                             "pout" : "🙎",
+                            "powerful": "💪",
                             "sad" : "😢",
+                            "sfw" : "🚸",
                             "shaking" : "🫨",
                             "shrug" : "🤷",
                             "shy" : "🙈",
@@ -4674,7 +4975,7 @@ class Administration_of_Settings(commands.Cog):
             curC.execute('''CREATE TABLE IF NOT EXISTS cooldowns (service text, last_used text, limit_seconds text, limit_type text, long_limit_seconds text, long_limit_amount text)''') # soft limit type: delay, hard limit type: stop request
 
             cooldown_db_list = [item[0] for item in curC.execute("SELECT service FROM cooldowns").fetchall()]
-            cooldowns_light = ["applemusic", "gpt", "metallum", "musicbrainz", "lastfm", "openweathermap", "spotify", "wikipedia", "wolframalpha"]
+            cooldowns_light = ["applemusic", "bar_chart_race", "gpt", "metallum", "musicbrainz", "lastfm", "openweathermap", "spotify", "wikipedia", "wolframalpha"]
             cooldowns_medium = ["googlesearch"]
             cooldowns_critical = ["rym"]
             cooldowns_update = ["lastfm_update"]
@@ -4697,6 +4998,10 @@ class Administration_of_Settings(commands.Cog):
             conC.commit()
 
             curC.execute('''CREATE TABLE IF NOT EXISTS scrobbleupdate (userid text, username text, time_stamp text)''')
+            curC.execute("DELETE FROM scrobbleupdate")
+            conC.commit()
+
+            curC.execute('''CREATE TABLE IF NOT EXISTS gfx_generation (service text, userid text, username text, time_stamp text)''')
             curC.execute("DELETE FROM scrobbleupdate")
             conC.commit()
 
@@ -4728,8 +5033,10 @@ class Administration_of_Settings(commands.Cog):
 
             conSM = sqlite3.connect('databases/scrobblemeta.db')
             curSM = conSM.cursor()
-            curSM.execute('''CREATE TABLE IF NOT EXISTS albuminfo (artist text, artist_filtername text, album text, album_filtername text, tags text, cover_url text, last_update integer)''')
-
+            curSM.execute('''CREATE TABLE IF NOT EXISTS artistinfo (artist text, filtername text, mbid text, tags_lfm text, lfm_update integer, spotify_id text, thumbnail text, tags_spotify text, spotify_update integer)''')
+            curSM.execute('''CREATE TABLE IF NOT EXISTS albuminfo (artist text, artist_filtername text, album text, album_filtername text, tags text, cover_url text, last_update integer, details text)''')
+            curSM.execute('''CREATE TABLE IF NOT EXISTS trackinfo (artist text, artist_filtername text, album text, album_filtername text, track text, track_filtername text, length_in_seconds integer, last_update integer)''')
+            curSM.execute('''CREATE TABLE IF NOT EXISTS artist_aliases (alias_name text, artist_key text)''')
 
             # SHENANIGANS
 
@@ -4962,7 +5269,84 @@ class Administration_of_Settings(commands.Cog):
 
                 curSS.execute(f'''CREATE TABLE IF NOT EXISTS crowns_{guild.id} (artist text, crown_holder text, discord_name text, playcount integer)''')
 
+            # fix scrobblemeta->albuminfo
 
+            try:
+                conSM = sqlite3.connect('databases/scrobblemeta.db')
+                curSM = conSM.cursor()
+                
+                cursorSM = conSM.execute(f'SELECT * FROM albuminfo')
+                column_names = list(map(lambda x: x[0], cursorSM.description))
+                cursorSM.close()
+                column_number = len(column_names)
+                    
+                if column_number <= 7:
+                    conSM.execute(f'ALTER TABLE albuminfo ADD COLUMN details text;')
+                    conSM.execute(f"UPDATE albuminfo SET details = ?", ("",))
+                    conSM.commit()
+                    changes_happened = True
+
+                if changes_happened:
+                    print("added details column to albuminfo table")
+
+                curSM.execute("DELETE FROM albuminfo WHERE artist = ?", ("",))
+                conSM.commit()
+
+            except Exception as e:
+                print("Error:", e)
+                print(traceback.format_exc())
+
+            # fix scrobblemeta->artistinfo
+
+            try:
+                conSM = sqlite3.connect('databases/scrobblemeta.db')
+                curSM = conSM.cursor()
+                
+                cursorSM = conSM.execute(f'SELECT * FROM artistinfo')
+                column_names = list(map(lambda x: x[0], cursorSM.description))
+                cursorSM.close()
+                column_number = len(column_names)
+                    
+                if column_number <= 9:
+                    conSM.execute(f'ALTER TABLE artistinfo ADD COLUMN location text;')
+                    conSM.execute(f'ALTER TABLE artistinfo ADD COLUMN associated text;')
+                    conSM.execute(f"UPDATE artistinfo SET location = ?", ("",))
+                    conSM.execute(f"UPDATE artistinfo SET associated = ?", ("",))
+                    conSM.commit()
+                    print("added location/associated columns to artistinfo table")
+
+                curSM.execute("DELETE FROM artistinfo WHERE artist = ?", ("",))
+                conSM.commit()
+
+            except Exception as e:
+                print("Error:", e)
+                print(traceback.format_exc())
+
+            # fix scrobblemeta->albuminfo
+
+            try:
+                conSM = sqlite3.connect('databases/scrobblemeta.db')
+                curSM = conSM.cursor()
+                
+                cursorSM = conSM.execute(f'SELECT * FROM albuminfo')
+                column_names = list(map(lambda x: x[0], cursorSM.description))
+                cursorSM.close()
+                column_number = len(column_names)
+                    
+                if column_number <= 8:
+                    conSM.execute(f'ALTER TABLE albuminfo ADD COLUMN release_year integer;')
+                    conSM.execute(f"UPDATE albuminfo SET release_year = ?", (0,))
+                    conSM.commit()
+                    print("added release year column to artistinfo table")
+
+                curSM.execute("DELETE FROM albuminfo WHERE album = ?", ("",))
+                conSM.commit()
+
+            except Exception as e:
+                print("Error:", e)
+                print(traceback.format_exc())
+
+            # command restrictions
             try:
                 conB = sqlite3.connect('databases/botsettings.db')
                 curB= conB.cursor()
@@ -5731,7 +6115,7 @@ class Administration_of_Settings(commands.Cog):
     @commands.command(name="update", aliases = ["botupdate"], pass_context=True)
     @commands.has_permissions(manage_guild=True) # this command needs to be available outside of the main server
     async def _botupdate(self, ctx, *args):
-        """Update bot
+        """🔒 Update bot
 
         Only needed when updating the version of the bot from GitHub.
         i.e. New features will be included in the databases and automatically turned "off". Without this errors might occur because the setting is missing entirely.
@@ -5749,7 +6133,7 @@ class Administration_of_Settings(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     async def _botsetup(self, ctx, *args):
-        """Set up bot
+        """🔒 Set up bot
 
         For first-time setup of the bot,
         but also for re-setting up the bot.
@@ -5768,10 +6152,11 @@ class Administration_of_Settings(commands.Cog):
     @commands.check(util.is_host)
     @commands.check(util.is_active)
     async def _hostsetting(self, ctx, *args):
-        """Settings only for the host of this bot
+        """🔒 Settings only for the host of this bot
 
         arguments needs to be one of the following:
         - `reboot time` with 2nd arg `<hour>:<minute>` (colon, no spaces) or `none`
+        - `daily update` with 2nd arg `<hour>:<minute>` (colon, no spaces) or `none`
         - `rym scraping` with 2nd arg `on` or `off`
         
         """
@@ -5785,7 +6170,10 @@ class Administration_of_Settings(commands.Cog):
         argument1 = ' '.join(args[:-1]).replace("_", " ").strip().lower()
         argument2 = args[-1].strip().lower()
 
-        if argument1 in ["reboot time"]:
+        if argument1 in ["daily update", "daily check", "day update"]:
+            argument1 = "daily update time"
+
+        if argument1 in ["reboot time", "daily update time"]:
             if argument2 == "none":
                 pass
 
@@ -5821,7 +6209,11 @@ class Administration_of_Settings(commands.Cog):
         curA.execute("UPDATE hostdata SET value = ? WHERE name = ?", (argument2, argument1))
         conA.commit()
 
-        await ctx.send(f"Set {argument1} to {argument2}.")
+        extra_note = ""
+        if argument1 == "daily update time":
+            extra_note = "\nNote that this change only takes effect after a reboot."
+
+        await ctx.send(f"Set {argument1} to {argument2}.{extra_note}")
 
     @_hostsetting.error
     async def hostsetting_error(self, ctx, error):

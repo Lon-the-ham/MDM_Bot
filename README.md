@@ -35,8 +35,6 @@ Next you need to install a few packages that the applications uses:
 > python3 -m pip install requests
 
 > pip install googletrans==3.1.0a0
-
-> pip install langdetect
   
 > pip install spotipy
   
@@ -48,11 +46,15 @@ Next you need to install a few packages that the applications uses:
 
 > pip install pandas
 
+> sudo apt-get install libopenblas-dev
+
 These are optional (more information in the documentation.md):
 
 > pip install asyncpraw
 
 > pip install dropbox
+
+> pip install langdetect
 
 > sudo apt install font-manager
 
