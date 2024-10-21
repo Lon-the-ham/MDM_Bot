@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 from other.utils.utils import Utils as util
 import os
-
+import sqlite3
 
 class Help(commands.Cog):
     def __init__(self, bot: commands.bot) -> None:
