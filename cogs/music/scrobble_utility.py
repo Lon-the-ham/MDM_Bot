@@ -924,7 +924,7 @@ class Music_Scrobbling(commands.Cog):
                 thumbnail, update_time = await util.get_database_artistimage(artist)
                 if thumbnail == "" or update_time < now - 30*24*60*60:
                     lfm_name, status = util.get_lfmname(ctx.author.id)
-                    thumbnail = await util.get_spotify_artistimage(artist, lfm_name)
+                    thumbnail = await util.get_spotify_artistimage(artist, lfm_name, "", album)
             return artist, thumbnail, tags
 
         else:
@@ -5341,7 +5341,7 @@ class Music_Scrobbling(commands.Cog):
         argument_list = ' '.join(args).split(";")
 
         for argument in argument_list:
-            arg_clean = argument.split().replace("`", "'")
+            arg_clean = argument.strip().replace("`", "'")
             if "-" not in argument:
                 await ctx.send(f"Error with `{arg_clean}`: Command needs hyphen-separated artist-album arguments.")
                 continue
@@ -5370,7 +5370,7 @@ class Music_Scrobbling(commands.Cog):
                     await ctx.send(f"`{arg_clean}`: Album info downloaded and added to database, marked as NSFW as well. {emoji}")
                 except Exception as e:
                     print("Error:", e)
-                    #curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", ("", artistcompact, "", albumcompact, "", "", 0, "nsfw"))
+                    #curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", ("", artistcompact, "", albumcompact, "", "", 0, "nsfw", 0))
                     #conSM.commit()
                     #await ctx.send(f"Album not found in database: Marking it as NSFW in advance. {emoji}")
                     await ctx.send(f"Album `{arg_clean}` not found...")
@@ -6255,7 +6255,7 @@ class Music_Scrobbling(commands.Cog):
                 conSM.commit()
                 await ctx.reply("Successfully added image.", mention_author=False)
             else:
-                curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (artist_clean, artist_compact, album_clean, album_compact, "", "", year9999, ""))
+                curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (artist_clean, artist_compact, album_clean, album_compact, "", "", year9999, "", 0))
                 conSM.commit()
                 await ctx.reply("Successfully added artist, album and image.", mention_author=False)
 
