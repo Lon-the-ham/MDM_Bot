@@ -598,13 +598,29 @@ class Utils():
 
         edited_string = ""
         try:
+            # upper case and remove brackets etc
             if len(info) > 0:
-                edited_string = Utils.compactaddendumfilter(input_string, info[0])
+                edited_string = Utils.compactaddendumfilter(input_string, info[0]).upper()
             else:
-                edited_string = input_string
+                edited_string = input_string.upper()
+
+            # replace & with AND
+            if " & " in edited_string:
+                edited_string.replace(" & ", " AND ")
+
+            # get rid of starting THE/A/AN
+            if edited_string.startswith("THE "):
+                if len(edited_string) > 4:
+                    edited_string = edited_string[4:]
+            elif edited_string.startswith("A "):
+                if len(edited_string) > 2:
+                    edited_string = edited_string[2:]
+            elif edited_string.startswith("AN "):
+                if len(edited_string) > 3:
+                    edited_string = edited_string[3:]
 
             # get rid of non-alphanumeric
-            filtered_string = ''.join([x for x in edited_string.upper() if x.isalnum()])
+            filtered_string = ''.join([x for x in edited_string if x.isalnum()])
 
             if filtered_string == "":
                 return edited_string
@@ -3150,19 +3166,19 @@ class Utils():
 
 
 
-    async def get_artist_name_and_image(artistinput):
+    async def get_artist_name_and_image(artistinput, ctx = None, albuminput = ""):
         now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
         try:
             if artistinput.strip() == "":
                 try:
                     artist, album, song, thumbnail, cover, tags = await Utils.get_last_track(ctx)
-                    if thumbnail in ["", "https://lastfm.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png"]:
+                    if thumbnail.strip() == "" or thumbnail.strip().endswith("/2a96cbd8b46e442fc41c2b86b821562f.png"):
                         thumbnail, update_time = await Utils.get_database_artistimage(artist)
                         if thumbnail == "" or update_time < now - 30*24*60*60:
                             lfm_name, status = Utils.get_lfmname(ctx.author.id)
-                            thumbnail = await Utils.get_spotify_artistimage(artist, lfm_name)
+                            thumbnail = await Utils.get_spotify_artistimage(artist, lfm_name, "", albuminput)
                     return artist, thumbnail
-                except:
+                except Exception as e:
                     return artistinput, ""
 
             conSM = sqlite3.connect('databases/scrobblemeta.db')
@@ -3198,12 +3214,18 @@ class Utils():
                 except:
                     artist = artistinput
 
-            if thumbnail.strip() in ["", "https://lastfm.freetls.fastly.net/i/u/34s/2a96cbd8b46e442fc41c2b86b821562f.png"] or spotify_update < now - 180*24*60*60:
+            if thumbnail.strip() == "" or thumbnail.strip().endswith("/2a96cbd8b46e442fc41c2b86b821562f.png") or spotify_update < now - 180*24*60*60:
                 try:
-                    lfm_name, status = Utils.get_lfmname(ctx.author.id)
-                    thumbnail = await Utils.get_spotify_artistimage(artist, lfm_name)
-                except:
-                    pass
+                    if ctx is None:
+                        user_id = 0
+                    else:
+                        user_id = ctx.author.id
+
+                    lfm_name, status = Utils.get_lfmname(user_id)
+                    thumbnail = await Utils.get_spotify_artistimage(artist, lfm_name, "", albuminput)
+                    print("thumbail")
+                except Exception as e:
+                    print(e)
 
             return artist, thumbnail
 
@@ -3473,7 +3495,11 @@ class Utils():
 
 
 
-    async def get_spotify_artistimage(artist, lfm_name, substitute=""):
+    async def get_spotify_artistimage(artist, lfm_name=None, substitute="", albumname=""):
+        """main idea is to fetch the albumname from a users table.
+        subsitute is an alternative image url if no image is found.
+        in case an albumname is known, just use that.
+        """
         try:
             ClientID = os.getenv("Spotify_ClientID")
             ClientSecret = os.getenv("Spotify_ClientSecret")
@@ -3487,23 +3513,32 @@ class Utils():
         sp = spotipy.Spotify(auth_manager=auth_manager)
 
         try:
-            if lfm_name is None:
+            if lfm_name is None and albumname == "":
                 raise ValueError("unknown user, cannot fetch album info from database, fetching artist info directly")
 
             fetch_with_albuminfo = True
+            album = ""
 
             # GET ALBUM INFO
-            now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
-            cutofftime = now - 365*24*60*60
-            conFM = sqlite3.connect('databases/scrobbledata.db')
-            curFM = conFM.cursor()
-            result = [item[0] for item in curFM.execute(f"SELECT album_name FROM [{lfm_name}] WHERE UPPER(artist_name) = ? AND album_name != ? AND date_uts > ? ORDER BY date_uts DESC LIMIT 1", (artist.upper(), "", cutofftime)).fetchall()]
 
-            if len(result) == 0:
-                raise ValueError("could not find recent album entry in database")
+            if albumname == "":
+                now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+                cutofftime = now - 365*24*60*60
+                conFM = sqlite3.connect('databases/scrobbledata.db')
+                curFM = conFM.cursor()
+                result = [item[0] for item in curFM.execute(f"SELECT album_name FROM [{lfm_name}] WHERE UPPER(artist_name) = ? AND album_name != ? AND date_uts > ? ORDER BY date_uts DESC LIMIT 1", (artist.upper(), "", cutofftime)).fetchall()]
 
-            if len(result) > 0 and result[0] != "":
-                album = Utils.compactaddendumfilter(result[0], "album")
+                if len(result) == 0:
+                    raise ValueError("could not find recent album entry in database")
+
+            if (albumname != "") or (albumname == "" and len(result) > 0 and result[0] != ""):
+
+                if (albumname == "" and len(result) > 0 and result[0] != ""):
+                    album = Utils.compactaddendumfilter(result[0], "album")
+                else:
+                    album = albumname
+
+                artist = artist.replace("'","")
                 query = f"artist:{artist} album:{album}"
                 response = sp.search(q=query, type="album", limit=1)
                 try:
@@ -3515,7 +3550,7 @@ class Utils():
                 raise ValueError("could not find recent valid album entry in database")
 
         except Exception as e:
-            print("Artist Info Warning:", e)
+            print(f"Artist Info Warning: {e} --- {artist} - {album}")
             fetch_with_albuminfo = False
 
             # FETCH ARTIST DIRECTLY
@@ -3525,6 +3560,7 @@ class Utils():
                 artist_id = response['artists']['items'][0]['id']
             except:
                 return substitute
+
 
         try:
             artist_info = sp.artist(artist_id)
@@ -3908,7 +3944,7 @@ class Utils():
                 artist_list.append(artist_filtername)
 
             if (artist_filtername, album_filter) not in aa_list:
-                curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (artist_name, artist_filtername, album_name, album_filter, "", "", 0, ""))
+                curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (artist_name, artist_filtername, album_name, album_filter, "", "", 0, "", 0))
                 aa_list.append((artist_filtername, album_filter))
         conSM.commit()
 
@@ -4396,7 +4432,7 @@ class Utils():
         artistinfo_list = [item[0] for item in curSM.execute("SELECT last_update FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, albumcompact)).fetchall()]
 
         if len(artistinfo_list) == 0:
-            curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (artist, str(artistcompact), str(album), albumcompact, tag_string, thumbnail, now, ""))
+            curSM.execute("INSERT INTO albuminfo VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (artist, str(artistcompact), str(album), albumcompact, tag_string, thumbnail, now, "", 0))
         else:
             curSM.execute("UPDATE albuminfo SET artist = ?, album = ?, cover_url = ?, last_update = ? WHERE artist_filtername = ? AND album_filtername = ?", (artist, album, thumbnail, now, artistcompact, albumcompact))
             if tags is not None:
