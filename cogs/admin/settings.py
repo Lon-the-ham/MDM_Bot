@@ -5313,12 +5313,33 @@ class Administration_of_Settings(commands.Cog):
                     conSM.execute(f"UPDATE artistinfo SET location = ?", ("",))
                     conSM.execute(f"UPDATE artistinfo SET associated = ?", ("",))
                     conSM.commit()
-                    changes_happened = True
-
-                if changes_happened:
                     print("added location/associated columns to artistinfo table")
 
                 curSM.execute("DELETE FROM artistinfo WHERE artist = ?", ("",))
+                conSM.commit()
+
+            except Exception as e:
+                print("Error:", e)
+                print(traceback.format_exc())
+
+            # fix scrobblemeta->albuminfo
+
+            try:
+                conSM = sqlite3.connect('databases/scrobblemeta.db')
+                curSM = conSM.cursor()
+                
+                cursorSM = conSM.execute(f'SELECT * FROM albuminfo')
+                column_names = list(map(lambda x: x[0], cursorSM.description))
+                cursorSM.close()
+                column_number = len(column_names)
+                    
+                if column_number <= 8:
+                    conSM.execute(f'ALTER TABLE albuminfo ADD COLUMN release_year integer;')
+                    conSM.execute(f"UPDATE albuminfo SET release_year = ?", (0,))
+                    conSM.commit()
+                    print("added release year column to artistinfo table")
+
+                curSM.execute("DELETE FROM albuminfo WHERE album = ?", ("",))
                 conSM.commit()
 
             except Exception as e:
