@@ -701,6 +701,11 @@ class TimeLoops(commands.Cog):
     # lastfm scrobble update
 
     async def lastfm_update(self):
+
+        if util.close_to_reboottime():
+            print("Not auto-updating scrobble db, due to being close to reboot time.")
+            return
+
         # first check if auto-update is enabled
         conB = sqlite3.connect('databases/botsettings.db')
         curB = conB.cursor()
