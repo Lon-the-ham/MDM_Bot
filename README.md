@@ -71,7 +71,7 @@ While you're on the developer portal you can also add your new bot to the server
 
 ### Get the code onto your device
 
-Download the latest release version of this bot and extract the files (while preserving the folder structure) into some directory of your choice on your raspberry pi, e.g. `home/bots/MDM_Bot/`. Now you need to create an environment file called `.env` (that's the entire name) in the same folder that contains `mdmbot.py` and `start_discordbot.sh`. And add the following 6 lines
+Download the latest release version of this bot and extract the files (while preserving the folder structure) into some directory of your choice on your raspberry pi, e.g. `home/bots/MDM_Bot/`. Now you need to create an environment file called `.env` (that's the entire name) in the same folder that contains `mdmbot.py` and `start_discordbot.sh`. And add the following 7 lines
 
 > application_id = `application ID`
 > 
@@ -84,8 +84,10 @@ Download the latest release version of this bot and extract the files (while pre
 > guild_id = `server ID`
 > 
 > bot_channel_id = `channel ID`
+>
+> reboot = none
 
-where you insert the IDs and the token you wrote down earlier. The prefix can be any command prefix of your choice, we personally use a hyphen. The bot_instance number is only really important if you want to host this on multiple devices, just choose "1" for the first device, "2" for the second (if there is one) and so on.
+where you insert the IDs and the token you wrote down earlier. The prefix can be any command prefix of your choice, we personally use a hyphen. The bot_instance number is only really important if you want to host this on multiple devices, just choose "1" for the first device, "2" for the second (if there is one) and so on. For reboot you can just put "none" for now (or leave this line out entirely), we will come back to this later.
 
 If everything is set in place changing directory (e.g. with `cd home/bots/MDM_Bot/`) to the folder containing `mdmbot.py` you should be able to start the bot locally by using the command
 
@@ -129,7 +131,9 @@ and it should open the crontab file. There you can write two lines at the bottom
 
 Just make sure the path matches the path the file has in your case and replace the "pi" with whatever name you gave your device (per default it's usually "pi" though).
 
-The first line will restart the bot every day at 5:06 AM (device's local time), and the second line will restart the bot when you start your device. You can ofc change the time it updates or even change it to "only restarting once a week" or something, but we recommend restarting the script every once in a while in case the device loses connection and is unable to reconnect afterwards or for whatever other issues may happen.
+The first line will restart the bot every day at 5:06 AM (device's local time), and the second line will restart the bot when you start your device. You can ofc change the time it updates or even change it to "only restarting once a week" or something, but we recommend restarting the script every once in a while in case the device loses connection and is unable to reconnect afterwards or for whatever other issues may happen. 
+
+(Remember the "reboot" part in the `.env` file? You *can* put your chosen reboot time (but in UTC!) in the place of "none". This will stop certain background tasks and commands from executing when they are too close to the reboot time, for data safety reasons. At the moment this only affects scrobble updates related to the last.fm features. If you don't use those, you can just leave the "none" in the `.env`-file. If you use them, you can probably still ignore this without much problems? It is just a safety mechanism just in case!)
 
 If all that is done you can un- and replug your device and the app should get going!
 
