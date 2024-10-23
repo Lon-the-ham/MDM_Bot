@@ -166,6 +166,36 @@ class YataBot(commands.Bot):
                 except Exception as e:
                     print(f'Error in loading default status: {e}')
 
+                # REBOOT TIME
+
+                try:
+                    reboot_time_str = os.getenv("reboot")
+                    if reboot_time_str is None:
+                        reboot_time_str = os.getenv("reboot_time")
+                    if reboot_time_str is None:
+                        reboot_time_str = "none"
+
+                    reboot_value = reboot_time_str.split(" ")[0]
+
+                    if len(reboot_time_str.split(" ")) > 1:
+                        reboot_etc = reboot_time_str.split(" ", 1)[1]
+                    else:
+                        reboot_etc = ""
+
+                    hostdata_reboot_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", ("reboot time",)).fetchall()]
+                    if len(hostdata_reboot_list) == 0:
+                        curA.execute("INSERT INTO hostdata VALUES (?,?,?,?)", ("reboot time", reboot_value, "", reboot_etc))
+                        conA.commit()
+                        print("Updated hostdata table: reboot time")
+                    else:
+                        if len(hostdata_reboot_list) > 1:
+                            print("Warning: Multiple reboot time entries in activity.db")
+                        curA.execute("UPDATE hostdata SET value = ?, etc = ? WHERE name = ?", (reboot_value, reboot_etc, "reboot time"))
+                        conA.commit()
+
+                except Exception as e:
+                    print(f"Error while trying to set reboot time: {e}")
+
                 # CLEAR SOME DATABASES
 
                 try:
