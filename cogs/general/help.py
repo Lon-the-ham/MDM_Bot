@@ -236,7 +236,7 @@ class Help(commands.Cog):
 
     @commands.command(name='test')
     @commands.check(util.is_active)
-    async def _test(self, ctx, *args):
+    async def _test(self, ctx):
         """check availability
 
         The bot will reply with a message if online and active.
