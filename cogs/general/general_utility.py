@@ -3528,9 +3528,15 @@ class General_Utility(commands.Cog):
             "https://www.tiktok.com", # tiktok
         ]
 
+        bad_formats = [
+            ".svg", # does not embed
+        ]
+
         try:
             for item in rjson['items']:
                 if any([item['link'].startswith(x) for x in bad_urls]): #some links don't work well with discord
+                    continue
+                if any([item['link'].endswith(x) for x in bad_formats]): #some file formats don't work well with discord
                     continue
                 await ctx.send(item['link'])
                 break
