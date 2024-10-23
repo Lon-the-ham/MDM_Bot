@@ -2749,6 +2749,17 @@ class Music_NowPlaying(commands.Cog):
 
         con = sqlite3.connect('databases/npsettings.db')
         cur = con.cursor()
+
+        lfm_list_of_all = [[item[0],item[1]] for item in cur.execute("SELECT lfm_name, id FROM lastfm WHERE id != ?", (user_id,)).fetchall()]
+
+        for entry in lfm_list_of_all:
+            if new_lfm_name.lower() == entry[0].lower().strip():
+                other_user_id = util.forceinteger(entry[1])
+                text = f"Error: This name is taken by <@{other_user_id}>. If this is your account ask mods to `{self.prefix}removefm` that lastfm account name from the database first."
+                embed=discord.Embed(title="", description=text, color=0xFF0000)
+                message = await ctx.send(embed=embed)
+                return
+
         lfm_list = [[item[0],item[1]] for item in cur.execute("SELECT lfm_name, lfm_link FROM lastfm WHERE id = ?", (user_id,)).fetchall()]
 
         if len(lfm_list) == 0:
@@ -3381,25 +3392,39 @@ class Music_NowPlaying(commands.Cog):
         e.g. when someone loses access to their discord account and rejoins with a new one remove the lastfm account from the first discord account.
         Use command with @mention or user ID.
         """
+        argument = ' '.join(args).strip()
 
-        response = await util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to remove this users lastfm data and delete all their scrobbles?")
-
-        if response == False:
+        if len(argument) < 2:
+            await ctx.send("Argument is too short! Needs to be discord user id/mention or last.fm name!")
             return
 
         conNP = sqlite3.connect('databases/npsettings.db')
         curNP = conNP.cursor()
 
-        user_id = ''.join(args).replace("<@", "").replace(">","")
+        lfm_list = [item[0] for item in curNP.execute("SELECT lfm_name FROM lastfm WHERE UPPER(lfm_name) = ?", (argument.upper(),)).fetchall()]
 
-        if not util.represents_integer(user_id):
-            await ctx.send("User ID seems to be invalid.. :(")
-            return
+        if len(lfm_list) > 0:
+            lastfm_name = lfm_list[0]
 
-        lastfm_name, status = util.get_lfmname(user_id)
+            if len(lfm_list) > 1:
+                print(f"Warning: Multiple NPsetting entries with name {lfm_name}.")
 
-        if lastfm_name is None:
-            await ctx.send(f"No lastfm username of user `@{user_id}` found.. :(")
+        else:
+            user_id = ''.join(args).replace("<@", "").replace(">","")
+
+            if not util.represents_integer(user_id):
+                await ctx.send("User ID seems to be invalid.. :(")
+                return
+
+            lastfm_name, status = util.get_lfmname(user_id)
+
+            if lastfm_name is None:
+                await ctx.send(f"No lastfm username of user `@{user_id}` found.. :(")
+                return
+
+        response = await util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to remove this users lastfm data and delete all their scrobbles?")
+
+        if response == False:
             return
 
         async with ctx.typing():
