@@ -3096,6 +3096,27 @@ class Music_Scrobbling(commands.Cog):
             await ctx.send(f"Update pipe is currently in use ({usernamestring}). Please try again later.")
             return
 
+        try:
+            conFM = sqlite3.connect('databases/scrobbledata.db')
+            curFM = conFM.cursor()
+
+            curFM.execute(f"SELECT COUNT(*) FROM [{lfm_name}]")
+            numberOfRows = curFM.fetchone()[0]
+
+            print(f"{lfm_name} has {numberOfRows} scrobbles so far...")
+
+            if numberOfRows > 0:
+                buffer_time = 2
+            else:
+                buffer_time = 60
+        except:
+            buffer_time = 2
+
+        if util.close_to_reboottime(buffer_time):
+            emoji = util.emoji("pray")
+            await ctx.send(f"Halted execution of scrobble update due to closeness in time to scheduled reboot. Please try again later. {emoji}")
+            return
+
         cooldown_checked = True
         send_message = True
         await self.individual_scrobble_update(ctx, lfm_name, argument, send_message, cooldown_checked)
@@ -3120,8 +3141,15 @@ class Music_Scrobbling(commands.Cog):
 
         if len(args) > 0 and args[0].lower() == "full":
             reindex = True
+            buffer_time = 120
         else:
             reindex = False
+            buffer_time = 90
+
+        if util.close_to_reboottime(buffer_time):
+            emoji = util.emoji("pray")
+            await ctx.send(f"Halted execution of reloading scrobble databases due to closeness in time to scheduled reboot. Please try again later. {emoji}")
+            return
 
         async with ctx.typing():
             await ctx.send("Warning: This might take a while!")
@@ -3646,6 +3674,7 @@ class Music_Scrobbling(commands.Cog):
             return
 
         # TRY UPDATE
+        fetch_from_scratch = False
         #if argument.strip().lower() in ["u", "update", "updat"]:
         try:
             if type(status) == str and status.startswith("scrobble_banned"):
@@ -3657,6 +3686,14 @@ class Music_Scrobbling(commands.Cog):
             if len(scrobbles) == 0:
                 loademoji = util.emoji("load")
                 await ctx.send(f"You haven't imported any scrobbles yet, fetching them now. This might take a while... {loademoji}")
+                fetch_from_scratch = True
+                buffer_time = 60
+            else:
+                buffer_time = 2
+
+            if util.close_to_reboottime(buffer_time):
+                emoji = util.emoji("pray")
+                raise ValueError(f"Halted execution of scrobble update due to closeness in time to scheduled reboot.")
 
             argument = ""
             send_message = False
@@ -3667,6 +3704,11 @@ class Music_Scrobbling(commands.Cog):
             print("Warning (streak), skipping individual scrobble update:", e)
             update_happened = False
             update_count = None
+
+            if str(e) == "Halted execution of scrobble update due to closeness in time to scheduled reboot." and fetch_from_scratch:
+                emoji = util.emoji("cry")
+                await ctx.send(f"Halted execution of scrobble update due to closeness in time to scheduled reboot. Please try again later.. {emoji}")
+                return
 
         # GET SCROBBLES
 
