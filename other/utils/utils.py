@@ -547,6 +547,56 @@ class Utils():
 
 
 
+    def close_to_daytime(daytime_string, buffer_min=15):
+        """
+        daytime_string: string in format HH:MM
+        buffer_min: integer between 0 and 720
+        """
+        if buffer_min > 12*60:
+            buffer_min = 12*60
+        elif buffer_min < 0:
+            buffer_min = 0
+
+        try:
+            h = datetime.utcnow().hour
+            m = datetime.utcnow().minute
+
+            day_minutes = h * 60 + m
+
+            target_hour = Utils.forceinteger(daytime_string.split(":")[0].strip())
+            target_minute = Utils.forceinteger(daytime_string.split(":")[1].strip())
+
+            target_dayminutes = target_hour * 60 + target_minute
+
+            diff = target_dayminutes - day_minutes
+
+            if diff < 0:
+                diff = diff + 24*60
+
+            if diff <= buffer_min:
+                return True #within buffer close to target time
+
+        except Exception as e:
+            print("Error in check for closeness to target time:", e)
+        
+        return False
+
+
+
+    def close_to_reboottime(buffer_min=15):
+        conA = sqlite3.connect(f'databases/activity.db')
+        curA = conA.cursor()
+        hostdata_reboot_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", ("reboot time",)).fetchall()]
+
+        if len(hostdata_reboot_list) == 0:
+            return False
+
+        reboot_daytime = hostdata_reboot_list[0].strip()
+
+        return Utils.close_to_daytime(reboot_daytime, buffer_min)
+
+
+
     def compact_sql(string):
         return f"""REPLACE(REPLACE(REPLACE(REPLACE(UPPER({string}), " ", ""), "-", ""), "_", ""), "'", "")"""
         #return f"""UPPER({string})"""
@@ -606,7 +656,7 @@ class Utils():
 
             # replace & with AND
             if " & " in edited_string:
-                edited_string.replace(" & ", " AND ")
+                edited_string = edited_string.replace(" & ", " AND ")
 
             # get rid of starting THE/A/AN
             if edited_string.startswith("THE "):
