@@ -2095,7 +2095,7 @@ class Administration_of_Settings(commands.Cog):
 
 
 
-    @_set.command(name="rolecat", aliases = ["rolecategory"], pass_context=True)
+    @_set.group(name="rolecat", aliases = ["rolecategory"], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
@@ -2110,6 +2110,10 @@ class Administration_of_Settings(commands.Cog):
 
         If you want to add multiple roles at once you must use @role mentions for all of them.
         i.e. `<prefix>set rolecat <@role1> <@role2> <@role3> <cat name>`
+
+        Alternatively: With subcommand `between` you can provide 2 roles and a cat name, and all roles between them (incl. the 2) in role hierarchy will be categorised as such.
+        E.g. `<prefix>set rolecat between <@role1> <@role2> <cat name>`
+        In this case you must use role mentions as well.
         """
 
         if len(args) < 2:
@@ -2243,6 +2247,78 @@ class Administration_of_Settings(commands.Cog):
     @_set_rolecat.error
     async def set_rolecat_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
+
+
+    @_set_rolecat.command(name="between", aliases = ["amidst"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_rolecat_between(self, ctx, *args):
+        """Set category for roles
+        
+        Provide 2 role mentions and a cat name, and all roles between them (incl. the 2) in role hierarchy will be categorised as such.
+        E.g. `<prefix>set rolecat between <@role1> <@role2> <cat name>`
+        """
+        if len(args) < 3:
+            await ctx.send("Error: This command needs 3 arguments!\nE.g. `<prefix>set rolecat between <@role1> <@role2> <cat name>`")
+            return
+
+        # PARSE ARGS
+
+        role1 = args[0]
+        role2 = args[1]
+        catname = '_'.join(args[2:])
+
+        if not (role1.startswith("<@&") and role1.endswith(">") and len(role1) > 5 and util.represents_integer(role1[3:-1])):
+            await ctx.send("Error with role argument.")
+            return
+        if not (role2.startswith("<@&") and role2.endswith(">") and len(role2) > 5 and util.represents_integer(role2[3:-1])):
+            await ctx.send("Error with role argument.")
+            return
+
+        try:
+            role_obj_1 = ctx.guild.get_role(int(role1[3:-1]))
+            role_obj_2 = ctx.guild.get_role(int(role2[3:-1]))
+        except Exception as e:
+            print("Error:", e)
+            await ctx.send("Error with the provided role arguments.")
+            return
+
+        try:
+            top_position    = max(role_obj_1.position, role_obj_2.position)
+            bottom_position = min(role_obj_1.position, role_obj_2.position)
+        except Exception as e:
+            print("Error:", e)
+            await ctx.send("Error with discord role objects.")
+            return
+
+        # MAKE CHANGES
+
+        await util.update_role_database(ctx)
+
+        con = sqlite3.connect(f'databases/roles.db')
+        cur = con.cursor()
+
+        role_list = []
+
+        for r in ctx.guild.roles:
+            if r.position <= top_position and r.position >= bottom_position:
+                role_list.append(r.name)
+                cur.execute("UPDATE roles SET category = ? WHERE id = ?", (catname, str(r.id)))
+        con.commit()
+
+        await util.changetimeupdate()
+
+        # SEND
+
+        role_names = ', '.join(role_list).replace("`","'")[:(2000-32-len(catname))]
+        await ctx.send(f"Changed category of roles `{role_names}` to {catname}")
+
+    @_set_rolecat_between.error
+    async def set_rolecat_between_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
 
 
     @_set.command(name="rolemoji", aliases = ["roleemoji"], pass_context=True)
@@ -4884,6 +4960,7 @@ class Administration_of_Settings(commands.Cog):
                             "pleading" : "😴",
                             "pout" : "🙎",
                             "powerful": "💪",
+                            "pray": "🙏",
                             "sad" : "😢",
                             "sfw" : "🚸",
                             "shaking" : "🫨",
