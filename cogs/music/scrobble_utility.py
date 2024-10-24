@@ -767,7 +767,7 @@ class Music_Scrobbling(commands.Cog):
                 i += await self.reload_userdbs(lfm_name)
                 try:
                     print("scrobble meta update")
-                    onFM = sqlite3.connect('databases/scrobbledata.db')
+                    conFM = sqlite3.connect('databases/scrobbledata.db')
                     curFM = conFM.cursor()
                     scrobble_list = [("", item[0], item[1]) for item in curFM.execute(f"SELECT DISTINCT artist_name, album_name FROM [{lfm_name}]").fetchall()]
                     await util.scrobble_metaupdate(scrobble_list)
