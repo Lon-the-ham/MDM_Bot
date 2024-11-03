@@ -4,6 +4,7 @@ import os
 import sys
 from dotenv import load_dotenv
 import datetime
+import pytz
 import discord
 from discord.ext import commands
 import asyncio
@@ -175,7 +176,7 @@ class YataBot(commands.Bot):
                     if reboot_time_str is None:
                         reboot_time_str = "none"
 
-                    reboot_value = reboot_time_str.split(" ")[0]
+                    reboot_value = reboot_time_str.split(" ")[0].strip()
 
                     if len(reboot_time_str.split(" ")) > 1:
                         reboot_etc = reboot_time_str.split(" ", 1)[1]
@@ -192,6 +193,32 @@ class YataBot(commands.Bot):
                             print("Warning: Multiple reboot time entries in activity.db")
                         curA.execute("UPDATE hostdata SET value = ?, etc = ? WHERE name = ?", (reboot_value, reboot_etc, "reboot time"))
                         conA.commit()
+
+                    try:
+                        target_hour = util.forceinteger(reboot_value.split(":")[0].strip())
+                        target_minute = util.forceinteger(reboot_value.split(":")[1].strip())
+
+                        if target_hour < 10:
+                            target_hour_str = "0" + str(target_hour)
+                        else:
+                            target_hour_str = str(target_hour)
+
+                        if target_minute < 10:
+                            target_minute_str = "0" + str(target_minute)
+                        else:
+                            target_minute_str = str(target_minute)
+
+                        try:
+                            if reboot_etc == "":
+                                raise ValueError("no timezone set")
+                            tz     = pytz.timezone(reboot_etc)
+                            dt_now = datetime.datetime.now(tz=tz)
+                            print(f"Set reboot time: {target_hour_str}:{target_minute_str} {reboot_etc}")
+                        except Exception as e:
+                            print(f"Set reboot time: {target_hour_str}:{target_minute_str} UTC")
+                    except:
+                        print("no reboot time set")
+
 
                 except Exception as e:
                     print(f"Error while trying to set reboot time: {e}")
