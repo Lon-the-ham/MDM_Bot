@@ -133,7 +133,7 @@ Just make sure the path matches the path the file has in your case and replace t
 
 The first line will restart the bot every day at 5:06 AM (device's local time), and the second line will restart the bot when you start your device. You can ofc change the time it updates or even change it to "only restarting once a week" or something, but we recommend restarting the script every once in a while in case the device loses connection and is unable to reconnect afterwards or for whatever other issues may happen. 
 
-(Remember the "reboot" part in the `.env` file? You *can* put your chosen reboot time (but in UTC!) in the place of "none". This will stop certain background tasks and commands from executing when they are too close to the reboot time, for data safety reasons. At the moment this only affects scrobble updates related to the last.fm features. If you don't use those, you can just leave the "none" in the `.env`-file. If you use them, you can probably still ignore this without much problems? It is just a safety mechanism just in case!)
+(Remember the "reboot" part in the `.env` file? You *can* put your chosen reboot time in the form `HH:MM Country/City` (as in pytz) in the place of "none". This will stop certain background tasks and commands from executing when they are too close to the reboot time, for data safety reasons. At the moment this only affects scrobble updates related to the last.fm features. If you don't use those, you can just leave the "none" in the `.env`-file. If you use them, you can probably still ignore this without much problems? It is just a safety mechanism just in case!)
 
 If all that is done you can un- and replug your device and the app should get going!
 
