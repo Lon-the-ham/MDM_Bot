@@ -412,6 +412,17 @@ class Administration_of_Settings(commands.Cog):
         desctext_general.append(f"Custom reminder functionality: `{customreminder_func}`")
         desctext_features.append(f"Custom reminder functionality: `{customreminder_func}`")
 
+        custom_responses_list = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("custom responses",)).fetchall()]
+        if len(custom_responses_list) == 0:
+            customresponse_func = "error⚠️"
+            print("Error: no custom response on/off in database")
+        else:
+            if len(custom_responses_list) > 1:
+                print("Warning: there are multiple custom response on/off entries in the database")
+            customresponse_func = custom_responses_list[0]
+        desctext_general.append(f"Custom response functionality: `{customresponse_func}`")
+        desctext_features.append(f"Custom response functionality: `{customresponse_func}`")
+
         genretagreminder_list = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("genre tag reminder",)).fetchall()]
         if len(genretagreminder_list) == 0:
             genretagreminder = "error⚠️"
@@ -2839,6 +2850,7 @@ class Administration_of_Settings(commands.Cog):
             "automatic role": "Automatic role (upon join) feature",
             "backlog functionality": "Memo/backlog feature",
             "bot display": "Bot's sidebar role switch",
+            "custom responses": "Customised text & reaction responses",
             "genre tag reminder": "Genre Tag Reminder",
             "inactivity filter": "User Inactivity Filter",
             "pingable interests functionality": "Pingable interest feature",
@@ -3351,6 +3363,26 @@ class Administration_of_Settings(commands.Cog):
     @_set_scrobbling_autoupdate.error
     async def set_scrobbling_autoupdate_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
+
+    
+    @_set.command(name="customresponse", aliases = ["customresponses", "customcommand", "customcommands"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_customresponse(self, ctx, *args):
+        """Enable/disable custom responses
+
+        1st arg needs to be `on` or `off`.
+
+        If this feature is enabled the bot will match all sent messages with the text triggers that mods can set via `<prefix>shenaniganadd`, and respond with the set response (which can be text and/or reaction).
+        """
+        await self.database_on_off_switch(ctx, args, "custom responses")
+        
+    @_set_scrobbling_autoupdate.error
+    async def set_scrobbling_autoupdate_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
 
 
 
@@ -4716,6 +4748,14 @@ class Administration_of_Settings(commands.Cog):
             elif len(scrobbleautoupdate_list) > 1:
                 print("Warning: Multiple scrobbling auto update entries in serversettings table (botsettings.db)")
 
+            custom_triggerresponse_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("custom responses",)).fetchall()]
+            if len(custom_triggerresponse_list) == 0:
+                curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("custom responses", "off", "", ""))
+                conB.commit()
+                print("Updated serversettings table: custom responses")
+            elif len(custom_triggerresponse_list) > 1:
+                print("Warning: Multiple custom responses entries in serversettings table (botsettings.db)")
+
             # on/off notification
 
             createdeletechannelnotif_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("create/delete channel notification",)).fetchall()]
@@ -5122,6 +5162,7 @@ class Administration_of_Settings(commands.Cog):
             curSH.execute('''CREATE TABLE IF NOT EXISTS sudo (sudo_id text, command text, response1 text, response2 text)''')
             curSH.execute('''CREATE TABLE IF NOT EXISTS inspire (quote_id text, quote text, author text, link text)''')
             curSH.execute('''CREATE TABLE IF NOT EXISTS mrec (mrec_id text, subcommand text, alias text, link text)''')
+            curSH.execute('''CREATE TABLE IF NOT EXISTS custom (custom_id text, trigger_text text, trigger_type text, response text, response_type text)''')
 
             # USER DATA
 

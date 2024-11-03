@@ -13,6 +13,27 @@ class Shenanigans(commands.Cog):
         self.bot = bot
         self.prefix = os.getenv("prefix")
 
+    def is_inactive(self):
+        try:
+            activity = util.is_active()
+            return not activity
+        except:
+            return True
+
+    def custom_responses_enabled(self):
+        try:
+            conB = sqlite3.connect(f'databases/botsettings.db')
+            curB = conB.cursor()
+
+            custom_triggerresponse_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("custom responses",)).fetchall()]
+            
+            if len(custom_triggerresponse_list) == 0 or custom_triggerresponse_list[-1].lower().strip() != 'on':
+                return False
+            else:
+                return True
+        except:
+            return False
+
 
 
     @commands.command(name='sudo', aliases = ['please', 'pls'])
@@ -144,6 +165,11 @@ class Shenanigans(commands.Cog):
         await util.error_handling(ctx, error)
 
 
+
+    ###########################################################################################################################################################
+    ###########################################################################################################################################################
+    ###########################################################################################################################################################
+
     # commands to fill the database
 
 
@@ -163,6 +189,19 @@ class Shenanigans(commands.Cog):
 
         E.g.
         `<prefix>addshenanigan sudo make me a sandwich;; ok here;; 🥪`
+
+        You can also specify some custom command/reactions:
+        > `customtext` [3 args](2 mandatory args: trigger text response text; 1 optional arg: trigger type)
+        > `customreact` [3 args](2 mandatory args: trigger text, response reaction(s); 1 optional arg: trigger type)
+
+        The trigger text triggers even without the command prefix (<prefix>), unless you also include the prefix. 
+        Response text or response reactions are what the bot will respond with.
+
+        The trigger type needs to be the last argument and is per default 
+        `standard`: matches when a users message is equal to the specified text, but case insensitive
+        but you can also specify
+        `strict`: matches only when the text is EXACTLY the same, including casing
+        `include`: matches when the text includes the trigger text, case insensitive
         """
         if len(args) < 2:
             await ctx.send("Command needs more arguments.")
@@ -344,6 +383,67 @@ class Shenanigans(commands.Cog):
             embed=discord.Embed(title="", description=text.strip(), color=0x000000)
             embed.set_footer(text=f"ID: {sudo_id}")
             await ctx.send(embed=embed)
+
+
+        elif table in ['custom', 'customtext', 'customresponse', 'customreact', 'customreacts', 'customreaction', 'customreactions']:
+            # INTERPRET ARGUMENTS
+
+            if len(arguments) >= 3:
+                triggertype = arguments[2].lower().strip()
+            else:
+                triggertype = "standard"
+
+            if len(arguments) >= 2:
+                response = arguments[1]
+                trigger = arguments[0]
+            else:
+                await ctx.send("Pls provide valid custom trigger and response.")
+                return
+
+            if triggertype not in ['standard', 'strict', 'include']:
+                if triggertype in ['exact', 'precise', 'precisely']:
+                    triggertype = 'strict'
+                elif triggertype in ['includes', 'including']:
+                    triggertype = 'include'
+                else:
+                    await ctx.send(f"Given trigger type `{triggertype}` not recognised... changing it to `standard`.")
+                    triggertype = 'standard'
+
+
+            # INSERT INTO DATABASE
+
+            conSH = sqlite3.connect('databases/shenanigans.db')
+            curSH = conSH.cursor()
+            id_strings = [item[0] for item in curSH.execute("SELECT custom_id FROM custom").fetchall()]
+            max_id = 0
+            for ids in id_strings:
+                try:
+                    id_int = int(ids)
+                except:
+                    continue
+
+                if max_id < id_int:
+                    max_id = id_int
+            custom_id = str(max_id + 1)
+
+            if table in ['custom', 'customtext', 'customresponse']:
+                responsetype = 'text'
+            else:
+                responsetype = 'reaction'
+
+            curSH.execute("INSERT INTO custom VALUES (?, ?, ?, ?, ?)", (custom_id, trigger, triggertype, response, responsetype))
+            conSH.commit()
+            await util.changetimeupdate()
+            await ctx.send("Successfully added custom command/response.")
+
+            # GIVE PREVIEW
+            text = f"Trigger text ({triggertype}): {trigger}\n"
+            text += f"Response ({responsetype}): {response}"
+            embed=discord.Embed(title="", description=text.strip(), color=0x000000)
+            embed.set_footer(text=f"ID: {custom_id}")
+            await ctx.send(embed=embed)
+
+
         else:
             await ctx.send("Pls provide valid table name.")
 
@@ -364,6 +464,7 @@ class Shenanigans(commands.Cog):
         > `inspire` 
         > `mrec` 
         > `sudo` 
+        > `custom`
         Second argument needs to be the id.
 
         E.g.
@@ -415,6 +516,18 @@ class Shenanigans(commands.Cog):
             await ctx.send(f"Removed entry:\n```Command: {matches[0][0]}\nResponse 1: {matches[0][1]}\nResponse 2: {matches[0][2]}```")
 
 
+        elif table in ['custom', 'customtext', 'customresponse', 'customreact', 'customreacts', 'customreaction', 'customreactions']:
+            matches = [[util.cleantext(item[0]),util.cleantext(item[1]),util.cleantext(item[2]),util.cleantext(item[3])] for item in curSH.execute("SELECT trigger_text, trigger_type, response, response_type FROM custom WHERE custom_id = ?", (entry_id,)).fetchall()]
+            if len(matches) == 0:
+                await ctx.send(f"No such custom trigger/response with ID {entry_id}.")
+                return
+
+            curSH.execute("DELETE FROM custom WHERE custom_id = ?", (entry_id,))
+            conSH.commit()
+            await util.changetimeupdate()
+            await ctx.send(f"Removed entry:\n```Trigger ({matches[0][1]}): {matches[0][0]}\nResponse ({matches[0][3]}): {matches[0][2]}```")
+
+
         else:
             await ctx.send("Pls provide valid table name.")
 
@@ -435,6 +548,7 @@ class Shenanigans(commands.Cog):
         > `inspire` 
         > `mrec` 
         > `sudo` 
+        > `custom`
         """
         if len(args) == 0:
             await ctx.send("Command needs an argument.")
@@ -443,6 +557,8 @@ class Shenanigans(commands.Cog):
         table = args[0].lower()
         conSH = sqlite3.connect('databases/shenanigans.db')
         curSH = conSH.cursor()
+
+        is_custom = False
 
 
         if table in ['inspire', 'inspi', 'inspiring', 'quote']:
@@ -465,14 +581,30 @@ class Shenanigans(commands.Cog):
             item_list.sort(key=lambda x: x[0])
             header = "Sudo command/response IDs"
 
+
+        elif table in ['custom', 'customtext', 'customresponse', 'customreact', 'customreacts', 'customreaction', 'customreactions']:
+            item_list = [[util.forceinteger(item[0]),util.cleantext(item[1]),util.cleantext(item[2]),util.cleantext(item[3]),util.cleantext(item[4])] for item in curSH.execute("SELECT custom_id, trigger_text, trigger_type, response, response_type FROM custom").fetchall()]
+            item_list.sort(key=lambda x: x[4])
+            item_list.sort(key=lambda x: x[2])
+            item_list.sort(key=lambda x: x[1])
+            item_list.sort(key=lambda x: x[0])
+            header = "Custom trigger/response IDs"
+            is_custom = True
+
         else:
             await ctx.send("Pls provide valid table name.")
             return
 
 
         text_list = []
-        for item in item_list:
-            text_list.append(f"`{item[0]}.` {item[1][:50]}; {item[2][:50]}; {item[3][:50]}")
+
+        if is_custom:
+            for item in item_list:
+                text_list.append(f"`{item[0]}.` `[{item[2][:20]}/{item[4][:20]}]` {item[1][:50]} `--->` {item[3][:50]}")
+
+        else:
+            for item in item_list:
+                text_list.append(f"`{item[0]}.` {item[1][:50]}; {item[2][:50]}; {item[3][:50]}")
                 
         color = 0xFFFFFF
         await util.multi_embed_message(ctx, header, text_list, color, "", None)
@@ -481,6 +613,75 @@ class Shenanigans(commands.Cog):
     async def show_shenanigans_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
+
+
+
+    ###########################################################################################################################################################
+    ###########################################################################################################################################################
+    ###########################################################################################################################################################
+
+    ###########################################################################################################################################################
+    ###########################################################################################################################################################
+    ###########################################################################################################################################################
+
+    ###########################################################################################################################################################
+    ###########################################################################################################################################################
+    ###########################################################################################################################################################
+
+    # RESPONSE EVENT
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        if self.is_inactive():
+            return
+        if message.author.bot:
+            return
+        if not self.custom_responses_enabled():
+            return
+
+        conSH = sqlite3.connect('databases/shenanigans.db')
+        curSH = conSH.cursor()
+        curSH.execute('''CREATE TABLE IF NOT EXISTS custom (custom_id text, trigger_text text, trigger_type text, response text, response_type text)''')
+
+        item_list = [[item[0],item[1],item[2],item[3]] for item in curSH.execute("SELECT trigger_text, trigger_type, response, response_type FROM custom").fetchall()]
+
+        msg = message.content.strip()
+        msg_lower = message.content.lower().strip()
+
+        for item in item_list:
+            trigger_response = False
+            trigger_text = item[0]
+            trigger_type = item[1]
+
+            if trigger_type == "strict":
+                if msg == trigger_text:
+                    trigger_response = True
+            else:
+                trigger_text_lower = trigger_text.lower()
+
+                if trigger_type == "include":
+                    if trigger_text_lower in msg_lower:
+                        trigger_response = True
+                else:
+                    if msg_lower == trigger_text_lower:
+                        trigger_response = True
+
+            if not trigger_response:
+                continue
+
+            response  = item[2]
+            response_type = item[3]
+
+            if response_type == 'text':
+                await message.reply(response, mention_author=False)
+
+            else:
+                for arg in response.replace(",", " ").replace(";", " ").split():
+                    try:
+                        await message.add_reaction(arg)
+                    except:
+                        print(f"Error with response reaction: {arg}")
+            
 
 
 async def setup(bot: commands.bot) -> None:
