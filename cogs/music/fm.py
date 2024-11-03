@@ -3409,6 +3409,8 @@ class Music_NowPlaying(commands.Cog):
             if len(lfm_list) > 1:
                 print(f"Warning: Multiple NPsetting entries with name {lfm_name}.")
 
+            is_user_id = False
+
         else:
             user_id = ''.join(args).replace("<@", "").replace(">","")
 
@@ -3421,6 +3423,8 @@ class Music_NowPlaying(commands.Cog):
             if lastfm_name is None:
                 await ctx.send(f"No lastfm username of user `@{user_id}` found.. :(")
                 return
+
+            is_user_id = True
 
         response = await util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to remove this users lastfm data and delete all their scrobbles?")
 
@@ -3442,7 +3446,10 @@ class Music_NowPlaying(commands.Cog):
             curFM3.execute(f"DROP TABLE IF EXISTS [{lastfm_name}]")
             conFM3.commit()
 
-            curNP.execute("DELETE FROM lastfm WHERE id = ?", (user_id,))
+            if is_user_id:
+                curNP.execute("DELETE FROM lastfm WHERE id = ?", (user_id,))
+            else:
+                curNP.execute("DELETE FROM lastfm WHERE UPPER(lfm_name) = ?", (lastfm_name.upper(),))
             conNP.commit()
 
         await ctx.reply(f"Removed scrobble data from {lastfm_name}.", mention_author=False)
