@@ -547,7 +547,7 @@ class Utils():
 
 
 
-    def close_to_daytime(daytime_string, buffer_min=15):
+    def close_to_daytime_utc(target_hour, target_minute, buffer_min=15):
         """
         daytime_string: string in format HH:MM
         buffer_min: integer between 0 and 720
@@ -562,9 +562,6 @@ class Utils():
             m = datetime.utcnow().minute
 
             day_minutes = h * 60 + m
-
-            target_hour = Utils.forceinteger(daytime_string.split(":")[0].strip())
-            target_minute = Utils.forceinteger(daytime_string.split(":")[1].strip())
 
             target_dayminutes = target_hour * 60 + target_minute
 
@@ -584,16 +581,62 @@ class Utils():
 
 
     def close_to_reboottime(buffer_min=15):
+        # FETCH TIME FROM DATABASE
         conA = sqlite3.connect(f'databases/activity.db')
         curA = conA.cursor()
-        hostdata_reboot_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", ("reboot time",)).fetchall()]
+        hostdata_reboot_list = [[item[0],item[1]] for item in curA.execute("SELECT value, etc FROM hostdata WHERE name = ?", ("reboot time",)).fetchall()]
 
         if len(hostdata_reboot_list) == 0:
             return False
 
-        reboot_daytime = hostdata_reboot_list[0].strip()
+        reboot_loctime = hostdata_reboot_list[0][0].strip() # string
+        timezone_data = hostdata_reboot_list[0][1].strip()
 
-        return Utils.close_to_daytime(reboot_daytime, buffer_min)
+        #CONVERT
+
+        if ":" not in reboot_loctime:
+            if reboot_loctime.lower() != "none":
+                print("invalid reboot time given, ignoring and proceeding")
+            return False
+
+        target_hour = Utils.forceinteger(reboot_loctime.split(":")[0].strip())
+        target_minute = Utils.forceinteger(reboot_loctime.split(":")[1].strip())
+
+        try:
+            # CREATING DATETIME OBJECT
+            try:
+                tz     = pytz.timezone(timezone_data)
+                dt_now = datetime.now(tz=tz)
+            except Exception as e:
+                tz     = pytz.UTC
+                dt_now = datetime.now(tz=tz)
+
+            year  = dt_now.year
+            month = dt_now.month
+            day   = dt_now.day
+            hour = dt_now.hour
+            minute = dt_now.minute
+
+            dt_now_simplified = datetime(year, month, day, hour, minute, 0, tzinfo=tz) # without seconds and smaller units
+
+            dt_target = datetime(year, month, day, target_hour, target_minute, 0, tzinfo=tz)
+
+            if target_hour < hour or (target_hour == hour and target_minute < minute):
+                dt_target = dt_target + timedelta(days=1)
+
+            # TIME DIFFERENCE
+
+            timedelta_obj = dt_target - dt_now_simplified
+
+            minutes_until = timedelta_obj.total_seconds() // 60
+
+            if minutes_until >= 0 and minutes_until <= buffer_min:
+                return True
+
+        except Exception as e:
+            print("Error in reboot time checker:", e)
+        
+        return False
 
 
 
@@ -4318,7 +4361,7 @@ class Utils():
             print("Error:", e)
 
             if str(e).startswith("Unable to fetch scrobble data from:"):
-                text = f"Could not fetch last.fm information from user `{lfm_name}`.\nCheck on https://www.last.fm/user/{lfm_name} whether the page still exists. If not and this error persists it is recommended to either scrobble-ban them or purge their data from the np-settings database via `{self.prefix}removefm`.\n\n"
+                text = f"Could not fetch last.fm information from user `{lfm_name}`.\nCheck on https://www.last.fm/user/{lfm_name} whether the page still exists. If not and this error persists it is recommended to either scrobble-ban them or purge their data from the np-settings database via command `removefm`.\n\n"
             else:
                 text = f"There was a problem while handling data of user `{lfm_name}`.\n\n`Error message:` {e}"
 
