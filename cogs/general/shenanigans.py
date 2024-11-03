@@ -202,6 +202,8 @@ class Shenanigans(commands.Cog):
         but you can also specify
         `strict`: matches only when the text is EXACTLY the same, including casing
         `include`: matches when the text includes the trigger text, case insensitive
+
+        Note that line breaks in responses are given by `\\n` and prefixes in trigger text can be written as `< prefix >` (without spaces).
         """
         if len(args) < 2:
             await ctx.send("Command needs more arguments.")
@@ -385,7 +387,7 @@ class Shenanigans(commands.Cog):
             await ctx.send(embed=embed)
 
 
-        elif table in ['custom', 'customtext', 'customresponse', 'customreact', 'customreacts', 'customreaction', 'customreactions']:
+        elif table in ['custom', 'customresponse', 'customtext', 'customreply', 'customreact', 'customreacts', 'customreaction', 'customreactions']:
             # INTERPRET ARGUMENTS
 
             if len(arguments) >= 3:
@@ -426,7 +428,7 @@ class Shenanigans(commands.Cog):
                     max_id = id_int
             custom_id = str(max_id + 1)
 
-            if table in ['custom', 'customtext', 'customresponse']:
+            if table in ['custom', 'customresponse', 'customtext', 'customreply']:
                 responsetype = 'text'
             else:
                 responsetype = 'reaction'
@@ -437,8 +439,11 @@ class Shenanigans(commands.Cog):
             await ctx.send("Successfully added custom command/response.")
 
             # GIVE PREVIEW
-            text = f"Trigger text ({triggertype}): {trigger}\n"
-            text += f"Response ({responsetype}): {response}"
+            trigger_edit = trigger.replace("<prefix>", self.prefix).strip()
+            response_edit = response.replace("\\n", "\n").strip()
+
+            text = f"Trigger text ({triggertype}): {trigger_edit}\n"
+            text += f"Response ({responsetype}): {response_edit}"
             embed=discord.Embed(title="", description=text.strip(), color=0x000000)
             embed.set_footer(text=f"ID: {custom_id}")
             await ctx.send(embed=embed)
@@ -516,7 +521,7 @@ class Shenanigans(commands.Cog):
             await ctx.send(f"Removed entry:\n```Command: {matches[0][0]}\nResponse 1: {matches[0][1]}\nResponse 2: {matches[0][2]}```")
 
 
-        elif table in ['custom', 'customtext', 'customresponse', 'customreact', 'customreacts', 'customreaction', 'customreactions']:
+        elif table in ['custom', 'customresponse', 'customtext', 'customreply', 'customreact', 'customreacts', 'customreaction', 'customreactions']:
             matches = [[util.cleantext(item[0]),util.cleantext(item[1]),util.cleantext(item[2]),util.cleantext(item[3])] for item in curSH.execute("SELECT trigger_text, trigger_type, response, response_type FROM custom WHERE custom_id = ?", (entry_id,)).fetchall()]
             if len(matches) == 0:
                 await ctx.send(f"No such custom trigger/response with ID {entry_id}.")
@@ -551,7 +556,7 @@ class Shenanigans(commands.Cog):
         > `custom`
         """
         if len(args) == 0:
-            await ctx.send("Command needs an argument.")
+            await ctx.send("Command needs an argument, either: `inspire`, `mrec`, `sudo` or `custom`")
             return
 
         table = args[0].lower()
@@ -582,8 +587,13 @@ class Shenanigans(commands.Cog):
             header = "Sudo command/response IDs"
 
 
-        elif table in ['custom', 'customtext', 'customresponse', 'customreact', 'customreacts', 'customreaction', 'customreactions']:
-            item_list = [[util.forceinteger(item[0]),util.cleantext(item[1]),util.cleantext(item[2]),util.cleantext(item[3]),util.cleantext(item[4])] for item in curSH.execute("SELECT custom_id, trigger_text, trigger_type, response, response_type FROM custom").fetchall()]
+        elif table in ['custom', 'customresponse', 'customtext', 'customreply', 'customreact', 'customreacts', 'customreaction', 'customreactions']:
+            if table in ['custom', 'customresponse']:
+                item_list = [[util.forceinteger(item[0]),util.cleantext(item[1].replace("<prefix>", self.prefix)),util.cleantext(item[2]),util.cleantext(item[3]),util.cleantext(item[4])] for item in curSH.execute("SELECT custom_id, trigger_text, trigger_type, response, response_type FROM custom").fetchall()]
+            elif table in ['customtext', 'customreply']:
+                item_list = [[util.forceinteger(item[0]),util.cleantext(item[1].replace("<prefix>", self.prefix)),util.cleantext(item[2]),util.cleantext(item[3]),util.cleantext(item[4])] for item in curSH.execute("SELECT custom_id, trigger_text, trigger_type, response, response_type FROM custom WHERE response_type = ?", ("text",)).fetchall()]
+            else:
+                item_list = [[util.forceinteger(item[0]),util.cleantext(item[1].replace("<prefix>", self.prefix)),util.cleantext(item[2]),util.cleantext(item[3]),util.cleantext(item[4])] for item in curSH.execute("SELECT custom_id, trigger_text, trigger_type, response, response_type FROM custom WHERE response_type = ?", ("reaction",)).fetchall()]
             item_list.sort(key=lambda x: x[4])
             item_list.sort(key=lambda x: x[2])
             item_list.sort(key=lambda x: x[1])
@@ -645,12 +655,12 @@ class Shenanigans(commands.Cog):
 
         item_list = [[item[0],item[1],item[2],item[3]] for item in curSH.execute("SELECT trigger_text, trigger_type, response, response_type FROM custom").fetchall()]
 
-        msg = message.content.strip()
+        msg = message.content.replace("<prefix>", self.prefix).strip()
         msg_lower = message.content.lower().strip()
 
         for item in item_list:
             trigger_response = False
-            trigger_text = item[0]
+            trigger_text = item[0].replace("<prefix>", self.prefix).strip()
             trigger_type = item[1]
 
             if trigger_type == "strict":
@@ -673,7 +683,9 @@ class Shenanigans(commands.Cog):
             response_type = item[3]
 
             if response_type == 'text':
-                await message.reply(response, mention_author=False)
+                response_edit = response.replace("\\n","\n")
+
+                await message.reply(response_edit, mention_author=False)
 
             else:
                 for arg in response.replace(",", " ").replace(";", " ").split():
