@@ -1229,6 +1229,7 @@ class Administration_of_Settings(commands.Cog):
             #on/off feature switches:
             "accesswall": "feature on/off switches", 
             "autorole": "feature on/off switches", 
+            "customresponse": "feature on/off switches", 
             "turingtest": "feature on/off switches", 
             "turingmsg": "feature on/off switches",
             "turingbanmsg": "feature on/off switches",
