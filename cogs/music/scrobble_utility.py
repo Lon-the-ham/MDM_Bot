@@ -2502,6 +2502,7 @@ class Music_Scrobbling(commands.Cog):
             try:
                 emoji = util.emoji("derpy")
                 await ctx.send(f"Whoopsie some SSLv3 error ocurred on Discord's client side. {emoji}\nJust try again!")
+                print(f"SSLv3 Error: {e}")
             except Exception as e1:
                 await ctx.send(f"Error: {e1}")
                 print(traceback.format_exc())
