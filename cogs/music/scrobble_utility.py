@@ -2498,7 +2498,14 @@ class Music_Scrobbling(commands.Cog):
 
 
     async def lastfm_error_handler(self, ctx, e):
-        if "'message': '" in str(e):
+        if "alert bad record mac" in str(e):
+            try:
+                emoji = util.emoji("derpy")
+                await ctx.send(f"Whoopsie some SSLv3 error ocurred on Discord's client side. {emoji}\nJust try again!")
+            except Exception as e1:
+                await ctx.send(f"Error: {e1}")
+                print(traceback.format_exc())
+        elif "'message': '" in str(e):
             try:
                 errormessage = str(e).split("'message': '")[1].split("'")[0].strip()
                 errorcode = ""
