@@ -3200,7 +3200,28 @@ class Music_Scrobbling(commands.Cog):
                 argument = ' '.join(args)
                 await self.whoknows(ctx, argument, "artist")
         except Exception as e:
-            await self.lastfm_error_handler(ctx, e)
+            if "SSLV3_ALERT_BAD_RECORD_MAC" in str(e):
+                # TEST WITHOUT THE CTX.TYPING()
+                try:
+                    try:
+                        emoji = util.emoji("load")
+                        embed_load = discord.Embed(title="", description=f"{emoji} one moment, discord just had a hiccup", color=0x000000)
+                        loading_message = await ctx.reply(embed=embed_load, mention_author=False)
+                        await asyncio.sleep(1)
+                    except:
+                        pass
+
+                    argument = ' '.join(args)
+                    await self.whoknows(ctx, argument, "artist")
+
+                    try:
+                        await loading_message.delete()
+                    except:
+                        pass
+                except Exception as e2:
+                    await self.lastfm_error_handler(ctx, e2)
+            else:
+                await self.lastfm_error_handler(ctx, e)
 
     @_whoknowsartist.error
     async def whoknowsartist_error(self, ctx, error):
