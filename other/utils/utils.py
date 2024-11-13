@@ -156,6 +156,8 @@ class Utils():
             await ctx.channel.send(f'Bad Argument Error:```{str(error)}```Better try to avoid quotation marks within commands.')
         elif isinstance(error, commands.UnexpectedQuoteError):
             await ctx.channel.send(f'Bad Argument Error:```{str(error)}```Better try to avoid quotation marks within commands.')
+        elif isinstance(error, commands.MissingRequiredArgument):
+            await ctx.channel.send(f'Error: Command needs arguments. Use help command for more info.')
         else:
             await ctx.channel.send(f'An error ocurred.')
             print("ERROR HANDLER: ", str(error))
