@@ -943,6 +943,12 @@ class Utils():
 
 
 
+    def escapequotemarks(s):
+        ctxt = str(s).replace('"','\"').replace("‘","\‘").replace("’","\’").replace("“","\“").replace("”","\”")
+        return ctxt
+
+
+
     def filter_genretags(genre_tags):
 
         genre_tags_new = [] # tags to return
