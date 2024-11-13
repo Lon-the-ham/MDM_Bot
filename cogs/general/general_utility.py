@@ -966,7 +966,7 @@ class General_Utility(commands.Cog):
     @commands.group(name="translate", aliases = ["tr", "trans"], pass_context=True, invoke_without_command=True)
     #@commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
-    async def _translate(self, ctx, *args):
+    async def _translate(self, ctx, *, arg):
         """Translate
 
         Translates a word or sentence, first argument must be the destination language code. 
@@ -975,6 +975,8 @@ class General_Utility(commands.Cog):
         If GoogleTranslate is enabled, you can use `-languages` to see which languages are supported.
         If not the command will use LibreTranslate instead. You can also access the LibreTranslate translations if GoogleTranslate is enabled by using `<prefix>ltr` or `<prefix>ltrx`.
         """
+        args = util.escapequotemarks(arg).split()
+
         if len(args) < 1:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
@@ -998,7 +1000,7 @@ class General_Utility(commands.Cog):
     @commands.group(name="trx", aliases = ["translatex"], pass_context=True, invoke_without_command=True)
     #@commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
-    async def _translate_x(self, ctx, *args):
+    async def _translate_x(self, ctx, *, arg):
         """㊙️ Translate (with detection info)
 
         Translates a word or sentence, first argument must be the destination language code.
@@ -1006,6 +1008,8 @@ class General_Utility(commands.Cog):
         If GoogleTranslate is enabled, you can use `-languages` to see which languages are supported.
         If not the command will use LibreTranslate instead.
         """
+        args = util.escapequotemarks(arg).split()
+
         if len(args) < 1:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
@@ -1028,11 +1032,13 @@ class General_Utility(commands.Cog):
     @commands.command(name="ltr", aliases = ["libretranslate", "ltranslate"])
     @commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
-    async def _libretranslate(self, ctx, *args):
+    async def _libretranslate(self, ctx, *, arg):
         """ ㊙️ Translates using LibreTranslate
 
         Use `<prefix>ltrx` to also get information about the detected language of your query and the translators confidence.
         """
+        args = util.escapequotemarks(arg).split()
+
         if len(args) < 1:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
@@ -1050,9 +1056,11 @@ class General_Utility(commands.Cog):
     @commands.command(name="ltrx", aliases = ["libretranslatex", "ltranslatex"])
     @commands.check(GU_Check.is_googletrans_enabled)
     @commands.check(util.is_active)
-    async def _libretranslatex(self, ctx, *args):
+    async def _libretranslatex(self, ctx, *, arg):
         """㊙️ Translates using LibreTranslate (with detection info)
         """
+        args = util.escapequotemarks(arg).split()
+
         if len(args) < 1:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
             return
@@ -2391,12 +2399,14 @@ class General_Utility(commands.Cog):
     @commands.command(name="selfmute", aliases = ["selftimeout"])
     @commands.check(util.is_active)
     @commands.check(util.is_main_server)
-    async def _selfmute(self, ctx, *args):
+    async def _selfmute(self, ctx, *, arg):
         """Mutes you for given amount of time
 
         i.e. `<prefix>selfmute 2 hours`
         """
         # PRE CHECK
+
+        args = util.escapequotemarks(arg).split()
 
         try:
             con = sqlite3.connect(f'databases/botsettings.db')
