@@ -158,6 +158,8 @@ class Utils():
             await ctx.channel.send(f'Bad Argument Error:```{str(error)}```Better try to avoid quotation marks within commands.')
         elif isinstance(error, commands.MissingRequiredArgument):
             await ctx.channel.send(f'Error: Command needs arguments. Use help command for more info.')
+        elif "sslv3 alert bad record mac" in str(error).lower():
+            await ctx.channel.send(f"Whoopsie, seems like there was some client hiccup on discord's side (SSLv3 error). You can try it again now.")
         else:
             await ctx.channel.send(f'An error ocurred.')
             print("ERROR HANDLER: ", str(error))
