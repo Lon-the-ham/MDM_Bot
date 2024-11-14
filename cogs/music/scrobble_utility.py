@@ -2498,7 +2498,7 @@ class Music_Scrobbling(commands.Cog):
 
 
     async def lastfm_error_handler(self, ctx, e):
-        if "alert bad record mac" in str(e):
+        if "sslv3 alert bad record mac" in str(e):
             try:
                 emoji = util.emoji("derpy")
                 await ctx.send(f"Whoopsie some SSLv3 error ocurred on Discord's client side. {emoji}\nJust try again!")
