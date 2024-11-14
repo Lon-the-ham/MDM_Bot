@@ -1023,7 +1023,7 @@ class General_Utility(commands.Cog):
         except:
             await self.libre_translate(ctx, args, extra_info)
         
-    @_translate.error
+    @_translate_x.error
     async def translate_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
