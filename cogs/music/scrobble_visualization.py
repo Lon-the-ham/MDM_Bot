@@ -48,13 +48,13 @@ class ScrobbleVisualsCheck():
                 return False
 
     def is_barchartrace_enabled(*ctx):
-        if image_charts_enabled:
+        if barchartrace_enabled:
             return True
         else:
             raise commands.CheckFailure("This functionality is turned off.")
 
     def is_imagechart_enabled(*ctx):
-        if barchartrace_enabled:
+        if image_charts_enabled:
             return True
         else:
             raise commands.CheckFailure("This functionality is turned off.")
