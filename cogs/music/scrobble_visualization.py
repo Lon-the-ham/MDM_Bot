@@ -10,9 +10,8 @@ import functools
 import typing
 import traceback
 
-import pandas as pd 
-
 try:
+    import pandas as pd 
     import bar_chart_race as bcr
     barchartrace_enabled = True
 except:
