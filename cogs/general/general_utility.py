@@ -3516,6 +3516,10 @@ class General_Utility(commands.Cog):
 
         # PARSE ARGUMENTS
 
+        if len(args) == 0:
+            await ctx.send("Command needs search argument.")
+            return
+
         string = ' '.join(args)
 
         payload = {
