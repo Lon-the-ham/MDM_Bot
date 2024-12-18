@@ -48,6 +48,8 @@ Next you need to install a few packages that the applications uses:
 
 > sudo apt-get install libopenblas-dev
 
+In case any of the pip-installs fails due to "environment is externally managed", you can run the command with an additional "--break-system-packages" behind like e.g. `pip install asyncio --break-system-packages`.
+
 These are optional (more information in the documentation.md):
 
 > pip install asyncpraw
