@@ -709,7 +709,7 @@ class Administration_of_Settings(commands.Cog):
             desctext_general.append(f"\n**Reaction role categories:**")
             reactionrolesettings_list = [[item[0],item[1],item[2],item[3],item[4]] for item in cur.execute("SELECT name, turn, type, msg_id, rankorder FROM reactionrolesettings").fetchall()]
             if len(reactionrolesettings_list) == 0: 
-                reactionroles_text == "none"
+                reactionroles_text = "none"
             else:
                 if rolechannel_id in ["", "not provided"]:
                     reactionroles_text = "none"
