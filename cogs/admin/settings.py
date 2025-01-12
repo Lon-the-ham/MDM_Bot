@@ -2503,13 +2503,13 @@ class Administration_of_Settings(commands.Cog):
                 message_textlist.append(error2_text)
 
             if len(error_3_args) > 0:
-                error2_text = "Could not find emoji(s): "
-                error2_text += ', '.join(error_3_args) + "."
+                error3_text = "Could not find emoji(s): "
+                error3_text += ', '.join(error_3_args) + "."
                 message_textlist.append(error3_text)
 
             if len(error_4_args) > 0:
-                error2_text = "Already used emoji(s): "
-                error2_text += ', '.join(error_4_args) + "."
+                error4_text = "Already used emoji(s): "
+                error4_text += ', '.join(error_4_args) + "."
                 message_textlist.append(error4_text)
 
         footer = ""
