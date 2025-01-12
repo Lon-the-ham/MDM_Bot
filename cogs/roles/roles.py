@@ -568,8 +568,8 @@ class Roles(commands.Cog):
             user_roles = []
             for role in user_object.roles:
                 user_roles.append(util.cleantext2(role.name))
-            user_roles.sort()
-            display_name = await util.cleantext(user.display_name)
+            #user_roles.sort() # would sort it alphabetically
+            display_name = util.cleantext(user.display_name)
             header = f'Roles of {display_name}'
             text = ', '.join(user_roles)
             embed = discord.Embed(title=header, description = text[:4096], color=0xFF8C00)
