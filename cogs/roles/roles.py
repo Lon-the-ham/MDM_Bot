@@ -940,6 +940,7 @@ class Roles(commands.Cog):
         role_name = ' '.join(args)
         category = ""
         HEX_code = ""
+        hex_color = 0xFFFFFF
 
         # CHECK FOR COLOR AND CATEGORY ARGUMENT
 
@@ -1012,7 +1013,7 @@ class Roles(commands.Cog):
                 assignability = "False"
 
             if HEX_code == "":
-                role = await ctx.guild.create_role(name=role_name, color=discord.Colour(None))
+                role = await ctx.guild.create_role(name=role_name, color=discord.Colour(0))
                 msg = f"Created role: {role_name}\nof category: {category}\n(no color)\nAssignability: {assignability}"
             else:
                 role = await ctx.guild.create_role(name=role_name, color=discord.Colour(hex_color)) 
@@ -1048,7 +1049,7 @@ class Roles(commands.Cog):
                 the_role = role
                 break
         if role_found == False:
-            for role in all_roles:
+            for role in ctx.guild.roles:
                 if role_to_delete.lower() == role.name.lower():
                     role_found = True
                     the_role = role
