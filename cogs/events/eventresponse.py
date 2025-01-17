@@ -415,14 +415,17 @@ class Event_Response(commands.Cog):
         #except Exception as e:
         #    print(e)
 
-        bans = await message.guild.bans()
-        for ban_entry in bans[:100]: 
-            b_user = ban_entry.user
-            b_reason = ban_entry.reason 
-            if b_user.id == user.id:
-                if b_reason == "Failed the Turing Test (auto-ban)":
-                    return
-                break
+        try:
+            bans = await server.bans()
+            for ban_entry in bans[:100]:
+                b_user = ban_entry.user
+                b_reason = ban_entry.reason 
+                if b_user.id == user.id:
+                    if b_reason == "Failed the Turing Test (auto-ban)":
+                        return
+                    break
+        except:
+            await self.botspam_send("Warning", "Could not access server ban log. Not a huge problem, but a dev should probably have a look at this.", "", "", None, color, None)
 
         # NOTIFY
 
