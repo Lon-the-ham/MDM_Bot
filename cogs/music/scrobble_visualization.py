@@ -691,7 +691,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
     @to_thread
-    def create_chart(self, caption_dict, image_dict, chart_name, width, height):
+    def create_chart(self, caption_dict, image_dict, chart_name, width, height, font_factor):
         """takes dictionaries of image_url_names and image_caption_names and makes a collage out of them"""
 
         #SETTINGS
@@ -717,7 +717,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
         img_size = min(round(1200 / grid_size), 300)
         collage_img = Image.new('RGB', (img_size * width, img_size * height))
 
-        font_size = round(img_size / 10)
+        font_size = round((img_size / 10) * (font_factor / 100))
 
         try:
             font = ImageFont.truetype(caption_font, font_size)
@@ -858,6 +858,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
         default_width = 3
         default_scope = "user"
         default_source = "api"
+        default_font_factor = 100
 
         # initialise args
 
@@ -966,6 +967,20 @@ class Music_Scrobbling_Visuals(commands.Cog):
                         if timesec_int >= 24*60*60:
                             arg_dict["timecut"] = max(now - timesec_int, 0)
 
+            elif arg.startswith("font") and len(arg) > 4:
+                if arg.startswith("fontsize") and len(arg) > 8:
+                    val = util.forceinteger(arg[8:])
+                    if val > 0:
+                        arg_dict["fontfactor"] = val
+                elif arg.startswith("fontfactor") and len(arg) > 10:
+                    val = util.forceinteger(arg[10:])
+                    if val > 0:
+                        arg_dict["fontfactor"] = val
+                else:
+                    val = util.forceinteger(arg[4:])
+                    if val > 0:
+                        arg_dict["fontfactor"] = val
+
             elif arg.startswith("source") and len(arg) > 6 and "source" not in arg_dict.keys():
                 val = arg[6:].lower()
                 if val in ["loc", "local", "db", "database"]:
@@ -1013,6 +1028,9 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
         if "source" not in arg_dict.keys():
             arg_dict["source"] = default_source
+
+        if "fontfactor" not in arg_dict.keys():
+            arg_dict["fontfactor"] = default_font_factor
 
         return arg_dict
 
@@ -1494,6 +1512,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
             timedisplay = arg_dict["timedisplay"]
             scope = arg_dict["scope"]
             source = arg_dict["source"]
+            font_factor = arg_dict["fontfactor"]
 
             charttype = "albums"
             arg_dict["charttype"] = charttype
@@ -1528,7 +1547,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
             else:
                 chart_name = f"chart_{ctx.author.id}_{now}"
 
-            await self.create_chart(caption_dict, image_dict, chart_name, width, height)
+            await self.create_chart(caption_dict, image_dict, chart_name, width, height, font_factor)
 
             # SEND
 
@@ -1578,6 +1597,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
             timeend = arg_dict["timeend"]
             scope = arg_dict["scope"]
             source = arg_dict["source"]
+            font_factor = arg_dict["fontfactor"]
 
             charttype = "artists"
             arg_dict["charttype"] = charttype
@@ -1609,7 +1629,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
             else:
                 chart_name = f"chart_{ctx.author.id}_{now}"
 
-            await self.create_chart(caption_dict, image_dict, chart_name, width, height)
+            await self.create_chart(caption_dict, image_dict, chart_name, width, height, font_factor)
 
             # SEND
 
