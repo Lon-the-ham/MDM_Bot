@@ -3497,7 +3497,8 @@ class Utils():
                 link = str(a['href']).strip()
 
                 if link not in ["https://libretranslate.com", "https://portal.libretranslate.com", "https://status.libretranslate.com/"]:
-                    url_list.append(link.replace("https://", ""))
+                    if "@" not in link:
+                        url_list.append(link.replace("https://", ""))
 
             if len(url_list) == 0:
                 raise ValueError("Could not find URLs in the webscraped mirror section. Either there are no working mirrors listed at the moment, or the webpage changed in which case this is a case for the devs to fix.")
