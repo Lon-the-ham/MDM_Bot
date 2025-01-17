@@ -311,7 +311,7 @@ class Administration_of_Settings(commands.Cog):
             desctext_general.append(f"Access wall turing test: `{turingtest}`")
             desctext_features.append(f"Access wall turing test: `{turingtest}`")
             
-            rulesmessageid_list = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("rules channel id",)).fetchall()]
+            rulesmessageid_list = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("rules message id",)).fetchall()]
             if len(rulesmessageid_list) == 0:
                 if turingtest == "off":
                     rulesmessage_id = "not provided"
@@ -3032,7 +3032,12 @@ class Administration_of_Settings(commands.Cog):
 
         if len(args) == 0: 
             # if no argument is provided look for last message in channel
-            message = await turing_channel.fetch_message(turing_channel.last_message_id)
+            if turing_channel.last_message_id is None:
+                await ctx.send(f"Error: There is no message in {turing_channel.mention} that I can see.")
+                return
+            else:
+                message = await turing_channel.fetch_message(turing_channel.last_message_id)
+
             turingmsg_id = str(message.id)
 
             reactions = message.reactions
@@ -3058,7 +3063,7 @@ class Administration_of_Settings(commands.Cog):
                 message = await turing_channel.fetch_message(turingmsg_id_int)
             except Exception as e:
                 print(e)
-                await ctx.send(f"Error: Could not find message in channel {turing_channel.mention}.")
+                await ctx.send(f"Error: Could not find the message in channel {turing_channel.mention}.")
                 return
 
             reactions = message.reactions
@@ -4655,6 +4660,13 @@ class Administration_of_Settings(commands.Cog):
                 print("Updated serversettings table: turing test")
             elif len(turingtest_list) > 1:
                 print("Warning: Multiple turing test entries in serversettings table (botsettings.db)")
+            ruleslastmessage_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("rules message id",)).fetchall()]
+            if len(ruleslastmessage_list) == 0:
+                curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("rules message id", "", "", ""))
+                conB.commit()
+                print("Created dummy entry for turing test message (rules message)")
+            elif len(ruleslastmessage_list) > 1:
+                print("Warning: Multiple turing test test message (rules message) entries in serversettings table (botsettings.db)")
             rulesfirstreact_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("rules first reaction",)).fetchall()]
             if len(rulesfirstreact_list) == 0:
                 curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("rules first reaction", "", "", ""))
@@ -5807,11 +5819,11 @@ class Administration_of_Settings(commands.Cog):
                                 input_valid = False
 
                             if input_valid:
-                                tt_msg = await rules_channel.fetch_message(rules_channel.last_message_id)
-
-                                if tt_msg is None:
+                                if rules_channel.last_message_id is None:
                                     text = f"<@{ctx.author.id}> Please write a message in here. To continue setup just send a 0 or something and edit the message later."
                                     tt_msg = await util.setup_channel(ctx, self.bot, rules_channel, text)
+                                else:
+                                    tt_msg = await rules_channel.fetch_message(rules_channel.last_message_id)
 
                                 if tt_msg is None:
                                     await ctx.send("Error: no message for turing test provided.")
