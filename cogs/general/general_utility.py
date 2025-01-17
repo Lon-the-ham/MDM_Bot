@@ -3487,6 +3487,10 @@ class General_Utility(commands.Cog):
         """
 
         # INITIALISE API DATA
+        if len(args) == 0:
+            await ctx.send("This command needs an argument.")
+            return
+
         try:
             API_KEY = os.getenv("google_search_key")
             if API_KEY is None:
