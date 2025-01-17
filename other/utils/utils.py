@@ -1053,6 +1053,26 @@ class Utils():
 
 
 
+    def forcefloat(s):
+        try:
+            x = float(s)
+        except:
+            try:
+                x = float(s.strip())
+            except:
+                x = 0
+        return x
+
+
+
+    def forcefloat_nonnegative(s):
+        x = Utils.forcefloat(s)
+        if x < 0:
+            x = 0
+        return x
+
+
+
     def forceinteger(s):
         try:
             i = int(s)
