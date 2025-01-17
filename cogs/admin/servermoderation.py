@@ -176,7 +176,7 @@ class Administration_of_Server(commands.Cog):
             try:
                 user = await self.bot.fetch_user(user_id)
                 await ctx.guild.ban(user, reason=reason, delete_message_days=0)
-
+                
                 banemoji = util.emoji("ban")
                 header = f"Permanent ban"
                 description = f'Banned <@{user_id}>. {banemoji}{reason_string}'
@@ -184,6 +184,7 @@ class Administration_of_Server(commands.Cog):
                 await ctx.send(embed=embed)
             except Exception as e:
                 await ctx.send(f'Error: {e}')
+                send_msg_bool = False
 
         # DM THE USER
 
