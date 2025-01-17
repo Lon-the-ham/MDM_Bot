@@ -40,7 +40,6 @@ class Administration_of_Settings(commands.Cog):
 
 
 
-
     @commands.command(name='showsettings', aliases = ['settings'])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
@@ -1540,6 +1539,8 @@ class Administration_of_Settings(commands.Cog):
 
         (Note: using `<prefix>set reactrolecat <category name> on` will also automatically make these roles assignable via `<prefix>role <role name>` for users, setting role categories `off` does not revert that. To do that use `<prefix>set assignability` command.)
         """
+        def check(m): # checking if it's the same user and channel
+            return ((m.author == ctx.author) and (m.channel == ctx.channel))
         
         if len(args) <= 1:
             await ctx.send("Error: Command needs 1st argument that is the category name and 2nd argument that is either `on`, `off`, `rename` or `remove`")
@@ -3031,7 +3032,7 @@ class Administration_of_Settings(commands.Cog):
 
         if len(args) == 0: 
             # if no argument is provided look for last message in channel
-            message = await channel.fetch_message(turing_channel.last_message_id)
+            message = await turing_channel.fetch_message(turing_channel.last_message_id)
             turingmsg_id = str(message.id)
 
             reactions = message.reactions
@@ -3043,7 +3044,7 @@ class Administration_of_Settings(commands.Cog):
         else: 
             # if argument is provided try to fetch that message
             turingmsg_arg = args[0].lower()
-            if turingmsg_id.startswith("https://discord.com/channels/"):
+            if turingmsg_arg.startswith("https://discord.com/channels/"):
                 turingmsg_id = turingmsg_arg.split("/")[-1]
             else:
                 turingmsg_id = turingmsg_arg
@@ -3054,10 +3055,10 @@ class Administration_of_Settings(commands.Cog):
                 await ctx.send(f"Error: Provided argument faulty. Argument needs to be a Message ID or a Message Link.")
                 return
             try:
-                message = await the_channel.fetch_message(turingmsg_id_int)
+                message = await turing_channel.fetch_message(turingmsg_id_int)
             except Exception as e:
                 print(e)
-                await ctx.send(f"Error: Could not find message in channel {the_channel.mention}.")
+                await ctx.send(f"Error: Could not find message in channel {turing_channel.mention}.")
                 return
 
             reactions = message.reactions
