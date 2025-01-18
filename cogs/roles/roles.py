@@ -1280,7 +1280,7 @@ class Roles(commands.Cog):
         await util.error_handling(ctx, error)
 
 
-    async def rolechannel_embed(self, cat, sorting, db_react_roles, role_channel):
+    async def rolechannel_embed(self, ctx, cat, sorting, db_react_roles, role_channel):
         """cat must be a list with 8 elements"""
 
         # COMPOSE EMBED HEADER/FOOTER/COLOR
@@ -1564,7 +1564,7 @@ class Roles(commands.Cog):
             reaction_cats.sort(key=lambda x: x[3])        
 
             for cat in reaction_cats:
-                await self.rolechannel_embed(cat, sorting, db_react_roles, role_channel)
+                await self.rolechannel_embed(ctx, cat, sorting, db_react_roles, role_channel)
 
         else:
             # CREATE NEW MESSAGES (SELECTION)
@@ -1577,7 +1577,7 @@ class Roles(commands.Cog):
                     reaction_cats.append(cat)     
 
             for cat in reaction_cats:
-                await self.rolechannel_embed(cat, sorting, db_react_roles, role_channel)
+                await self.rolechannel_embed(ctx, cat, sorting, db_react_roles, role_channel)
 
         await ctx.send("Done.")
 
