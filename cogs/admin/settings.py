@@ -2041,10 +2041,10 @@ class Administration_of_Settings(commands.Cog):
             # do nothing
             pass
         elif embed_title.lower() in ["remove", "delete"]:
-            cur.execute("UPDATE roles SET embed_header = ? WHERE LOWER(category) = ?", ("", category))
+            cur.execute("UPDATE reactionrolesettings SET embed_header = ? WHERE LOWER(category) = ?", ("", category))
             description += "Set embed title back to default.\n" 
         else:
-            cur.execute("UPDATE roles SET embed_header = ? WHERE LOWER(category) = ?", (embed_title, category))
+            cur.execute("UPDATE reactionrolesettings SET embed_header = ? WHERE LOWER(category) = ?", (embed_title, category))
             short_header = util.cleantext(embed_header)
             if short_header > 256:
                 short_header = short_header[:253] + "..."
@@ -2054,10 +2054,10 @@ class Administration_of_Settings(commands.Cog):
             # do nothing
             pass
         elif embed_text.lower() in ["remove", "delete"]:
-            cur.execute("UPDATE roles SET embed_text = ? WHERE LOWER(category) = ?", ("", category))
+            cur.execute("UPDATE reactionrolesettings SET embed_text = ? WHERE LOWER(category) = ?", ("", category))
             description += "Set embed text back to default.\n" 
         else:
-            cur.execute("UPDATE roles SET embed_text = ? WHERE LOWER(category) = ?", (embed_text, category))
+            cur.execute("UPDATE reactionrolesettings SET embed_text = ? WHERE LOWER(category) = ?", (embed_text, category))
             short_text = util.cleantext(embed_text)
             if short_text > 256:
                 short_text = short_text[:253] + "..."
@@ -2067,10 +2067,10 @@ class Administration_of_Settings(commands.Cog):
             # do nothing
             pass
         elif embed_footer.lower() in ["remove", "delete"]:
-            cur.execute("UPDATE roles SET embed_footer = ? WHERE LOWER(category) = ?", ("", category))
+            cur.execute("UPDATE reactionrolesettings SET embed_footer = ? WHERE LOWER(category) = ?", ("", category))
             description += "Set embed footer back to default.\n" 
         else:
-            cur.execute("UPDATE roles SET embed_footer = ? WHERE LOWER(category) = ?", (embed_footer, category))
+            cur.execute("UPDATE reactionrolesettings SET embed_footer = ? WHERE LOWER(category) = ?", (embed_footer, category))
             short_footer = util.cleantext(embed_footer)
             if short_footer > 256:
                 short_footer = short_footer[:253] + "..."
@@ -2080,10 +2080,10 @@ class Administration_of_Settings(commands.Cog):
             # do nothing
             pass
         elif embed_color.lower() in ["remove", "delete"]:
-            cur.execute("UPDATE roles SET embed_color = ? WHERE LOWER(category) = ?", ("", category))
+            cur.execute("UPDATE reactionrolesettings SET embed_color = ? WHERE LOWER(category) = ?", ("", category))
             description += "Set embed footer back to default.\n" 
         else:
-            cur.execute("UPDATE roles SET embed_color = ? WHERE LOWER(category) = ?", (embed_color, category))
+            cur.execute("UPDATE reactionrolesettings SET embed_color = ? WHERE LOWER(category) = ?", (embed_color, category))
             description += f"Set embed color to `{embed_color}`.\n" 
 
         con.commit()
