@@ -2102,6 +2102,8 @@ class Administration_of_Settings(commands.Cog):
         embed=discord.Embed(title=header, description=description, color=hex_color)    
         embed.set_footer(text=action)
 
+        await ctx.send(embed=embed)
+
     @_set_reactroleembed.error
     async def set_reactroleembed_error(self, ctx, error):
         await util.error_handling(ctx, error)
