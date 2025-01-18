@@ -2644,9 +2644,9 @@ class Administration_of_Settings(commands.Cog):
         # CHECK VALIDITY OF BOOLEAN ARGUMENT
 
         if assignability in ["true", "t", "yes", "y", "on"]:
-            assignability = "true"
+            assignability = "True"
         elif assignability in ["false", "f", "no", "n", "off"]:
-            assignability = "false"
+            assignability = "False"
         else:
             await ctx.send(f"Invalid boolean argument: {assignability}. Needs to be `true` or `false`.")
             return
