@@ -1550,10 +1550,13 @@ class Roles(commands.Cog):
             # if response == "True" continue
 
             # DELETE MESSAGES
-            mgs = [] 
-            async for x in Client.logs_from(role_channel, limit = 100):
-                mgs.append(x)
-            await self.bot.delete_messages(mgs)
+            try:
+                mgs = [] 
+                async for x in bot.logs_from(role_channel, limit = 100):
+                    mgs.append(x)
+                await self.bot.delete_messages(mgs)
+            except Exception as e:
+                await ctx.send(f"Failed to delete messages. :(\n```Error: {e}```")
 
             # CREATE NEW MESSAGES (FULL)
 
