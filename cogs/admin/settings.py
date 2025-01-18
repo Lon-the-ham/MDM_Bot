@@ -2045,8 +2045,8 @@ class Administration_of_Settings(commands.Cog):
             description += "Set embed title back to default.\n" 
         else:
             cur.execute("UPDATE reactionrolesettings SET embed_header = ? WHERE LOWER(name) = ?", (embed_title, category))
-            short_header = util.cleantext(embed_header)
-            if short_header > 256:
+            short_header = util.cleantext(embed_title)
+            if len(short_header) > 256:
                 short_header = short_header[:253] + "..."
             description += f"Set embed title to `{short_header}`.\n" 
 
@@ -2059,7 +2059,7 @@ class Administration_of_Settings(commands.Cog):
         else:
             cur.execute("UPDATE reactionrolesettings SET embed_text = ? WHERE LOWER(name) = ?", (embed_text, category))
             short_text = util.cleantext(embed_text)
-            if short_text > 256:
+            if len(short_text) > 256:
                 short_text = short_text[:253] + "..."
             description += f"Set embed text to `{short_text}`.\n" 
 
@@ -2072,7 +2072,7 @@ class Administration_of_Settings(commands.Cog):
         else:
             cur.execute("UPDATE reactionrolesettings SET embed_footer = ? WHERE LOWER(name) = ?", (embed_footer, category))
             short_footer = util.cleantext(embed_footer)
-            if short_footer > 256:
+            if len(short_footer) > 256:
                 short_footer = short_footer[:253] + "..."
             description += f"Set embed footer to `{short_footer}`.\n" 
 
