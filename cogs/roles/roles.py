@@ -122,7 +122,7 @@ class Roles(commands.Cog):
         if is_mod:
             assignable_role_ids = [item[0] for item in cur.execute("SELECT id FROM roles WHERE permissions = ?", ("", )).fetchall()]
         else:
-            assignable_role_ids = [item[0] for item in cur.execute("SELECT id FROM roles WHERE assignable = ? AND permissions = ?", ("True", "")).fetchall()]
+            assignable_role_ids = [item[0] for item in cur.execute("SELECT id FROM roles WHERE LOWER(assignable) = ? AND permissions = ?", ("true", "")).fetchall()]
 
         errors_roles_assignability = []
         roles_to_assign = []
@@ -432,7 +432,7 @@ class Roles(commands.Cog):
 
         con = sqlite3.connect(f'databases/roles.db')
         cur = con.cursor()
-        assignable_roles = [[item[0],item[1]] for item in cur.execute("SELECT name, category FROM roles WHERE assignable = ? AND permissions = ?", ("True", "")).fetchall()]
+        assignable_roles = [[item[0],item[1]] for item in cur.execute("SELECT name, category FROM roles WHERE LOWER(assignable) = ? AND permissions = ?", ("true", "")).fetchall()]
         categories = [item[1] for item in assignable_roles]
         categories = sorted(list(set(categories)))
 
