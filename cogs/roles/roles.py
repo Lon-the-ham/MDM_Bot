@@ -1347,6 +1347,8 @@ class Roles(commands.Cog):
 
         message = await util.multi_embed_message(ctx, header, text_list, color, footer, role_channel)
 
+        conB = sqlite3.connect(f'databases/botsettings.db')
+        curB = conB.cursor()
         curB.execute("UPDATE reactionrolesettings SET msg_id = ? WHERE LOWER(name) = ?", (str(message.id), cat_name.lower()))
         conB.commit()
         await util.changetimeupdate()
@@ -1542,21 +1544,21 @@ class Roles(commands.Cog):
             response = await util.are_you_sure_embed(ctx, self.bot, header, text, color)
 
             if response == "False":
-                await ctx.send("Cancelled action.")
-                return
+                await ctx.send("Continuing without deleting.")
+
             if response == "Timed_Out":
                 await ctx.send("Action timed out.")
                 return
-            # if response == "True" continue
-
-            # DELETE MESSAGES
-            try:
-                mgs = [] 
-                async for x in bot.logs_from(role_channel, limit = 100):
-                    mgs.append(x)
-                await self.bot.delete_messages(mgs)
-            except Exception as e:
-                await ctx.send(f"Failed to delete messages. :(\n```Error: {e}```")
+            
+            if response == "True":
+                # DELETE MESSAGES
+                try:
+                    mgs = [] 
+                    async for x in self.bot.logs_from(role_channel, limit = 100):
+                        mgs.append(x)
+                    await self.bot.delete_messages(mgs)
+                except Exception as e:
+                    await ctx.send(f"Failed to delete messages. :(\n```Error: {e}```")
 
             # CREATE NEW MESSAGES (FULL)
 
