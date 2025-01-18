@@ -1363,7 +1363,7 @@ class Roles(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
-    async def _rcupdate(self, ctx: commands.Context):
+    async def _rcupdate(self, ctx: commands.Context, *args):
         """🔒 Update #roles channel
         
         No arguments: Deletes all messages in #roles channel, and creates new ones with updated roles (for self-assigning of roles via reacts for all server members).
@@ -1589,7 +1589,7 @@ class Roles(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
-    async def _removeicons(self, ctx: commands.Context):
+    async def _removeicons(self, ctx: commands.Context, *args):
         """🔒 Unassign role (or entire category of roles) from all users on the server
         """
 
@@ -1672,7 +1672,7 @@ class Roles(commands.Cog):
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
-    async def _removeicons(self, ctx: commands.Context):
+    async def _removeicons(self, ctx: commands.Context, *args):
         """🔒 Assign role to all members on the server
         """
 
