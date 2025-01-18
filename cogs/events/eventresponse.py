@@ -416,8 +416,7 @@ class Event_Response(commands.Cog):
         #    print(e)
 
         try:
-            bans = server.bans()
-            for ban_entry in bans[:100]:
+            async for ban_entry in server.bans(limit=100):
                 b_user = ban_entry.user
                 b_reason = ban_entry.reason 
                 if b_user.id == user.id:
@@ -605,7 +604,7 @@ class Event_Response(commands.Cog):
                     return
 
         title = f"Bulk message delete"
-        text += f"{len(messages)} deleted in <#{message.channel.id}>"
+        text  = f"{len(messages)} deleted in <#{message.channel.id}>"
         image = ""
         color = 0xd30000
         await self.botspam_send(title, text, footer, image, None, color, None)
