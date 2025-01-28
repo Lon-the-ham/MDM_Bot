@@ -726,7 +726,7 @@ class TimeLoops(commands.Cog):
         # check if update pipeline is in use or free
 
         for _ in range(5):
-            cooldown_list = util.check_active_scrobbleupdate()
+            cooldown_list = util.check_active_scrobbleupdate(None)
             if len(cooldown_list) > 0:
                 print(f"Update pipe in use: {cooldown_list}. | Waiting 2 seconds...")
                 await asyncio.sleep(2)
