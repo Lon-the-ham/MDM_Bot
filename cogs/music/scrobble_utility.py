@@ -641,6 +641,8 @@ class Music_Scrobbling(commands.Cog):
 
     @to_thread
     def reload_userdbs(self, lfm_name):
+        steps = 10000
+
         print(f"Try summarising {lfm_name} data")
         i = 0
         try:
@@ -664,58 +666,84 @@ class Music_Scrobbling(commands.Cog):
             release_dict = {}
             track_dict = {}
 
-            for item in scrobbles:
-                i += 1
+            for k in range(0, len(scrobbles), steps):
+                # chunking the process
+                release_dict_temp = {}
+                track_dict_temp = {}
 
-                # ALBUMS
-                artist = item[0]
-                album = item[1]
-                try:
-                    time = int(item[3])
-                except:
-                    time = 0
-                if time < 1000000000:
-                    first = util.year9999()
-                else:
-                    first = time
+                for item in scrobbles[k:k+steps]:
+                    i += 1
 
-                if (artist, album) in release_dict:
-                    entry = release_dict[(artist, album)]
-                    prev_count = entry[0]
-                    prev_time = entry[1]
-                    prev_first = entry[2]
-                    
-                    if first > prev_first:
-                        first_of2 = prev_first
+                    # ALBUMS
+                    artist = item[0]
+                    album = item[1]
+                    try:
+                        time = int(item[3])
+                    except:
+                        time = 0
+                    if time < 1000000000:
+                        first = util.year9999()
                     else:
-                        first_of2 = first
+                        first = time
 
-                    if prev_time > time:
-                        release_dict[(artist, album)] = (prev_count + 1, prev_time, first_of2)
-                    else:
-                        release_dict[(artist, album)] = (prev_count + 1, time, first_of2)
-                else:
-                    release_dict[(artist, album)] = (1, time, first)
+                    if (artist, album) in release_dict_temp:
+                        entry = release_dict_temp[(artist, album)]
+                        prev_count = entry[0]
+                        prev_time  = entry[1]
+                        prev_first = entry[2]
 
-                # TRACKS
-                track = item[2]
-                if (artist, track) in track_dict:
-                    entry = track_dict[(artist, track)]
-                    prev_count = entry[0]
-                    prev_time = entry[1]
-                    prev_first = entry[2]
-                    
-                    if first > prev_first:
-                        first_of2 = prev_first
+                        release_dict_temp[(artist, album)] = (prev_count + 1, max(prev_time, time), min(prev_first, first))
+                        
                     else:
-                        first_of2 = first
+                        release_dict_temp[(artist, album)] = (1, time, first)
 
-                    if prev_time > time:
-                        track_dict[(artist, track)] = (prev_count + 1, prev_time, first_of2)
+                    # TRACKS
+                    track = item[2]
+                    if (artist, track) in track_dict_temp:
+                        entry = track_dict_temp[(artist, track)]
+                        prev_count = entry[0]
+                        prev_time  = entry[1]
+                        prev_first = entry[2]
+
+                        track_dict_temp[(artist, track)] = (prev_count + 1, max(prev_time, time), min(prev_first, first))
+                        
                     else:
-                        track_dict[(artist, track)] = (prev_count + 1, time, first_of2)
-                else:
-                    track_dict[(artist, track)] = (1, time, first)
+                        track_dict_temp[(artist, track)] = (1, time, first)
+
+
+                # transfer to temp to proper
+                for key, val in release_dict_temp.items():
+                    previous_val = release_dict.get(key, None)
+
+                    if previous_val is None:
+                        release_dict[key] = val
+                    else:
+                        prev_count = previous_val[0]
+                        prev_time  = previous_val[1]
+                        prev_first = previous_val[2]
+
+                        new_count  = prev_count + val[0]
+                        new_time   = max(prev_time, val[1])
+                        new_first  = min(prev_first, val[2])
+
+                        release_dict[key] = (new_count, new_time, new_first)
+
+                for key, val in track_dict_temp.items():
+                    previous_val = track_dict.get(key, None)
+
+                    if previous_val is None:
+                        track_dict[key] = val
+                    else:
+                        prev_count = previous_val[0]
+                        prev_time  = previous_val[1]
+                        prev_first = previous_val[2]
+
+                        new_count  = prev_count + val[0]
+                        new_time   = max(prev_time, val[1])
+                        new_first  = min(prev_first, val[2])
+
+                        track_dict[key] = (new_count, new_time, new_first)
+
 
             print(">release wise")
             for k,v in release_dict.items():
@@ -764,15 +792,18 @@ class Music_Scrobbling(commands.Cog):
                     print(f"Error while trying to re-index {lfm_name} table")
 
             try:
-                i += await self.reload_userdbs(lfm_name)
-                try:
-                    print("scrobble meta update")
-                    conFM = sqlite3.connect('databases/scrobbledata.db')
-                    curFM = conFM.cursor()
-                    scrobble_list = [("", item[0], item[1]) for item in curFM.execute(f"SELECT DISTINCT artist_name, album_name FROM [{lfm_name}]").fetchall()]
-                    await util.scrobble_metaupdate(scrobble_list)
-                except Exception as e:
-                    print(e)
+                j  = await self.reload_userdbs(lfm_name)
+                print(f"Reloaded {j} entries.")
+
+                i += j
+                #try:
+                #    print("scrobble meta update")
+                #    conFM = sqlite3.connect('databases/scrobbledata.db')
+                #    curFM = conFM.cursor()
+                #    scrobble_list = [("", item[0], item[1]) for item in curFM.execute(f"SELECT DISTINCT artist_name, album_name FROM [{lfm_name}]").fetchall()]
+                #    await util.scrobble_metaupdate(scrobble_list)
+                #except Exception as e:
+                #    print(e)
                 print("done")
             except Exception as e:
                 print("Error:", e)
@@ -1427,7 +1458,7 @@ class Music_Scrobbling(commands.Cog):
             #if count_dict[key] > 0:
             if playcount > 0:
                 posuser_counter += 1
-                all_zero = False
+                all_zero = False # true if no one listened
 
             alluser_counter += 1
             #if key != ctx.author.id and (halloffame_counter > 14 or count_dict[key] == 0):
@@ -1445,9 +1476,9 @@ class Music_Scrobbling(commands.Cog):
 
             halloffame_counter += 1
             if user_id != ctx.author.id:
-                description += f"{placing} [{discordname_dict[user_id]}](https://www.last.fm/user/{lfmname_dict[user_id]}) - **{playcount}** plays\n"
+                description += f"`{placing}` [{discordname_dict[user_id]}](https://www.last.fm/user/{lfmname_dict[user_id]}) - **{playcount}** plays\n"
             else:
-                description += f"{placing} **[{discordname_dict[user_id]}](https://www.last.fm/user/{lfmname_dict[user_id]})** - **{playcount}** plays\n"
+                description += f"`{placing}` **[{discordname_dict[user_id]}](https://www.last.fm/user/{lfmname_dict[user_id]})** - **{playcount}** plays\n"
 
         header += f" in {ctx.guild.name}"
 
@@ -3017,7 +3048,7 @@ class Music_Scrobbling(commands.Cog):
     async def individual_scrobble_update(self, ctx, lfm_name, argument, send_message, *cooldown_checked):
 
         if len(cooldown_checked) == 0 or cooldown_checked[0] != True:
-            cooldown_list = util.check_active_scrobbleupdate()
+            cooldown_list = util.check_active_scrobbleupdate(ctx)
             if len(cooldown_list) > 0:
                 print("Skipping scrobble auto-update. Update pipe in use:", cooldown_list)
                 usernames = []
@@ -3094,7 +3125,7 @@ class Music_Scrobbling(commands.Cog):
             return
 
         # check if update is currently running 
-        cooldown_list = util.check_active_scrobbleupdate()
+        cooldown_list = util.check_active_scrobbleupdate(ctx)
         if len(cooldown_list) > 0:
             print("Skipping scrobble auto-update. Update pipe in use:", cooldown_list)
             usernames = []
@@ -3162,7 +3193,7 @@ class Music_Scrobbling(commands.Cog):
         async with ctx.typing():
             await ctx.send("Warning: This might take a while!")
 
-            cooldown_list = util.check_active_scrobbleupdate()
+            cooldown_list = util.check_active_scrobbleupdate(ctx)
             if len(cooldown_list) > 0:
                 print("Skipping scrobble auto-update. Update pipe in use:", cooldown_list)
                 usernames = []
@@ -5541,7 +5572,7 @@ class Music_Scrobbling(commands.Cog):
         """
 
         # block update pipe
-        cooldown_list = util.check_active_scrobbleupdate()
+        cooldown_list = util.check_active_scrobbleupdate(ctx)
         if len(cooldown_list) > 0:
             print("Skipping scrobble auto-update. Update pipe in use:", cooldown_list)
             usernames = []
@@ -5657,7 +5688,7 @@ class Music_Scrobbling(commands.Cog):
         """
 
         # block update pipe
-        cooldown_list = util.check_active_scrobbleupdate()
+        cooldown_list = util.check_active_scrobbleupdate(ctx)
         if len(cooldown_list) > 0:
             print("Skipping scrobble auto-update. Update pipe in use:", cooldown_list)
             usernames = []
