@@ -5108,11 +5108,29 @@ class Utils():
 
 
 
-    def check_active_scrobbleupdate():
+    def check_active_scrobbleupdate(ctx):
         conC = sqlite3.connect('databases/cooldowns.db')
         curC = conC.cursor()
         cooldown_list = [[item[0],item[1],item[2]] for item in curC.execute("SELECT userid, username, time_stamp FROM scrobbleupdate").fetchall()]
-        return cooldown_list
+
+        if ctx is None:
+            return cooldown_list
+            
+        else:
+            filtered_cooldown_list = []
+            guild_member_ids       = [x.id for x in ctx.guild.members]
+
+            for item in cooldown_list:
+                userid = item[0]
+                username = item[1]
+                time_stamp = item[2]
+
+                if userid in guild_member_ids:
+                    filtered_cooldown_list.append(item)
+                else:
+                    filtered_cooldown_list.append([userid, "<user>", time_stamp])
+
+            return filtered_cooldown_list
 
 
 
@@ -5147,7 +5165,7 @@ class Utils():
     async def cloud_download_scrobble_backup(ctx, called_from):
         """gets the latest scrobble databases"""
 
-        cooldown_list = Utils.check_active_scrobbleupdate()
+        cooldown_list = Utils.check_active_scrobbleupdate(ctx)
         if len(cooldown_list) > 0:
             user_string = ""
             for item in cooldown_list:
