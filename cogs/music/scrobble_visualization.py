@@ -783,15 +783,15 @@ class Music_Scrobbling_Visuals(commands.Cog):
                     line_number = len(caption_lines)
                     caption_list = []
                     for cap_line in caption_lines:
-                        if len(cap_line) > 20:
-                            cap_line2 = cap_line[:17] + "..."
+                        if len(cap_line) > 60:
+                            cap_line2 = cap_line[:57] + "..."
                             caption_list.append(cap_line2)
                         else:
                             caption_list.append(cap_line)
                     caption = '\n'.join(caption_list)  
                 else:
-                    if len(caption) > 20:
-                        caption = caption[:17] + "..."
+                    if len(caption) > 60:
+                        caption = caption[:57] + "..."
 
                 drawC = ImageDraw.Draw(img)
                 _, _, w, h = drawC.textbbox((0,0), text="Ff Gg Jj Pp Qq Yy Zz", font=font)
@@ -823,7 +823,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
                             caption_line = caption_line[:-3]
                         caption_line = caption_line[:-1] + "..."
                         _, _, w, _ = drawC2.textbbox((0,0), text=caption_line, font=font)
-                        if tries > 10:
+                        if tries > 57:
                             break
 
                     drawC2.text(((img_size-w)/2, (img_size-h*i)*0.99), caption_line, font=font, fill=fontColor)
