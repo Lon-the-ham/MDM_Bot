@@ -4352,6 +4352,11 @@ class Music_Scrobbling(commands.Cog):
 
         first_scrobble_list = [item[0] for item in curFM.execute(f"SELECT MIN(date_uts) FROM [{lfm_name}] WHERE date_uts > ?", (1000000000,)).fetchall()]
         first_scrobble = first_scrobble_list[0]
+
+        if first_scrobble is None:
+            await ctx.send(f"No scrobbles found in database. Try `{self.prefix}u` first if you have set your lastfm user name, and `{self.prefix}fmset <your username>` before that if you haven't.")
+            return
+
         total_timeframe = int(now - first_scrobble)
         scrobble_count_total_list = [item[0] for item in curFM.execute(f"SELECT COUNT(date_uts) FROM [{lfm_name}] WHERE date_uts > ?", (1000000000,)).fetchall()]
         scrobble_count_total = scrobble_count_total_list[0]
