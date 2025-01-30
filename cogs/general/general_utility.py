@@ -1081,7 +1081,7 @@ class General_Utility(commands.Cog):
         If GoogleTranslate is enabled, you can use `-languages` to see which languages are supported.
         If not the command will use LibreTranslate instead.
         """
-        args = util.escapequotemarks(arg).split()
+        args = util.escapequotemarks(arg).split(" ")
 
         if len(args) < 1:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
