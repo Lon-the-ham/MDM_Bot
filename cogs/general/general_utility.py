@@ -786,59 +786,132 @@ class General_Utility(commands.Cog):
             if len(args) == 0:
                 await ctx.send(f'No arguments provided. First argument needs to be language code, everything after will be translated.')
                 return
-            
-            givenLanguage = args[0]
 
-            if len(args) == 1:
-                if givenLanguage.lower() in ["languages", "language"]:
-                    languagesList = languagedict.values()
-                    filteredList = sorted(list(dict.fromkeys(languagesList)))
-                    languagestring = ', '.join(filteredList)
-                    await ctx.send(f'`Supported languages:` {languagestring}')
+            if len(args) > 4 and args[0].lower() == "from" and args[2].lower() == "to" and args[1].lower() in languagedict.values() and args[3].lower() in languagedict.values():
+                # A FROM LANGUAGE SELECTED
+
+                fromLanguage = args[1].lower()
+                toLanguage = args[3].lower()
+
+                msgToTranslate = ' '.join(args[4:])
+
+                if msgToTranslate.strip() == "":
+                    emoji = util.emoji("think")
+                    await ctx.send(f'emoji')
                     return
-                else:
-                    msgToTranslate = ""
+
+                try:
+                    print(f"To translate from {fromLanguage} to {toLanguage}: {msgToTranslate}")
+                    GTranslator = Translator()
+
+                    # SPLIT MESSAGE IN CASE OF MULTIPLE PARAGRAPHS
+                    if "\n" in msgToTranslate:
+                        paragraph_list = msgToTranslate.split("\n")
+
+                        while "" in paragraph_list:
+                            paragraph_list.remove("")
+
+                        paragraphsTranslated = []
+
+                        for p in paragraph_list:
+                            paragraphsTranslated.append(GTranslator.translate(p, src=fromLanguage, dest=toLanguage).text)
+
+                        msgTranslated = "\n\n".join(paragraphsTranslated)
+
+                        if msgTranslated.strip() == "":
+                            msgTranslated = "<empty message>"
+
+                    else:
+                        msgTranslated = GTranslator.translate(msgToTranslate, src=fromLanguage, dest=toLanguage).text
+
+                    responsetext =  f"`[From: {fromLanguage}, To: {toLanguage}]`\n"
+                    responsetext += f'`Translation result:` {msgTranslated}'
+
+                    if len(responsetext) > 2000:
+                        await ctx.reply(responsetext[:1997] + "...", mention_author=False)
+                    else:
+                        await ctx.reply(responsetext[:2000], mention_author=False)
+                except Exception as e:
+                    if str(e).strip() == "'NoneType' object has no attribute 'group'":
+                        await ctx.send(f'`An error ocurred:` Probably wrong googletranslate package.\nHost should try```pip uninstall googletrans```and then```pip install googletrans==3.1.0a0```in console.')
+                    else:
+                        await ctx.send(f'`An error ocurred:` {e}')
+
+
             else:
-                msgToTranslate = ' '.join(args[1:])
+                # NO FROM LANGUAGE SELECTED
+                givenLanguage = args[0].lower()
 
-            if givenLanguage in languagedict.values():
-                targetLanguage = givenLanguage
-            elif givenLanguage in languagedict:
-                targetLanguage = languagedict[givenLanguage]
-            else:
-                if givenLanguage.lower() in languagedict.values():
-                    targetLanguage = givenLanguage.lower()
-                elif givenLanguage.lower() in languagedict:
-                    targetLanguage = languagedict[givenLanguage.lower()]
+                if len(args) == 1:
+                    if givenLanguage.lower() in ["languages", "language"]:
+                        languagesList = languagedict.values()
+                        filteredList = sorted(list(dict.fromkeys(languagesList)))
+                        languagestring = ', '.join(filteredList)
+                        await ctx.send(f'`Supported languages:` {languagestring}')
+                        return
+                    else:
+                        msgToTranslate = ""
                 else:
-                    #default language: English
-                    print("tr command: given language code not found, defaulting to EN")
-                    targetLanguage = "en"
-                    msgToTranslate = ' '.join(args)
+                    msgToTranslate = ' '.join(args[1:])
 
-            if msgToTranslate.strip() == "":
-                emoji = util.emoji("think")
-                await ctx.send(f'emoji')
-                return
-
-            try:
-                print(f"To translate: {msgToTranslate}")
-                GTranslator = Translator()
-                detection = GTranslator.detect(msgToTranslate)
-                msgTranslated = GTranslator.translate(msgToTranslate, dest=targetLanguage).text
-
-                if extra_info:
-                    responsetext = f"`[Lang.: {detection.lang}, Conf.={detection.confidence}]`\n"
-                    responsetext += f'`Google Translation result:` {msgTranslated}'
+                if givenLanguage in languagedict.values():
+                    targetLanguage = givenLanguage
+                elif givenLanguage in languagedict:
+                    targetLanguage = languagedict[givenLanguage]
                 else:
-                    responsetext = f'`Translation result:` {msgTranslated}'
+                    if givenLanguage.lower() in languagedict.values():
+                        targetLanguage = givenLanguage.lower()
+                    elif givenLanguage.lower() in languagedict:
+                        targetLanguage = languagedict[givenLanguage.lower()]
+                    else:
+                        #default language: English
+                        print("tr command: given language code not found, defaulting to EN")
+                        targetLanguage = "en"
+                        msgToTranslate = ' '.join(args)
 
-                await ctx.reply(responsetext[:2000], mention_author=False)
-            except Exception as e:
-                if str(e).strip() == "'NoneType' object has no attribute 'group'":
-                    await ctx.send(f'`An error ocurred:` Probably wrong googletranslate package.\nHost should try```pip uninstall googletrans```and then```pip install googletrans==3.1.0a0```in console.')
-                else:
-                    await ctx.send(f'`An error ocurred:` {e}')
+                if msgToTranslate.strip() == "":
+                    emoji = util.emoji("think")
+                    await ctx.send(f'emoji')
+                    return
+
+                try:
+                    print(f"To translate to {targetLanguage}: {msgToTranslate}")
+                    GTranslator = Translator()
+                    detection = GTranslator.detect(msgToTranslate)
+                    print(detection)
+
+                    # SPLIT MESSAGE IN CASE OF MULTIPLE PARAGRAPHS
+                    if "\n" in msgToTranslate:
+                        paragraph_list = msgToTranslate.split("\n")
+
+                        while "" in paragraph_list:
+                            paragraph_list.remove("")
+
+                        paragraphsTranslated = []
+
+                        for p in paragraph_list:
+                            paragraphsTranslated.append(GTranslator.translate(p, src=detection.lang, dest=targetLanguage).text)
+
+                        msgTranslated = "\n\n".join(paragraphsTranslated)
+
+                        if msgTranslated.strip() == "":
+                            msgTranslated = "<empty message>"
+
+                    else:
+                        msgTranslated = GTranslator.translate(msgToTranslate, dest=targetLanguage).text
+
+                    if extra_info:
+                        responsetext = f"`[Lang.: {detection.lang}, Conf.={detection.confidence}]`\n"
+                        responsetext += f'`Google Translation result:` {msgTranslated}'
+                    else:
+                        responsetext = f'`Translation result:` {msgTranslated}'
+
+                    await ctx.reply(responsetext[:2000], mention_author=False)
+                except Exception as e:
+                    if str(e).strip() == "'NoneType' object has no attribute 'group'":
+                        await ctx.send(f'`An error ocurred:` Probably wrong googletranslate package.\nHost should try```pip uninstall googletrans```and then```pip install googletrans==3.1.0a0```in console.')
+                    else:
+                        await ctx.send(f'`An error ocurred:` {e}')
 
 
 
@@ -975,7 +1048,7 @@ class General_Utility(commands.Cog):
         If GoogleTranslate is enabled, you can use `-languages` to see which languages are supported.
         If not the command will use LibreTranslate instead. You can also access the LibreTranslate translations if GoogleTranslate is enabled by using `<prefix>ltr` or `<prefix>ltrx`.
         """
-        args = util.escapequotemarks(arg).split()
+        args = util.escapequotemarks(arg).split(" ")
 
         if len(args) < 1:
             await ctx.send(f'Needs arguments. First argument needs to be language code, everything after will be translated.')
