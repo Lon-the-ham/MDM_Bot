@@ -1042,7 +1042,10 @@ class General_Utility(commands.Cog):
     async def _translate(self, ctx, *, arg):
         """Translate
 
-        Translates a word or sentence, first argument must be the destination language code. 
+        Translates a word or sentence, first argument must be the destination language code. Alternatively use e.g.
+        `<prefix>tr from <language 1> to <language 2>` 
+        to force translation from a specific language.
+
         Use `<prefix>trx` to also get information about the detected language of your query and the translators confidence.
 
         If GoogleTranslate is enabled, you can use `-languages` to see which languages are supported.
