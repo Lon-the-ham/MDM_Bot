@@ -5118,14 +5118,14 @@ class Utils():
             
         else:
             filtered_cooldown_list = []
-            guild_member_ids       = [x.id for x in ctx.guild.members]
+            guild_member_ids       = [str(x.id) for x in ctx.guild.members]
 
             for item in cooldown_list:
-                userid = item[0]
+                userid = str(item[0])
                 username = item[1]
                 time_stamp = item[2]
 
-                if userid in guild_member_ids:
+                if userid in guild_member_ids or not util.represents_integer(userid):
                     filtered_cooldown_list.append(item)
                 else:
                     filtered_cooldown_list.append([userid, "<user>", time_stamp])
