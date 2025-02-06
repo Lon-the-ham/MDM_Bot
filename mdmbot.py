@@ -54,6 +54,8 @@ class YataBot(commands.Bot):
             "cogs.roles.reactionroles",
             "cogs.userown.memo",
             "cogs.userown.pingterest",
+            # extended:
+            "cogs.xtended.youtube_download"
             ]
         self.optional_extensions = ["cogs.sandbox"]
 
