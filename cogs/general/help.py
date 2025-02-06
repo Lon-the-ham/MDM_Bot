@@ -4,6 +4,8 @@ from other.utils.utils import Utils as util
 import os
 import sqlite3
 
+
+
 class Help(commands.Cog):
     def __init__(self, bot: commands.bot) -> None:
         self.bot = bot
@@ -242,7 +244,7 @@ class Help(commands.Cog):
         The bot will reply with a message if online and active.
         """    
         await ctx.send(f'`I am online!`')
-        
+
     @_test.error
     async def test_error(self, ctx, error):
         await util.error_handling(ctx, error)
