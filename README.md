@@ -64,6 +64,8 @@ These are optional (more information in the documentation.md):
 
 > pip install bar-chart-race
 
+> pip install pytubefix
+
 
 ### Create a discord application
 
