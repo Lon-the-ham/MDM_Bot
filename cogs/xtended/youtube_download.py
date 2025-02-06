@@ -101,7 +101,7 @@ class YouTube_Download(commands.Cog):
             await ctx.send(message[:2000])
 
         try:
-            mdmbot_id = int(bot.application_id)
+            mdmbot_id = int(self.bot.application_id)
             mdmbot = ctx.guild.get_member(mdmbot_id)
             await ctx.message.remove_reaction(emoji, mdmbot)
         except Exception as e:
