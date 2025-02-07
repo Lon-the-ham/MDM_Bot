@@ -9,7 +9,6 @@ import functools
 import typing
 
 try:
-    #from pytubefix import YouTube
     import yt_dlp
     youtube_download_enabled = True
 except:
@@ -44,27 +43,19 @@ class YouTube_Download(commands.Cog):
 
 
     @to_thread
-    def downloadYouTubeVideoViaPytube(self, videourl, path, filename):
-        yt = YouTube(videourl)
-        yt = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
-        if not os.path.exists(path):
-            os.makedirs(path)
-        yt.download(path, filename=filename)
+    def downloadYouTubeVideo(self, videourl_list, ydl_opts, filename):
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(videourl_list[0], download=False)
+            try:
+                title = ydl.sanitize_info(info)['title']
+            except Exception as e:
+                print("Error:", e)
+                title = "<video>"
+            ydl.download(videourl_list)
 
-        return yt.title
+        return title
 
-
-    @to_thread
-    def downloadYouTubeVideoViaPytube(self, videourl, path, filename):
-        yt = YouTube(videourl)
-        yt = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
-        if not os.path.exists(path):
-            os.makedirs(path)
-        yt.download(path, filename=filename)
-
-        return yt.title
-
-
+        
 
     @commands.command(name='ytdl', aliases = ['youtubedownload'])
     @commands.check(YT_Check.is_youtubedownload_enabled)
@@ -112,14 +103,7 @@ class YouTube_Download(commands.Cog):
                 'outtmpl': {'default': filename}
             }
 
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(videourl_list[0], download=False)
-                try:
-                    title = ydl.sanitize_info(info)['title']
-                except Exception as e:
-                    print("Error:", e)
-                    title = "<video>"
-                ydl.download(videourl_list)
+            title = await self.downloadYouTubeVideo(videourl_list, ydl_opts, filename)
 
             try:
                 title_clean = util.cleantext(title)
