@@ -9,7 +9,8 @@ import functools
 import typing
 
 try:
-    from pytubefix import YouTube
+    #from pytubefix import YouTube
+    import yt_dlp
     youtube_download_enabled = True
 except:
     print("Not importing YouTube Download functionality.")
@@ -43,7 +44,18 @@ class YouTube_Download(commands.Cog):
 
 
     @to_thread
-    def downloadYouTubeVideo(self, videourl, path, filename):
+    def downloadYouTubeVideoViaPytube(self, videourl, path, filename):
+        yt = YouTube(videourl)
+        yt = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
+        if not os.path.exists(path):
+            os.makedirs(path)
+        yt.download(path, filename=filename)
+
+        return yt.title
+
+
+    @to_thread
+    def downloadYouTubeVideoViaPytube(self, videourl, path, filename):
         yt = YouTube(videourl)
         yt = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
         if not os.path.exists(path):
@@ -78,12 +90,36 @@ class YouTube_Download(commands.Cog):
             userid   = ctx.message.author.id
             now      = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
 
-            videourl = args[0].replace("<","").replace(">","")
+            videourl_list = []
+
+            for arg in args:
+                url = arg.replace("<","").replace(">","").replace(",","").strip()
+                if url == "":
+                    continue
+
+                videourl_list.append(url)
+                break # download only one file
+
+            if len(videourl_list) == 0:
+                await ctx.send("Arguments must be URLs.")
+                return
+
             filename = f'ytdl_{userid}_{now}.mp4'
 
-            print("starting download...")
-            title = await self.downloadYouTubeVideo(videourl, './temp', filename)
-            print("finished download...")
+            ydl_opts = {
+                'format': 'mp4',
+                'paths': {'home': './temp', 'temp': './temp'},
+                'outtmpl': {'default': filename}
+            }
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(videourl_list[0], download=False)
+                try:
+                    title = ydl.sanitize_info(info)['title']
+                except Exception as e:
+                    print("Error:", e)
+                    title = "<video>"
+                ydl.download(videourl_list)
 
             try:
                 title_clean = util.cleantext(title)
@@ -94,6 +130,10 @@ class YouTube_Download(commands.Cog):
                 message = f"Error while trying to send YouTube video:\n{e}"
                 await ctx.send(message[:2000])
 
+            try:
+                os.rmdir("temp/temp")
+            except:
+                pass
             os.remove(f"temp/{filename}")
 
         except Exception as e:
