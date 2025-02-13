@@ -342,7 +342,7 @@ class Help(commands.Cog):
         description = f"**Users:**\n{member_count}\n({user_breakdown})\n\n"
         description += f"**Owner:**\n{owner}\n\n"
         description += f"**Server ID:**\n{guild_id}\n\n"
-        description += f"**created:** {server_birthdate} UTC"
+        description += f"**created:**\n{server_birthdate} UTC"
         embed = discord.Embed(title=f"Server info for {server_name}", description=description, color=0x000000)
         try:
             embed.set_thumbnail(url=ctx.guild.icon.url)
