@@ -170,6 +170,7 @@ class Administration_of_Server(commands.Cog):
         immunity_list = await self.get_immunitylist(ctx)
 
         if user_id in immunity_list:
+            send_msg_bool = False
             pleademoji = util.emoji("pleading")
             await ctx.send(f'I- I really do not want to ban this user. {pleademoji}')
         else:
@@ -240,6 +241,7 @@ class Administration_of_Server(commands.Cog):
         immunity_list = await self.get_immunitylist(ctx)
 
         if user_id in immunity_list:
+            send_msg_bool = False
             pleademoji = util.emoji("pleading")
             await ctx.send(f'I- I really do not want to kick this user. {pleademoji}')
         else:
@@ -254,6 +256,7 @@ class Administration_of_Server(commands.Cog):
                 await ctx.send(embed=embed)
             except Exception as e:
                 await ctx.send(f'Error: {e}')
+                send_msg_bool = False
 
         # DM THE USER
 
