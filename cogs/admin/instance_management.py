@@ -358,8 +358,10 @@ class Administration_of_Bot_Instance(commands.Cog):
                 await asyncio.sleep(2)
 
             # syncing
-            await ctx.send("...cloud sync: downloading scrobble databases")
-            await util.cloud_download_scrobble_backup(ctx, called_from)
+
+            await ctx.send("Cloud sync disabled")
+            #await ctx.send("...cloud sync: downloading scrobble databases")
+            #await util.cloud_download_scrobble_backup(ctx, called_from)
 
         else:
             await ctx.send("(skipping cloud sync as scrobbling features disabled)")
@@ -537,7 +539,8 @@ class Administration_of_Bot_Instance(commands.Cog):
                             if syncing:
                                 try:
                                     called_from = "switch"
-                                    await self.cloud_sync_wait_and_download(ctx, reference_time, called_from)
+                                    await ctx.send("Cloud Sync Download is disabled")
+                                    #await self.cloud_sync_wait_and_download(ctx, reference_time, called_from)
                                 except Exception as e:
                                     await ctx.send(f"Error while trying to sync with cloud data: {e}")
 
@@ -596,7 +599,9 @@ class Administration_of_Bot_Instance(commands.Cog):
             await self.create_backups(ctx, this_instances_activity)
             await self.synchronise_databases(ctx, "server backup")
             called_from = "synchronise"
-            await self.cloud_sync_wait_and_download(ctx, reference_time, called_from)
+
+            await ctx.send("Cloud Sync Download is disabled")
+            #await self.cloud_sync_wait_and_download(ctx, reference_time, called_from)
 
             # set activity back
             if this_instances_activity == "active":
@@ -694,6 +699,8 @@ class Administration_of_Bot_Instance(commands.Cog):
 
         async with ctx.typing():
             called_from = "loadcloud"
+
+            await ctx.send("Warning: This command is still in reconstruction.")
             await util.cloud_download_scrobble_backup(ctx, called_from)
 
     @_load_cloud_backups.error
