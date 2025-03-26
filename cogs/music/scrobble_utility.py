@@ -1243,7 +1243,7 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    async def whoknows(self, ctx, argument, wk_type):
+    async def whoknows(self, ctx, argument, wk_type, scope="server"):
         con = sqlite3.connect('databases/npsettings.db')
         cur = con.cursor()
         lfm_list = [[item[0],item[1],str(item[2]).lower().strip()] for item in cur.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
@@ -1331,14 +1331,25 @@ class Music_Scrobbling(commands.Cog):
 
             lfm_name = useritem[1]
             status = useritem[2]
+            show_username = True
 
             if type(status) == str and (status.startswith(("wk_banned", "scrobble_banned")) or (status.endswith("inactive") and str(ctx.guild.id) == str(os.getenv("guild_id")))):
-                continue
+                if scope == "global":
+                    if status.endswith("inactive"):
+                        pass # then show normally
+                    else:
+                        show_username = False
+                else:
+                    continue
+
             elif type(status) == str and status.startswith("crown_banned"):
                 crownbanned.append(user_id)
 
             if user_id not in server_member_ids:
-                continue
+                if scope == "global":
+                    show_username = False
+                else:
+                    continue
 
             if lfm_name in lfmname_dict.keys(): # check if lfm_name was already added
                 continue
@@ -1423,7 +1434,10 @@ class Music_Scrobbling(commands.Cog):
                     last -= 1
 
             #count_dict[user_id] = count
-            count_list.append([user_id, count, last])
+            if show_username:
+                count_list.append([user_id, count, last])
+            else:
+                count_list.append(["private user", count, last])
             total_plays += count
 
         # FETCH SERVER NAMES
@@ -1452,7 +1466,7 @@ class Music_Scrobbling(commands.Cog):
             playcount = listitem[1]
             lastplay = listitem[2]
 
-            if user_id not in discordname_dict:
+            if scope != "global" and user_id not in discordname_dict:
                 continue
 
             #if count_dict[key] > 0:
@@ -1466,7 +1480,7 @@ class Music_Scrobbling(commands.Cog):
                 continue
 
             #if wk_type == "artist" and first and count_dict[key] >= 30 and key not in crownbanned:
-            if wk_type == "artist" and first and playcount >= 30 and user_id not in crownbanned:
+            if scope != "global" and wk_type == "artist" and first and playcount >= 30 and user_id not in crownbanned:
                 placing = util.emoji("crown")
                 crown_user = user_id
                 crown_count = playcount
@@ -1475,20 +1489,29 @@ class Music_Scrobbling(commands.Cog):
                 placing = f"{alluser_counter}."
 
             halloffame_counter += 1
-            if user_id != ctx.author.id:
+            if user_id == "private user":
+                description += f"`{placing}` *private user* - **{playcount}** plays\n"
+            elif scope == "global" and user_id not in discordname_dict:
+                description += f"`{placing}` *unknown user* - **{playcount}** plays\n"
+            elif user_id != ctx.author.id:
                 description += f"`{placing}` [{discordname_dict[user_id]}](https://www.last.fm/user/{lfmname_dict[user_id]}) - **{playcount}** plays\n"
             else:
                 description += f"`{placing}` **[{discordname_dict[user_id]}](https://www.last.fm/user/{lfmname_dict[user_id]})** - **{playcount}** plays\n"
 
-        header += f" in {ctx.guild.name}"
+        if scope == "global":
+            header += f" globally"
+        else:
+            header += f" in {ctx.guild.name}"
 
         if all_zero:
-            if wk_type in ["artist", "album", "track"]:
+            if wk_type in ["artist", "album", "track"] and scope != "global":
                 description = f"No one here has listened to this {wk_type}."
+            elif scope == "global":
+                description = f"Could not find any matches."
             else:
                 description = f"Error with {wk_type}. Could not find any matches."
 
-        else:
+        elif scope != "global" and wk_type == "artist":
             # CROWN update: only for artists
 
             if crown_user != None:
@@ -3216,6 +3239,46 @@ class Music_Scrobbling(commands.Cog):
 
     @_fullyreload_releasewise_database.error
     async def fullyreload_releasewise_database_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='gwk', aliases = ["gw", "globalwhoknows", "globalwhoknowsartist"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _whoknowsartistglobal(self, ctx: commands.Context, *args):
+        """List of all users with most scrobbles of said artist, even users outside of this server or inactive users"""
+
+        try:
+            async with ctx.typing():
+                argument = ' '.join(args)
+                await self.whoknows(ctx, argument, "artist", scope="global")
+        except Exception as e:
+            if "SSLV3_ALERT_BAD_RECORD_MAC" in str(e):
+                # TEST WITHOUT THE CTX.TYPING()
+                try:
+                    try:
+                        emoji = util.emoji("load")
+                        embed_load = discord.Embed(title="", description=f"{emoji} one moment, discord just had a hiccup", color=0x000000)
+                        loading_message = await ctx.reply(embed=embed_load, mention_author=False)
+                        await asyncio.sleep(1)
+                    except:
+                        pass
+
+                    argument = ' '.join(args)
+                    await self.whoknows(ctx, argument, "artist", scope="global")
+
+                    try:
+                        await loading_message.delete()
+                    except:
+                        pass
+                except Exception as e2:
+                    await self.lastfm_error_handler(ctx, e2)
+            else:
+                await self.lastfm_error_handler(ctx, e)
+
+    @_whoknowsartistglobal.error
+    async def whoknowsartistglobal_error(self, ctx, error):
         await util.error_handling(ctx, error) 
 
 
