@@ -2630,7 +2630,7 @@ class Music_NowPlaying(commands.Cog):
                 await ctx.send(embed=embed)
 
             #LAST.FM
-            pass #todo
+            #todo
 
         else:
             # ONLY last.fm
