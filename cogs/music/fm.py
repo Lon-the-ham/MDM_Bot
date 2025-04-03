@@ -2339,40 +2339,21 @@ class Music_NowPlaying(commands.Cog):
         """Show what ppl on this server are listening to in their status
 
         Command goes through music sreaming services: Spotify, MusicBee, AppleMusic. In case these features are enabled users with the inactivity role, access wall role or timeout role will be excluded.
-        
-        Optional arg: spotify, musicbee, applemusic to only filter for people using these services.
         """
 
         # PARSE ARGS
 
-        show_spotify = True
-        show_musicbee = True
-        show_applemusic = True
-        args_given = False
+        show_inactive = False
+        show_lastfm_subst = False
+        show_lastfm_only = False
+
         if len(args) > 0:
-            arguments = []
             for arg in args:
-                arguments.append(util.alphanum(arg,"lower"))
+                arg0 = util.alphanum(arg,"lower")
 
-            args_given = True
-
-            spotify_alias = ["spotify", "spoofy", "sp"]
-            musicbee_alias = ["musicbee", "mb"]
-            applemusic_alias = ["applemusic", "apple", "itunes", "am"]
-
-            for arg in arguments:
-                if arg not in spotify_alias:
-                    show_spotify = False
-                if arg not in musicbee_alias:
-                    show_musicbee = False
-                if arg not in applemusic_alias:
-                    show_applemusic = False
-
-        if not show_spotify and not show_musicbee and not show_applemusic:
-            # pretend there were no arguments given
-            show_spotify = True
-            show_musicbee = True
-            show_applemusic = True
+                if arg0 in ['all']:
+                    show_inactive = True
+                    show_lastfm_subst = True
 
         # CHECK INACTIVITY ROLE
 
@@ -2544,13 +2525,11 @@ class Music_NowPlaying(commands.Cog):
         musicbee_list.sort(key=lambda x: x[0])
         applemusic_list.sort(key=lambda x: x[0])
 
-        # SPOTIFY
+        if not show_lastfm_only:
 
-        if show_spotify:
-
+            # SPOTIFY
             if len(spotify_list) == 0:
-                if args_given:
-                    await ctx.send("No Spotify listeners.")
+                pass
 
             elif len(spotify_list) == 1:
                 Ldescription = f"<@{spotify_list[0][1]}>: [{spotify_list[0][2]}]({spotify_list[0][5]}) by **{spotify_list[0][3]}**"
@@ -2580,13 +2559,9 @@ class Music_NowPlaying(commands.Cog):
                     embed.set_footer(text=f"{len(spotify_list)} listeners, {unmentioned_listeners} unmentioned ones")
                 await ctx.send(embed=embed)
 
-        # MUSICBEE
-
-        if show_musicbee:
-
+            # MUSICBEE
             if len(musicbee_list) == 0:
-                if args_given:
-                    await ctx.send("No MusicBee listeners.")
+                pass
 
             elif len(musicbee_list) == 1:
                 Ldescription = f"<@{musicbee_list[0][1]}>: [{musicbee_list[0][2]}]({musicbee_list[0][5]}) by **{musicbee_list[0][3]}**"
@@ -2619,13 +2594,9 @@ class Music_NowPlaying(commands.Cog):
                     embed.set_footer(text=f"{len(musicbee_list)} listeners, {unmentioned_listeners} unmentioned ones")
                 await ctx.send(embed=embed)
 
-        # APPLE MUSIC
-
-        if show_applemusic:
-
+            # APPLE MUSIC
             if len(applemusic_list) == 0:
-                if args_given:
-                    await ctx.send("No AppleMusic listeners.")
+                pass
 
             elif len(applemusic_list) == 1:
                 Ldescription = f"<@{applemusic_list[0][1]}>: [{applemusic_list[0][2]}]({applemusic_list[0][5]}) by **{applemusic_list[0][3]}**"
@@ -2657,6 +2628,14 @@ class Music_NowPlaying(commands.Cog):
                 else:
                     embed.set_footer(text=f"{len(applemusic_list)} listeners, {unmentioned_listeners} unmentioned ones")
                 await ctx.send(embed=embed)
+
+            #LAST.FM
+            pass #todo
+
+        else:
+            # ONLY last.fm
+            pass #todo
+
     @_serverplaying.error
     async def serverplaying_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -3429,6 +3408,7 @@ class Music_NowPlaying(commands.Cog):
         response = await util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to remove this users lastfm data and delete all their scrobbles?")
 
         if response == False:
+            await ctx.reply(f"Cancelled action.", mention_author=False)
             return
 
         async with ctx.typing():
