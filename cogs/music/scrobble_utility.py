@@ -1311,6 +1311,7 @@ class Music_Scrobbling(commands.Cog):
 
         discordname_dict = {}
         lfmname_dict = {}
+        inactive_username_dict = {}
         count_list = []
         crownbanned = []
         total_plays = 0
@@ -1335,8 +1336,8 @@ class Music_Scrobbling(commands.Cog):
 
             if type(status) == str and (status.startswith(("wk_banned", "scrobble_banned")) or (status.endswith("inactive") and str(ctx.guild.id) == str(os.getenv("guild_id")))):
                 if scope == "global":
-                    if status.endswith("inactive"):
-                        pass # then show normally
+                    if status.endswith("inactive") and (not status.startswith(("wk_banned", "scrobble_banned"))):
+                        inactive_username_dict[user_id] = lfm_name # then show
                     else:
                         show_username = False
                 else:
@@ -1491,6 +1492,9 @@ class Music_Scrobbling(commands.Cog):
             halloffame_counter += 1
             if user_id == "private user":
                 description += f"`{placing}` *private user* - **{playcount}** plays\n"
+            elif user_id in inactive_username_dict:
+                emoji = util.emoji("inactive")
+                description += f"`{placing}` {inactive_username_dict[user_id]} ({emoji}) - **{playcount}** plays\n"
             elif scope == "global" and user_id not in discordname_dict:
                 description += f"`{placing}` *unknown user* - **{playcount}** plays\n"
             elif user_id != ctx.author.id:
@@ -1499,7 +1503,7 @@ class Music_Scrobbling(commands.Cog):
                 description += f"`{placing}` **[{discordname_dict[user_id]}](https://www.last.fm/user/{lfmname_dict[user_id]})** - **{playcount}** plays\n"
 
         if scope == "global":
-            header += f" globally"
+            header += f" globally (within this bot)"
         else:
             header += f" in {ctx.guild.name}"
 
@@ -3247,7 +3251,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _whoknowsartistglobal(self, ctx: commands.Context, *args):
-        """List of all users with most scrobbles of said artist, even users outside of this server or inactive users"""
+        """㊙️ List of all users with most scrobbles of said artist, even users outside of this server or inactive users"""
 
         try:
             async with ctx.typing():
@@ -3279,6 +3283,44 @@ class Music_Scrobbling(commands.Cog):
 
     @_whoknowsartistglobal.error
     async def whoknowsartistglobal_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    @commands.command(name='gwka', aliases = ["globalwhoknowsalbum", "gwa"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _whoknowsalbumglobal(self, ctx: commands.Context, *args):
+        """㊙️ List of all users with most scrobbles of said artist, even users outside of this server or inactive users"""
+
+        try:
+            async with ctx.typing():
+                argument = ' '.join(args)
+                await self.whoknows(ctx, argument, "album", scope="global")
+        except Exception as e:
+            await self.lastfm_error_handler(ctx, e)
+
+    @_whoknowsalbumglobal.error
+    async def whoknowsalbumglobal_error(self, ctx, error):
+        await util.error_handling(ctx, error) 
+
+
+
+    @commands.command(name='gwkt', aliases = ["globalwhoknowstrack", "gwt"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _whoknowstrackglobal(self, ctx: commands.Context, *args):
+        """㊙️ List of all users with most scrobbles of said artist, even users outside of this server or inactive users"""
+
+        try:
+            async with ctx.typing():
+                argument = ' '.join(args)
+                await self.whoknows(ctx, argument, "track", scope="global")
+        except Exception as e:
+            await self.lastfm_error_handler(ctx, e)
+
+    @_whoknowstrackglobal.error
+    async def whoknowstrackglobal_error(self, ctx, error):
         await util.error_handling(ctx, error) 
 
 
@@ -3287,7 +3329,9 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _whoknowsartist(self, ctx: commands.Context, *args):
-        """List of users with most scrobbles of said artist"""
+        """List of users with most scrobbles of said artist
+
+        Use gwk to also display inactive users, and show users that are logged into the bot but aren't on the server as 'private user'"""
 
         try:
             async with ctx.typing():
@@ -3327,7 +3371,9 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _whoknowsalbum(self, ctx: commands.Context, *args):
-        """List of users with most scrobbles of said artist"""
+        """List of users with most scrobbles of said artist
+
+        Use gwa to also display inactive users, and show users that are logged into the bot but aren't on the server as 'private user'"""
 
         try:
             async with ctx.typing():
@@ -3346,7 +3392,9 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _whoknowstrack(self, ctx: commands.Context, *args):
-        """List of users with most scrobbles of said artist"""
+        """List of users with most scrobbles of said artist
+
+        Use gwt to also display inactive users, and show users that are logged into the bot but aren't on the server as 'private user'"""
 
         try:
             async with ctx.typing():
