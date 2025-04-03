@@ -3627,13 +3627,29 @@ class General_Utility(commands.Cog):
         ]
 
         try:
+            image_url_list = []
+            tries = 0
             for item in rjson['items']:
+                if tries > 10:
+                    break
                 if any([item['link'].startswith(x) for x in bad_urls]): #some links don't work well with discord
                     continue
                 if any([item['link'].endswith(x) for x in bad_formats]): #some file formats don't work well with discord
                     continue
-                await ctx.send(item['link'])
-                break
+
+                url = item['link']
+                if (".jpg" in url or '.png' in url):
+                    await ctx.send(url)
+                    return
+                else:
+                    if tries == 0:
+                        image_url_list.append(url)
+                    tries += 1
+            
+            if len(image_url_list) > 0:
+                ctx.send(image_url_list[0])
+            else:
+                ctx.send("Error: Found only bad URLs.")
         except:
             #print(rjson)
             try:
