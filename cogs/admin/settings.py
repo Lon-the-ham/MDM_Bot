@@ -4996,6 +4996,7 @@ class Administration_of_Settings(commands.Cog):
                             "hold_head" : "🙉",
                             "hmm" : "🤔",
                             "hmm2" : "🤔",
+                            "inactive": "😪",
                             "load" : "⏳",
                             "lurk" : "👀",
                             "lurk2" : "👀",
