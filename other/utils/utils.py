@@ -5125,7 +5125,7 @@ class Utils():
                 username = item[1]
                 time_stamp = item[2]
 
-                if (userid in guild_member_ids) or (util.represents_integer(userid) == False):
+                if (userid in guild_member_ids) or (Utils.represents_integer(userid) == False):
                     filtered_cooldown_list.append(item)
                 else:
                     filtered_cooldown_list.append([userid, "<user>", time_stamp])
