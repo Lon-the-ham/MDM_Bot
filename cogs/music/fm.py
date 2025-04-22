@@ -16,6 +16,8 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from emoji import UNICODE_EMOJI
 import traceback
+import functools
+import typing
 
 
 class Music_NowPlaying(commands.Cog):
@@ -23,6 +25,13 @@ class Music_NowPlaying(commands.Cog):
         self.bot = bot
         self.prefix = os.getenv("prefix")
         self.tagseparator = " ‧ "
+
+    def to_thread(func: typing.Callable) -> typing.Coroutine:
+        """wrapper for blocking functions"""
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            return await asyncio.to_thread(func, *args, **kwargs)
+        return wrapper
 
 
     ########################################################### ACTIVITY FETCH AND SEND FUNCTIONS #######################################################
@@ -280,8 +289,10 @@ class Music_NowPlaying(commands.Cog):
                 'limit': "1",
             }
             response = await util.lastfm_get(ctx, payload, cooldown)
+
             if response == "rate limit":
                 return
+
             rjson = response.json()
             tjson = rjson['recenttracks']['track'][0] # track json
 
@@ -2339,13 +2350,18 @@ class Music_NowPlaying(commands.Cog):
         """Show what ppl on this server are listening to in their status
 
         Command goes through music sreaming services: Spotify, MusicBee, AppleMusic. In case these features are enabled users with the inactivity role, access wall role or timeout role will be excluded.
+        
+        Specify arg `inc` to also include inactive/timeouted/accesswall users,
+        specify arg `+fm` to also show LastFM listeners that do not have a rich presence atm,
+        specify arg `lfm` to show all music listeners with LastFM regardless of rich presence,
+        specify arg `all` as a combination of `inc` and `+fm`.
         """
 
         # PARSE ARGS
 
         show_inactive = False
-        show_lastfm_subst = False
-        show_lastfm_only = False
+        show_lastfm_subst = False # for each user: if no rich presence is used, use lfm instead
+        show_lastfm_only = False # for each user: always show lfm
 
         if len(args) > 0:
             for arg in args:
@@ -2355,67 +2371,88 @@ class Music_NowPlaying(commands.Cog):
                     show_inactive = True
                     show_lastfm_subst = True
 
-        # CHECK INACTIVITY ROLE
+                elif arg0 in ['inc', 'include', 'inactive', 'active']:
+                    show_inactive = True
 
-        conB = sqlite3.connect('databases/botsettings.db')
-        curB = conB.cursor()
-        inactivityfilter_setting = [[item[0], item[1], item[2]] for item in curB.execute("SELECT value, details, etc FROM serversettings WHERE name = ?", ("inactivity filter", )).fetchall()]
+                elif arg.lower() in ['+fm', '+lfm', 'lfm+', 'fm+'] or arg0 in ['add', 'plus', 'additional']:
+                    show_lastfm_subst = True
 
-        if len(inactivityfilter_setting) == 0 or inactivityfilter_setting[0][0].lower() != "on":
+                elif arg0 in ['fm', 'lfm', 'lastfm', 'fmonly', 'onlyfm', 'lfmonly', 'lastfmonly', 'onlylfm', 'onlylastfm']:
+                    show_lastfm_subst = False
+                    show_lastfm_only = True
+
+        # different inavailability roles
+
+        inactivity_role = None
+        timeout_role = None
+        accesswall_role = None
+
+        if show_inactive:
             inactivityfilter = "off"
-        else:
-            inactivityfilter = "on"
-
-            try:# FETCH ROLE
-                inactivityrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]        
-                if len(inactivityrole_list) == 0 or not util.represents_integer(inactivityrole_list[0]):
-                    inactivity_role = None
-                else:
-                    inactivity_role_id = int(inactivityrole_list[0])
-                    inactivity_role = ctx.guild.get_role(inactivity_role_id)
-            except Exception as e:
-                print("Error:", e)
-                inactivity_role = None
-
-        # CHECK TIMEOUT ROLE
-
-        timeout_setting = [[item[0], item[1], item[2]] for item in curB.execute("SELECT value, details, etc FROM serversettings WHERE name = ?", ("timeout system", )).fetchall()]
-
-        if len(timeout_setting) == 0 or timeout_setting[0][0].lower() != "on":
             timeout = "off"
-        else:
-            timeout = "on"
-
-            try:# FETCH ROLE
-                timeoutrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("timeout role",)).fetchall()]        
-                if len(timeoutrole_list) == 0 or not util.represents_integer(timeoutrole_list[0]):
-                    timeout_role = None
-                else:
-                    timeout_role_id = int(timeoutrole_list[0])
-                    timeout_role = ctx.guild.get_role(timeout_role_id)
-            except Exception as e:
-                print("Error:", e)
-                timeout_role = None
-
-        # CHECK ACCESSWALL ROLE
-
-        accesswall_setting = [[item[0], item[1], item[2]] for item in curB.execute("SELECT value, details, etc FROM serversettings WHERE name = ?", ("access wall", )).fetchall()]
-
-        if len(accesswall_setting) == 0 or accesswall_setting[0][0].lower() != "on":
             accesswall = "off"
-        else:
-            accesswall = "on"
 
-            try:# FETCH ROLE
-                accesswallrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("access wall role",)).fetchall()]        
-                if len(accesswallrole_list) == 0 or not util.represents_integer(accesswallrole_list[0]):
-                    accesswallrole = None
-                else:
-                    accesswallrole_id = int(accesswallrole_list[0])
-                    accesswall_role = ctx.guild.get_role(accesswallrole_id)
-            except Exception as e:
-                print("Error:", e)
-                accesswall_role = None
+        else:
+            # CHECK INACTIVITY ROLE
+            conB = sqlite3.connect('databases/botsettings.db')
+            curB = conB.cursor()
+            inactivityfilter_setting = [[item[0], item[1], item[2]] for item in curB.execute("SELECT value, details, etc FROM serversettings WHERE name = ?", ("inactivity filter", )).fetchall()]
+
+            if len(inactivityfilter_setting) == 0 or inactivityfilter_setting[0][0].lower() != "on":
+                inactivityfilter = "off"
+            else:
+                inactivityfilter = "on"
+
+                try:# FETCH ROLE
+                    inactivityrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("inactivity role",)).fetchall()]        
+                    if len(inactivityrole_list) == 0 or not util.represents_integer(inactivityrole_list[0]):
+                        inactivity_role = None
+                    else:
+                        inactivity_role_id = int(inactivityrole_list[0])
+                        inactivity_role = ctx.guild.get_role(inactivity_role_id)
+                except Exception as e:
+                    print("Error:", e)
+                    inactivity_role = None
+
+            # CHECK TIMEOUT ROLE
+
+            timeout_setting = [[item[0], item[1], item[2]] for item in curB.execute("SELECT value, details, etc FROM serversettings WHERE name = ?", ("timeout system", )).fetchall()]
+
+            if len(timeout_setting) == 0 or timeout_setting[0][0].lower() != "on":
+                timeout = "off"
+            else:
+                timeout = "on"
+
+                try:# FETCH ROLE
+                    timeoutrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("timeout role",)).fetchall()]        
+                    if len(timeoutrole_list) == 0 or not util.represents_integer(timeoutrole_list[0]):
+                        timeout_role = None
+                    else:
+                        timeout_role_id = int(timeoutrole_list[0])
+                        timeout_role = ctx.guild.get_role(timeout_role_id)
+                except Exception as e:
+                    print("Error:", e)
+                    timeout_role = None
+
+            # CHECK ACCESSWALL ROLE
+
+            accesswall_setting = [[item[0], item[1], item[2]] for item in curB.execute("SELECT value, details, etc FROM serversettings WHERE name = ?", ("access wall", )).fetchall()]
+
+            if len(accesswall_setting) == 0 or accesswall_setting[0][0].lower() != "on":
+                accesswall = "off"
+            else:
+                accesswall = "on"
+
+                try:# FETCH ROLE
+                    accesswallrole_list = [item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("access wall role",)).fetchall()]        
+                    if len(accesswallrole_list) == 0 or not util.represents_integer(accesswallrole_list[0]):
+                        accesswallrole = None
+                    else:
+                        accesswallrole_id = int(accesswallrole_list[0])
+                        accesswall_role = ctx.guild.get_role(accesswallrole_id)
+                except Exception as e:
+                    print("Error:", e)
+                    accesswall_role = None
 
         # AGGREGATE ACTIVITIES
 
@@ -2423,6 +2460,13 @@ class Music_NowPlaying(commands.Cog):
         spotify_list = []
         musicbee_list = []
         applemusic_list = []
+        lfm_list = []
+
+        if show_lastfm_subst or show_lastfm_only:
+            conNP = sqlite3.connect('databases/npsettings.db')
+            curNP = conNP.cursor()
+
+        found_valid_rich_presence = [] # IDs
 
         for member in guild.members:
             if len(member.roles) < 3:
@@ -2441,204 +2485,369 @@ class Music_NowPlaying(commands.Cog):
                         #print(f"skip {member.name}")
                         continue
 
-            activity_list = []
-            for activity in member.activities:
-                try:
-                    activity_list.append(str(activity.name))
-                except:
-                    pass 
+            # SPOTIFY / MUSICBEE / APPLEMUSIC 
 
-            for activity in member.activities:
-                if isinstance(activity, Spotify):
-                    spotify_list.append([member.display_name, member.id, util.cleantext2(activity.title), util.cleantext2(activity.artist), util.cleantext2(activity.album), activity.track_url])
-
-                if str(activity.type) == "ActivityType.playing" and activity.name == "MusicBee":
+            if not show_lastfm_only:
+                activity_list = []
+                for activity in member.activities:
                     try:
-                        if "ꜰʀᴏᴍ " in util.cleantext2(activity.state):
-                            if " - " in str(activity.details):
-                                details = activity.details.split(" - ", 1)
-                            else:
-                                details = activity.details.split("-", 1)
-                            artist = util.cleantext2(details[0].strip())
-                            title = util.cleantext2(details[1].strip())
-                            try:
-                                album = util.cleantext2(activity.state).split("ꜰʀᴏᴍ ")[1]
-                            except:
-                                album = ""
-                            artist_rep = artist.replace(" ","+")
-                            song_rep = title.replace(" ","+")
-                            url = f"https://www.last.fm/music/{artist_rep}/_/{song_rep}".replace("\\", "")
+                        activity_list.append(str(activity.name))
+                    except:
+                        pass 
 
-                        else:
-                            if " - " in str(activity.details):
-                                details = activity.details.split(" - ", 1)
-                            else:
-                                details = activity.details.split("-", 1)
-                            artist = util.cleantext2(details[0].strip())
-                            album = util.cleantext2(details[1].strip())
-                            try:
-                                title = util.cleantext2(activity.state.strip())
+                for activity in member.activities:
+                    if isinstance(activity, Spotify):
+                        spotify_list.append([member.display_name, member.id, util.cleantext2(activity.title), util.cleantext2(activity.artist), util.cleantext2(activity.album), activity.track_url])
+                        found_valid_rich_presence.append(member.id)
+
+                    if str(activity.type) == "ActivityType.playing" and activity.name == "MusicBee":
+                        try:
+                            if "ꜰʀᴏᴍ " in util.cleantext2(activity.state):
+                                if " - " in str(activity.details):
+                                    details = activity.details.split(" - ", 1)
+                                else:
+                                    details = activity.details.split("-", 1)
+                                artist = util.cleantext2(details[0].strip())
+                                title = util.cleantext2(details[1].strip())
+                                try:
+                                    album = util.cleantext2(activity.state).split("ꜰʀᴏᴍ ")[1]
+                                except:
+                                    album = ""
                                 artist_rep = artist.replace(" ","+")
                                 song_rep = title.replace(" ","+")
                                 url = f"https://www.last.fm/music/{artist_rep}/_/{song_rep}".replace("\\", "")
-                            except:
-                                title = ""
-                                artist_rep = artist.replace(" ","+")
-                                album_re = album.replace(" ","+")
-                                url = f"https://www.last.fm/music/{artist_rep}/{album_rep}".replace("\\", "")
-                        musicbee_list.append([member.display_name, member.id, title, artist, album, url])
-                    except:
-                        musicbee_list.append([member.display_name, member.id, "", "", "", ""])
 
-                if str(activity.type) == "ActivityType.playing" and (activity.name == "Apple Music" or (activity.name == "Music" and "iTunes Rich Presence for Discord" in activity_list)):
-                    try:
-                        try:
-                            title = util.cleantext2(activity.details.replace("🎶", "").strip())
-                            artist = util.cleantext2(activity.state.split("💿")[0].replace("👤","").strip())
-                            album = util.cleantext2(activity.state.split("💿")[1].strip())
+                            else:
+                                if " - " in str(activity.details):
+                                    details = activity.details.split(" - ", 1)
+                                else:
+                                    details = activity.details.split("-", 1)
+                                artist = util.cleantext2(details[0].strip())
+                                album = util.cleantext2(details[1].strip())
+                                try:
+                                    title = util.cleantext2(activity.state.strip())
+                                    artist_rep = artist.replace(" ","+")
+                                    song_rep = title.replace(" ","+")
+                                    url = f"https://www.last.fm/music/{artist_rep}/_/{song_rep}".replace("\\", "")
+                                except:
+                                    title = ""
+                                    artist_rep = artist.replace(" ","+")
+                                    album_re = album.replace(" ","+")
+                                    url = f"https://www.last.fm/music/{artist_rep}/{album_rep}".replace("\\", "")
+                            musicbee_list.append([member.display_name, member.id, title, artist, album, url])
                         except:
+                            musicbee_list.append([member.display_name, member.id, "", "", "", ""])
+                        found_valid_rich_presence.append(member.id)
+
+                    if str(activity.type) == "ActivityType.playing" and (activity.name == "Apple Music" or (activity.name == "Music" and "iTunes Rich Presence for Discord" in activity_list)):
+                        try:
                             try:
-                                artist = util.cleantext2(activity.details.split(" - ", 1)[0].strip())
-                                song = util.cleantext2(activity.details.split(" - ", 1)[1].strip())
-                                album = util.cleantext2(activity.state.split("on ", 1)[1].strip())
+                                title = util.cleantext2(activity.details.replace("🎶", "").strip())
+                                artist = util.cleantext2(activity.state.split("💿")[0].replace("👤","").strip())
+                                album = util.cleantext2(activity.state.split("💿")[1].strip())
                             except:
                                 try:
-                                    artist = util.cleantext2(activity.state.split(" — ", 1)[0].strip())
-                                    song = util.cleantext2(activity.details.strip())
-                                    album = util.cleantext2(activity.state.split(" — ", 1)[1].strip())
+                                    artist = util.cleantext2(activity.details.split(" - ", 1)[0].strip())
+                                    song = util.cleantext2(activity.details.split(" - ", 1)[1].strip())
+                                    album = util.cleantext2(activity.state.split("on ", 1)[1].strip())
                                 except:
-                                    artist = util.cleantext2(activity.state.strip())
-                                    song = util.cleantext2(activity.details.strip())
-                                    album = ""
+                                    try:
+                                        artist = util.cleantext2(activity.state.split(" — ", 1)[0].strip())
+                                        song = util.cleantext2(activity.details.strip())
+                                        album = util.cleantext2(activity.state.split(" — ", 1)[1].strip())
+                                    except:
+                                        artist = util.cleantext2(activity.state.strip())
+                                        song = util.cleantext2(activity.details.strip())
+                                        album = ""
 
-                        url = f"https://music.apple.com/us/search?term={artist}_{album}_{title}".replace(" ","_").replace("\\", "")
-                        applemusic_list.append([member.display_name, member.id, title, artist, album, url])
-                    except:
-                        applemusic_list.append([member.display_name, member.id, "", "", "", ""])
+                            url = f"https://music.apple.com/us/search?term={artist}_{album}_{title}".replace(" ","_").replace("\\", "")
+                            applemusic_list.append([member.display_name, member.id, title, artist, album, url])
+                        except:
+                            applemusic_list.append([member.display_name, member.id, "", "", "", ""])
+                        found_valid_rich_presence.append(member.id)
 
-        if len(spotify_list + musicbee_list + applemusic_list) == 0:
+        spotify_list.sort(key=lambda x: x[0].lower())
+        musicbee_list.sort(key=lambda x: x[0].lower())
+        applemusic_list.sort(key=lambda x: x[0].lower())
+
+        ### SEND EMBEDS
+
+        # SPOTIFY
+        if len(spotify_list) == 0:
+            pass
+
+        elif len(spotify_list) == 1:
+            Ldescription = f"<@{spotify_list[0][1]}>: [{spotify_list[0][2]}]({spotify_list[0][5]}) by **{spotify_list[0][3]}**"
+            embed = discord.Embed(
+                            description=Ldescription,
+                            color = 0x1F8B4C)
+            embed.set_author(name=f"Lonesome Spoofy listener.." , icon_url="https://i.imgur.com/NHQO2SW.png")
+            await ctx.send(embed=embed)
+        else:
+            complete_description = ""
+            unmentioned_listeners = 0
+            for item in spotify_list:
+                Ldescription = f"<@{item[1]}>: [{item[2]}]({item[5]}) by **{item[3]}**\n"
+
+                if len(complete_description) + len(Ldescription) < 4000:
+                    complete_description += Ldescription
+                else:
+                    unmentioned_listeners += 1
+
+            embed = discord.Embed(
+                            description=complete_description.strip(),
+                            color = 0x1F8B4C)
+            embed.set_author(name=f"Server Spoofy listeners" , icon_url="https://i.imgur.com/NHQO2SW.png")
+            if unmentioned_listeners == 0:
+                embed.set_footer(text=f"{len(spotify_list)} listeners")
+            else:
+                embed.set_footer(text=f"{len(spotify_list)} listeners, {unmentioned_listeners} unmentioned ones")
+            await ctx.send(embed=embed)
+
+        # MUSICBEE
+        if len(musicbee_list) == 0:
+            pass
+
+        elif len(musicbee_list) == 1:
+            Ldescription = f"<@{musicbee_list[0][1]}>: [{musicbee_list[0][2]}]({musicbee_list[0][5]}) by **{musicbee_list[0][3]}**"
+            embed = discord.Embed(
+                            description=Ldescription,
+                            color = 0x000000)
+            embed.set_author(name=f"Lonesome Music Bee.." , icon_url="https://i.imgur.com/7YXIimO.png")
+            await ctx.send(embed=embed)
+        else:
+            complete_description = ""
+            unmentioned_listeners = 0
+            for item in musicbee_list:
+                Ldescription = f"<@{item[1]}>: [{item[2]}]({item[5]}) by **{item[3]}**\n"
+
+                if item[2] == "" and item[3] == "" and item[3] == "" and item[4] == "":
+                    Ldescription = f"<@{item[1]}>: _error_\n"
+
+                if len(complete_description) + len(Ldescription) < 4000:
+                    complete_description += Ldescription
+                else:
+                    unmentioned_listeners += 1
+
+            embed = discord.Embed(
+                            description=complete_description.strip(),
+                            color = 0x000000)
+            embed.set_author(name=f"Server Music Bee listeners" , icon_url="https://i.imgur.com/7YXIimO.png")
+            if unmentioned_listeners == 0:
+                embed.set_footer(text=f"{len(musicbee_list)} listeners")
+            else:
+                embed.set_footer(text=f"{len(musicbee_list)} listeners, {unmentioned_listeners} unmentioned ones")
+            await ctx.send(embed=embed)
+
+        # APPLE MUSIC
+        if len(applemusic_list) == 0:
+            pass
+
+        elif len(applemusic_list) == 1:
+            Ldescription = f"<@{applemusic_list[0][1]}>: [{applemusic_list[0][2]}]({applemusic_list[0][5]}) by **{applemusic_list[0][3]}**"
+            embed = discord.Embed(
+                            description=Ldescription,
+                            color = 0xFE647B)
+            embed.set_author(name=f"Lonesome Apple Music listener.." , icon_url="https://i.imgur.com/4Ims0Ed.png")
+            await ctx.send(embed=embed)
+        else:
+            complete_description = ""
+            unmentioned_listeners = 0
+            for item in applemusic_list:
+                Ldescription = f"<@{item[1]}>: [{item[2]}]({item[5]}) by **{item[3]}**\n"
+
+                if item[2] == "" and item[3] == "" and item[3] == "" and item[4] == "":
+                    Ldescription = f"<@{item[1]}>: _error_\n"
+
+                if len(complete_description) + len(Ldescription) < 4000:
+                    complete_description += Ldescription
+                else:
+                    unmentioned_listeners += 1
+
+            embed = discord.Embed(
+                            description=complete_description.strip(),
+                            color = 0xFE647B)
+            embed.set_author(name=f"Server AppleMusic listeners" , icon_url="https://i.imgur.com/4Ims0Ed.png")
+            if unmentioned_listeners == 0:
+                embed.set_footer(text=f"{len(applemusic_list)} listeners")
+            else:
+                embed.set_footer(text=f"{len(applemusic_list)} listeners, {unmentioned_listeners} unmentioned ones")
+            await ctx.send(embed=embed)
+
+        ########### DELAY
+
+        # AGGREGATE LASTFM
+
+        if show_lastfm_subst or show_lastfm_only:
+            async with ctx.typing():
+                lfm_list = await self.fetch_server_lfm_listeners(ctx, found_valid_rich_presence, curNP, conNP, inactivityfilter, timeout, accesswall, inactivity_role, timeout_role, accesswall_role)
+
+        if len(spotify_list + musicbee_list + applemusic_list + lfm_list) == 0:
             emoji = util.emoji("pensive2")
-            await ctx.send(f"No one is listening to music right now.. {emoji}\n(or they just too shy to show this on discord)")
+            message = f"No one is listening to music right now.. {emoji}"
+            if not (show_lastfm_subst or show_lastfm_only):
+                message += "\n(or they just too shy to show this on discord)"
+            await ctx.reply(message, mention_author=False)
             return
 
-        spotify_list.sort(key=lambda x: x[0])
-        musicbee_list.sort(key=lambda x: x[0])
-        applemusic_list.sort(key=lambda x: x[0])
+        lfm_list.sort(key=lambda x: x[0].lower())
 
-        if not show_lastfm_only:
-
-            # SPOTIFY
-            if len(spotify_list) == 0:
-                pass
-
-            elif len(spotify_list) == 1:
-                Ldescription = f"<@{spotify_list[0][1]}>: [{spotify_list[0][2]}]({spotify_list[0][5]}) by **{spotify_list[0][3]}**"
-                embed = discord.Embed(
-                                description=Ldescription,
-                                color = 0x1F8B4C)
-                embed.set_author(name=f"Lonesome Spoofy listener.." , icon_url="https://i.imgur.com/NHQO2SW.png")
-                await ctx.send(embed=embed)
-            else:
-                complete_description = ""
-                unmentioned_listeners = 0
-                for item in spotify_list:
-                    Ldescription = f"<@{item[1]}>: [{item[2]}]({item[5]}) by **{item[3]}**\n"
-
-                    if len(complete_description) + len(Ldescription) < 4000:
-                        complete_description += Ldescription
-                    else:
-                        unmentioned_listeners += 1
-
-                embed = discord.Embed(
-                                description=complete_description.strip(),
-                                color = 0x1F8B4C)
-                embed.set_author(name=f"Server Spoofy listeners" , icon_url="https://i.imgur.com/NHQO2SW.png")
-                if unmentioned_listeners == 0:
-                    embed.set_footer(text=f"{len(spotify_list)} listeners")
-                else:
-                    embed.set_footer(text=f"{len(spotify_list)} listeners, {unmentioned_listeners} unmentioned ones")
-                await ctx.send(embed=embed)
-
-            # MUSICBEE
-            if len(musicbee_list) == 0:
-                pass
-
-            elif len(musicbee_list) == 1:
-                Ldescription = f"<@{musicbee_list[0][1]}>: [{musicbee_list[0][2]}]({musicbee_list[0][5]}) by **{musicbee_list[0][3]}**"
-                embed = discord.Embed(
-                                description=Ldescription,
-                                color = 0x000000)
-                embed.set_author(name=f"Lonesome Music Bee.." , icon_url="https://i.imgur.com/7YXIimO.png")
-                await ctx.send(embed=embed)
-            else:
-                complete_description = ""
-                unmentioned_listeners = 0
-                for item in musicbee_list:
-                    Ldescription = f"<@{item[1]}>: [{item[2]}]({item[5]}) by **{item[3]}**\n"
-
-                    if item[2] == "" and item[3] == "" and item[3] == "" and item[4] == "":
-                        Ldescription = f"<@{item[1]}>: _error_\n"
-
-                    if len(complete_description) + len(Ldescription) < 4000:
-                        complete_description += Ldescription
-                    else:
-                        unmentioned_listeners += 1
-
-                embed = discord.Embed(
-                                description=complete_description.strip(),
-                                color = 0x000000)
-                embed.set_author(name=f"Server Music Bee listeners" , icon_url="https://i.imgur.com/7YXIimO.png")
-                if unmentioned_listeners == 0:
-                    embed.set_footer(text=f"{len(musicbee_list)} listeners")
-                else:
-                    embed.set_footer(text=f"{len(musicbee_list)} listeners, {unmentioned_listeners} unmentioned ones")
-                await ctx.send(embed=embed)
-
-            # APPLE MUSIC
-            if len(applemusic_list) == 0:
-                pass
-
-            elif len(applemusic_list) == 1:
-                Ldescription = f"<@{applemusic_list[0][1]}>: [{applemusic_list[0][2]}]({applemusic_list[0][5]}) by **{applemusic_list[0][3]}**"
-                embed = discord.Embed(
-                                description=Ldescription,
-                                color = 0xFE647B)
-                embed.set_author(name=f"Lonesome Apple Music listener.." , icon_url="https://i.imgur.com/4Ims0Ed.png")
-                await ctx.send(embed=embed)
-            else:
-                complete_description = ""
-                unmentioned_listeners = 0
-                for item in applemusic_list:
-                    Ldescription = f"<@{item[1]}>: [{item[2]}]({item[5]}) by **{item[3]}**\n"
-
-                    if item[2] == "" and item[3] == "" and item[3] == "" and item[4] == "":
-                        Ldescription = f"<@{item[1]}>: _error_\n"
-
-                    if len(complete_description) + len(Ldescription) < 4000:
-                        complete_description += Ldescription
-                    else:
-                        unmentioned_listeners += 1
-
-                embed = discord.Embed(
-                                description=complete_description.strip(),
-                                color = 0xFE647B)
-                embed.set_author(name=f"Server AppleMusic listeners" , icon_url="https://i.imgur.com/4Ims0Ed.png")
-                if unmentioned_listeners == 0:
-                    embed.set_footer(text=f"{len(applemusic_list)} listeners")
-                else:
-                    embed.set_footer(text=f"{len(applemusic_list)} listeners, {unmentioned_listeners} unmentioned ones")
-                await ctx.send(embed=embed)
-
-            #LAST.FM
-            #todo
+        # LASTFM
+        if len(lfm_list) == 0:
+            pass
 
         else:
-            # ONLY last.fm
-            pass #todo
+            complete_description = ""
+            unmentioned_listeners = 0
+            for item in lfm_list:
+                Ldescription = f"<@{item[1]}>: [{item[2]}]({item[5]}) by **{item[3]}**\n"
+
+                if item[2] == "" and item[3] == "" and item[3] == "" and item[4] == "":
+                    Ldescription = f"<@{item[1]}>: _error_\n"
+
+                if len(complete_description) + len(Ldescription) < 4000:
+                    complete_description += Ldescription
+                else:
+                    unmentioned_listeners += 1
+
+            embed = discord.Embed(
+                            description=complete_description.strip(),
+                            color = 0xFFFFFF)
+            embed.set_author(name=f"Server LastFM listener(s)" , icon_url="https://i.imgur.com/tpowQld.jpeg")
+            if unmentioned_listeners == 0:
+                embed.set_footer(text=f"{len(lfm_list)} listener(s)")
+            else:
+                embed.set_footer(text=f"{len(lfm_list)} listener(s), {unmentioned_listeners} unmentioned ones")
+            await ctx.send(embed=embed)
 
     @_serverplaying.error
     async def serverplaying_error(self, ctx, error):
         await util.error_handling(ctx, error)
+
+
+
+    #@to_thread
+    async def fetch_server_lfm_listeners(self, ctx, found_valid_rich_presence, curNP, conNP, inactivityfilter, timeout, accesswall, inactivity_role, timeout_role, accesswall_role):
+        nowplaying_list = []
+
+        for member in ctx.guild.members:
+            if member.id in found_valid_rich_presence:
+                continue
+                
+            if len(member.roles) < 3:
+                if inactivityfilter == "on":
+                    if inactivity_role in member.roles: # only inactivity and everyone role
+                        #print(f"skip {member.name}")
+                        continue
+
+                if timeout == "on":
+                    if timeout_role in member.roles: # only timeout and everyone role
+                        #print(f"skip {member.name}")
+                        continue
+
+                if accesswall == "on":
+                    if accesswall_role in member.roles: # only accesswall and everyone role
+                        #print(f"skip {member.name}")
+                        continue
+
+            lfm_list = [[item[0],item[1]] for item in curNP.execute("SELECT lfm_name, lfm_link FROM lastfm WHERE id = ?", (str(member.id),)).fetchall()]
+
+            if len(lfm_list) == 0:
+                continue
+
+            lfm_name = lfm_list[0][0]
+            found_track = False
+            artist = ""
+            album = ""
+            song = ""
+            song_link = ""
+
+            try:
+                # FETCH INFORMATION VIA API
+                payload = {
+                    'method': 'user.getRecentTracks',
+                    'user': lfm_name,
+                    'limit': "1",
+                }
+                cooldown = False
+                response = await util.lastfm_get(ctx, payload, cooldown)
+                if response == "rate limit":
+                    continue
+
+                rjson = response.json()
+                tjson = rjson['recenttracks']['track'][0] # track json
+
+                # PARSE INFO
+
+                song = tjson['name']
+                song_link = tjson['url']
+                artist = tjson['artist']['#text']
+                album = tjson['album']['#text']
+                #album_cover = tjson['image'][-1]['#text']
+
+                try:
+                    if tjson['@attr']['nowplaying'] == "true":
+                        recency = "current track"
+                    else:
+                        recency = "last track"
+                        continue
+                except:
+                    recency = "last track"
+                    continue
+
+                found_track = True
+
+            except Exception as e:
+                print("Error with LFM API:", e)
+
+                # FETCH INFORMATION VIA WEBSCRAPE
+
+                try:
+                    burp0_url = f"https://www.last.fm:443/user/{lfm_name}"
+                    burp0_headers = {"Sec-Ch-Ua": "\"Chromium\";v=\"121\", \"Not A(Brand\";v=\"99\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.6167.160 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate, br", "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7", "Priority": "u=0, i", "Connection": "close"}
+                    response = requests.get(burp0_url, headers=burp0_headers)
+
+                    if "/pro/modal?action=scrobbling-now-theirs" in response.text:
+                        recency = "current track"
+                    else:
+                        recency = "last track"
+                        continue
+
+                    response_filtered = response.text.split("Recent Tracks")[1]
+                    soup = BeautifulSoup(response_filtered, "html.parser")
+
+                    album_soup = soup.find("img")
+                    album = util.cleantext2(html.unescape(album_soup['alt']))
+                    #album_cover = album_soup['src']
+
+                    try:
+                        a = soup.find('a', href=True)
+                        song_link = "https://www.last.fm" + a['data-track-url']
+                        song = a['data-track-name']
+                        artist = a['data-artist-name']
+                    except:
+                        i = 0
+                        for a in soup.find_all('a', href=True):
+                            i += 1
+                            if i == 1:
+                                pass
+                            elif i == 2:
+                                song_link = "https://www.last.fm" + a['href']
+                                song = a['title']
+                            elif i == 3:
+                                artist = a['title']
+                            else:
+                                break
+
+                    found_track = True
+
+                except Exception as e:
+                    print("Error with LFM WebScrape:", e)
+
+            if found_track:
+                nowplaying_list.append([member.display_name, member.id, song, artist, album, song_link])
+
+        return nowplaying_list
 
 
 
