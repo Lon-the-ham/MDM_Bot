@@ -3620,6 +3620,7 @@ class General_Utility(commands.Cog):
             "https://cdn.", # does not embed somehow
             "https://lookaside.", # facebook and instagram pictures
             "https://www.tiktok.com", # tiktok
+            "https://pbs.",
         ]
 
         bad_formats = [
