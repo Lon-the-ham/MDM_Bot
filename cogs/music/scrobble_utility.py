@@ -3291,7 +3291,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _whoknowsalbumglobal(self, ctx: commands.Context, *args):
-        """㊙️ List of all users with most scrobbles of said artist, even users outside of this server or inactive users"""
+        """㊙️ List of all users with most scrobbles of said album, even users outside of this server or inactive users"""
 
         try:
             async with ctx.typing():
@@ -3310,7 +3310,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _whoknowstrackglobal(self, ctx: commands.Context, *args):
-        """㊙️ List of all users with most scrobbles of said artist, even users outside of this server or inactive users"""
+        """㊙️ List of all users with most scrobbles of said track, even users outside of this server or inactive users"""
 
         try:
             async with ctx.typing():
@@ -3371,7 +3371,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _whoknowsalbum(self, ctx: commands.Context, *args):
-        """List of users with most scrobbles of said artist
+        """List of users with most scrobbles of said album
 
         Use gwa to also display inactive users, and show users that are logged into the bot but aren't on the server as 'private user'"""
 
@@ -3392,7 +3392,7 @@ class Music_Scrobbling(commands.Cog):
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _whoknowstrack(self, ctx: commands.Context, *args):
-        """List of users with most scrobbles of said artist
+        """List of users with most scrobbles of said track
 
         Use gwt to also display inactive users, and show users that are logged into the bot but aren't on the server as 'private user'"""
 
