@@ -4998,6 +4998,7 @@ class Administration_of_Settings(commands.Cog):
                             "hmm2" : "🤔",
                             "inactive": "😪",
                             "load" : "⏳",
+                            "login": "🔆",
                             "lurk" : "👀",
                             "lurk2" : "👀",
                             "lurk3" : "👀",
