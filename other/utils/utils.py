@@ -96,7 +96,6 @@ class Utils():
                 return False
 
 
-
     def is_host(ctx):
         try:
             host_id = int(os.getenv("host_user_id"))
@@ -112,6 +111,27 @@ class Utils():
             return False
 
 
+    def is_mod(ctx):
+        for perms in ctx.message.author.guild_permissions:
+            if perms[0] == "manage_guild":
+                if perms[1]:
+                    is_mod = True
+                else:
+                    is_mod = False
+                break
+        else:
+            print("Error: Something is wrong with permission manage_guild.")
+            is_mod = False
+
+        return is_mod
+
+
+    def is_dm(ctx):
+        server = ctx.message.guild
+        if server is None:
+            return True
+        return False
+        
 
     def inactivity_filter_enabled(ctx):
         conB = sqlite3.connect('databases/botsettings.db')
