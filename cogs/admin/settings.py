@@ -538,6 +538,17 @@ class Administration_of_Settings(commands.Cog):
         desctext_general.append(f"Welcome message: `{welcomemessage}` (text: `{texttype}`)")
         desctext_features.append(f"Welcome message: `{welcomemessage}` (text: `{texttype}`)")
 
+        ytdl_list = [[item[0],item[1],item[2]] for item in cur.execute("SELECT value, details, etc FROM serversettings WHERE name = ?", ("youtube download",)).fetchall()]
+        if len(ytdl_list) == 0:
+            ytdl = "error⚠️"
+            print("Error: no youtube download setting in database")
+        else:
+            if len(ytdl_list) > 1:
+                print("Warning: there are multiple youtube download entries in the database")
+            ytdl = ytdl_list[0][0]
+        desctext_general.append(f"YouTube Download: `{ytdl}`")
+        desctext_features.append(f"YouTube Download: `{ytdl}`")
+
         #################################################### NOTIFICATIONS
 
         desctext_general.append(f"\n**Notifications:**")
@@ -1257,6 +1268,8 @@ class Administration_of_Settings(commands.Cog):
             "usernamenotification": "notification on/off switches",
             "modsmodsmodsnotification": "notification on/off switches",
             "detailederrorreporting": "notification on/off switches",
+            # other
+            "youtubedownload": "other stuff"
             }
         res = {}
         for key, val in sorted(subcommand_dict.items()):
@@ -3394,6 +3407,78 @@ class Administration_of_Settings(commands.Cog):
 
 
 
+    @_set.command(name="youtubedownload", aliases = ["youtube", "yt", "ytdl", "ytmp3", "yt2mp3", "yttmp3"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_youtube(self, ctx, *args):
+        """Set youtube download setting
+        
+        Argument can be:
+        `off` : Disable YT download
+        `on` : Enable YT download without restrictions
+        `server_only` : YT downloads only possible on the main server
+        `mod_only`: YT downloads only possible on the main server by mods
+        `dm_only` : YT downloads only possible in direct message with bot
+        `mod_or_dm`: mod_only OR dm_only
+        """
+        if len(args) == 0:
+            await ctx.send("Command needs an argument.")
+            return ""
+
+        arg_filtered = util.alphanum(' '.join(args)).lower()
+
+        arg_names = {
+            "on"  : "on", 
+            "off" : "off", 
+            "serveronly" : "main server only", 
+            "server"     : "main server only", 
+            "modonly"    : "mod only", 
+            "mod"        : "mod only", 
+            "dmonly"     : "DM only", 
+            "dm"         : "DM only", 
+            "modordm"    : "mod or DM only", 
+            "modordmonly": "mod or DM only"
+        }
+
+        if arg_filtered not in arg_names:
+            await ctx.send("Argument needs to be either `on`, `off`, `server_only`, `mod_only`, `dm_only` or `mod_or_dm`.")
+            return ""
+
+        arg_full = arg_names[arg_filtered]
+
+        try:
+            con = sqlite3.connect(f'databases/botsettings.db')
+            cur = con.cursor()  
+            
+            ytdl_settings = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("youtube download", )).fetchall()] 
+
+            if len(ytdl_settings) == 0:
+                await ctx.send(f"Error while finding previous setting: Database may not be updated yet. Use `{self.prefix}update` and try again.")
+                return
+
+            previous_setting = ytdl_settings[0]
+
+            if previous_setting == arg_full:
+                await ctx.send(f"YouTube download setting was already set to `{arg_full}`")
+                return
+
+            cur.execute("UPDATE serversettings SET value = ? WHERE name = ?", (arg_full, "youtube download"))
+            con.commit()
+            await util.changetimeupdate()
+        except Exception as e:
+            print(e)
+            await ctx.send(f"Error while trying to change YouTube download setting in database: {e}")
+            return
+
+        await ctx.send(f"YouTube download setting turned to `{arg_full}`!")
+
+    @_set_youtube.error
+    async def set_youtube_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
 
     ################################################################################# ON/OFF (NOTIFICATIONS)
 
@@ -4771,6 +4856,14 @@ class Administration_of_Settings(commands.Cog):
                 print("Updated serversettings table: custom responses")
             elif len(custom_triggerresponse_list) > 1:
                 print("Warning: Multiple custom responses entries in serversettings table (botsettings.db)")
+
+            ytdl_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("youtube download",)).fetchall()]
+            if len(ytdl_list) == 0:
+                curB.execute("INSERT INTO serversettings VALUES (?, ?, ?, ?)", ("youtube download", "off", "", ""))
+                conB.commit()
+                print("Updated serversettings table: youtube download")
+            elif len(ytdl_list) > 1:
+                print("Warning: Multiple youtube download entries in serversettings table (botsettings.db)")
 
             # on/off notification
 
