@@ -80,6 +80,64 @@ class YouTube_Download(commands.Cog):
     async def _youtube_download(self, ctx: commands.Context, *args):
         """㊙️ Downloads YouTube video
         """
+        conB = sqlite3.connect(f'databases/botsettings.db')
+        curB = conB.cursor()  
+        
+        ytdl_settings = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("youtube download", )).fetchall()] 
+
+        if len(ytdl_settings) == 0:
+            await ctx.send(f"Youtube Download is not enabled, mods need to use update.")
+            return
+
+        ytdl_setting = ytdl_settings[0].strip().lower()
+
+        if ytdl_setting == "off":
+            await ctx.send(f"Youtube Download is disabled.")
+            return
+
+        if ytdl_setting == "server_only":
+            try:
+                if not util.is_main_server(ctx):
+                    raise ValueError('Not the main server.')
+            except:
+                await ctx.send(f"Youtube Download feature is only available on the main server.")
+                return
+
+        if ytdl_setting == "mod_only":
+            try:
+                if not util.is_main_server(ctx):
+                    raise ValueError('Not the main server.')
+                try:
+                    if not util.is_mod(ctx):
+                        raise ValueError('Not a mod.')
+                except:
+                    await ctx.send(f"Youtube Download feature is only available to mods.")
+                    return
+            except:
+                await ctx.send(f"Youtube Download feature is only available on the main server.")
+                return
+
+        if ytdl_setting == "dm_only":
+            if not is_dm(ctx):
+                await ctx.send(f"Youtube Download feature is only available in Direct Messages to the bot.")
+                return
+
+        if ytdl_setting == "mod_or_dm":
+            if not is_dm(ctx):
+                try:
+                    if not util.is_main_server(ctx):
+                        raise ValueError('Not the main server.')
+                    try:
+                        if not util.is_mod(ctx):
+                            raise ValueError('Not a mod.')
+                    except:
+                        await ctx.send(f"Youtube Download feature is only available via Direct Messages to the bot or on the main server to mods.")
+                        return
+                except:
+                    await ctx.send(f"Youtube Download feature is only available via Direct Messages to the bot or on the main server (to mods).")
+                    return
+
+        ############################################################
 
         if len(args) == 0:
             await ctx.send("Command needs youtube url as argument.")
@@ -160,6 +218,64 @@ class YouTube_Download(commands.Cog):
     async def _youtube_audioextract(self, ctx: commands.Context, *args):
         """㊙️ Extracts YouTube audio
         """
+        conB = sqlite3.connect(f'databases/botsettings.db')
+        curB = conB.cursor()  
+        
+        ytdl_settings = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("youtube download", )).fetchall()] 
+
+        if len(ytdl_settings) == 0:
+            await ctx.send(f"Youtube Download is not enabled, mods need to use update.")
+            return
+
+        ytdl_setting = ytdl_settings[0].strip().lower()
+
+        if ytdl_setting == "off":
+            await ctx.send(f"Youtube Download is disabled.")
+            return
+
+        if ytdl_setting == "server_only":
+            try:
+                if not util.is_main_server(ctx):
+                    raise ValueError('Not the main server.')
+            except:
+                await ctx.send(f"Youtube Download feature is only available on the main server.")
+                return
+
+        if ytdl_setting == "mod_only":
+            try:
+                if not util.is_main_server(ctx):
+                    raise ValueError('Not the main server.')
+                try:
+                    if not util.is_mod(ctx):
+                        raise ValueError('Not a mod.')
+                except:
+                    await ctx.send(f"Youtube Download feature is only available to mods.")
+                    return
+            except:
+                await ctx.send(f"Youtube Download feature is only available on the main server.")
+                return
+
+        if ytdl_setting == "dm_only":
+            if not is_dm(ctx):
+                await ctx.send(f"Youtube Download feature is only available in Direct Messages to the bot.")
+                return
+
+        if ytdl_setting == "mod_or_dm":
+            if not is_dm(ctx):
+                try:
+                    if not util.is_main_server(ctx):
+                        raise ValueError('Not the main server.')
+                    try:
+                        if not util.is_mod(ctx):
+                            raise ValueError('Not a mod.')
+                    except:
+                        await ctx.send(f"Youtube Download feature is only available via Direct Messages to the bot or on the main server to mods.")
+                        return
+                except:
+                    await ctx.send(f"Youtube Download feature is only available via Direct Messages to the bot or on the main server (to mods).")
+                    return
+
+        ############################################################
 
         if len(args) == 0:
             await ctx.send("Command needs youtube url as argument.")
