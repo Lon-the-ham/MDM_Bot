@@ -2924,9 +2924,9 @@ class Music_Scrobbling(commands.Cog):
                     match_count[exact_expr] = match_count.get(exact_expr, 0) + 1
 
         elif wk_type == "track without artist":
+            scrobbles = [[item[0],item[1]] for item in curFM.execute(f"SELECT artist_name, track_name FROM [{lfm_name}] ORDER BY date_uts ASC").fetchall()]
+            
             for item in scrobbles:
-                scrobbles = [[item[0],item[1]] for item in curFM.execute(f"SELECT artist_name, track_name FROM [{lfm_name}] ORDER BY date_uts ASC").fetchall()]   
-
                 exact_artist = item[0]
                 exact_track = item[1]
                 item_track = util.compactnamefilter(exact_track, "track")
