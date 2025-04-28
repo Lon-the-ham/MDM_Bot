@@ -1050,12 +1050,15 @@ class Music_NowPlaying(commands.Cog):
                                     rank2 = "rank: " + rank.replace("[", "").replace("]", "")
                                 user_stats += f"\n{rank2} {crown_text}"
                         else:
-                            # command invoker is crown holder:
-                            user_stats += rank
-                            #if len(user_stats) > 42:
-                            #    user_stats += "\nserver rank: " + rank.replace("[", "").replace("]", "")
-                            #else:
-                            #    user_stats += rank
+                            # e.g. command invoker is crown holder:
+                            if user_stats.strip() != "": #might be empty string when no scrobbles were imported into bot
+                                user_stats += rank
+                            else:
+                                try:
+                                    server_listener_count = rank.split("/")[1].replace("[", "").replace("]", "")
+                                    user_stats += f"server listeners: {server_listener_count}"
+                                except:
+                                    pass
 
             if rym_albumrating == "on":
                 # rym import under construction
