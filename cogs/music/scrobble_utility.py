@@ -3642,6 +3642,203 @@ class Music_Scrobbling(commands.Cog):
 
 
 
+    #############################################################################################################################################
+
+    @to_thread 
+    def servertop_artist_and_crownholder_fetch(self, ctx, top):
+        con = sqlite3.connect('databases/npsettings.db')
+        cur = con.cursor()
+        lfm_list = [[item[0],item[1],str(item[2]).lower().strip()] for item in cur.execute("SELECT id, lfm_name, details FROM lastfm").fetchall()]
+
+        conSS = sqlite3.connect('databases/scrobblestats.db')
+        curSS = conSS.cursor()
+        curSS.execute(f'''CREATE TABLE IF NOT EXISTS [crowns_{str(ctx.guild.id)}] (artist text, alias text, alias2 text, crown_holder text, discord_name text, playcount integer)''')
+
+        conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+        curFM2 = conFM2.cursor()
+
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+
+        lfmname_dict = {}
+        count_list = []
+        total_plays = 0
+        server_listeners = 0
+        server_member_ids = [x.id for x in ctx.guild.members]
+
+        scrobble_dict = {}
+        clearname_dict = {}
+        listener_dict = {}
+
+        # FETCHING LOOP
+
+        print("starting search")
+        for useritem in lfm_list:
+            try:
+                user_id = int(useritem[0])
+            except Exception as e:
+                print("Error:", e)
+                continue
+
+            lfm_name = useritem[1]
+            status = useritem[2]
+
+            if type(status) == str and (status.startswith(("wk_banned", "scrobble_banned")) or (status.endswith("inactive") and str(ctx.guild.id) == str(os.getenv("guild_id")))):
+                continue
+
+            if user_id not in server_member_ids:
+                continue
+
+            if lfm_name in lfmname_dict.keys(): # check if lfm_name was already added
+                continue
+
+            lfmname_dict[user_id] = lfm_name
+
+            print(f"user: {lfm_name}")
+
+            local_listener_dict = {}
+
+            # GET DATA
+            try:
+                scrobbles = [[item[0], item[1]] for item in curFM2.execute(f"SELECT artist_name, count FROM [{lfm_name}]").fetchall()]
+            except:
+                print(f"user {lfm_name} does not have imported scrobbles")
+                continue
+                
+            if len(scrobbles) > 0:
+                server_listeners += 1
+
+            for scrobble_item in scrobbles:
+                compactname = scrobble_item[0]
+                plays       = scrobble_item[1]
+                total_plays += plays
+
+                scrobble_dict[compactname] = scrobble_dict.get(compactname, 0) + plays
+
+                if compactname not in local_listener_dict:
+                    local_listener_dict[compactname] = True
+                    listener_dict[compactname] = listener_dict.get(compactname, 0) + 1
+            
+        print(f"finished search: {total_plays} scrobbles in total")
+
+        # MAKE LIST AND SORT
+
+        scrobble_list = []
+        top_last_count = 0
+
+        for compactname, playcount in scrobble_dict.items():
+            listeners = listener_dict[compactname]
+            scrobble_list.append([compactname, playcount, listeners])
+
+        scrobble_list.sort(key = lambda x: x[2], reverse = True)
+        scrobble_list.sort(key = lambda x: x[1], reverse = True)
+
+        result_list = []
+
+        i = 0
+        for item in scrobble_list:
+            i += 1
+            if i > top:
+                break
+
+            compactname = item[0]
+            playcount   = item[1]
+            listeners   = item[2]
+
+            artistinfo_list = [item[0] for item in curSM.execute("SELECT artist FROM artistinfo WHERE filtername = ?", (compactname, )).fetchall()]
+
+            if len(artistinfo_list) > 0:
+                artistname = artistinfo_list[0]
+            else:
+                artistname = compactname
+
+            crown_list = [[item[0], util.forceinteger(item[1])] for item in curSS.execute(f"SELECT crown_holder, playcount FROM crowns_{str(ctx.guild.id)} WHERE alias = ?", (compactname,)).fetchall()]
+
+            if len(crown_list) > 0 and crown_list[0][0] in lfmname_dict.values():
+                crownholder = crown_list[0][0]
+                crownplays  = crown_list[0][1]
+            else:
+                crownholder = ""
+                crownplays  = 0
+
+            result_list.append([artistname, playcount, listeners, crownholder, crownplays])
+
+        return result_list
+
+
+
+    @commands.command(name='servercrownholders', aliases = ["sch"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _servercrownholders(self, ctx: commands.Context, *args):
+        """Shows Top 100 artists + crown holders
+
+        Specify a number X to see a list of the top X artists.
+        """
+        async with ctx.typing():
+
+            top = 100
+
+            if len(args) > 0:
+                if args[0].strip().lower() in ["all", "a"]:
+                    top = 9223372036854775807 # arbitrary high number
+                else:
+                    num_arg = util.forceinteger(args[0])
+                    if num_arg > 0:
+                        top = num_arg
+
+            result_list = await self.servertop_artist_and_crownholder_fetch(ctx, top)
+
+            # CREATE STRING LIST
+
+            emoji = util.emoji("crown")
+            header = f"Top artists and crowns on {ctx.guild.name} {emoji}"
+
+            contents = [""]
+            i = 0 #indexnumber
+            j = 0 #item on this page
+            k = 0 #pagenumber
+            for item in result_list:
+                artistname  = item [0] 
+                playcount   = item [1] 
+                listeners   = item [2] 
+                crownholder = item [3] 
+                crownplays  = item [4] 
+
+                i += 1
+                j += 1
+                info = f"`{i}.` **{artistname} :**  {playcount} plays - {listeners} listeners"
+
+                if crownholder.strip() != "":
+                    info += f" - [{crownholder}](https://www.last.fm/user/{crownholder}) ({crownplays} plays)"
+                else:
+                    info += f" - `<it's free real estate>`"
+
+                if j <= 15:    
+                    contents[k] = contents[k] + "\n" + info 
+                else:
+                    k = k+1
+                    j = 0
+                    contents.append(info)
+
+            footer = ""
+            color = 0x9d2933
+
+            # SEND EMBED MESSAGE
+            reply = True
+            show_author = False
+            await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer, reply, show_author)
+
+    @_servercrownholders.error
+    async def servercrownholders_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    ##############################################################################################################################################
+
+
+
     @commands.command(name='ms', aliases = ["milestone", "scrobble"])
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
