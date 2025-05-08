@@ -1891,14 +1891,16 @@ class General_Utility(commands.Cog):
 
         First needs to specify a time, which can be either given by `in` and a time period
         i.e. 
-        > `-remind in 5 hours blablabla`
+        > `<prefix>remind in 5 hours blablabla`
         or an `at` and a given time in the future in UNIX timestamp format
         i.e. 
-        > `-remind at 2023668360 blablabla`
+        > `<prefix>remind at 2023668360 blablabla`
         the rest is considered part of the reminder content.
 
         has subcommand:
         🔒`recurring`
+
+        Use command `<prefix>reminders` to get overview of your reminders, or delete your reminders.
         """
 
         user_perms = [p for p in ctx.author.guild_permissions]
