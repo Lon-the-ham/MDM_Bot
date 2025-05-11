@@ -3767,7 +3767,7 @@ class Music_Scrobbling(commands.Cog):
 
 
 
-    @commands.command(name='servercrownholders', aliases = ["sch"])
+    @commands.command(name='serverartistcrowns', aliases = ["serverartistcrownholders", "sach", "servercrownholders", "sch", "artistcrowns"])
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
     async def _servercrownholders(self, ctx: commands.Context, *args):
