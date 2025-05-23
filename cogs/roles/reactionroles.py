@@ -2,7 +2,8 @@ import os
 import discord
 from discord.ext import commands
 import sqlite3
-
+import traceback
+from other.utils.utils import Utils as util
 
 
 class RoleEvents(commands.Cog):
@@ -39,8 +40,9 @@ class RoleEvents(commands.Cog):
 
         # CHECK SETTINGS
 
-        conB = sqlite3.connect(f'databases/botsettings.db')
-        curB = conB.cursor()
+        conB, curB = await util.database_connect_with_retries("botsettings", 2)
+        if conB is None:
+            return
 
         try:
             reaction_role_settings_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("reaction roles", )).fetchall()]
