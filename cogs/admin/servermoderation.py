@@ -1179,6 +1179,147 @@ class Administration_of_Server(commands.Cog):
 
 
 
+    ##################################################################################
+
+
+
+    @commands.command(name='userinfo', aliases = ['memberinfo'])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _userinfo(self, ctx: commands.Context, *args):
+        """Show info about user
+        """
+        try:
+            user_id, rest = await util.fetch_id_from_args("user", "first", args)
+            for member in ctx.guild.members:
+                if str(member.id) == user_id:
+                    user = member
+                    break
+            else:
+                raise ValueError("Member not found")
+        except:
+            emoji = util.emoji("sad")
+            await ctx.send(f"Could not find such a member. {emoji}")
+            return
+
+        roles = user.roles[-1:0:-1]
+        names = [user.name, user.display_name, user.nick]
+
+        joined_at = user.joined_at
+        since_created = (ctx.message.created_at - user.created_at).days
+        if joined_at is not None:
+            since_joined = (ctx.message.created_at - joined_at).days
+            user_joined = joined_at.strftime("%d %b %Y %H:%M")
+        else:
+            since_joined = "?"
+            user_joined = _("Unknown")
+        user_created = user.created_at.strftime("%d %b %Y %H:%M")
+        voice_state = user.voice
+        member_number = (
+            sorted(ctx.guild.members, key=lambda m: m.joined_at or ctx.message.created_at).index(user)
+            + 1
+        )
+
+        created_on = ("{}\n({} days ago)").format(user_created, since_created)
+        joined_on = ("{}\n({} days ago)").format(user_joined, since_joined)
+
+        if user.status.name == "online":
+            if user.is_on_mobile() is True:
+                statusemoji = "https://cdn.discordapp.com/emojis/554418132953989140.png?v=1"
+            else:
+                statusemoji = "https://cdn.discordapp.com/emojis/642458713738838017.png?v=1"
+        elif user.status.name == "offline":
+            statusemoji = "https://cdn.discordapp.com/emojis/642458714074513427.png?v=1"
+        elif user.status.name == "dnd":
+            statusemoji = "https://cdn.discordapp.com/emojis/642458714145816602.png?v=1"
+        elif user.status.name == "streaming":
+            statusemoji = "https://cdn.discordapp.com/emojis/642458713692569602.png?v=1"
+        elif user.status.name == "idle":
+            statusemoji = "https://cdn.discordapp.com/emojis/642458714003210240.png?v=1"
+
+        if roles:
+
+            role_str = ", ".join([x.mention for x in roles])
+            # 400 BAD REQUEST (error code: 50035): Invalid Form Body
+            # In embed.fields.2.value: Must be 1024 or fewer in length.
+            if len(role_str) > 1024:
+                # Alternative string building time.
+                # This is not the most optimal, but if you're hitting this, you are losing more time
+                # to every single check running on users than the occasional user info invoke
+                # We don't start by building this way, since the number of times we hit this should be
+                # infintesimally small compared to when we don't across all uses of Red.
+                continuation_string = _(
+                    "and {numeric_number} more roles not displayed due to embed limits."
+                )
+                available_length = 1024 - len(continuation_string)  # do not attempt to tweak, i18n
+
+                role_chunks = []
+                remaining_roles = 0
+
+                for r in roles:
+                    chunk = f"{r.mention}, "
+                    chunk_size = len(chunk)
+
+                    if chunk_size < available_length:
+                        available_length -= chunk_size
+                        role_chunks.append(chunk)
+                    else:
+                        remaining_roles += 1
+
+                role_chunks.append(continuation_string.format(numeric_number=remaining_roles))
+
+                role_str = "".join(role_chunks)
+
+        else:
+            role_str = None
+
+        activity_list = []
+        i = 0
+        for activity in member.activities:
+            i += 1
+            string = util.cleantext2(activity.name)
+            activity_list.append(string)
+
+        status = ', '.join(activity_list)
+
+        if status.strip() == "":
+            status = "None"
+
+        data = discord.Embed(description=f"Status: {status}", colour=user.colour)
+            
+        data.add_field(name=("Joined Discord on"), value=created_on)
+        data.add_field(name=("Joined this server on"), value=joined_on)
+        if role_str is not None:
+            data.add_field(name=("Roles"), value=role_str, inline=False)
+        if names:
+            val = ", ".join(names)
+            data.add_field(name=("Names"), value=val, inline=False)
+
+        data.set_footer(text=("Member #{} | User ID: {}").format(member_number, user.id))
+
+        name = str(user)
+        name = " ~ ".join((name, user.nick)) if user.nick else name
+
+        if user.avatar:
+            data.set_author(name=f"{member.display_name}'s user info" , icon_url=member.avatar)
+            data.set_thumbnail(url=member.avatar)
+        else:
+            data.set_author(name=name)
+
+        await ctx.send(embed=data)
+
+    @_userinfo.error
+    async def useractivities_error(self, ctx, error):
+        await util.error_handling(ctx, error) 
+
+
+
+
+    ###########################################################################################################################################
+
+
+
     def checkfile(self, filename):
         """returns True if .db file is readable"""
         if filename.endswith(".db"):
