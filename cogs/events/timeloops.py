@@ -259,8 +259,10 @@ class TimeLoops(commands.Cog):
     async def temp_reminders(self):
         # FETCH DATA FROM DATABASE
 
-        con = sqlite3.connect(f'databases/timetables.db')
-        cur = con.cursor()
+        con, cur = await util.database_connect_with_retries("timetables")
+        if con is None:
+            return
+
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
         reminder_list = [[item[0],item[1],item[2],item[3],item[4],item[5]] for item in cur.execute("SELECT userid, utc_timestamp, remindertext, channel, og_message, og_time FROM reminders WHERE cast(utc_timestamp as integer) <= ?", (now,)).fetchall()]
         
@@ -355,8 +357,10 @@ class TimeLoops(commands.Cog):
     async def recc_reminders(self):
         # FETCH DATA FROM DATABASE
 
-        con = sqlite3.connect(f'databases/timetables.db')
-        cur = con.cursor()
+        con, cur = await util.database_connect_with_retries("timetables")
+        if con is None:
+            return
+
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
         reminder_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6],item[7],item[8]] for item in cur.execute("SELECT pinglist, interval, remindertitle, remindertext, adaptivelink, channel, emoji, thumbnail, next_time FROM recurring WHERE cast(next_time as integer) <= ?", (now,)).fetchall()]
 
@@ -504,8 +508,10 @@ class TimeLoops(commands.Cog):
     async def unmuting(self):
         # FETCH DATA FROM DATABASE
 
-        con = sqlite3.connect(f'databases/timetables.db')
-        cur = con.cursor()
+        con, cur = await util.database_connect_with_retries("timetables")
+        if con is None:
+            return
+
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
         reminder_list_pre = [[item[0],item[1],item[2]] for item in cur.execute("SELECT userid, utc_timestamp, role_id_list FROM timeout").fetchall()]
         
@@ -662,8 +668,9 @@ class TimeLoops(commands.Cog):
     # daily update time
 
     async def get_update_hours(self):
-        conA = sqlite3.connect(f'databases/activity.db')
-        curA = conA.cursor()
+        conA, curA = await util.database_connect_with_retries("activity")
+        if conA is None:
+            return
 
         hostdata_dailyupdate_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", ("daily update time",)).fetchall()]
         if len(hostdata_dailyupdate_list) == 0:
@@ -707,8 +714,10 @@ class TimeLoops(commands.Cog):
             return
 
         # first check if auto-update is enabled
-        conB = sqlite3.connect('databases/botsettings.db')
-        curB = conB.cursor()
+        conB, curB = await util.database_connect_with_retries("botsettings")
+        if conB is None:
+            return
+
         scrobblefeature_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("scrobbling functionality",)).fetchall()]
         scrobbleautoupdate_list = [item[0] for item in curB.execute("SELECT value FROM serversettings WHERE name = ?", ("scrobbling update automation",)).fetchall()]
 
@@ -819,8 +828,10 @@ class TimeLoops(commands.Cog):
     async def update_recency_check(self):
         await asyncio.sleep(5) # give some leeway in case ExchangeRate-API had few seconds of delay
 
-        con = sqlite3.connect('databases/exchangerate.db')
-        cur = con.cursor()
+        con, cur = await util.database_connect_with_retries("exchangerate")
+        if con is None:
+            return
+
         cur.execute('''CREATE TABLE IF NOT EXISTS USDexchangerate (code text, value text, currency text, country text, last_updated text, time_stamp text)''')
         timestamps = [[item[0],item[1]] for item in cur.execute("SELECT last_updated, time_stamp FROM USDexchangerate").fetchall()]
 
@@ -975,8 +986,9 @@ class TimeLoops(commands.Cog):
 
         # UPDATE EMOJI IN BOTSETTINGS
 
-        conB = sqlite3.connect('databases/botsettings.db')
-        curB = conB.cursor()
+        conB, curB = await util.database_connect_with_retries("botsettings")
+        if conB is None:
+            return
 
         botsettings_emoji = [[item[0],item[1]] for item in curB.execute("SELECT call, purpose FROM emojis WHERE call != ?", ("",)).fetchall()]
 
@@ -1174,8 +1186,9 @@ class TimeLoops(commands.Cog):
 
         # FETCH INACTIVITY FILTER SETTINGS
 
-        conB = sqlite3.connect('databases/botsettings.db')
-        curB = conB.cursor()
+        conB, curB = await util.database_connect_with_retries("botsettings")
+        if conB is None:
+            return
 
         inactivityfilter_setting = [[item[0], item[1], item[2]] for item in curB.execute("SELECT value, details, etc FROM serversettings WHERE name = ?", ("inactivity filter", )).fetchall()]
 
@@ -1332,8 +1345,10 @@ class TimeLoops(commands.Cog):
 
     async def clear_databases(self):
         # robot activity
-        conRA = sqlite3.connect('databases/robotactivity.db')
-        curRA = conRA.cursor()
+        conRA, curRA = await util.database_connect_with_retries("robotactivity")
+        if conRA is None:
+            return
+
         rawreactionembed_list = [[item[0],item[1], util.forceinteger(item[2])] for item in curRA.execute("SELECT channel_id, message_id, utc_timestamp FROM raw_reaction_embeds").fetchall()]
         
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
