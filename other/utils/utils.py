@@ -2954,6 +2954,39 @@ class Utils():
 
 
 
+    async def database_connect_with_retries(name, waiting_time = 10):
+        try:
+            con = sqlite3.connect(f'databases/{name}.db')
+            cur = con.cursor()
+        except Exception as e1:
+            try:
+                print(f"Connecting to {name}.db failed. {e1} \nRetrying 2nd time in 10 seconds...")
+                await asyncio.sleep(waiting_time)
+                con = sqlite3.connect(f'databases/{name}.db')
+                cur = con.cursor()
+            except Exception as e2:
+                try:
+                    print(f"Connecting to {name}.db failed again. {e1} \nRetrying 3rd time in 10 seconds...")
+                    await asyncio.sleep(waiting_time)
+                    con = sqlite3.connect(f'databases/{name}.db')
+                    cur = con.cursor()
+                except Exception as e3:    
+                    print(f"Connecting to {name}.db failed yet again. >_<")
+                    error_string = f"Error: ```{e3}```"
+                    error_string += f"\nError Traceback: ``` " + f"{traceback.format_exc()}"[:3600] + f"```"
+                    try:
+                        botspamchannel_id = int(os.getenv("bot_channel_id"))
+                        botspamchannel = self.bot.get_channel(botspamchannel_id)             
+                        title = "⚠️ Error"
+                        embed=discord.Embed(title=title, description=error_string[:4096], color=0x000000)
+                        await botspamchannel.send(embed=embed)
+                    except:
+                        print("ERROR:", error_string)
+                    return None, None
+        return con, cur
+
+
+
     async def embed_pages(ctx, bot, header, description_list, color, footer, reply=False, show_author=False):
         """show_author can be a bool or a tuple of user_id and author text"""
         pages = len(description_list)
