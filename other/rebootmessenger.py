@@ -43,13 +43,14 @@ bot_channel_id = int(os.getenv("bot_channel_id"))
 async def sendit(string, d_client):
     await d_client.login(discord_token)
     channel = await d_client.fetch_channel(bot_channel_id)
-    await channel.send(string)
+    await channel.send(string[:2000])
+    if len(string) > 2000:
+        await channel.send("`[truncated]`")
 
     utc_time_stamp = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
     timestring = f"<t:{utc_time_stamp}:F>"
 
     try:
-
         # FETCH APP 
 
         try:
@@ -130,12 +131,12 @@ async def sendit(string, d_client):
 
             try:
                 try:
-                    await channel.send(textmessage, file=discord.File(rf"temp/backup_{date}_{instance}.zip"))
+                    await channel.send(textmessage[:2000], file=discord.File(rf"temp/backup_{date}_{instance}.zip"))
                 except:
                     try:
-                        await channel.send(textmessage, file=discord.File(rf"../temp/backup_{date}_{instance}.zip"))
+                        await channel.send(textmessage[:2000], file=discord.File(rf"../temp/backup_{date}_{instance}.zip"))
                     except:
-                        await channel.send(textmessage, file=discord.File(rf"{dirname(sys.path[0])}/temp/backup_{date}_{instance}.zip"))
+                        await channel.send(textmessage[:2000], file=discord.File(rf"{dirname(sys.path[0])}/temp/backup_{date}_{instance}.zip"))
             except Exception as e:
                 print(f"Error while trying to send backup file: {e}")
             try:
@@ -162,7 +163,7 @@ async def sendit(string, d_client):
                 channel.send("No cloud syncing of potential scrobble data, since Dropbox module not installed.")
 
     except Exception as e:
-        await channel.send(f"Error while trying to backup data.```{e}```")
+        await channel.send(f"Error while trying to backup data.```{e}```"[:2000])
 
 
 
@@ -249,23 +250,23 @@ def dropbox_list_folder(dbx, folder, subfolder):
 
 
 
-def dropbox_download(dbx, folder, subfolder, name):
-    """Download a file.
-
-    Return the bytes of the file, or None if it doesn't exist.
-    """
-    path = '/%s/%s/%s' % (folder, subfolder.replace(os.path.sep, '/'), name)
-    while '//' in path:
-        path = path.replace('//', '/')
-    with stopwatch('download'):
-        try:
-            md, res = dbx.files_download(path)
-        except dropbox.exceptions.HttpError as err:
-            print('*** HTTP error', err)
-            return None
-    data = res.content
-    print(len(data), 'bytes; md:', md)
-    return data
+#def dropbox_download(dbx, folder, subfolder, name):
+#    """Download a file.
+#
+#    Return the bytes of the file, or None if it doesn't exist.
+#    """
+#    path = '/%s/%s/%s' % (folder, subfolder.replace(os.path.sep, '/'), name)
+#    while '//' in path:
+#        path = path.replace('//', '/')
+#    with stopwatch('download'):
+#        try:
+#            md, res = dbx.files_download(path)
+#        except dropbox.exceptions.HttpError as err:
+#            print('*** HTTP error', err)
+#            return None
+#    data = res.content
+#    print(len(data), 'bytes; md:', md)
+#    return data
 
 
 
@@ -634,7 +635,13 @@ async def get_temporary_dropbox_token(ctx, bot):
             expiration_time = now + duration
             print("using fresh token")
 
-            await channel.send(f"`token:` {encoded_key}\n`expires:` {expiration_time}")
+            message = f"`token:` {encoded_key}\n`expires:` {expiration_time}"
+
+            if len(message) <= 2000:
+                await channel.send(message)
+            else:
+                await channel.send("Token is too long to store here.")
+
 
     if len(token_list) > 0:
         cur.execute("UPDATE hostdata SET value = ?, details = ? WHERE name = ?", (temp_token, str(expiration_time), "dropbox token"))
