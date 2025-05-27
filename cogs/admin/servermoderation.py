@@ -1310,11 +1310,62 @@ class Administration_of_Server(commands.Cog):
         await ctx.send(embed=data)
 
     @_userinfo.error
-    async def useractivities_error(self, ctx, error):
+    async def userinfo_error(self, ctx, error):
         await util.error_handling(ctx, error) 
 
 
 
+    @commands.command(name='threads', aliases = ['thread'])
+    @commands.has_permissions(manage_guild=True)
+    #@commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _threadsinfo(self, ctx: commands.Context, *args):
+        """Shows threads on server
+        """
+
+        await ctx.send("under construction")
+
+        total_text_channels = len(ctx.guild.text_channels)
+        total_voice_channels = len(ctx.guild.voice_channels)
+        total_threads = "?" # under construction (if solution to this found)
+        open_threads = 0
+        for channel in ctx.guild.text_channels:
+            open_threads += len(channel.threads)
+
+        try:
+            # fetch reference role (verified/community/everyone)
+            reference_role = await util.get_reference_role(ctx)
+            # check public channels
+            public_channels_readonly = 0
+            public_channels_write = 0
+            public_open_threads = 0
+            for channel in ctx.guild.text_channels:
+                public_perms = channel.permissions_for(reference_role)
+                publicview = False
+                if ('send_messages', True) in public_perms:
+                    public_channels_write += 1
+                    publicview = True
+                elif ('read_messages', True) in public_perms:
+                    public_channels_readonly += 1
+                    publicview = True
+
+                if publicview:
+                    for thread in channel.threads:
+                        if thread.archived or thread.locked:
+                            pass
+                        else:
+                            public_open_threads += 1
+            public_vc = 0
+            for channel in ctx.guild.voice_channels:
+                voice_perms = channel.permissions_for(reference_role)
+                if ('connect', True) in voice_perms:
+                    public_vc += 1
+
+    @_userinfo.error
+    async def threadsinfo_error(self, ctx, error):
+        await util.error_handling(ctx, error) 
+
+        
 
     ###########################################################################################################################################
 
