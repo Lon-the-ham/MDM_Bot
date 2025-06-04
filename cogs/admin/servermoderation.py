@@ -1189,22 +1189,25 @@ class Administration_of_Server(commands.Cog):
     @commands.check(util.is_active)
     async def _userinfo(self, ctx: commands.Context, *args):
         """Show info about user
+
+        has to be a member of the server
         """
-        try:
-            user_id, rest = await util.fetch_id_from_args("user", "first", args)
-            for member in ctx.guild.members:
-                if str(member.id) == user_id:
-                    user = member
-                    break
-            else:
-                raise ValueError("Member not found")
-        except:
+
+        user = await util.fetch_member_tryloop(ctx, args)
+
+        if user is None:
             emoji = util.emoji("sad")
             await ctx.send(f"Could not find such a member. {emoji}")
             return
 
         roles = user.roles[-1:0:-1]
-        names = [user.name, user.display_name, user.nick]
+        names = list(dict.fromkeys([str(user.name), str(user.display_name), str(user.nick)]))
+
+        while "" in names:
+            names.remove("")
+
+        while "None" in names:
+            names.remove("None")
 
         joined_at = user.joined_at
         since_created = (ctx.message.created_at - user.created_at).days
@@ -1224,22 +1227,7 @@ class Administration_of_Server(commands.Cog):
         created_on = ("{}\n({} days ago)").format(user_created, since_created)
         joined_on = ("{}\n({} days ago)").format(user_joined, since_joined)
 
-        if user.status.name == "online":
-            if user.is_on_mobile() is True:
-                statusemoji = "https://cdn.discordapp.com/emojis/554418132953989140.png?v=1"
-            else:
-                statusemoji = "https://cdn.discordapp.com/emojis/642458713738838017.png?v=1"
-        elif user.status.name == "offline":
-            statusemoji = "https://cdn.discordapp.com/emojis/642458714074513427.png?v=1"
-        elif user.status.name == "dnd":
-            statusemoji = "https://cdn.discordapp.com/emojis/642458714145816602.png?v=1"
-        elif user.status.name == "streaming":
-            statusemoji = "https://cdn.discordapp.com/emojis/642458713692569602.png?v=1"
-        elif user.status.name == "idle":
-            statusemoji = "https://cdn.discordapp.com/emojis/642458714003210240.png?v=1"
-
         if roles:
-
             role_str = ", ".join([x.mention for x in roles])
             # 400 BAD REQUEST (error code: 50035): Invalid Form Body
             # In embed.fields.2.value: Must be 1024 or fewer in length.
@@ -1249,7 +1237,7 @@ class Administration_of_Server(commands.Cog):
                 # to every single check running on users than the occasional user info invoke
                 # We don't start by building this way, since the number of times we hit this should be
                 # infintesimally small compared to when we don't across all uses of Red.
-                continuation_string = _(
+                continuation_string = (
                     "and {numeric_number} more roles not displayed due to embed limits."
                 )
                 available_length = 1024 - len(continuation_string)  # do not attempt to tweak, i18n
@@ -1270,13 +1258,12 @@ class Administration_of_Server(commands.Cog):
                 role_chunks.append(continuation_string.format(numeric_number=remaining_roles))
 
                 role_str = "".join(role_chunks)
-
         else:
             role_str = None
 
         activity_list = []
         i = 0
-        for activity in member.activities:
+        for activity in user.activities:
             i += 1
             string = util.cleantext2(activity.name)
             activity_list.append(string)
@@ -1302,8 +1289,8 @@ class Administration_of_Server(commands.Cog):
         name = " ~ ".join((name, user.nick)) if user.nick else name
 
         if user.avatar:
-            data.set_author(name=f"{member.display_name}'s user info" , icon_url=member.avatar)
-            data.set_thumbnail(url=member.avatar)
+            data.set_author(name=f"{user.display_name}'s user info" , icon_url=user.avatar)
+            data.set_thumbnail(url=user.avatar)
         else:
             data.set_author(name=name)
 
@@ -1320,48 +1307,64 @@ class Administration_of_Server(commands.Cog):
     #@commands.check(util.is_main_server)
     @commands.check(util.is_active)
     async def _threadsinfo(self, ctx: commands.Context, *args):
-        """Shows threads on server
+        """Shows server threads
+
+        Shows the open threads for each publicly readable channel of a server.
         """
+        description_list_public = []
+        description_list_restricted = []
 
-        await ctx.send("under construction")
+        # fetch reference role (verified/community/everyone)
+        reference_role = await util.get_reference_role(ctx)
 
-        total_text_channels = len(ctx.guild.text_channels)
-        total_voice_channels = len(ctx.guild.voice_channels)
-        total_threads = "?" # under construction (if solution to this found)
-        open_threads = 0
+        # check public channels
+        public_channels = 0
+        restricted_channels = 0
+
         for channel in ctx.guild.text_channels:
-            open_threads += len(channel.threads)
+            public_perms = channel.permissions_for(reference_role)
 
-        try:
-            # fetch reference role (verified/community/everyone)
-            reference_role = await util.get_reference_role(ctx)
-            # check public channels
-            public_channels_readonly = 0
-            public_channels_write = 0
-            public_open_threads = 0
-            for channel in ctx.guild.text_channels:
-                public_perms = channel.permissions_for(reference_role)
-                publicview = False
-                if ('send_messages', True) in public_perms:
-                    public_channels_write += 1
-                    publicview = True
-                elif ('read_messages', True) in public_perms:
-                    public_channels_readonly += 1
-                    publicview = True
+            if ('send_messages', True) in public_perms:
+                description_list_public.append("")
+                description_list_public[public_channels] += f"**Channel:** <#{channel.id}>\n"
 
-                if publicview:
-                    for thread in channel.threads:
-                        if thread.archived or thread.locked:
-                            pass
-                        else:
-                            public_open_threads += 1
-            public_vc = 0
-            for channel in ctx.guild.voice_channels:
-                voice_perms = channel.permissions_for(reference_role)
-                if ('connect', True) in voice_perms:
-                    public_vc += 1
+                if len(channel.threads) > 0:
+                    description_list_public[public_channels] += "\nOpen thread(s):"
+                else:
+                    description_list_public[public_channels] += "\n*no open threads*"
 
-    @_userinfo.error
+                for thread in channel.threads:
+                    if thread.archived or thread.locked:
+                        pass
+                    else:
+                        description_list_public[public_channels] += f"\n<#{thread.id}>"
+
+                public_channels += 1
+
+            elif ('read_messages', True) in public_perms:
+                description_list_restricted.append("")
+                description_list_restricted[restricted_channels] += f"**Channel:** <#{channel.id}> 🔒\n"
+
+                if len(channel.threads) > 0:
+                    description_list_restricted[restricted_channels] += "\nOpen thread(s):"
+                else:
+                    description_list_restricted[restricted_channels] += "\n*no open threads*"
+
+                for thread in channel.threads:
+                    if thread.archived or thread.locked:
+                        pass
+                    else:
+                        description_list_restricted[restricted_channels] += f"\n<#{thread.id}>"
+
+                restricted_channels += 1
+
+        color = 0x000000
+        footer = ""
+        header = f"Public channels/threads of {ctx.guild.name}"
+        description_list = description_list_public + description_list_restricted
+        await util.embed_pages(ctx, self.bot, header, description_list, color, footer, True, False)
+
+    @_threadsinfo.error
     async def threadsinfo_error(self, ctx, error):
         await util.error_handling(ctx, error) 
 
