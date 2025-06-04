@@ -2011,7 +2011,7 @@ class General_Utility(commands.Cog):
             await util.changetimeupdate()
             seconds_until = utc_timestamp - now
             readable_time = util.seconds_to_readabletime(seconds_until, False, now)
-            await ctx.reply(f"Alrighty. Will remind you in {readable_time} or so.\n(ID: {reminder_id})", mention_author=False)
+            await ctx.reply(f"Alrighty. Will remind you in {readable_time} or so.\n(ID: {reminder_id} | <t:{utc_timestamp}:f>)", mention_author=False)
 
         else:
             try:
