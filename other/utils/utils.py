@@ -3261,6 +3261,46 @@ class Utils():
 
 
 
+    async def fetch_member_tryloop(ctx, args):
+        # SEARCH USER VIA ID
+        try:
+            user_id, rest = await Utils.fetch_id_from_args("user", "first", args)
+            for member in ctx.guild.members:
+                if str(member.id) == user_id:
+                    return member
+        except:
+            pass # fetching probably failed
+
+        # SEARCH USER VIA EXACT NAME
+        user_name = '_'.join(args).lower()
+        for member in ctx.guild.members:
+            if str(member.name).lower() == user_name:
+                return member
+
+        # SEARCH USER VIA EXACT NICK
+        user_nick = ' '.join(args).lower()
+        for member in ctx.guild.members:
+            if str(member.display_name).lower() == user_nick:
+                return member
+
+        # SEARCH USER VIA COMPACT NAME
+        user_name_compact = Utils.alphanum(' '.join(args).lower())
+        if len(user_name_compact) > 0:
+            for member in ctx.guild.members:
+                if Utils.alphanum(str(member.name).lower()) == user_name_compact:
+                    return member
+
+        # SEARCH USER VIA COMPACT NICK
+        user_nick_compact = Utils.alphanum(' '.join(args).lower())
+        if len(user_nick_compact) > 0:
+            for member in ctx.guild.members:
+                if Utils.alphanum(str(member.display_name).lower()) == user_nick_compact:
+                    return member
+        
+        return None
+
+
+
     async def fetch_role_by_name(ctx, word_string):
         # input string of role name
         # output role object
