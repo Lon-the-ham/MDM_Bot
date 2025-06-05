@@ -104,7 +104,7 @@ class Help(commands.Cog):
         async with ctx.typing():
 
             # filter for commands with descriptions starting with a lock emoji
-            if len(args) == 1 and args[0].lower() in ["memberview", "simple", "pleb"]:
+            if len(args) == 1 and args[0].lower() in ["memberview", "simple", "pleb", "user", "member"]:
                 only_locks = False
                 ignore_locks = True
             elif len(args) == 1 and args[0].lower() in ["mod", "mods", "moderator", "moderation", "moderators"]: 
