@@ -2006,18 +2006,18 @@ class Music_Scrobbling(commands.Cog):
             "q":         90*24*60*60,
             "quarter":   90*24*60*60,
             "quarterly": 90*24*60*60,
-            "h":          180*24*60*60,
-            "half":       180*24*60*60,
-            "halfyear":   180*24*60*60,
-            "halfyearly": 180*24*60*60,
-            "y":      365*24*60*60,
-            "year":   365*24*60*60,
-            "yearly": 365*24*60*60,
-            "a":        now,
-            "at":       now,
-            "all":      now,
-            "alltime":  now,
-            "all-time": now,
+            #"h":          180*24*60*60,
+            #"half":       180*24*60*60,
+            #"halfyear":   180*24*60*60,
+            #"halfyearly": 180*24*60*60,
+            #"y":      365*24*60*60,
+            #"year":   365*24*60*60,
+            #"yearly": 365*24*60*60,
+            #"a":        now,
+            #"at":       now,
+            #"all":      now,
+            #"alltime":  now,
+            #"all-time": now,
         }
 
         time_text_dict = {
@@ -2026,9 +2026,9 @@ class Music_Scrobbling(commands.Cog):
             14*24*60*60 : " past two weeks",
             30*24*60*60 : " past 30 days",
             90*24*60*60 : " past quarter",
-            180*24*60*60: " past half year",
-            365*24*60*60: " past year",
-            now         : " (all time)",
+            #180*24*60*60: " past half year",
+            #365*24*60*60: " past year",
+            #now         : " (all time)",
         }
 
         args = argument.split()
@@ -5039,7 +5039,7 @@ class Music_Scrobbling(commands.Cog):
     async def _serverartists(self, ctx: commands.Context, *args):
         """Serverwide top artists
 
-        Timeframe defaults to `week`, but you can specify also `day`, `month`, `quarter`, `half`, `year`.
+        Timeframe defaults to `week`, but you can specify also `day`, `month`, `quarter`, `half` (disabled), `year` (disabled).
 
         Sorting is per default by `score`, but you can also specify `plays` or `listeners`.
         The score is calculated via the sum of squareroot of plays over all listeners.
@@ -5066,7 +5066,7 @@ class Music_Scrobbling(commands.Cog):
     async def _serveralbums(self, ctx: commands.Context, *args):
         """Serverwide top albums
 
-        Timeframe defaults to `week`, but you can specify also `day`, `month`, `quarter`, `half`, `year`.
+        Timeframe defaults to `week`, but you can specify also `day`, `month`, `quarter`, `half` (disabled), `year` (disabled).
 
         Sorting is per default by `score`, but you can also specify `plays` or `listeners`.
         The score is calculated via the sum of squareroot of plays over all listeners.
@@ -5093,7 +5093,7 @@ class Music_Scrobbling(commands.Cog):
     async def _servertracks(self, ctx: commands.Context, *args):
         """Serverwide top tracks
 
-        Timeframe defaults to `week`, but you can specify also `day`, `month`, `quarter`, `half`, `year`.
+        Timeframe defaults to `week`, but you can specify also `day`, `month`, `quarter`, `half` (disabled), `year` (disabled).
 
         Sorting is per default by `score`, but you can also specify `plays` or `listeners`.
         The score is calculated via the sum of squareroot of plays over all listeners.
