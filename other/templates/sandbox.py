@@ -45,6 +45,8 @@ class SandBox(commands.Cog):
     # 3. async def <_sandbox_test>(self, ctx):
     # 4. @<_sandbox_test>.error
     # 5. async def <sandbox_test_error>(self, ctx, error):
+    # 
+    # (do not use an already existing command name, you can check this by using -help name within discord. if the response is "Don't think I got that command, chief!" then you're good to go)
 
 
 
