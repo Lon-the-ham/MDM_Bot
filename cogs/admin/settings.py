@@ -6353,6 +6353,9 @@ class Administration_of_Settings(commands.Cog):
         await self.botupdating(ctx, is_setup)
     @_botupdate.error
     async def botupdate_error(self, ctx, error):
+        if isinstance(error, commands.MissingPermissions) and str(util.is_active_returnbool()):
+            await ctx.send(f'**Permission error**\nThis is the bot version update command. For updating scrobbles use `{self.prefix}u`.')
+            return
         await util.error_handling(ctx, error)
 
 
