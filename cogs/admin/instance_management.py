@@ -16,13 +16,13 @@ from discord.ext import commands
 import re
 from other.utils.utils import Utils as util
 
-# cloud stuff
-import contextlib
-import six
-import time
-import unicodedata
-
 try:
+    # cloud stuff
+    import contextlib
+    import six
+    import time
+    import unicodedata
+    
     import dropbox
     dropbox_enabled = True
 except:
@@ -268,7 +268,6 @@ class Administration_of_Bot_Instance(commands.Cog):
                 await channel.send(f"Cloud error: {e}")
                 print(traceback.format_exc())
             
-
 
 
     async def botrole_assignment(self, ctx, text):
