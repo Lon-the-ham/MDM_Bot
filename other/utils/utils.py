@@ -79,21 +79,25 @@ class Utils():
             return False
 
 
-    def is_active(*ctx):
+    def is_active_returnbool(*ctx):
         conA = sqlite3.connect(f'databases/activity.db')
         curA = conA.cursor()
         activity_list = [item[0] for item in curA.execute("SELECT value FROM activity WHERE name = ?", ("activity",)).fetchall()]
         
         if len(activity_list) != 1:
-            raise commands.CheckFailure("inactive")
             return False
         else:
             activity = activity_list[0]
             if activity == "active":
                 return True
             else:
-                raise commands.CheckFailure("inactive")
                 return False
+
+
+    def is_active(*ctx):
+        if Utils.is_active_returnbool():
+            return True
+        raise commands.CheckFailure("inactive")
 
 
     def is_host(ctx):
@@ -3269,7 +3273,7 @@ class Utils():
                 if str(member.id) == user_id:
                     return member
         except:
-            pass # fetching probably failed
+            pass # fetching probably 
 
         # SEARCH USER VIA EXACT NAME
         user_name = '_'.join(args).lower()
