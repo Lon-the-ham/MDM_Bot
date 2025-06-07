@@ -1501,7 +1501,7 @@ class Event_Response(commands.Cog):
 
                                 if turingtest_enabled and verified_role_id not in userroleIDs: # user does not have verified role
 
-                                    # actual ban
+                                    # prep
                                     print("user not verified yet. preparing to ban...")
 
                                     # get guild
@@ -1523,6 +1523,29 @@ class Event_Response(commands.Cog):
                                         print(10-i)
                                         await asyncio.sleep(1)
 
+                                    # send DM
+                                    try:
+                                        turingbanmessage_enabled = self.setting_enabled("turing ban message")
+
+                                        if turingbanmessage_enabled:
+                                            turingbanmessage_list = [item[0] for item in curB.execute("SELECT details FROM serversettings WHERE name = ?", ("turing ban message",)).fetchall()]
+
+                                            if len(turingbanmessage_list) > 0 and turingbanmessage_list[0].strip() != "":
+                                                try:
+                                                    user = await self.bot.fetch_user(user.id)
+                                                    message = await util.customtextparse(turingbanmessage_list[0].strip(), str(user.id))
+                                                    embed=discord.Embed(title="", description=message, color=0xB80F0A)
+                                                    await user.send(embed=embed)
+                                                    print("Successfully notified user.")
+                                                except Exception as e:
+                                                    print("Error while trying to DM banned user:", e)
+                                            else:
+                                                print("Turing ban message enabled but no message text provided.")
+
+                                    except Exception as e:
+                                        print("Error while preparing to send Turing-Test related DM:", e)
+
+                                    # actual ban
                                     await guild.ban(user, reason="Failed the Turing Test (auto-ban)", delete_message_days=0)
 
                                     # confirmation
@@ -1544,25 +1567,6 @@ class Event_Response(commands.Cog):
                                     wintersgate_channel = self.bot.get_channel(accesswallchannelid)
                                     emoji = util.emoji("bye")
                                     await wintersgate_channel.send(f'Bye <@{user.id}>! {emoji}')
-                                    
-
-                                    # send DM
-                                    turingbanmessage_enabled = self.setting_enabled("turing ban message")
-
-                                    if turingbanmessage_enabled:
-                                        turingbanmessage_list = [item[0] for item in curB.execute("SELECT details FROM serversettings WHERE name = ?", ("turing ban message",)).fetchall()]
-
-                                        if len(turingbanmessage_list) > 0 and turingbanmessage_list[0].strip() != "":
-                                            try:
-                                                user = await self.bot.fetch_user(user.id)
-                                                message = await util.customtextparse(turingbanmessage_list[0].strip(), str(user.id))
-                                                embed=discord.Embed(title="", description=message, color=0xB80F0A)
-                                                await user.send(embed=embed)
-                                                print("Successfully notified user.")
-                                            except Exception as e:
-                                                print("Error while trying to DM banned user:", e)
-                                        else:
-                                            print("Turing ban message enabled but no message text provided.")
 
         except Exception as e:
             print("Error in on_raw_reaction_add():", e)
