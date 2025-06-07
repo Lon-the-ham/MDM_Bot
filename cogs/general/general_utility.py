@@ -2636,6 +2636,224 @@ class General_Utility(commands.Cog):
 
 
 
+    ################################################### THREADS ########################################################
+
+
+
+    @commands.command(name='threads', aliases = ['thread'])
+    @commands.check(util.is_active)
+    async def _threadsinfo(self, ctx: commands.Context, *args):
+        """Shows the open threads for each publicly readable channel of a server.
+
+        Provide channel id, name or mention as argument to get a list of all threads of that channel.
+        Provide argument `a` to get an alphabetical list of all open threads of public channels.
+        Provide argument `mod` to get all open threads for non-publicly readable channels.
+        """
+        if len(args) == 0:
+            await self.public_threads_pageembed(ctx)
+            return
+
+        arg = util.alphanum(args[0].lower().strip())
+
+        if arg in ["mod", "moderator", "staff", "admin", "administrator", "restricted", "hidden"]:
+            await self.hidden_threads_pageembed(ctx)
+            return
+
+        if arg in ["a", "sorted", "alpha", "alfa", "alphabetical", "list", "listed", "sort"]:
+            await self.show_threads_alphabetical_list(ctx)
+            return
+
+        for channel in ctx.guild.text_channels:
+            if arg == str(channel.id):
+                await self.show_threads_of_channel(ctx, channel)
+                return
+
+        for channel in ctx.guild.text_channels:
+            if args[0].lower() == str(channel.name).lower():
+                await self.show_threads_of_channel(ctx, channel)
+                return
+
+        for channel in ctx.guild.text_channels:
+            if arg == util.alphanum(str(channel.name).lower().strip()):
+                await self.show_threads_of_channel(ctx, channel)
+                return
+
+        await self.public_threads_pageembed(ctx)
+
+    @_threadsinfo.error
+    async def threadsinfo_error(self, ctx, error):
+        await util.error_handling(ctx, error) 
+
+
+
+    async def show_threads_alphabetical_list(self, ctx):
+        thread_list = []
+        description_list = [""]
+        page_num = 0
+
+        # fetch reference role (verified/community/everyone)
+        reference_role = await util.get_reference_role(ctx)
+
+        # fetch all threads of public channels
+        for channel in ctx.guild.text_channels:
+            public_perms = channel.permissions_for(reference_role)
+
+            if ('send_messages', True) in public_perms or ('read_messages', True) in public_perms:
+                for thread in channel.threads:
+                    if thread.archived or thread.locked:
+                        pass
+                    else:
+                        if ('send_messages', True) in public_perms:
+                            extra = ""
+                        else:
+                            extra =" `🔒`"
+                        channel_name = util.cleantext(channel.name)
+                        thread_list.append([thread.id, str(thread.name).lower(), f"({channel_name}{extra})"])
+
+        # sort list
+        thread_list.sort(key=lambda x: x[1])
+
+        # arrange pages
+        for thread_item in thread_list:
+            thread_id    = thread_item[0]
+            channel_name = thread_item[2]
+
+            thread_mention = f"<#{thread_id}> {channel_name}\n"
+
+            if len(description_list[page_num]) + len(thread_mention) > 2000:
+                description_list.append("")
+                page_num += 1
+
+            description_list[page_num] += thread_mention
+
+        color = 0x000000
+        footer = ""
+        header = f"Alphabetic list of threads in {ctx.guild.name}"
+        await util.embed_pages(ctx, self.bot, header, description_list, color, footer, True, False)
+
+
+
+    async def public_threads_pageembed(self, ctx):
+        description_list_public = []
+        description_list_restricted = []
+
+        # fetch reference role (verified/community/everyone)
+        reference_role = await util.get_reference_role(ctx)
+
+        # check public channels
+        public_channels = 0
+        restricted_channels = 0
+
+        for channel in ctx.guild.text_channels:
+            public_perms = channel.permissions_for(reference_role)
+
+            if ('send_messages', True) in public_perms:
+                description_list_public.append("")
+                description_list_public[public_channels] += f"**Channel:** <#{channel.id}>\n"
+
+                if len(channel.threads) > 0:
+                    description_list_public[public_channels] += "\nOpen thread(s):"
+                else:
+                    description_list_public[public_channels] += "\n*no open threads*"
+
+                for thread in channel.threads:
+                    if thread.archived or thread.locked:
+                        pass
+                    else:
+                        description_list_public[public_channels] += f"\n<#{thread.id}>"
+
+                public_channels += 1
+
+            elif ('read_messages', True) in public_perms:
+                description_list_restricted.append("")
+                description_list_restricted[restricted_channels] += f"**Channel:** <#{channel.id}> 🔒\n"
+
+                if len(channel.threads) > 0:
+                    description_list_restricted[restricted_channels] += "\nOpen thread(s):"
+                else:
+                    description_list_restricted[restricted_channels] += "\n*no open threads*"
+
+                for thread in channel.threads:
+                    if thread.archived or thread.locked:
+                        pass
+                    else:
+                        description_list_restricted[restricted_channels] += f"\n<#{thread.id}>"
+
+                restricted_channels += 1
+
+        color = 0x000000
+        footer = "threads per channel"
+        header = f"Public channels/threads of {ctx.guild.name}"
+        description_list = description_list_public + description_list_restricted
+        await util.embed_pages(ctx, self.bot, header, description_list, color, footer, True, False)
+
+
+
+    async def hidden_threads_pageembed(self, ctx):
+        description_list = []
+
+        # fetch reference role (verified/community/everyone)
+        reference_role = await util.get_reference_role(ctx)
+
+        # check for non-public channels
+        channel_num = 0
+
+        for channel in ctx.guild.text_channels:
+            public_perms = channel.permissions_for(reference_role)
+
+            if ('send_messages', True) in public_perms or ('read_messages', True) in public_perms:
+                continue
+
+            description_list.append("")
+            description_list[channel_num] += f"**Channel:** <#{channel.id}>\n"
+
+            if len(channel.threads) > 0:
+                description_list[channel_num] += "\nOpen thread(s):"
+            else:
+                description_list[channel_num] += "\n*no open threads*"
+
+            for thread in channel.threads:
+                if thread.archived or thread.locked:
+                    pass
+                else:
+                    description_list[channel_num] += f"\n<#{thread.id}>"
+
+            channel_num += 1
+
+        color = 0x000000
+        footer = "threads per channel"
+        header = f"🔒 Non-public channels/threads of {ctx.guild.name}"
+        await util.embed_pages(ctx, self.bot, header, description_list, color, footer, True, False)
+
+
+
+    async def show_threads_of_channel(self, ctx, channel):
+        thread_list_open = []
+        thread_list_closed = []
+
+        description_list = [""]
+        page_num = 0
+
+        #find threads
+        for thread in channel.threads:
+            if thread.archived or thread.locked:
+                thread_list_closed.append(f"<#{thread.id}> 🔒\n")
+            else:
+                thread_list_open.append(f"<#{thread.id}>\n")
+
+        for thread_mention in thread_list_open+thread_list_closed:
+            if len(description_list[page_num]) + len(thread_mention) > 2000:
+                description_list.append("")
+                page_num += 1
+
+            description_list[page_num] += thread_mention
+
+        color = 0x000000
+        footer = f"{channel.name}"
+        header = f"Threads of <#{channel.id}>"
+        await util.embed_pages(ctx, self.bot, header, description_list, color, footer, True, False)
+
+
 
     ####################################### calendar functionality #############################################
 
