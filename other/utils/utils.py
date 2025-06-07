@@ -41,10 +41,9 @@ class Utils():
 
     ############################################### COMMAND CHECKS
 
-    def is_main_server(ctx):
+    def is_main_server_returnbool(ctx):
         server = ctx.message.guild
         if server is None:
-            raise commands.CheckFailure(f'Error: Command does not work in DMs.')
             return False
         else:
             con = sqlite3.connect(f'databases/botsettings.db')
@@ -54,14 +53,19 @@ class Utils():
             if guild_id in main_servers:
                 return True
             else:
-                try:
-                    mainserver = [item[0] for item in cur.execute("SELECT details FROM botsettings WHERE name = ?", ("main server id",)).fetchall()][0]
-                    if mainserver.strip() == "":
-                        mainserver = "*main server*"
-                except:
-                    mainserver = "main server"
-                raise commands.CheckFailure(f'Error: This is a {mainserver} specific command.')
                 return False
+
+
+    def is_main_server(ctx):
+        if Utils.is_main_server_returnbool():
+            return True
+        try:
+            mainserver = [item[0] for item in cur.execute("SELECT details FROM botsettings WHERE name = ?", ("main server id",)).fetchall()][0]
+            if mainserver.strip() == "":
+                mainserver = "*main server*"
+        except:
+            mainserver = "main server"
+        raise commands.CheckFailure(f'Error: This is a {mainserver} specific command.')
 
 
     def is_dev(ctx):
@@ -3608,7 +3612,23 @@ class Utils():
 
 
     async def get_reference_role(ctx):
-        """baseline role for permissions: either @everyone, autorole or verified role"""
+        """baseline role for permissions"""
+        if Utils.is_main_server_returnbool(ctx):
+            try:
+                reference_role = await Utils.get_reference_role_mainserver(ctx)
+                return reference_role
+            except:
+                pass
+            
+        everyone_role_id = ctx.guild.id
+        everyone_role = discord.utils.get(ctx.guild.roles, id = everyone_role_id)
+        return everyone_role
+
+
+
+    async def get_reference_role_mainserver(ctx):
+        """baseline role for permissions: either @everyone, autorole or verified role
+        """
         con = sqlite3.connect(f'databases/botsettings.db')
         cur = con.cursor()
 
