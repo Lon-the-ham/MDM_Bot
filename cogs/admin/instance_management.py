@@ -259,9 +259,9 @@ class Administration_of_Bot_Instance(commands.Cog):
             
             try:
                 if dropbox_enabled:
-                    print("Starting scrobble db backup:")
+                    print("Starting scrobble db backup in cloud:")
                     await util.cloud_upload_scrobble_backup(self.bot, ctx, app_id)
-                    await channel.send("Finished backup.")
+                    await channel.send("Finished cloud backup.")
                 else:
                     await channel.send("No cloud syncing of scrobble DBs, since Dropbox module is not installed.")
             except Exception as e:
