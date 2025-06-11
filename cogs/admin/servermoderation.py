@@ -367,7 +367,7 @@ class Administration_of_Server(commands.Cog):
         # FETCH USER ID / MEMBER OBJECT
 
         try:
-            user_id, rest = await util.fetch_id_from_args("user", "first", args)
+            user_id, rest = await util.fetch_id_from_args("user", "all", args)
         except:
             await ctx.send("Error while trying to fetch user.")
             return
