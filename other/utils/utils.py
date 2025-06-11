@@ -57,7 +57,7 @@ class Utils():
 
 
     def is_main_server(ctx):
-        if Utils.is_main_server_returnbool():
+        if Utils.is_main_server_returnbool(ctx):
             return True
         try:
             mainserver = [item[0] for item in cur.execute("SELECT details FROM botsettings WHERE name = ?", ("main server id",)).fetchall()][0]
@@ -212,6 +212,11 @@ class Utils():
 
     def unit_seconds():
         unit_seconds = {
+            "s": 1,
+            "sec": 1,
+            "second": 1,
+            "seconds": 1,
+            "m": 60,
             "min": 60,
             "minute": 60,
             "minutes": 60,
@@ -223,6 +228,7 @@ class Utils():
             "d": 24*60*60,
             "day": 24*60*60,
             "days": 24*60*60,
+            "w": 7*24*60*60,
             "week": 7*24*60*60,
             "weeks": 7*24*60*60,
             "fortnight": 14*24*60*60,
