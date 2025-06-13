@@ -3261,6 +3261,21 @@ class Utils():
                 except Exception as e:
                     #print("Error while trying to fetch_member_and_color():", e)
                     pass
+            elif len(arg_clean) >= 17 and Utils.represents_integer(arg_clean):
+                try:
+                    member_id_int = int(arg_clean)
+                    if other_user_mentioned == False:
+                        member = ctx.guild.get_member(member_id_int)
+                        try:
+                            color = member.color
+                        except:
+                            color = 0xffffff
+                        other_user_mentioned = True
+                    else:
+                        user = ctx.guild.get_member(member_id_int)
+                        rest_list.append(user.name)
+                except:
+                    rest_list.append(arg_clean)
             else:
                 rest_list.append(arg_clean)
 
