@@ -1188,7 +1188,7 @@ class Administration_of_Server(commands.Cog):
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
     async def _userinfo(self, ctx: commands.Context, *args):
-        """Show info about user
+        """🔒 Show info about user
 
         has to be a member of the server
         """
@@ -1300,7 +1300,46 @@ class Administration_of_Server(commands.Cog):
     async def userinfo_error(self, ctx, error):
         await util.error_handling(ctx, error) 
 
-        
+
+
+    @commands.command(name='booststatus', aliases = ['boosts'])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    @commands.check(util.is_active)
+    async def _booststatus(self, ctx: commands.Context, *args):
+        """🔒 Shows boost status
+
+        shows number of boosts as well as the donors
+        """
+        server = ctx.guild
+        boosts = server.premium_subscription_count
+        donors = server.premium_subscribers
+
+        if boosts >= 14:
+            level = 3
+        elif boosts >= 7:
+            level = 2
+        elif boosts >= 2:
+            level = 1
+        else:
+            level = 0
+
+        description = f"Number of boosts: **{boosts}**\nLevel (w/o perks): {level}"
+
+        if boosts > 0:
+            donor_mentions = []
+            for donor in donors:
+                donor_mentions.append(f"<@{donor.id}> ({donor.name})")
+            description += f"\n\nServer booster(s):\n" + ", ".join(donor_mentions)
+
+        embed = discord.Embed(title=f"Boost status of {server.name}", description=description, colour=0xf47fff)
+        embed.set_thumbnail(url="https://i.imgur.com/5DJaIX2.png")
+
+        await ctx.send(embed=embed)
+
+    @_booststatus.error
+    async def booststatus_error(self, ctx, error):
+        await util.error_handling(ctx, error) 
 
     ###########################################################################################################################################
 
