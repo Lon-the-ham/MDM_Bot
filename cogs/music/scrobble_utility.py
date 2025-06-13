@@ -782,34 +782,40 @@ class Music_Scrobbling(commands.Cog):
         i = 0
 
         for lfm_name in lfm_namelist:
-            print(f"++++ {lfm_name} ++++")
-
-            if reindex:
-                try:
-                    len_before, len_after, sus = await self.run_scrobbledata_sanitycheck(lfm_name, 0)
-                    print(f"re-indexed scrobbles of {lfm_name} (removed {len_before-len_after} duplicate entries)")
-                except Exception as e:
-                    print(f"Error while trying to re-index {lfm_name} table")
-
-            try:
-                j  = await self.reload_userdbs(lfm_name)
-                print(f"Reloaded {j} entries.")
-
-                i += j
-                #try:
-                #    print("scrobble meta update")
-                #    conFM = sqlite3.connect('databases/scrobbledata.db')
-                #    curFM = conFM.cursor()
-                #    scrobble_list = [("", item[0], item[1]) for item in curFM.execute(f"SELECT DISTINCT artist_name, album_name FROM [{lfm_name}]").fetchall()]
-                #    await util.scrobble_metaupdate(scrobble_list)
-                #except Exception as e:
-                #    print(e)
-                print("done")
-            except Exception as e:
-                print("Error:", e)
+            i += await self.reload_single_releasewise_database(lfm_name, reindex)
 
         print("++++DONE+++")
         return i
+
+
+
+    async def reload_single_releasewise_database(self, lfm_name, reindex):
+        print(f"++++ {lfm_name} ++++")
+        j = 0
+        if reindex:
+            try:
+                len_before, len_after, sus = await self.run_scrobbledata_sanitycheck(lfm_name, 0)
+                print(f"re-indexed scrobbles of {lfm_name} (removed {len_before-len_after} duplicate entries)")
+            except Exception as e:
+                print(f"Error while trying to re-index {lfm_name} table")
+
+        try:
+            j += await self.reload_userdbs(lfm_name)
+            print(f"Reloaded {j} entries.")
+
+            #try:
+            #    print("scrobble meta update")
+            #    conFM = sqlite3.connect('databases/scrobbledata.db')
+            #    curFM = conFM.cursor()
+            #    scrobble_list = [("", item[0], item[1]) for item in curFM.execute(f"SELECT DISTINCT artist_name, album_name FROM [{lfm_name}]").fetchall()]
+            #    await util.scrobble_metaupdate(scrobble_list)
+            #except Exception as e:
+            #    print(e)
+            print("done")
+        except Exception as e:
+            print("Error:", e)
+
+        return j
 
 
 
@@ -3247,6 +3253,62 @@ class Music_Scrobbling(commands.Cog):
 
 
 
+    @commands.command(name='debug', aliases = ["scrobbledebug", "fmdebug"])
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    async def _scrobble_debug(self, ctx: commands.Context, *args):
+        """㊙️ tries to debug databases 
+
+        An error that can happen is that this bot's copy of your scrobble database and this bot's filtered database (for performance) got desynced. 
+        In this case you wouldn't need a `<prefix>u --force <time>` and delete and reload the past scrobbles, but you can just refresh the sync between the full db and the performance db via `<prefix>fmdebug`."""
+        reindex = False
+        buffer_time = 15
+
+        if util.close_to_reboottime(buffer_time):
+            emoji = util.emoji("pray")
+            await ctx.send(f"Halted execution of resyncing scrobble databases due to closeness in time to scheduled reboot. Please try again later. {emoji}")
+            return
+
+        async with ctx.typing():
+            cooldown_list = util.check_active_scrobbleupdate(ctx)
+            if len(cooldown_list) > 0:
+                print("Skipping scrobble auto-update. Update pipe in use:", cooldown_list)
+                usernames = []
+                for item in cooldown_list:
+                    usernames.append(item[1])
+                usernamestring = ', '.join(usernames)
+                await ctx.send(f"Update pipe is currently in use ({usernamestring}). Please try again later.")
+                return
+
+            util.block_scrobbleupdate(ctx)
+
+            try:
+                user_id = str(ctx.message.author.id)
+
+                con = sqlite3.connect('databases/npsettings.db')
+                cur = con.cursor()
+                lfm_namelist = [item[0] for item in cur.execute("SELECT lfm_name FROM lastfm WHERE id = ?", (user_id,)).fetchall()]
+
+                if len(lfm_namelist) > 0:
+                    lfm_name = lfm_namelist[0]
+                    loading_emoji = util.emoji("load")
+                    await ctx.send(f"This will take a moment... {loading_emoji}")
+                    scrobblecount = await self.reload_single_releasewise_database(lfm_name, reindex)
+                    await ctx.reply(f"Done! {scrobblecount} items were (re)loaded from your scrobble database.", mention_author=False)
+                else:
+                    await ctx.reply(f"Could not find your lastfm handle. Use `{self.prefix}setfm <your lfm username>` to set your account.", mention_author=False)
+            except Exception as e:
+                util.unblock_scrobbleupdate()
+                await ctx.send(f"Error: {e}")
+
+            util.unblock_scrobbleupdate()
+
+    @_scrobble_debug.error
+    async def scrobble_debug_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
     @commands.command(name='gwk', aliases = ["gw", "globalwhoknows", "globalwhoknowsartist"])
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
@@ -4015,6 +4077,21 @@ class Music_Scrobbling(commands.Cog):
 
 
 
+    @commands.command(name='o', aliases = ["overview"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _scrobble_overview(self, ctx: commands.Context, *args):
+        """🔜 Shows scrobble overview
+        """
+
+        await ctx.send("Under construction")
+
+    @_scrobble_overview.error
+    async def scrobble_overview_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
     @commands.group(name='streak', aliases = ["str"], pass_context=True, invoke_without_command=True)
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
@@ -4637,7 +4714,17 @@ class Music_Scrobbling(commands.Cog):
         conFM = sqlite3.connect('databases/scrobbledata.db')
         curFM = conFM.cursor()
 
-        user_id = str(ctx.author.id)
+        member, color, rest_list = await util.fetch_member_and_color(ctx, args)
+
+        if member.id == ctx.author.id:
+            is_invoker = True
+        else:
+            is_invoker = False
+
+        if member is None:
+            await ctx.send(f"Error: Could not find such a user on this server. Are you sure you wrote the correct user ID?")
+            return
+
         now = int((datetime.datetime.utcnow() - datetime.datetime(1970, 1, 1)).total_seconds())
         timeframe_string = "the past 4 weeks"
         timeframe = 4*7*24*60*60
@@ -4648,12 +4735,15 @@ class Music_Scrobbling(commands.Cog):
         curNP = conNP.cursor()
 
         try:
-            result = curNP.execute("SELECT lfm_name FROM lastfm WHERE id = ?", (user_id,))
+            result = curNP.execute("SELECT lfm_name FROM lastfm WHERE id = ?", (member.id,))
             lfm_name = result.fetchone()[0]
         except Exception as e:
             print(e)
-            emoji = util.emoji("disappointed")
-            await ctx.send(f"Error: Could not find your lastfm username. {emoji}\nUse `{self.prefix}setfm` to set your username first, and then use `{self.prefix}u` to load your scrobbles into the bot's database.")
+            if is_invoker:
+                emoji = util.emoji("disappointed")
+                await ctx.send(f"Error: Could not find your lastfm username. {emoji}\nUse `{self.prefix}setfm` to set your username first, and then use `{self.prefix}u` to load your scrobbles into the bot's database.")
+            else:
+                await ctx.send(f"Error: Could not find lastfm username of {member.name}. :(")
             return
 
         # PARSE TIMEFRAME ARGUMENT
@@ -4662,7 +4752,10 @@ class Music_Scrobbling(commands.Cog):
         first_scrobble = first_scrobble_list[0]
 
         if first_scrobble is None:
-            await ctx.send(f"No scrobbles found in database. Try `{self.prefix}u` first if you have set your lastfm user name, and `{self.prefix}fmset <your username>` before that if you haven't.")
+            if is_invoker:
+                await ctx.send(f"No scrobbles found in database. Try `{self.prefix}u` first if you have set your lastfm user name, and `{self.prefix}fmset <your username>` before that if you haven't.")
+            else:
+                await ctx.send(f"No scrobbles of {member.name} found in database.")
             return
 
         total_timeframe = int(now - first_scrobble)
@@ -4672,31 +4765,31 @@ class Music_Scrobbling(commands.Cog):
 
         footer = f"since account creation: {round(scrobbles_per_day_total,2)} scrobbles per day"
 
-        if len(args) > 0:
-            if len(args) > 1:
+        if len(rest_list) > 0:
+            if len(rest_list) > 1:
                 # two arguments
-                if util.represents_integer(args[0].strip()):
-                    arg = args[1].lower().strip()
+                if util.represents_integer(rest_list[0].strip()):
+                    arg = rest_list[1].lower().strip()
                     try:
-                        scrobblegoal = int(args[0].strip())
+                        scrobblegoal = int(rest_list[0].strip())
                     except:
                         scrobblegoal = None
                 else:
-                    arg = args[0].lower().strip()
+                    arg = rest_list[0].lower().strip()
                     try:
-                        scrobblegoal = int(args[1].strip())
+                        scrobblegoal = int(rest_list[1].strip())
                     except:
                         scrobblegoal = None
             else:
                 # only one argument
-                if util.represents_integer(args[0].strip()):
+                if util.represents_integer(rest_list[0].strip()):
                     arg = None
                     try:
-                        scrobblegoal = int(args[0].strip())
+                        scrobblegoal = int(rest_list[0].strip())
                     except:
                         scrobblegoal = None
                 else:
-                    arg = args[0].lower().strip()
+                    arg = rest_list[0].lower().strip()
                     scrobblegoal = None
 
             if arg in ["d", "day"]:
@@ -4740,7 +4833,10 @@ class Music_Scrobbling(commands.Cog):
         scrobble_count = scrobble_countlist[0]
         if scrobble_count == 0:
             sad = util.emoji("sad")
-            await ctx.send(f"You don't have any scrobbles in the given timeframe. {sad}")
+            if is_invoker:
+                await ctx.send(f"You don't have any scrobbles in the given timeframe. {sad}")
+            else:
+                await ctx.send(f"No scrobbles of {member.name} found within given timeframe. {sad}")
             return
 
         scrobbles_per_day = scrobble_count * (24*60*60) / timeframe
@@ -4760,15 +4856,19 @@ class Music_Scrobbling(commands.Cog):
         missing_scrobbles = next_milestone - scrobble_all
         missing_seconds = int(missing_scrobbles / (scrobbles_per_day / (24*60*60)))
 
-        text = f"Based on {timeframe_string}, you have about **{round(scrobbles_per_day, 2)}** scrobbles per day.\n"
-        text += f"Keeping this pace you might reach {next_milestone} scrobbles on <t:{(now + missing_seconds)}:D>. (Currently {scrobble_all} scrobbles)"
+        person = "you" if is_invoker else member.name
+        has_conj = "have" if is_invoker else "has"
+        person_again = "you" if is_invoker else "they"
+
+        text = f"Based on {timeframe_string}, {person} {has_conj} about **{round(scrobbles_per_day, 2)}** scrobbles per day.\n"
+        text += f"Keeping this pace {person_again} might reach {next_milestone} scrobbles on <t:{(now + missing_seconds)}:D>. (Currently {scrobble_all} scrobbles)"
 
         # EMBED
 
-        embed = discord.Embed(title="", description=text, color=ctx.author.color)
+        embed = discord.Embed(title="", description=text, color=color)
 
         try:
-            embed.set_author(name=f"{ctx.author.name}'s scrobble pace", icon_url=ctx.author.avatar)
+            embed.set_author(name=f"{member.name}'s scrobble pace", icon_url=member.avatar)
         except Exception as e:
             print("Error:", e)
 
