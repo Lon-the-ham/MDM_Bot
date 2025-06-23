@@ -10,7 +10,8 @@ class Help(commands.Cog):
     def __init__(self, bot: commands.bot) -> None:
         self.bot = bot
         self.prefix = os.getenv("prefix")
-
+        self.list_user_alias = ["memberview", "simple", "pleb", "user", "member"]
+        self.list_mod_alias  = ["mod", "mods", "moderator", "moderation", "moderators"]
 
 
     async def get_cogs_and_commands_dictionary(self, ctx, lower, only_locks, ignore_locks):
@@ -91,7 +92,7 @@ class Help(commands.Cog):
 
 
 
-    @commands.command(name='help', aliases = ['halp'])
+    @commands.group(name='help', aliases = ['halp'], pass_context=True, invoke_without_command=True)
     @commands.check(util.is_active)
     async def _help(self, ctx, *args):
         """shows command info
@@ -104,10 +105,10 @@ class Help(commands.Cog):
         async with ctx.typing():
 
             # filter for commands with descriptions starting with a lock emoji
-            if len(args) == 1 and args[0].lower() in ["memberview", "simple", "pleb", "user", "member"]:
+            if len(args) == 1 and args[0].lower() in self.list_user_alias:
                 only_locks = False
                 ignore_locks = True
-            elif len(args) == 1 and args[0].lower() in ["mod", "mods", "moderator", "moderation", "moderators"]: 
+            elif len(args) == 1 and args[0].lower() in self.list_mod_alias: 
                 only_locks = True
                 ignore_locks = False
             else:
@@ -230,6 +231,78 @@ class Help(commands.Cog):
         await util.error_handling(ctx, error)
 
 
+
+    @_help.command(name="cog", aliases = ["cat", "category"], pass_context=True)
+    @commands.check(util.is_active)
+    async def _help_cog(self, ctx, *args):
+        """Shows commands of a cog"""
+        async with ctx.typing():
+            await self.helpcog(ctx, args)
+    @_help_cog.error
+    async def help_cog_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+    
+
+
+    @commands.command(name='helpcog')
+    @commands.check(util.is_active)
+    async def _helpcog(self, ctx, *args):
+        """㊙️ Shows commands of a cog"""
+        async with ctx.typing():
+            await self.helpcog(ctx, args)
+    @_helpcog.error
+    async def helpcog_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    async def helpcog(self, ctx, args):
+        # filter for commands with descriptions starting with a lock emoji
+        if len(args) == 1 and args[0].lower() in self.list_user_alias:
+            only_locks = False
+            ignore_locks = True
+            argument = ' '.join(args[1:]).lower()
+
+        elif len(args) == 1 and args[0].lower() in self.list_mod_alias: 
+            only_locks = True
+            ignore_locks = False
+            argument = ' '.join(args[1:]).lower()
+
+        else:
+            only_locks = False
+            ignore_locks = False
+            argument = ' '.join(args).lower()
+
+        if argument.strip() == "":
+            await ctx.send("Command needs cog-argument.")
+            return
+
+        # if the argument is a cog, get the cog commands
+        commands_dict = await self.get_cogs_and_commands_dictionary(ctx, True, only_locks, ignore_locks)
+        filtered_dict = {}
+
+        for key, value in commands_dict.items():
+            new_key = util.alphanum(key, "lower")
+            filtered_dict[new_key] = value
+
+        filtered_argument = util.alphanum(argument.replace("cog", ""), "lower")
+
+        if filtered_argument in filtered_dict:
+            title = "Command Cog/Category"
+            description = ""
+
+            for command in filtered_dict[filtered_argument]:
+                description += f"{self.prefix}{command} : "
+                description += self.bot.get_command(command).help.split("\n")[0].replace("<prefix>", self.prefix)
+                description += "\n"
+
+        else:
+            emoji = util.emoji("hmm")
+            title = f"Error"
+            description = f"Dunno 'bout that cog, chief. {emoji}"
+
+        help_embed = discord.Embed(title=title, description=description)
+        await ctx.send(embed=help_embed)
 
 
     #########################################################################################################################################
