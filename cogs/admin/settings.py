@@ -5229,8 +5229,12 @@ class Administration_of_Settings(commands.Cog):
             curC.execute("DELETE FROM scrobbleupdate")
             conC.commit()
 
+            curC.execute('''CREATE TABLE IF NOT EXISTS scrobbleupdate_errortransmission (lfm_name text, time_stamp integer)''')
+            curC.execute("DELETE FROM scrobbleupdate_errortransmission")
+            conC.commit()
+
             curC.execute('''CREATE TABLE IF NOT EXISTS gfx_generation (service text, userid text, username text, time_stamp text)''')
-            curC.execute("DELETE FROM scrobbleupdate")
+            curC.execute("DELETE FROM gfx_generation")
             conC.commit()
 
             # Currency ExchangeRates
