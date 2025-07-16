@@ -1899,11 +1899,13 @@ class Music_NowPlaying(commands.Cog):
                     except:
                         emoji = util.emoji("disappointed")
                         text = f"No played music found {emoji}"
-                        #if the_member.id == ctx.message.author.id:
-                        #    footer = "Make sure to check that your music streaming service (Spotify/MusicBee/AppleMusic) is properly connected to Discord, and that your status is not set to 'invisible'."
-                        #else:
-                        #    footer = f"{the_member.name} is either not using any music streaming service at the moment, it's not properly connected to discord or their status is set to 'invisible'."
-                        footer += f"\nUse '{self.prefix}fmset <username>' to set your lastfm username to display your current/last track on LFM."
+                        if the_member.id == ctx.message.author.id:
+                            footer = "" 
+                            #footer += "Make sure to check that your music streaming service (Spotify/MusicBee/AppleMusic) is properly connected to Discord, and that your status is not set to 'invisible'."
+                            footer += f"\nUse '{self.prefix}fmset <username>' to set your lastfm username to display your current/last track on LFM."
+                        else:
+                            footer = "" 
+                            #footer += f"{the_member.name} is either not using any music streaming service at the moment, it's not properly connected to discord or their status is set to 'invisible'."
                         await self.error_embed(ctx, text, footer)
                         return
 
