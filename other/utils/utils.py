@@ -4266,14 +4266,26 @@ class Utils():
             except:
                 date_uts = 0
             return (artist_name, album_name, track_name, date_uts)
-        
+
         @to_thread    
-        def releasewise_insert(lfm_name, item_dict):
+        def databases_insert(lfm_name):
+            conFM1 = sqlite3.connect('databases/scrobbledata.db')
+            curFM1 = conFM1.cursor()
+            curFM1.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (id integer, artist_name text, album_name text, track_name text, date_uts integer)")
+
             conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
             curFM2 = conFM2.cursor()
             curFM2.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, album_name text, count integer, last_time integer, first_time integer)")
 
-            for k,v in item_dict.items():
+            conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
+            curFM3 = conFM3.cursor()
+            curFM3.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, track_name text, count integer, last_time integer, first_time integer)")
+
+            for item_indexed in sorted(scrobble_list, key = lambda x : x[0]):
+                curFM1.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)
+
+            print(">>>> DB 1")
+            for k,v in album_dict.items():
                 artist = k[0]
                 album  = k[1]
                 try:
@@ -4320,16 +4332,9 @@ class Utils():
                         curFM2.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ?, first_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, first_time, artist, album))
                     else:
                         curFM2.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ? WHERE artist_name = ? AND album_name = ?", (new_count, time, artist, album))
-            conFM2.commit()
-            #print("inserted into secondary database as well")
-
-        @to_thread 
-        def trackwise_insert(lfm_name, item_dict):
-            conFM3 = sqlite3.connect('databases/scrobbledata_trackwise.db')
-            curFM3 = conFM3.cursor()
-            curFM3.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (artist_name text, track_name text, count integer, last_time integer, first_time integer)")
-
-            for k,v in item_dict.items():
+            
+            print(">>>> DB 2")
+            for k,v in track_dict.items():
                 artist = k[0]
                 track  = k[1]
                 try:
@@ -4377,21 +4382,68 @@ class Utils():
                         curFM3.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ?, first_time = ? WHERE artist_name = ? AND track_name = ?", (new_count, time, first_time, artist, track))
                     else:
                         curFM3.execute(f"UPDATE [{lfm_name}] SET count = ?, last_time = ? WHERE artist_name = ? AND track_name = ?", (new_count, time, artist, track))
+            
+            print(">>>> DB 3")
+
+            conFM1.commit()
+            conFM2.commit()
             conFM3.commit()
 
+            print(">>>> commit.")
+
+        def recent_scrobble_auto_update_error_messaging(lfm_name):
+            hours = 24 # hours that count as recent, within this time another message for an update error won't be sent
+
+            try:
+                # first check whether an error happened (recently)
+                now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+
+                conC = sqlite3.connect('databases/cooldowns.db')
+                curC = conC.cursor()
+                curC.execute('''CREATE TABLE IF NOT EXISTS scrobbleupdate_errortransmission (lfm_name text, time_stamp integer)''')
+
+                cooldown_db_list = [item[0] for item in curC.execute("SELECT time_stamp FROM scrobbleupdate_errortransmission WHERE lfm_name = ?", (lfm_name,)).fetchall()]
+
+                if (len(cooldown_db_list) > 0 and min(cooldown_db_list) > now - hours * 3600):
+                    recently_messaged = True
+                else:
+                    recently_messaged = False
+
+                # if not save username
+                if not recently_messaged:
+                    curC.execute("UPDATE scrobbleupdate_errortransmission SET time_stamp = ? WHERE lfm_name = ?", (now, lfm_name))
+                    conC.commit()
+
+                # delete all older than set amount of hours above
+                curC.execute("DELETE FROM scrobbleupdate_errortransmission WHERE time_stamp < ?", (now - hours * 3600,))
+                conC.commit()
+
+                # return
+                return recently_messaged
+
+            except Exception as e:
+                print("ERROR WHILE CHECKING ERROR MESSAGING DB:", e)
+                return False
+
+        ##########################################################################################################################################
         ### actual function
 
-        conFM = sqlite3.connect('databases/scrobbledata.db')
-        curFM = conFM.cursor()
-        curFM.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (id integer, artist_name text, album_name text, track_name text, date_uts integer)")
+        scrobble_list = []
+        album_dict = {}
+        track_dict = {}
 
         try:
+            conFM = sqlite3.connect('databases/scrobbledata.db')
+            curFM = conFM.cursor()
+            curFM.execute(f"CREATE TABLE IF NOT EXISTS [{lfm_name}] (id integer, artist_name text, album_name text, track_name text, date_uts integer)")
             lasttime = int([item[0] for item in curFM.execute(f"SELECT MAX(date_uts) FROM [{lfm_name}]").fetchall()][0])
         except Exception as e:
             lasttime = 0
 
         if lasttime == 0 and allow_from_scratch == False:
             return
+
+        print(f">>>> scrobble update: {lfm_name}")
 
         page_int = 0
         total_pages_int = 1
@@ -4400,10 +4452,6 @@ class Utils():
         i = -1
 
         try:
-            scrobble_list = []
-
-            item_dict = {}
-            track_dict = {}
             previous_item = None
             while page_int < total_pages_int:
                 if not continue_loop:
@@ -4450,7 +4498,6 @@ class Utils():
 
                     # add item to scrobble DB
                     item_indexed = (i,) + item
-                    #curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)
                     scrobble_list.append(item_indexed)  
                     count += 1
                     i -= 1
@@ -4460,8 +4507,8 @@ class Utils():
                     album_filtername = Utils.compactnamefilter(item[1],"album") #''.join([x for x in item[1].upper() if x.isalnum()])
                     track_filtername = Utils.compactnamefilter(item[2],"track")
                     
-                    if (artist_filtername, album_filtername) in item_dict:
-                        release = item_dict[(artist_filtername, album_filtername)]
+                    if (artist_filtername, album_filtername) in album_dict:
+                        release = album_dict[(artist_filtername, album_filtername)]
                         try:
                             releasecount = int(release[0])
                         except:
@@ -4473,7 +4520,7 @@ class Utils():
 
                         releasefirst = release[2]
 
-                        item_dict[(artist_filtername, album_filtername)] = (releasecount + 1, releaselastprev, releasefirst)
+                        album_dict[(artist_filtername, album_filtername)] = (releasecount + 1, releaselastprev, releasefirst)
                     else:
                         try:
                             releaselast = int(item[3])
@@ -4483,7 +4530,7 @@ class Utils():
                         except:
                             releaselast = 0
                             releasefirst = Utils.year9999()
-                        item_dict[(artist_filtername, album_filtername)] = (1, releaselast, releasefirst)
+                        album_dict[(artist_filtername, album_filtername)] = (1, releaselast, releasefirst)
 
                     # TRACKWISE DATABASE PREPARATION
                     if (artist_filtername, track_filtername) in track_dict:
@@ -4514,28 +4561,29 @@ class Utils():
                     # next iteration
                     previous_item = item
             if count > 0:
-                print(f"updated scrobble data of {lfm_name} : ({count} entries)")
-            
-            for item_indexed in sorted(scrobble_list, key = lambda x : x[0]):
-                curFM.execute(f"INSERT INTO [{lfm_name}] VALUES (?, ?, ?, ?, ?)", item_indexed)
-            conFM.commit()
-            await releasewise_insert(lfm_name, item_dict)
-            await trackwise_insert(lfm_name, track_dict)
-            try:
-                await Utils.scrobble_metaupdate(scrobble_list)
-            except Exception as e:
-                print("Error:", e)
-            await Utils.changetimeupdate()
-        except Exception as e:
-            print("Error:", e)
+                print(f"loaded scrobble data of {lfm_name} : ({count} entries)")
 
+        except Exception as e:
             if str(e).startswith("Unable to fetch scrobble data from:"):
+                standard_scrobble_fetching_error = True
                 text = f"Could not fetch last.fm information from user `{lfm_name}`.\nCheck on https://www.last.fm/user/{lfm_name} whether the page still exists. If not and this error persists it is recommended to either scrobble-ban them or purge their data from the np-settings database via command `removefm`.\n\n"
             else:
+                standard_scrobble_fetching_error = False
                 text = f"There was a problem while handling data of user `{lfm_name}`.\n\n`Error message:` {e}"
 
             title = "⚠️ Scrobble Auto-Update Error"
-            await Utils.bot_spam_send(bot, title, text)
+            if (standard_scrobble_fetching_error and recent_scrobble_auto_update_error_messaging(lfm_name)):
+                print(text)
+            else:
+                await Utils.bot_spam_send(bot, title, text)
+
+        await databases_insert(lfm_name)
+
+        try:
+            await Utils.scrobble_metaupdate(scrobble_list)
+        except Exception as e:
+            print("Error:", e)
+        await Utils.changetimeupdate()
 
 
 
