@@ -175,7 +175,7 @@ class Administration_of_Server(commands.Cog):
             await ctx.send(f'I- I really do not want to ban this user. {pleademoji}')
             return
 
-        protection = util.user_role_protection(ctx, user_id, "ban")
+        protection = await util.user_role_protection(ctx, user_id, "ban")
 
         if protection == "hard":
             emoji = util.emoji("unleashed")
@@ -183,7 +183,8 @@ class Administration_of_Server(commands.Cog):
             return
 
         elif protection == "soft":
-            if not util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to ban this user?"):
+            response = await util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to mute this user?")
+            if not response:
                 return
 
         # BANNING
@@ -265,7 +266,7 @@ class Administration_of_Server(commands.Cog):
             await ctx.send(f'I- I really do not want to ban this user. {pleademoji}')
             return
 
-        protection = util.user_role_protection(ctx, user_id, "kick")
+        protection = await util.user_role_protection(ctx, user_id, "kick")
 
         if protection == "hard":
             emoji = util.emoji("unleashed")
@@ -273,7 +274,8 @@ class Administration_of_Server(commands.Cog):
             return
 
         elif protection == "soft":
-            if not util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to kick this user?"):
+            response = await util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to mute this user?")
+            if not response:
                 return
 
        # KICKING
@@ -412,7 +414,7 @@ class Administration_of_Server(commands.Cog):
             await ctx.send(f'I- I really do not want to mute this user. {pleademoji}')
             return
 
-        protection = util.user_role_protection(ctx, user_id, "mute")
+        protection = await util.user_role_protection(ctx, user_id, "mute")
         
         if protection == "hard":
             emoji = util.emoji("unleashed")
@@ -420,9 +422,9 @@ class Administration_of_Server(commands.Cog):
             return
 
         elif protection == "soft":
-            if not util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to mute this user?"):
+            response = await util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to mute this user?")
+            if not response:
                 return
-
         try:
             the_member = ctx.guild.get_member(int(user_id))
         except:
