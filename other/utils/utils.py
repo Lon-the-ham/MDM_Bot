@@ -4425,6 +4425,14 @@ class Utils():
                 print("ERROR WHILE CHECKING ERROR MESSAGING DB:", e)
                 return False
 
+        def add_recent_scrobble_auto_update_error_messaging(lfm_name):
+            now = int((datetime.utcnow() - datetime(1970, 1, 1)).total_seconds())
+
+            conC = sqlite3.connect('databases/cooldowns.db')
+            curC = conC.cursor()
+            curC.execute("INSERT INTO scrobbleupdate_errortransmission VALUES (?, ?)", (lfm_name, now))
+            conC.commit()
+
         ##########################################################################################################################################
         ### actual function
 
@@ -4576,6 +4584,7 @@ class Utils():
                 print(text)
             else:
                 await Utils.bot_spam_send(bot, title, text)
+                add_recent_scrobble_auto_update_error_messaging(lfm_name)
 
         await databases_insert(lfm_name)
 
