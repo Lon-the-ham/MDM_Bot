@@ -71,7 +71,7 @@ class YataBot(commands.Bot):
                 await self.load_extension(ext)
                 print("loaded", str(ext))
             except Exception as e:
-                print(f"did not load extension {str(ext)}")
+                #print(f"did not load extension {str(ext)}")
                 try:
                     if f"Extension '{ext}' raised an error:" in str(traceback.format_exc()):
                         reason = str(traceback.format_exc()).split(f"Extension '{ext}' raised an error:")[-1].strip()
