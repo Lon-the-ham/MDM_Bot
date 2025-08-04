@@ -1232,6 +1232,7 @@ class Administration_of_Settings(commands.Cog):
             "rolecat": "role settings", 
             "rolemoji": "role settings", 
             "assignability": "role settings",
+            "protection": "role settings",
             # text customisation
             "accesswalltext": "text customisation", 
             #"turingbantext": "text customisation",
@@ -2533,6 +2534,212 @@ class Administration_of_Settings(commands.Cog):
 
     @_set_rolemoji.error
     async def set_rolemoji_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    ### PROTECC
+
+    @_set.command(name="protection", aliases = ["protecc"], pass_context=True)
+    @commands.check(util.is_active)
+    @commands.has_permissions(manage_guild=True)
+    @commands.check(util.is_main_server)
+    async def _set_protection(self, ctx, *args):
+        """Protect a role or user from ban/kick/mute
+
+        Use syntax:
+        `<prefix>set protection <@role/user> <soft/hard/none> <ban/kick/mute>`
+        e.g.
+        `<prefix>set protection @Staff soft ban`
+        
+        The role or user has to be mentioned. If you provide only an ID, the bot will first search for a role of this ID, and if it doesn't find one it will search for a user with this ID.
+        The `soft` means that a ban/kick/mute of this user or role will need confirmation, `hard` means that a ban/kick/mute-command will be blocked for that role or user (without this argument it defaults to `hard`).
+        `none` means that there is no protection.
+        You can specify `ban`, `kick` and/or `mute` to narrow this protection to specific commands (without this argument it defaults to all three arguments).
+        """
+
+        if len(args) == 0:
+            await ctx.send(f"This command needs a user or role argument.\nUse `{self.prefix}help set protection` to get more info.")
+            return
+
+        # RETRIEVE ARGUMENTS
+
+        role_id_list    = []
+        user_id_list    = []
+        unclear_id_list = []
+        rest_args       = []
+
+        for arg in args:
+            if len(arg) > 19 and arg.startswith("<@") and arg.endswith(">"):
+                if arg[2] == "&" and util.represents_integer(arg[3:-1]):
+                    role_id_list.append(util.forceinteger(arg[3:-1]))
+                elif util.represents_integer(arg[2:-1]):
+                    user_id_list.append(util.forceinteger(arg[2:-1]))
+                else:
+                    # unusable ID
+                    pass
+
+            elif len(arg) > 16 and util.forceinteger(arg):
+                unclear_id_list.append(util.forceinteger(arg))
+
+            else:
+                for term in (arg.replace(",", " ").replace("/", " ").replace(".", " ").replace(";", " ")).split():
+                    if term.strip() != "":
+                        rest_args.append(util.alphanum(term, "lower"))
+
+        # GET USER/ROLE IDs
+
+        role_list = []
+        user_list = []
+        error_role_id_list = []
+        error_user_id_list = []
+        error_unknown_id_list = []
+
+        for r_id in role_id_list:
+            try:
+                role = discord.utils.get(ctx.guild.roles, id = r_id)
+                if role is None:
+                    raise ValueError("Role is None")
+                role_list.append(role)
+            except:
+                error_role_id_list.append(r_id)
+                print(f"Error with role id: {r_id}")
+
+        for u_id in user_id_list:
+            try:
+                user = ctx.guild.get_member(u_id)
+                if user is None:
+                    raise ValueError("User is None")
+                user_list.append(user)
+            except:
+                error_user_id_list.append(u_id)
+                print(f"Error with user id: {u_id}")
+
+        for o_id in unclear_id_list:
+            try:
+                role = discord.utils.get(ctx.guild.roles, id = o_id)
+                if role is None:
+                    raise ValueError("Role is None")
+                role_list.append(role)
+            except:
+                try:
+                    user = ctx.guild.get_member(o_id)
+                    if user is None:
+                        raise ValueError("User is None")
+                    user_list.append(user)
+                except:
+                    error_unknown_id_list.append(o_id)
+                    print(f"Error with id: {o_id}")
+
+        if len(role_list) + len(user_list) == 0:
+            await ctx.send(f"No valid user or role argument.\nUse `{self.prefix}help set protection` to get more info.")
+            return
+
+        # PARSE OPTIONAL ARGUMENTS
+
+        ban  = False
+        kick = False
+        mute = False
+        intensity = "hard"
+
+        for arg in rest_args:
+            if arg in ["ban"]:
+                ban = True
+            elif arg in ["kick"]:
+                kick = True
+            elif arg in ["mute", "silence"]:
+                mute = True
+            elif arg in ["soft"]:
+                intensity = "soft"
+            elif arg in ["none", "remove", "delete"]:
+                intensity = "none"
+            elif arg in ["hard"]:
+                intensity = "hard"
+            else:
+                print(f"Error: Unknown argument {arg}.")
+
+        if (not ban) and (not kick) and (not mute):
+            ban  = True
+            kick = True
+            mute = True
+
+        # MAKE CHANGES TO DATABASE
+
+        messages = []
+
+        conR = sqlite3.connect(f'databases/roles.db')
+        curR = conR.cursor()
+
+        for role in role_list:
+            if (intensity == "none" and ban and kick and mute):
+                curR.execute("DELETE FROM protections WHERE id_type = ? AND id = ?", ("role", str(role.id)))
+                conR.commit()
+                messages.append(f"Removed {role.mention} from any protection.")
+            else:
+                found = [[item[0], item[1], item[2]] for item in curR.execute("SELECT ban, kick, mute FROM protections WHERE id_type = ? AND id = ?", ("role", str(role.id))).fetchall()]
+                ban_text  = intensity if ban  else ("none" if len(found) == 0 else found[-1][0])
+                kick_text = intensity if kick else ("none" if len(found) == 0 else found[-1][1])
+                mute_text = intensity if mute else ("none" if len(found) == 0 else found[-1][2])
+
+                if len(found_entries) == 0:
+                    curR.execute("INSERT INTO protections VALUES (?, ?, ?, ?, ?, ?)", ("role",  str(role.id), str(role.name), ban_text, kick_text, mute_text))
+                    conR.commit()
+                else:
+                    curR.execute("UPDATE protections SET ban = ?, kick = ?, mute = ? WHERE id_type = ? AND id = ?", (ban_text, kick_text, mute_text, "role", str(role.id)))
+                    conR.commit()
+
+                text = f"{role.mention} now has "
+                if ban_text != "none":
+                    text += f"`{ban_text}` ban protection, "
+                else:
+                    text += f"no ban protection, "
+                if kick_text != "none":
+                    text += f"`{kick_text}` kick protection, "
+                else:
+                    text += f"no kick protection, "
+                if mute_text != "none":
+                    text += f"`{mute_text}` mute protection."
+                else:
+                    text += f"no mute protection."
+                messages.append(text)
+
+        for user in user_list:
+            if (intensity == "none" and ban and kick and mute):
+                curR.execute("DELETE FROM protections WHERE id_type = ? AND id = ?", ("user", str(user.id)))
+                conR.commit()
+                messages.append(f"Removed {user.mention} from any protection.")
+            else:
+                found = [[item[0], item[1], item[2]] for item in curR.execute("SELECT ban, kick, mute FROM protections WHERE id_type = ? AND id = ?", ("user", str(user.id))).fetchall()]
+                ban_text  = intensity if ban  else ("none" if len(found) == 0 else found[-1][0])
+                kick_text = intensity if kick else ("none" if len(found) == 0 else found[-1][1])
+                mute_text = intensity if mute else ("none" if len(found) == 0 else found[-1][2])
+
+                if len(found_entries) == 0:
+                    curR.execute("INSERT INTO protections VALUES (?, ?, ?, ?, ?, ?)", ("user",  str(user.id), str(user.name), ban_text, kick_text, mute_text))
+                    conR.commit()
+                else:
+                    curR.execute("UPDATE protections SET ban = ?, kick = ?, mute = ? WHERE id_type = ? AND id = ?", (ban_text, kick_text, mute_text, "user", str(user.id)))
+                    conR.commit()
+
+                text = f"{user.mention} now has "
+                if ban_text != "none":
+                    text += f"`{ban_text}` ban protection, "
+                else:
+                    text += f"no ban protection, "
+                if kick_text != "none":
+                    text += f"`{kick_text}` kick protection, "
+                else:
+                    text += f"no kick protection, "
+                if mute_text != "none":
+                    text += f"`{mute_text}` mute protection."
+                else:
+                    text += f"no mute protection."
+                messages.append(text)
+
+        await util.multi_embed_message(ctx, "Ban/Kick/Mute protection", text, 0xFCE205, "", None)
+
+    @_set_protection.error
+    async def set_protection_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
@@ -5171,6 +5378,8 @@ class Administration_of_Settings(commands.Cog):
             curR = conR.cursor()
             curR.execute('''CREATE TABLE IF NOT EXISTS roles (id text, name text, assignable text, category text, permissions text, color text, details text)''')
             await util.update_role_database(ctx) # update role database
+
+            curR.execute('''CREATE TABLE IF NOT EXISTS protections (id_type text, id text, name text, ban text, kick text, mute text)''')
 
 
             # BACKLOG/MEMO DB
