@@ -165,7 +165,7 @@ class Administration_of_Server(commands.Cog):
 
         send_msg_bool = await self.penaltynotifier(ctx, user_id)
 
-        # BANNING
+        # CHECK IMMUNITY
 
         immunity_list = await self.get_immunitylist(ctx)
 
@@ -173,32 +173,45 @@ class Administration_of_Server(commands.Cog):
             send_msg_bool = False
             pleademoji = util.emoji("pleading")
             await ctx.send(f'I- I really do not want to ban this user. {pleademoji}')
-        else:
-            try:
-                user = await self.bot.fetch_user(user_id)
-                await ctx.guild.ban(user, reason=reason, delete_message_days=0)
-                
-                banemoji = util.emoji("ban")
-                header = f"Permanent ban"
-                description = f'Banned <@{user_id}>. {banemoji}{reason_string}'
-                embed=discord.Embed(title=header, description=description, color=0xB80F0A)
-                await ctx.send(embed=embed)
-            except Exception as e:
-                await ctx.send(f'Error: {e}')
-                send_msg_bool = False
+            return
+
+        protection = util.user_role_protection(ctx, user_id, "ban")
+
+        if protection == "hard":
+            emoji = util.emoji("unleashed")
+            await ctx.send(f'This user is protected. {emoji}')
+            return
+
+        elif protection == "soft":
+            if not util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to ban this user?"):
+                return
+
+        # BANNING
+
+        try:
+            user = await self.bot.fetch_user(user_id)
+            await ctx.guild.ban(user, reason=reason, delete_message_days=0)
+            
+            banemoji = util.emoji("ban")
+            header = f"Permanent ban"
+            description = f'Banned <@{user_id}>. {banemoji}{reason_string}'
+            embed=discord.Embed(title=header, description=description, color=0xB80F0A)
+            await ctx.send(embed=embed)
+        except Exception as e:
+            await ctx.send(f'Error: {e}')
 
         # DM THE USER
 
-        if send_msg_bool:
-            try:
-                user = await self.bot.fetch_user(int(user_id))
-                message = f"You have been banned from {ctx.guild.name}."
-                message += reason_string
-                embed=discord.Embed(title="", description=message, color=0xB80F0A)
-                await user.send(embed=embed)
-                print("Successfully notified user.")
-            except Exception as e:
-                print("Error while trying to DM banned user:", e)
+        try:
+            user = await self.bot.fetch_user(int(user_id))
+            message = f"You have been banned from {ctx.guild.name}."
+            message += reason_string
+            embed=discord.Embed(title="", description=message, color=0xB80F0A)
+            await user.send(embed=embed)
+            print("Successfully notified user.")
+        except Exception as e:
+            print("Error while trying to DM banned user:", e)
+
     @_ban.error
     async def ban_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -236,7 +249,7 @@ class Administration_of_Server(commands.Cog):
 
         send_msg_bool = await self.penaltynotifier(ctx, user_id)
 
-        # KICKING
+        # CHECK IMMUNITIES
 
         immunity_list = await self.get_immunitylist(ctx)
 
@@ -244,32 +257,50 @@ class Administration_of_Server(commands.Cog):
             send_msg_bool = False
             pleademoji = util.emoji("pleading")
             await ctx.send(f'I- I really do not want to kick this user. {pleademoji}')
-        else:
-            try:
-                user = await self.bot.fetch_user(user_id)
-                await ctx.guild.kick(user, reason=reason)
+            return
 
-                gunemoji = util.emoji("gun")
-                header = f"Server kick"
-                description = f'Kicked <@{user_id}>. {gunemoji}{reason_string}'
-                embed=discord.Embed(title=header, description=description, color=0xB80F0A)
-                await ctx.send(embed=embed)
-            except Exception as e:
-                await ctx.send(f'Error: {e}')
-                send_msg_bool = False
+        if user_id in immunity_list:
+            send_msg_bool = False
+            pleademoji = util.emoji("pleading")
+            await ctx.send(f'I- I really do not want to ban this user. {pleademoji}')
+            return
+
+        protection = util.user_role_protection(ctx, user_id, "kick")
+
+        if protection == "hard":
+            emoji = util.emoji("unleashed")
+            await ctx.send(f'This user is protected. {emoji}')
+            return
+
+        elif protection == "soft":
+            if not util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to kick this user?"):
+                return
+
+       # KICKING
+
+        try:
+            user = await self.bot.fetch_user(user_id)
+            await ctx.guild.kick(user, reason=reason)
+
+            gunemoji = util.emoji("gun")
+            header = f"Server kick"
+            description = f'Kicked <@{user_id}>. {gunemoji}{reason_string}'
+            embed=discord.Embed(title=header, description=description, color=0xB80F0A)
+            await ctx.send(embed=embed)
+        except Exception as e:
+            await ctx.send(f'Error: {e}')
 
         # DM THE USER
 
-        if send_msg_bool:
-            try:
-                user = await self.bot.fetch_user(int(user_id))
-                message = f"You have been kicked from {ctx.guild.name}."
-                message += reason_string
-                embed=discord.Embed(title="", description=message, color=0xB80F0A)
-                await user.send(embed=embed)
-                print("Successfully notified user.")
-            except Exception as e:
-                print("Error while trying to DM kicked user:", e)
+        try:
+            user = await self.bot.fetch_user(int(user_id))
+            message = f"You have been kicked from {ctx.guild.name}."
+            message += reason_string
+            embed=discord.Embed(title="", description=message, color=0xB80F0A)
+            await user.send(embed=embed)
+            print("Successfully notified user.")
+        except Exception as e:
+            print("Error while trying to DM kicked user:", e)
 
     @_kick.error
     async def kick_error(self, ctx, error):
@@ -372,18 +403,31 @@ class Administration_of_Server(commands.Cog):
             await ctx.send("Error while trying to fetch user.")
             return
 
+        # CHECK IMMUNITIES
+
         immunity_list = await self.get_immunitylist(ctx)
 
         if user_id in immunity_list:
             pleademoji = util.emoji("pleading")
             await ctx.send(f'I- I really do not want to mute this user. {pleademoji}')
             return
-        else:
-            try:
-                the_member = ctx.guild.get_member(int(user_id))
-            except:
-                await ctx.channel.send(f'Error while trying to fetch member.')
+
+        protection = util.user_role_protection(ctx, user_id, "mute")
+        
+        if protection == "hard":
+            emoji = util.emoji("unleashed")
+            await ctx.send(f'This user is protected. {emoji}')
+            return
+
+        elif protection == "soft":
+            if not util.are_you_sure_msg(ctx, self.bot, "Are you sure you want to mute this user?"):
                 return
+
+        try:
+            the_member = ctx.guild.get_member(int(user_id))
+        except:
+            await ctx.channel.send(f'Error while trying to fetch member.')
+            return
 
         # FETCH TIME
 
