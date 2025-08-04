@@ -5377,10 +5377,8 @@ class Administration_of_Settings(commands.Cog):
             conR = sqlite3.connect(f'databases/roles.db')
             curR = conR.cursor()
             curR.execute('''CREATE TABLE IF NOT EXISTS roles (id text, name text, assignable text, category text, permissions text, color text, details text)''')
-            await util.update_role_database(ctx) # update role database
-
             curR.execute('''CREATE TABLE IF NOT EXISTS protections (id_type text, id text, name text, ban text, kick text, mute text)''')
-
+            await util.update_role_database(ctx) # update role database
 
             # BACKLOG/MEMO DB
 
