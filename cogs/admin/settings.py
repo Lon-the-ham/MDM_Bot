@@ -2681,7 +2681,7 @@ class Administration_of_Settings(commands.Cog):
                 kick_text = intensity if kick else ("none" if len(found) == 0 else found[-1][1])
                 mute_text = intensity if mute else ("none" if len(found) == 0 else found[-1][2])
 
-                if len(found_entries) == 0:
+                if len(found) == 0:
                     curR.execute("INSERT INTO protections VALUES (?, ?, ?, ?, ?, ?)", ("role",  str(role.id), str(role.name), ban_text, kick_text, mute_text))
                     conR.commit()
                 else:
@@ -2714,7 +2714,7 @@ class Administration_of_Settings(commands.Cog):
                 kick_text = intensity if kick else ("none" if len(found) == 0 else found[-1][1])
                 mute_text = intensity if mute else ("none" if len(found) == 0 else found[-1][2])
 
-                if len(found_entries) == 0:
+                if len(found) == 0:
                     curR.execute("INSERT INTO protections VALUES (?, ?, ?, ?, ?, ?)", ("user",  str(user.id), str(user.name), ban_text, kick_text, mute_text))
                     conR.commit()
                 else:
@@ -2736,7 +2736,7 @@ class Administration_of_Settings(commands.Cog):
                     text += f"no mute protection."
                 messages.append(text)
 
-        await util.multi_embed_message(ctx, "Ban/Kick/Mute protection", text, 0xFCE205, "", None)
+        await util.multi_embed_message(ctx, "Ban/Kick/Mute protection", messages, 0xFCE205, "", None)
 
     @_set_protection.error
     async def set_protection_error(self, ctx, error):
