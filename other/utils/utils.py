@@ -4850,6 +4850,43 @@ class Utils():
 
 
 
+    async def user_role_protection(ctx, user_id, action):
+        con = sqlite3.connect('databases/roles.db')
+        cur = con.cursor()
+        action_ = util.alphanum(action,"lower")
+
+        soft = False
+
+        userfound = [item[0] for item in curR.execute(f"SELECT {action_} FROM protections WHERE id_type = ? AND id = ?", ("user", str(user_id))).fetchall()]
+
+        if "hard" in userfound:
+            return "hard"
+        elif "soft" in userfound:
+            soft = True
+
+        all_protected_role_ids = [[util.forceinteger(item[0]), item[1]] for item in curR.execute(f"SELECT id, {action_} FROM protections WHERE id_type = ?", ("role", )).fetchall()]
+
+        member          = ctx.guild.get_member(util.forceinteger(user_id))
+        member_role_ids = [role.id for role in member.roles]
+
+        for r_item in all_protected_role_ids:
+            r_id        = r_item[0]
+            r_intensity = r_item[1]
+
+            if r_intensity == "none" or r_id == 0:
+                continue
+
+            if r_id in member_role_ids:
+                if r_intensity == "hard":
+                    return "hard"
+                elif r_intensity == "soft":
+                    soft = True
+
+        if soft:
+            return "soft"
+
+        return "none"
+
 
 
 
