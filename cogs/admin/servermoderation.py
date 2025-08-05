@@ -179,7 +179,7 @@ class Administration_of_Server(commands.Cog):
 
         if protection == "hard":
             emoji = util.emoji("unleashed")
-            await ctx.send(f'This user is protected. {emoji}')
+            await ctx.send(f'I will defend this user! {emoji}')
             return
 
         elif protection == "soft":
@@ -270,7 +270,7 @@ class Administration_of_Server(commands.Cog):
 
         if protection == "hard":
             emoji = util.emoji("unleashed")
-            await ctx.send(f'This user is protected. {emoji}')
+            await ctx.send(f'Imma protect this user! {emoji}')
             return
 
         elif protection == "soft":
@@ -418,7 +418,7 @@ class Administration_of_Server(commands.Cog):
         
         if protection == "hard":
             emoji = util.emoji("unleashed")
-            await ctx.send(f'This user is protected. {emoji}')
+            await ctx.send(f"This user is protected by meee. {emoji}")
             return
 
         elif protection == "soft":
