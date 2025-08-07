@@ -611,7 +611,7 @@ class TimeLoops(commands.Cog):
                 old_roles_list = []
                 all_roles = [r for r in server.roles]
                 for role_id in role_id_list:
-                    if int(role_id) not in [server.id, timeoutrole_id]: #ignore @everyone role and timeout role
+                    if int(role_id) not in [server.id, timeoutrole_id, server.premium_subscriber_role.id]: #ignore @everyone role, booster role and timeout role
                         try:
                             r_id = int(role_id)
                             for role in all_roles:
@@ -636,7 +636,7 @@ class TimeLoops(commands.Cog):
                 await the_member.remove_roles(timeout_role)
                 if len(old_roles_list) > 0:
                     for r in old_roles_list:
-                        if r.id != ctx.guild.id: #ignore @everyone role
+                        if r.id not in [server.id, timeoutrole_id, server.premium_subscriber_role.id]: #ignore @everyone role
                             try:
                                 await the_member.add_roles(r)
                             except:
