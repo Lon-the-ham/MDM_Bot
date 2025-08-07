@@ -48,16 +48,16 @@ class Administration_of_Settings(commands.Cog):
         """🔒 Shows bot settings
         
         Optionally, you can give the following arguments:
-          emoji: shows the emoji the bot uses
-          keys: shows whether certain keys are provided
-          protections: shows users and roles that have a ban/kick/mute protection
-          roles: shows reaction roles and special roles
+          `emoji`: shows the emoji the bot uses
+          `keys`: shows whether certain keys are provided
+          `protections`: shows users and roles that have a ban/kick/mute protection
+          `roles`: shows reaction roles and special roles
           
         Or these although they are covered by the default command:
-          channels: shows special channels
-          features: shows enabled/disabled functionality
-          mods: shows moderators 
-          notifications: shows enabled/disabled notifications
+          `channels`: shows special channels
+          `features`: shows enabled/disabled functionality
+          `mods`: shows moderators 
+          `notifications`: shows enabled/disabled notifications
 
         """ 
         if len(args) == 0:
@@ -857,7 +857,7 @@ class Administration_of_Settings(commands.Cog):
             r_mute = h_symbol if r_protecc_item[3] == "hard" else (s_symbol if r_protecc_item[3] == "soft" else n_symbol)
             desctext_protections.append(f"<@&{r_id}>: `B: {r_ban}`, `K: {r_kick}`, `M: {r_mute}`\n")
 
-        if len(r_protecc_item) == 0:
+        if len(role_protections) == 0:
             desctext_protections.append(f"*no role protections*\n")
 
         desctext_protections.append(f"\n**Users:**\n")
@@ -868,7 +868,7 @@ class Administration_of_Settings(commands.Cog):
             u_mute = h_symbol if u_protecc_item[3] == "hard" else (s_symbol if u_protecc_item[3] == "soft" else n_symbol)
             desctext_protections.append(f"<@{u_id}>: `B: {u_ban}`, `K: {u_kick}`, `M: {u_mute}`\n")
 
-        if len(u_protecc_item) == 0:
+        if len(user_protections) == 0:
             desctext_protections.append(f"*no user protections*\n")
 
         desctext_protections.append(f"\n-# B: ban, K: kick, M: mute\n-# `{h_symbol}`: hard protection, `{s_symbol}`: soft protection (needs confirmation), `{n_symbol}`: no protection")
