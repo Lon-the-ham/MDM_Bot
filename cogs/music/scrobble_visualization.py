@@ -1927,12 +1927,17 @@ class Music_Scrobbling_Visuals(commands.Cog):
                 x_central = x + int((artist_size - w)/2)
                 drawC2.text((x_central, y), minititle, font=font_user, fill=fontColor)
 
+                for name in mentioned_users:
+                    if name not in user_name_list:
+                        user_name_list.append(name)
+                        user_playcount_list.append(0)
+
             for j in range(min(len(user_name_list), 5)):
                 x, y = coordinates[100 + j]
                 user_name = util.convert_lfmname_to_discordname(ctx, user_name_list[j])
                 playcount = user_playcount_list[j]
 
-                if playcount == 0:
+                if scope == "server" and playcount == 0:
                     break
 
                 drawC2 = ImageDraw.Draw(collage_img)
