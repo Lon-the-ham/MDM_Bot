@@ -64,7 +64,7 @@ class Utils():
             if mainserver.strip() == "":
                 mainserver = "*main server*"
         except:
-            mainserver = "main server"
+            mainserver = "*bot's main server*"
         raise commands.CheckFailure(f'Error: This is a {mainserver} specific command.')
 
 
