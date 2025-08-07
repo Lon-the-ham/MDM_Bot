@@ -50,6 +50,7 @@ class Administration_of_Settings(commands.Cog):
         Optionally, you can give the following arguments:
           emoji: shows the emoji the bot uses
           keys: shows whether certain keys are provided
+          protections: shows users and roles that have a ban/kick/mute protection
           roles: shows reaction roles and special roles
           
         Or these although they are covered by the default command:
@@ -69,9 +70,10 @@ class Administration_of_Settings(commands.Cog):
         con = sqlite3.connect(f'databases/botsettings.db')
         cur = con.cursor()
 
-        desctext_general = []
-        desctext_roles = []
-        desctext_emoji = []
+        desctext_general     = []
+        desctext_emoji       = []
+        desctext_protections = []
+        desctext_roles       = []
 
         desctext_mods = []
         desctext_channels = []
@@ -835,6 +837,42 @@ class Administration_of_Settings(commands.Cog):
                 inactivity_role = inactivityrole_list[0]
             desctext_roles.append(f"Inactivity role: <@&{inactivity_role}>")
 
+        #################################################### USER/ROLE PROTECTIONS
+
+        conR = sqlite3.connect(f'databases/roles.db')
+        curR = conR.cursor()
+
+        role_protections = [[item[0], item[1].lower().strip(), item[2].lower().strip(), item[3].lower().strip()] for item in curR.execute("SELECT id, ban, kick, mute FROM protections WHERE id_type = ?", ("role",)).fetchall()]
+        user_protections = [[item[0], item[1].lower().strip(), item[2].lower().strip(), item[3].lower().strip()] for item in curR.execute("SELECT id, ban, kick, mute FROM protections WHERE id_type = ?", ("user",)).fetchall()]
+
+        h_symbol = "🛡"
+        s_symbol = "📝"
+        n_symbol = "❌"
+
+        desctext_protections.append(f"**Roles:**\n")
+        for r_protecc_item in role_protections:
+            r_id   = r_protecc_item[0]
+            r_ban  = h_symbol if r_protecc_item[1] == "hard" else (s_symbol if r_protecc_item[1] == "soft" else n_symbol)
+            r_kick = h_symbol if r_protecc_item[2] == "hard" else (s_symbol if r_protecc_item[2] == "soft" else n_symbol)
+            r_mute = h_symbol if r_protecc_item[3] == "hard" else (s_symbol if r_protecc_item[3] == "soft" else n_symbol)
+            desctext_protections.append(f"<@&{r_id}>: `B: {r_ban}`, `K: {r_kick}`, `M: {r_mute}`\n")
+
+        if len(r_protecc_item) == 0:
+            desctext_protections.append(f"*no role protections*\n")
+
+        desctext_protections.append(f"\n**Users:**\n")
+        for u_protecc_item in user_protections:
+            u_id   = u_protecc_item[0]
+            u_ban  = h_symbol if u_protecc_item[1] == "hard" else (s_symbol if u_protecc_item[1] == "soft" else n_symbol)
+            u_kick = h_symbol if u_protecc_item[2] == "hard" else (s_symbol if u_protecc_item[2] == "soft" else n_symbol)
+            u_mute = h_symbol if u_protecc_item[3] == "hard" else (s_symbol if u_protecc_item[3] == "soft" else n_symbol)
+            desctext_protections.append(f"<@{u_id}>: `B: {u_ban}`, `K: {u_kick}`, `M: {u_mute}`\n")
+
+        if len(u_protecc_item) == 0:
+            desctext_protections.append(f"*no user protections*\n")
+
+        desctext_protections.append(f"\n-# B: ban, K: kick, M: mute\n-# `{h_symbol}`: hard protection, `{s_symbol}`: soft protection (needs confirmation), `{n_symbol}`: no protection")
+
         #################################################### EMOJI
 
         emojisettings_list = [[item[0],item[1],item[2]] for item in cur.execute("SELECT purpose, call, extra FROM emojis").fetchall()]
@@ -1074,6 +1112,10 @@ class Administration_of_Settings(commands.Cog):
         elif argument in ["emoji", "emojis", "moji", "mojis"]:
             header = f"Emoji settings of {main_server_name}"
             await util.multi_embed_message(ctx, header, desctext_emoji, color, footer, None)
+
+        elif argument in ["protection", "protections", "protect", "protects", "protecc", "proteccs"]:
+            header = f"Role/User protections of {main_server_name}"
+            await util.multi_embed_message(ctx, header, desctext_protections, color, footer, None)
 
         elif argument in ["role", "roles"]:
             header = f"Roles settings of {main_server_name}"
@@ -2540,7 +2582,7 @@ class Administration_of_Settings(commands.Cog):
 
     ### PROTECC
 
-    @_set.command(name="protection", aliases = ["protecc"], pass_context=True)
+    @_set.command(name="protection", aliases = ["protecc", "protect"], pass_context=True)
     @commands.check(util.is_active)
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
