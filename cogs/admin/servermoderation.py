@@ -508,7 +508,11 @@ class Administration_of_Server(commands.Cog):
             print(e)
             try:
                 for r in member_roles:
-                    if r.id != ctx.guild.id: #ignore @everyone role
+                    if r.id == ctx.guild.id: 
+                        pass #ignore @everyone role
+                    elif r.id == ctx.guild.premium_subscriber_role.id:
+                        pass #ignore booster role
+                    else:
                         try:
                             await the_member.remove_roles(r)
                         except:
