@@ -2003,7 +2003,7 @@ class Music_Scrobbling_Visuals(commands.Cog):
 
 
 
-    @commands.command(name='userartistchart', aliases = ["uac", "myac", "myartistchart", "mac"])
+    @commands.command(name='userartistchart', aliases = ["uac", "myac", "myartistchart", "mac", "artistalbumchart", "aac"])
     @commands.check(ScrobbleVisualsCheck.scrobbling_enabled)
     @commands.check(ScrobbleVisualsCheck.is_imagechart_enabled)
     @commands.check(util.is_active)
