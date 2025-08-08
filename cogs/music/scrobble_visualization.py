@@ -2035,6 +2035,8 @@ class Music_Scrobbling_Visuals(commands.Cog):
         for arg in (' '.join(args).replace(">", "> ").replace("<@", " <@").split()):
             if (scope == "user" and len(arg) > 19 and arg.strip().startswith("<@") and arg.strip().endswith(">") and util.represents_integer(arg.strip()[2:-1])):
                 mentioned_user_ids.append(util.forceinteger(arg[2:-1]))
+            elif (scope == "user" and len(arg) > 16 and util.represents_integer(arg.strip())):
+                mentioned_user_ids.append(util.forceinteger(arg))
             elif arg.strip() == "":
                 pass
             else:
