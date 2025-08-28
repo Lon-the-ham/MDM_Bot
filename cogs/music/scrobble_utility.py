@@ -1908,41 +1908,20 @@ class Music_Scrobbling(commands.Cog):
 
         # GET LASTFM DATA
 
-        async with ctx.typing():
-            # GET SCROBBLES
+        if True:
+        #async with ctx.typing():
+            try:
+                loading_emoji = util.emoji("load")
+                await ctx.message.add_reaction(loading_emoji)
+            except:
+                pass
 
-            conFM = sqlite3.connect('databases/scrobbledata.db')
-            curFM = conFM.cursor()
+            if timelength == now:
+                scrobble_list, clearname_dict, total_plays = await self.user_top_accumulate_all(lfm_name, wk_type)
 
-            scrobble_dict = {}
-            clearname_dict = {}
-            total_plays = 0
-
-            if wk_type == "artist":
-                scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "**") for item in curFM.execute(f"SELECT artist_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts ASC", (timecut,)).fetchall()]
             else:
-                scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "** - " + util.compactaddendumfilter(item[1],wk_type)) for item in curFM.execute(f"SELECT artist_name, {wk_type}_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts ASC", (timecut,)).fetchall()]
-            
-            for scrobble in scrobbles:
-                total_plays += 1
-                if "** - " in scrobble:
-                    compactname = util.compactnamefilter(scrobble.split("** - ")[0], "artist","alias") + " - " + util.compactnamefilter(scrobble.split("** - ")[1], wk_type,"alias")
-                else:
-                    compactname = util.compactnamefilter(scrobble, wk_type,"alias")
-
-                scrobble_dict[compactname] = scrobble_dict.get(compactname, 0) + 1
-
-                if compactname not in clearname_dict:
-                    clearname_dict[compactname] = scrobble
-
-            # MAKE LIST AND SORT
-
-            scrobble_list = []
-            for compactname, playcount in scrobble_dict.items():
-                scrobble_list.append([compactname, playcount])
-
-            scrobble_list.sort(key = lambda x: x[1], reverse = True)
-
+                scrobble_list, clearname_dict, total_plays = await self.user_top_accumulate_past(lfm_name, wk_type, timecut, timecut)
+                
             # EMBED
 
             counter = 0
@@ -1978,10 +1957,103 @@ class Music_Scrobbling(commands.Cog):
                 #if counter > 99:
                 #    break
 
+            try:
+                mdmbot_id = int(self.bot.application_id)
+                mdmbot = ctx.guild.get_member(mdmbot_id)
+                #loading_emoji = util.emoji("load")
+                await ctx.message.remove_reaction(loading_emoji, mdmbot)
+            except:
+                pass
+
         # SEND EMBED MESSAGE
         reply = True
         show_author = False
         await util.embed_pages(ctx, self.bot, header[:256], contents, color, footer, reply, show_author)
+
+
+
+    @to_thread
+    def user_top_accumulate_all(self, lfm_name, wk_type):
+        if wk_type == "track":
+            conFMx = sqlite3.connect('databases/scrobbledata_trackwise.db')
+        else:
+            conFMx = sqlite3.connect('databases/scrobbledata_releasewise.db')
+        curFMx = conFMx.cursor()
+
+        scrobble_dict = {}
+        clearname_dict = {}
+        total_plays = 0
+
+        if wk_type == "artist":
+            cumulative_plays = [[str(item[0]), util.forceinteger(item[1])] for item in curFMx.execute(f"SELECT artist_name, count FROM [{lfm_name}]").fetchall()]
+        else:
+            cumulative_plays = [[str(item[0]) + " - " + str(item[1]), util.forceinteger(item[2])] for item in curFMx.execute(f"SELECT artist_name, {wk_type}_name, count FROM [{lfm_name}]").fetchall()]
+        
+        for item in cumulative_plays:
+            compactname =  item[0]
+            play_count  =  item[1]
+
+            total_plays += play_count
+
+            scrobble_dict[compactname] = scrobble_dict.get(compactname, 0) + play_count
+
+            if compactname not in clearname_dict:
+                full_name = util.get_scrobble_fullname(compactname, wk_type) # string for wk_type=artist, tuple of 2 strings otherwise
+
+                if wk_type == "artist":
+                    clearname_dict[compactname] = f"**{full_name}**"
+                else:
+                    artistname  = full_name[0]
+                    releasename = full_name[1]
+                    clearname_dict[compactname] = f"**{artistname}** - {releasename}"
+
+        # MAKE LIST AND SORT
+
+        scrobble_list = []
+        for compactname, playcount in scrobble_dict.items():
+            scrobble_list.append([compactname, playcount])
+
+        scrobble_list.sort(key = lambda x: x[1], reverse = True)
+
+        return scrobble_list, clearname_dict, total_plays
+
+
+
+    @to_thread
+    def user_top_accumulate_past(self, lfm_name, wk_type, timecut):
+        conFM = sqlite3.connect('databases/scrobbledata.db')
+        curFM = conFM.cursor()
+
+        scrobble_dict = {}
+        clearname_dict = {}
+        total_plays = 0
+
+        if wk_type == "artist":
+            scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "**") for item in curFM.execute(f"SELECT artist_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts ASC", (timecut,)).fetchall()]
+        else:
+            scrobbles = [str("**" + util.compactaddendumfilter(item[0],"artist") + "** - " + util.compactaddendumfilter(item[1],wk_type)) for item in curFM.execute(f"SELECT artist_name, {wk_type}_name FROM [{lfm_name}] WHERE date_uts > ? ORDER BY date_uts ASC", (timecut,)).fetchall()]
+        
+        for scrobble in scrobbles:
+            total_plays += 1
+            if "** - " in scrobble:
+                compactname = util.compactnamefilter(scrobble.split("** - ")[0], "artist","alias") + " - " + util.compactnamefilter(scrobble.split("** - ")[1], wk_type,"alias")
+            else:
+                compactname = util.compactnamefilter(scrobble, wk_type,"alias")
+
+            scrobble_dict[compactname] = scrobble_dict.get(compactname, 0) + 1
+
+            if compactname not in clearname_dict:
+                clearname_dict[compactname] = scrobble
+
+        # MAKE LIST AND SORT
+
+        scrobble_list = []
+        for compactname, playcount in scrobble_dict.items():
+            scrobble_list.append([compactname, playcount])
+
+        scrobble_list.sort(key = lambda x: x[1], reverse = True)
+
+        return scrobble_list, clearname_dict, total_plays
 
 
 
@@ -5277,7 +5349,8 @@ class Music_Scrobbling(commands.Cog):
         The default without argument is `month`.
         """
         try:
-            async with ctx.typing():
+            if True:
+            #async with ctx.typing():
                 argument = ' '.join(args)
                 await self.user_top(ctx, argument, "artist")
         except Exception as e:
@@ -5308,7 +5381,8 @@ class Music_Scrobbling(commands.Cog):
         The default without argument is `month`.
         """
         try:
-            async with ctx.typing():
+            if True:
+            #async with ctx.typing():
                 argument = ' '.join(args)
                 await self.user_top(ctx, argument, "album")
         except Exception as e:
@@ -5339,7 +5413,8 @@ class Music_Scrobbling(commands.Cog):
         The default without argument is `month`.
         """
         try:
-            async with ctx.typing():
+            if True:
+            #async with ctx.typing():
                 argument = ' '.join(args)
                 await self.user_top(ctx, argument, "track")
         except Exception as e:
