@@ -1348,6 +1348,114 @@ class Utils():
             return "", None
 
 
+    
+    def get_scrobble_fullname(compactname, wk_type):
+        """INPUT is either an upper case alphanumeric string for artist, or such a string with a hyphen to seperate artist from track/album
+
+        returns 1 string for wk_type artist, return 2 strings for wk_type album and track"""
+
+        conSM = sqlite3.connect('databases/scrobblemeta.db')
+        curSM = conSM.cursor()
+
+        ### ARTIST ###
+        if wk_type.lower().strip() == "artist":
+
+            if "-" not in compactname:
+                artistcompact = compactname.strip().upper()
+
+                try:
+                    result = curSM.execute(f"SELECT artist FROM artistinfo WHERE filtername = ?", (artistcompact,))
+                    rtuple = result.fetchone()
+
+                    artist = str(rtuple[0])
+                    db_entry_exists = True
+                except:
+                    artist = artistcompact
+                    db_entry_exists = False
+
+            else:
+                artistcompact  = compactname.split("-")[0].strip().upper()
+                releasecompact = compactname.split("-")[1].strip().upper()
+
+                # 1) TRY ARTIST-ALBUM MATCH
+                try:
+                    result = curSM.execute(f"SELECT artist FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, releasecompact))
+                    rtuple = result.fetchone()
+
+                    artist = str(rtuple[0])
+                    db_entry_exists = True
+                except:
+                    # 2) TRY ARTIST-TRACK MATCH
+                    try:
+                        result = curSM.execute(f"SELECT artist FROM trackinfo WHERE artist_filtername = ? AND track_filtername = ?", (artistcompact, releasecompact))
+                        rtuple = result.fetchone()
+
+                        artist = str(rtuple[0])
+                        db_entry_exists = True
+                    except:
+                        # 3) TRY ARTIST MATCH
+                        try:
+                            result = curSM.execute(f"SELECT artist FROM artistinfo WHERE filtername = ?", (artistcompact,))
+                            rtuple = result.fetchone()
+
+                            artist = str(rtuple[0])
+                            db_entry_exists = True
+                        except:
+                            # 4) USE INPUT
+                            artist = artistcompact
+                            db_entry_exists = False
+
+            return artist
+
+        ### ALBUM/TRACK ###
+        else:
+            if "-" not in compactname:
+                raise ValueError("util.get_scrobble_fullname() received argument in wrong format")
+
+            artistcompact  = compactname.split("-")[0].strip().upper()
+            releasecompact = compactname.split("-")[1].strip().upper()
+
+            if wk_type.lower().strip() == "album":
+                # SEARCH4 ARTIST-ALBUM MATCH
+                try:
+                    result = curSM.execute(f"SELECT artist, album FROM albuminfo WHERE artist_filtername = ? AND album_filtername = ?", (artistcompact, releasecompact))
+                    rtuple = result.fetchone()
+
+                    artist  = str(rtuple[0])
+                    release = str(rtuple[1])
+                    db_entry_exists = True
+                except:
+                    db_entry_exists = False
+            else:
+                # SEARCH4 ARTIST-TRACK MATCH
+                try:
+                    result = curSM.execute(f"SELECT artist, track FROM trackinfo WHERE artist_filtername = ? AND track_filtername = ?", (artistcompact, releasecompact))
+                    rtuple = result.fetchone()
+
+                    artist  = str(rtuple[0])
+                    release = str(rtuple[1])
+                    db_entry_exists = True
+                except:
+                    db_entry_exists = False
+
+            if not db_entry_exists:
+                # OTHERWISE TRY ARTIST ONLY
+                try:
+                    result = curSM.execute(f"SELECT artist FROM artistinfo WHERE filtername = ?", (artistcompact,))
+                    rtuple = result.fetchone()
+
+                    artist = str(rtuple[0])
+                    db_entry_exists = True
+                except:
+                    # 4) USE INPUT
+                    artist = artistcompact
+                    db_entry_exists = False
+
+                release = releasecompact
+
+            return artist, release
+
+
 
     def get_server_created_utc(ctx):
         creation_time = ctx.guild.created_at
