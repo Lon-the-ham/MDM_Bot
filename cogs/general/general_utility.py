@@ -314,13 +314,14 @@ class General_Utility(commands.Cog):
     async def _dice(self, ctx: commands.Context, *args):
         """RNG command
 
-        Gives out random number or choice depending on the argument.
-
-        Argument can be either one integer n > 1 -> gives out random integer between 1 and n.
+        Argument can be either one integer n > 1 
+        -> gives out random integer between 1 and n.
         or
-        Argument can be a set of options to choose from separated by semicolons -> chooses one of those options.
+        Argument can be a set of options to choose from separated by semicolons 
+        -> chooses one of those options.
         or
-        Argument can be `bl`, `blc` or `blx` (optionally with category name behind (no spaces)) -> chooses random item from your backlog.
+        Argument can be `bl`, `blc` or `blx` (optionally with category name behind (no spaces)) 
+        -> chooses random item from your backlog.
         or
         Argument can be multiple die rolls with syntax `<n>D<x>` to roll `n`-many `x`-sided dice, e.g. `-roll 8D20`.
         In the last case you can add modifiers:
