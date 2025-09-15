@@ -143,6 +143,8 @@ class Administration_of_Server(commands.Cog):
         """🔒 ban user from server
 
         1st argument needs to be user id or @user mention, everything after will be read as ban reason.
+
+        Use `<prefix>set protection` command to protect certain users or users with certain roles from being accidentally banned via ban command.
         
         """
         if len(args) < 1:
