@@ -340,13 +340,15 @@ class Music_Exchange(commands.Cog):
             try:
                 cdtime = int(arg1)
             except:
-                cdtime = 5
-            if cdtime > 10:
-                cdtime = 10
-            if cdtime <= 0:
-                cdtime = 3
+                await ctx.send("Argument needs to be an integer between 1 and 10.") 
+                return
+
+            if cdtime > 10 or cdtime <= 0:
+                await ctx.send("Argument needs to be a number between 1 and 10.") 
+                return
         else:
-            cdtime = 5
+            await ctx.send("Argument needs to be a number between 1 and 10.") 
+            return
 
         await ctx.send('Starting countdown:')
         await asyncio.sleep(1)
