@@ -572,6 +572,55 @@ class Utils():
 
 
 
+    def clean_up_crown_db():
+        conSS = sqlite3.connect('databases/scrobblestats.db')
+        curSS = conSS.cursor()
+
+        for guild_crown_table in [item[0] for item in curSS.execute("SELECT name FROM sqlite_master WHERE type = ?", ("table",)).fetchall()]:
+
+            if guild_crown_table == "artistinfo":
+                duplicate_list = [[item[0],item[1],item[2],item[3],item[4],item[5],item[6]] for item in curSS.execute("SELECT * FROM artistinfo GROUP BY artist HAVING COUNT(artist) > 1").fetchall()]
+                for item in duplicate_list:
+                    artist      = item[0]
+                    thumbnail   = item[1]
+                    tags_lfm    = item[2]
+                    tags_other  = item[3]
+                    last_update = item[4]
+                    filtername  = item[5]
+                    filteralias = item[6]
+                    curSS.execute(f"DELETE FROM {guild_crown_table} WHERE artist = ?", (artist,))
+                    curSS.execute(f"INSERT INTO {guild_crown_table} VALUES (?, ?, ?, ?, ?, ?, ?)", (artist, thumbnail, tags_lfm, tags_other, last_update, filtername, filteralias))
+                    conSS.commit()
+
+            if not guild_crown_table.startswith("crowns_"):
+                continue
+
+            duplicate_list = [[item[0],item[1],item[2],item[3],item[4],item[5]] for item in curSS.execute(f"SELECT * FROM {guild_crown_table} GROUP BY artist HAVING COUNT(artist) > 1").fetchall()]
+            for item in duplicate_list:
+                artist       = item[0]
+                alias        = item[1]
+                alias2       = item[2]
+                lfm_name     = item[3]
+                discord_name = item[4]
+                playcount    = item[5]
+                curSS.execute(f"DELETE FROM {guild_crown_table} WHERE artist = ?", (artist,))
+                curSS.execute(f"INSERT INTO {guild_crown_table} VALUES (?, ?, ?, ?, ?, ?)", (artist, alias, alias2, lfm_name, discord_name, playcount))
+                conSS.commit()
+
+            duplicate_list2 = [[item[0],item[1],item[2],item[3],item[4],item[5]] for item in curSS.execute(f"SELECT * FROM {guild_crown_table} GROUP BY alias HAVING COUNT(alias) > 1").fetchall()]
+            for item in duplicate_list2:
+                artist       = item[0]
+                alias        = item[1]
+                alias2       = item[2]
+                lfm_name     = item[3]
+                discord_name = item[4]
+                playcount    = item[5]
+                curSS.execute(f"DELETE FROM {guild_crown_table} WHERE alias = ?", (alias,))
+                curSS.execute(f"INSERT INTO {guild_crown_table} VALUES (?, ?, ?, ?, ?, ?)", (artist, alias, alias2, lfm_name, discord_name, playcount))
+                conSS.commit()
+
+
+
     def cleantext(s):
         ctxt = str(s).replace("`","'").replace('"',"'").replace("´","'").replace("‘","'").replace("’","'").replace("“","'").replace("”","'")
         return ctxt
