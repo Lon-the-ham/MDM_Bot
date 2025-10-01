@@ -6585,7 +6585,10 @@ class Administration_of_Settings(commands.Cog):
                     text += "At the end use `-rcupdate` to send the embed messages for each reaction role category into the #roles channel."
                     await ctx.send(text)
 
-            
+            try:
+                util.clean_up_crown_db()
+            except:
+                pass
             await util.update_role_database(ctx)
             await util.changetimeupdate()
             if is_setup:
