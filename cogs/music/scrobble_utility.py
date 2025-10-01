@@ -1920,7 +1920,7 @@ class Music_Scrobbling(commands.Cog):
                 scrobble_list, clearname_dict, total_plays = await self.user_top_accumulate_all(lfm_name, wk_type)
 
             else:
-                scrobble_list, clearname_dict, total_plays = await self.user_top_accumulate_past(lfm_name, wk_type, timecut, timecut)
+                scrobble_list, clearname_dict, total_plays = await self.user_top_accumulate_past(lfm_name, wk_type, timecut)
                 
             # EMBED
 
@@ -3317,6 +3317,7 @@ class Music_Scrobbling(commands.Cog):
                 util.unblock_scrobbleupdate()
                 await ctx.send(f"Error: {e}")
 
+            util.clean_up_crown_db()
             util.unblock_scrobbleupdate()
 
     @_fullyreload_releasewise_database.error
@@ -3373,6 +3374,7 @@ class Music_Scrobbling(commands.Cog):
                 util.unblock_scrobbleupdate()
                 await ctx.send(f"Error: {e}")
 
+            #util.clean_up_crown_db()
             util.unblock_scrobbleupdate()
 
     @_scrobble_debug.error
@@ -6082,6 +6084,7 @@ class Music_Scrobbling(commands.Cog):
         # CHECK & ADD
         await self.parse_check_add_alias(ctx, argument_pairs)
         
+        util.clean_up_crown_db()
         util.unblock_scrobbleupdate()
 
     @_add_alias.error
@@ -6239,6 +6242,7 @@ class Music_Scrobbling(commands.Cog):
             text = ', '.join(artists_list) + "; " + ', '.join(alias_list)
             await ctx.reply(f"Removed aliases: {text}"[:2000], mention_author=False)
 
+        util.clean_up_crown_db()
         util.unblock_scrobbleupdate()
 
     @_remove_alias.error
@@ -6743,6 +6747,7 @@ class Music_Scrobbling(commands.Cog):
 
         await self.parse_check_add_alias(ctx, new_alias_pair_list)
 
+        util.clean_up_crown_db()
         util.unblock_scrobbleupdate()
 
     @_import_alias.error
