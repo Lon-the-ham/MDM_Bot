@@ -664,6 +664,7 @@ class Administration_of_Server(commands.Cog):
                     await ctx.send(f"Error: Could not find Timeout role.")
                     return
             except Exception as e:
+                timeoutrole_id = -1
                 print(f"Error: {e}")
                 await ctx.send(f"Error while trying to find Timeout role.")
                 return
