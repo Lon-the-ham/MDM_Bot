@@ -526,6 +526,69 @@ class TimeLoops(commands.Cog):
         if len(reminder_list) == 0:
             return
 
+        #################################################################################
+
+        # FETCHING GUILD OBJECT
+
+        try:
+            try:
+                conB = sqlite3.connect(f'databases/botsettings.db')
+                curB = conB.cursor()
+                botsettings_mainserver_list = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id",)).fetchall()]
+                server_id = int(botsettings_mainserver_list[0])
+            except:
+                try:
+                    server_id = int(os.getenv("guild_id"))
+                except:
+                    raise ValueError("no valid guild id provided")
+
+            server = self.bot.get_guild(server_id)
+            if server is None:
+                server = await self.bot.fetch_guild(server_id)
+                if server is None:
+                    raise ValueError("bot.fetch_guild(<server_id>) returned None")
+        except Exception as e:
+            print(f"Error while trying to fetch guild in __timeloops__.unmuting():", e)
+            await self.timeloop_notification("Auto-Unmute", f"Error while trying to parse timeout data in __timeloops__.unmuting().\nError message:```{e}```Unmuting <@{user_id}> was cancelled. Please unmute manually.", False)
+            await self.remove_from_timeout_db(user_id)
+            return
+
+        # FETCHING TIMEOUT ROLE OBJECT
+
+        try:
+            conB = sqlite3.connect(f'databases/botsettings.db')
+            curB = conB.cursor()
+            timeoutrole_id = int([item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("timeout role",)).fetchall()][0])
+            for role in server.roles:
+                if role.id == timeoutrole_id:
+                    timeout_role = role
+                    break 
+            else:
+                raise ValueError(f"no role on {server.name} with ID {timeoutrole_id}")
+        except Exception as e:
+            print(f"Error while trying to find Timeout role: {e}")
+            await self.timeloop_notification("Auto-Unmute", f"Error while trying to find Timeout role.\nError message:```{e}```Unmuting <@{user_id}> was cancelled. Please unmute manually.", False)
+            await self.remove_from_timeout_db(user_id)
+            return
+
+        # FETCHING ROLE IDS TO IGNORE
+
+        ignore_list = []
+        try:
+            ignore_list.append(server.id)
+        except:
+            pass
+        try:
+            ignore_list.append(timeoutrole_id)
+        except:
+            pass
+        try:
+            ignore_list.append(server.premium_subscriber_role.id)
+        except:
+            pass
+
+        #################################################################################
+
         for item in reminder_list[:20]: # limit to 20
 
             await asyncio.sleep(1)
@@ -545,32 +608,6 @@ class TimeLoops(commands.Cog):
                 await self.remove_from_timeout_db(user_id)
                 continue
 
-            # FETCHING GUILD OBJECT
-
-            try:
-                try:
-                    conB = sqlite3.connect(f'databases/botsettings.db')
-                    curB = conB.cursor()
-                    botsettings_mainserver_list = [item[0] for item in curB.execute("SELECT value FROM botsettings WHERE name = ?", ("main server id",)).fetchall()]
-                    server_id = int(botsettings_mainserver_list[0])
-                except:
-                    try:
-                        server_id = int(os.getenv("guild_id"))
-                    except:
-                        raise ValueError("no valid guild id provided")
-
-
-                server = self.bot.get_guild(server_id)
-                if server is None:
-                    server = await self.bot.fetch_guild(server_id)
-                    if server is None:
-                        raise ValueError("bot.fetch_guild(<server_id>) returned None")
-            except Exception as e:
-                print(f"Error while trying to fetch guild in __timeloops__.unmuting():", e)
-                await self.timeloop_notification("Auto-Unmute", f"Error while trying to parse timeout data in __timeloops__.unmuting().\nError message:```{e}```Unmuting <@{user_id}> was cancelled. Please unmute manually.", False)
-                await self.remove_from_timeout_db(user_id)
-                continue
-
             # FETCH MEMBER OBJECT
 
             try:
@@ -581,22 +618,11 @@ class TimeLoops(commands.Cog):
                 await self.remove_from_timeout_db(user_id)
                 continue
 
-            # FETCHING TIMEOUT ROLE OBJECT
-
-            try:
-                conB = sqlite3.connect(f'databases/botsettings.db')
-                curB = conB.cursor()
-                timeoutrole_id = int([item[0] for item in curB.execute("SELECT role_id FROM specialroles WHERE name = ?", ("timeout role",)).fetchall()][0])
-                for role in server.roles:
-                    if role.id == timeoutrole_id:
-                        timeout_role = role
-                        break 
-                else:
-                    raise ValueError(f"no role on {server.name} with ID {timeoutrole_id}")
-            except Exception as e:
-                print(f"Error while trying to find Timeout role: {e}")
-                await self.timeloop_notification("Auto-Unmute", f"Error while trying to find Timeout role.\nError message:```{e}```Unmuting <@{user_id}> was cancelled. Please unmute manually.", False)
-                await self.remove_from_timeout_db(user_id)
+            if (the_member is None):
+                print(f"user {user_id} seems to be not on this server")
+                accesswall_is_enabled = False # TODO: read this out properly, also give new members the timeout role if accesswall is off and they are in this db
+                if (accesswall_is_enabled):
+                    await self.remove_from_timeout_db(user_id)
                 continue
 
             if timeout_role not in the_member.roles:
@@ -604,22 +630,6 @@ class TimeLoops(commands.Cog):
                 await self.timeloop_notification("Auto-Unmute", f"User <@{user_id}> was already unmuted. {emoji}\nNo futher action required ig.", False)
                 await self.remove_from_timeout_db(user_id)
                 continue
-
-            # FETCHING ROLE IDS TO IGNORE
-
-            ignore_list = []
-            try:
-                ignore_list.append(server.id)
-            except:
-                pass
-            try:
-                ignore_list.append(timeoutrole_id)
-            except:
-                pass
-            try:
-                ignore_list.append(server.premium_subscriber_role.id)
-            except:
-                pass
 
             # FETCHING OTHER ROLE OBJECTS
 
