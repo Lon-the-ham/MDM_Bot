@@ -4166,6 +4166,173 @@ class Music_Scrobbling(commands.Cog):
 
 
 
+    @commands.command(name='tastecomparison', aliases = ["compare", "comparison", "taste", "tastes", "t", "tastecompare", "tc"])
+    @commands.check(ScrobblingCheck.scrobbling_enabled)
+    @commands.check(util.is_active)
+    async def _scrobble_overview(self, ctx: commands.Context, *args):
+        """🔜 Shows scrobble overview
+        """
+        if len(args) == 0:
+            await ctx.send("You need to provide a user ID, mention or their lastfm-name.")
+            return
+
+        async with ctx.typing():
+            mentioned_user_ids, rest = await util.fetch_id_from_args("user", "multiple", args)
+            user_ids_list = [str(ctx.message.author.id)] + mentioned_user_ids.split(";")
+            user_ids_list = list(dict.fromkeys(user_ids_list))
+
+            conNP = sqlite3.connect('databases/npsettings.db')
+            curNP = conNP.cursor()
+
+            if len(user_ids_list) > 1:
+                user1_id = user_ids_list[-2]
+                user2_id = user_ids_list[-1]
+
+                try:
+                    result1   = curNP.execute("SELECT lfm_name FROM lastfm WHERE id = ?", (user1_id,)).fetchone()
+                    lfm_name1 = result1[0]
+
+                    result2   = curNP.execute("SELECT lfm_name FROM lastfm WHERE id = ?", (user2_id,)).fetchone()
+                    lfm_name2 = result2[0]
+                except:
+                    await ctx.send("Could not compare users. :(")
+                    return
+            else:
+                if len(args) > 2:
+                    await ctx.send("Too many arguments. :(")
+                    return
+
+                elif len(args) == 1:
+                    try:
+                        result1   = curNP.execute("SELECT lfm_name FROM lastfm WHERE id = ?", (str(ctx.message.author.id),)).fetchone()
+                        lfm_name1 = result1[0]
+                    except:
+                        await ctx.send("Could not find your scrobble data. :(")
+                        return
+                    try:
+                        result2   = curNP.execute("SELECT lfm_name FROM lastfm WHERE LOWER(lfm_name) = ?", (args[0].lower(),)).fetchone()
+                        lfm_name2 = result2[0]
+                    except:
+                        await ctx.send("Could not find lastfm user of that name in database. :(")
+                        return
+                else:
+                    try:
+                        result1   = curNP.execute("SELECT lfm_name FROM lastfm WHERE LOWER(lfm_name) = ?", (args[0].lower(),)).fetchone()
+                        lfm_name1 = result1[0]
+
+                        result2   = curNP.execute("SELECT lfm_name FROM lastfm WHERE LOWER(lfm_name) = ?", (args[1].lower(),)).fetchone()
+                        lfm_name2 = result2[0]
+                    except:
+                        await ctx.send("Could not find lastfm users of these names in database. :(")
+                        return
+
+            # This point onwards we have 2 valid lfm_names
+            # Find artist overlap
+
+            user1_top1000 = self.get_top_x_artistscrobbles(lfm_name1, 1000)
+            user2_top1000 = self.get_top_x_artistscrobbles(lfm_name2, 1000)
+
+            user_overlap_list = []
+
+            for artist, count1 in user1_top1000.items():
+                if artist in user2_top1000:
+                    count2 = user2_top1000[artist]
+                    score  = count1 * count2
+
+                    user_overlap_list.append([artist, count1, count2, score])
+
+            user_overlap_list.sort(key=lambda x: x[3], reverse=True)
+
+            display_max = 15
+
+            matching_score  = len(user_overlap_list) / 10 #percent
+            max_digits1     = len(str(max([x[1] for x in user_overlap_list[:display_max]])))
+            max_digits2     = len(str(max([x[2] for x in user_overlap_list[:display_max]])))
+
+            # summarise
+            text  = f"**{lfm_name1}** and **{lfm_name2}**\n"
+            text += f"have a {matching_score}% matching of their Top 1000 artists.\n\n"
+
+            if matching_score > 0:
+                text += "The bands both listen to the most are e.g.```"
+
+                for item in user_overlap_list[:display_max]:
+                    artist = item[0]
+                    count1 = item[1]
+                    count2 = item[2]
+
+                    artist_fullname = util.get_scrobble_fullname(artist, "artist")
+                    countstring1 = ("    " + str(count1))[-max_digits1:]
+                    countstring2 = ("    " + str(count2))[-max_digits2:]
+
+                    if (len(artist_fullname) <= 20):
+                        artist_fullname_trunc = (artist_fullname + " " * (20 - len(artist_fullname)))[-20:]
+                    else:
+                        artist_fullname_trunc = artist_fullname[:19] + "."
+
+
+                    text += f"{artist_fullname_trunc}: {countstring1} vs {countstring2}\n"
+
+                text += "```"
+
+            # make embed
+            embed = discord.Embed(title="⚖️ taste comparison", description=text, color=0xb06500)
+
+            if (True):
+                if matching_score == 100:
+                    compatibility = "perfect"
+                elif matching_score >= 99:
+                    compatibility = "near perfect"
+                elif matching_score >= 95:
+                    compatibility = "exceptional"
+                elif matching_score >= 90:
+                    compatibility = "superb"
+                elif matching_score >= 80:
+                    compatibility = "excellent"
+                elif matching_score >= 70:
+                    compatibility = "very high"
+                elif matching_score >= 60:
+                    compatibility = "high"
+                elif matching_score >= 50:
+                    compatibility = "quite high"
+                elif matching_score >= 40:
+                    compatibility = "great"
+                elif matching_score >= 30:
+                    compatibility = "noteworthy"
+                elif matching_score >= 20:
+                    compatibility = "good"
+                elif matching_score >= 10:
+                    compatibility = "alright"
+                elif matching_score >= 1:
+                    compatibility = "existent"
+                else:
+                    compatibility = "low"
+
+                embed.set_footer(text=f"compatibility is {compatibility}")
+
+            await ctx.send(embed=embed)
+
+    @_scrobble_overview.error
+    async def scrobble_overview_error(self, ctx, error):
+        await util.error_handling(ctx, error)
+
+
+
+    def get_top_x_artistscrobbles(self, lfm_name, number_of_artists):
+        conFM2 = sqlite3.connect('databases/scrobbledata_releasewise.db')
+        curFM2 = conFM2.cursor()
+
+        scrobbles = [[item[0], item[1]] for item in curFM2.execute(f"SELECT artist_name, SUM(count) AS total_scrobbles FROM [{lfm_name}] GROUP BY artist_name ORDER BY total_scrobbles DESC LIMIT {number_of_artists}").fetchall()]
+
+        scrobbles_dict = {}
+
+        for item in scrobbles:
+            scrobbles_dict[item[0]] = item[1]
+
+        return scrobbles_dict
+
+
+
     @commands.group(name='streak', aliases = ["str"], pass_context=True, invoke_without_command=True)
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
