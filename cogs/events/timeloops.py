@@ -588,10 +588,12 @@ class TimeLoops(commands.Cog):
             pass
 
         #################################################################################
+        tries = 0
+        max_tries = 20
 
-        for item in reminder_list[:20]: # limit to 20
-
-            await asyncio.sleep(1)
+        for item in reminder_list:
+            if tries >= max_tries:
+                return
 
             # PARSE DATABASE INFORMATION
 
@@ -604,6 +606,7 @@ class TimeLoops(commands.Cog):
                     role_id_list.remove('')
             except Exception as e:
                 print(f"Error while trying to parse timeout data in __timeloops__.unmuting():", e)
+                await asyncio.sleep(1)
                 await self.timeloop_notification("Auto-Unmute", f"Error while trying to fetch guild object in __timeloops__.unmuting().\nError message:```{e}```Unmuting <@{user_id}> was cancelled. Please unmute manually.", False)
                 await self.remove_from_timeout_db(user_id)
                 continue
@@ -614,6 +617,7 @@ class TimeLoops(commands.Cog):
                 the_member = server.get_member(user_id)
             except Exception as e:
                 print(f'Error while trying to fetch member in __timeloops__.unmuting(): {e}')
+                await asyncio.sleep(1)
                 await self.timeloop_notification("Auto-Unmute", f"Error while trying to fetch member in __timeloops__.unmuting().\nError message:```{e}```Unmuting <@{user_id}> was cancelled. Please unmute manually? Perhaps they aren't on this server anymore tho.", False)
                 await self.remove_from_timeout_db(user_id)
                 continue
@@ -627,11 +631,15 @@ class TimeLoops(commands.Cog):
 
             if timeout_role not in the_member.roles:
                 emoji = util.emoji("think")
+                await asyncio.sleep(1)
                 await self.timeloop_notification("Auto-Unmute", f"User <@{user_id}> was already unmuted. {emoji}\nNo futher action required ig.", False)
                 await self.remove_from_timeout_db(user_id)
                 continue
 
             # FETCHING OTHER ROLE OBJECTS
+
+            tries += 1
+            await asyncio.sleep(1)
 
             try:
                 old_roles_list = []
