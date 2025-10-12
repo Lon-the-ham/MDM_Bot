@@ -4169,15 +4169,37 @@ class Music_Scrobbling(commands.Cog):
     @commands.command(name='tastecomparison', aliases = ["compare", "comparison", "taste", "tastes", "t", "tastecompare", "tc"])
     @commands.check(ScrobblingCheck.scrobbling_enabled)
     @commands.check(util.is_active)
-    async def _scrobble_overview(self, ctx: commands.Context, *args):
-        """🔜 Shows scrobble overview
+    async def _taste_comparison(self, ctx: commands.Context, *args):
+        """Compares most listened artists of 2 users
+
+        Give user id, mention or lastfm-name to compare your taste to that of the given user.
+        Give 2 user ids, mentions or lastfm-names to compare taste of these 2 users.
+
+        The algorithm compares the top 1000 artists of both users and shows the overlap as well as the top 15 bands both are listening to (metric for shared top artists is calculated via `user1_scrobbles x user2_scrobbles`).
+        You can specify a number n between 1 and 100 to show the top n bands.
         """
         if len(args) == 0:
             await ctx.send("You need to provide a user ID, mention or their lastfm-name.")
             return
 
+        display_max     = 15   # number of bands (liked by both users) displayed at the end in the embed
+        name_threshold  = 17   # number of letters for a band maximally shown
+        max_item_number = 1000 # number of top artists that are compared
+
+        args_list = []
+        for arg in args:
+            if util.represents_integer(arg):
+                try:
+                    num = int(arg)
+                    if num > 0 and num <= 100:
+                        display_max = num
+                        continue
+                except:
+                    pass
+            args_list.append(arg)
+
         async with ctx.typing():
-            mentioned_user_ids, rest = await util.fetch_id_from_args("user", "multiple", args)
+            mentioned_user_ids, rest = await util.fetch_id_from_args("user", "multiple", args_list)
             user_ids_list = [str(ctx.message.author.id)] + mentioned_user_ids.split(";")
             user_ids_list = list(dict.fromkeys(user_ids_list))
 
@@ -4198,11 +4220,11 @@ class Music_Scrobbling(commands.Cog):
                     await ctx.send("Could not compare users. :(")
                     return
             else:
-                if len(args) > 2:
+                if len(args_list) > 2:
                     await ctx.send("Too many arguments. :(")
                     return
 
-                elif len(args) == 1:
+                elif len(args_list) == 1:
                     try:
                         result1   = curNP.execute("SELECT lfm_name FROM lastfm WHERE id = ?", (str(ctx.message.author.id),)).fetchone()
                         lfm_name1 = result1[0]
@@ -4229,8 +4251,8 @@ class Music_Scrobbling(commands.Cog):
             # This point onwards we have 2 valid lfm_names
             # Find artist overlap
 
-            user1_top1000 = self.get_top_x_artistscrobbles(lfm_name1, 1000)
-            user2_top1000 = self.get_top_x_artistscrobbles(lfm_name2, 1000)
+            user1_top1000 = self.get_top_x_artistscrobbles(lfm_name1, max_item_number)
+            user2_top1000 = self.get_top_x_artistscrobbles(lfm_name2, max_item_number)
 
             user_overlap_list = []
 
@@ -4243,19 +4265,19 @@ class Music_Scrobbling(commands.Cog):
 
             user_overlap_list.sort(key=lambda x: x[3], reverse=True)
 
-            display_max = 15
+            if (len(user1_top1000) < max_item_number) and (len(user2_top1000) < max_item_number):
+                max_item_number = max(len(user1_top1000), len(user2_top1000))
 
-            matching_score  = len(user_overlap_list) / 10 #percent
+            matching_score  = len(user_overlap_list) / (max_item_number/100) #percent
             max_digits1     = len(str(max([x[1] for x in user_overlap_list[:display_max]])))
             max_digits2     = len(str(max([x[2] for x in user_overlap_list[:display_max]])))
 
             # summarise
             text  = f"**{lfm_name1}** and **{lfm_name2}**\n"
-            text += f"have a {matching_score}% matching of their Top 1000 artists.\n\n"
+            text += f"have a {matching_score}% matching of their Top {max_item_number} artists.\n"
 
             if matching_score > 0:
-                text += "The bands both listen to the most are e.g.```"
-
+                text_part3_list = []
                 for item in user_overlap_list[:display_max]:
                     artist = item[0]
                     count1 = item[1]
@@ -4265,15 +4287,43 @@ class Music_Scrobbling(commands.Cog):
                     countstring1 = ("    " + str(count1))[-max_digits1:]
                     countstring2 = ("    " + str(count2))[-max_digits2:]
 
-                    if (len(artist_fullname) <= 20):
-                        artist_fullname_trunc = (artist_fullname + " " * (20 - len(artist_fullname)))[-20:]
+                    if (len(artist_fullname) <= name_threshold):
+                        artist_fullname_trunc = (artist_fullname + " " * (name_threshold - len(artist_fullname)))[-name_threshold:]
                     else:
-                        artist_fullname_trunc = artist_fullname[:19] + "."
+                        artist_fullname_trunc = artist_fullname[:name_threshold-1] + "."
 
+                    if count1 > count2:
+                        comparer = ">"
+                    elif count1 < count2:
+                        comparer = "<"
+                    else:
+                        comparer = "="
 
-                    text += f"{artist_fullname_trunc}: {countstring1} vs {countstring2}\n"
+                    text_part3_list.append(f"{artist_fullname_trunc}: {countstring1} {comparer} {countstring2}\n")
 
-                text += "```"
+                if display_max > 1:
+                    text_part2 = f"Top {display_max} bands they both listen to most:```"
+                else:
+                    text_part2 = f"The band they both listen to most:```"
+
+                text_part4 = "```"
+                text_part3 = ""
+
+                counter    = 0
+                part_len   = len(text) + len(text_part2) + len(text_part4)
+
+                for txt_prt_item in text_part3_list:
+                    if part_len + len(txt_prt_item) < 4096:
+                        text_part3 += txt_prt_item
+                        part_len   += len(txt_prt_item)
+                        counter    += 1
+                    else:
+                        break
+
+                if counter > 1 and counter < display_max:
+                    text_part2 = f"Top {counter} bands they both listen to most:```"
+
+                text += text_part2 + text_part3 + text_part4
 
             # make embed
             embed = discord.Embed(title="⚖️ taste comparison", description=text, color=0xb06500)
@@ -4281,30 +4331,34 @@ class Music_Scrobbling(commands.Cog):
             if (True):
                 if matching_score == 100:
                     compatibility = "perfect"
-                elif matching_score >= 99:
-                    compatibility = "near perfect"
                 elif matching_score >= 95:
-                    compatibility = "exceptional"
+                    compatibility = "near perfect"
                 elif matching_score >= 90:
-                    compatibility = "superb"
+                    compatibility = "unreal"
                 elif matching_score >= 80:
-                    compatibility = "excellent"
+                    compatibility = "extraordinary"
                 elif matching_score >= 70:
-                    compatibility = "very high"
+                    compatibility = "exceptional"
                 elif matching_score >= 60:
-                    compatibility = "high"
+                    compatibility = "super high"
                 elif matching_score >= 50:
-                    compatibility = "quite high"
+                    compatibility = "very high"
                 elif matching_score >= 40:
+                    compatibility = "excellent"
+                elif matching_score >= 33.33:
                     compatibility = "great"
                 elif matching_score >= 30:
-                    compatibility = "noteworthy"
+                    compatibility = "super good"
+                elif matching_score >= 25:
+                    compatibility = "very good"
                 elif matching_score >= 20:
                     compatibility = "good"
                 elif matching_score >= 10:
+                    compatibility = "decent"
+                elif matching_score >= 2:
                     compatibility = "alright"
                 elif matching_score >= 1:
-                    compatibility = "existent"
+                    compatibility = "quite low"
                 else:
                     compatibility = "low"
 
@@ -4312,8 +4366,8 @@ class Music_Scrobbling(commands.Cog):
 
             await ctx.send(embed=embed)
 
-    @_scrobble_overview.error
-    async def scrobble_overview_error(self, ctx, error):
+    @_taste_comparison.error
+    async def taste_comparison_error(self, ctx, error):
         await util.error_handling(ctx, error)
 
 
