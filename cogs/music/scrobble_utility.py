@@ -4393,8 +4393,24 @@ class Music_Scrobbling(commands.Cog):
                 else:
                     text_part2 = f"The band they both listen to most:```"
 
-                text_part4 = "```"
                 text_part3 = ""
+                text_part4 = "```"
+                if len(user_overlap_list) > 1:
+                    if ranking_method == "h":
+                        ranking_string = "harmonic mean"
+                    elif ranking_method == "g":
+                        ranking_string = "geometric mean"
+                    elif ranking_method == "a":
+                        ranking_string = "arithmetic mean"
+                    elif ranking_method == "q":
+                        ranking_string = "quadratic mean"
+                    else:
+                        ranking_string = "undefined method"
+
+                    if normalisation:
+                        ranking_string = "normalised " + ranking_string
+
+                    text_part4 += f"(entries ranked by {ranking_string})"
 
                 counter    = 0
                 part_len   = len(text) + len(text_part2) + len(text_part4)
@@ -4449,24 +4465,7 @@ class Music_Scrobbling(commands.Cog):
                 else:
                     compatibility = "low"
 
-                if ranking_method == "h":
-                    ranking_string = "harmonic mean"
-                elif ranking_method == "g":
-                    ranking_string = "geometric mean"
-                elif ranking_method == "a":
-                    ranking_string = "arithmetic mean"
-                elif ranking_method == "q":
-                    ranking_string = "quadratic mean"
-                else:
-                    ranking_string = "undefined method"
-
-                if normalisation:
-                    ranking_string += " (normalised)"
-
                 footer_text = f"Compatibility is {compatibility}." 
-
-                if len(user_overlap_list) > 1:
-                    footer_text += f" Entries ranked by {ranking_string}"
 
                 embed.set_footer(text=footer_text)
 
