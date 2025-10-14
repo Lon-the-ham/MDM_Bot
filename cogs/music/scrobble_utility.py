@@ -4449,7 +4449,21 @@ class Music_Scrobbling(commands.Cog):
                 else:
                     compatibility = "low"
 
-                embed.set_footer(text=f"compatibility is {compatibility}")
+                if ranking_method == "h":
+                    ranking_string = "harmonic mean"
+                if ranking_method == "g":
+                    ranking_string = "geometric mean"
+                if ranking_method == "a":
+                    ranking_string = "arithmetic mean"
+                if ranking_method == "q":
+                    ranking_string = "quadratic mean"
+                else:
+                    ranking_string = "undefined method"
+
+                if normalisation:
+                    ranking_string += " (normalised)"
+
+                embed.set_footer(text=f"Compatibility is {compatibility}. Entries ranked by {ranking_string}")
 
             await ctx.send(embed=embed)
 
