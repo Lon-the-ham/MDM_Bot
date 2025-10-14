@@ -4415,7 +4415,7 @@ class Music_Scrobbling(commands.Cog):
             # make embed
             embed = discord.Embed(title="⚖️ taste comparison", description=text, color=0xb06500)
 
-            if (True):
+            if matching_score > 0:
                 if matching_score == 100:
                     compatibility = "perfect"
                 elif matching_score >= 95:
@@ -4451,11 +4451,11 @@ class Music_Scrobbling(commands.Cog):
 
                 if ranking_method == "h":
                     ranking_string = "harmonic mean"
-                if ranking_method == "g":
+                elif ranking_method == "g":
                     ranking_string = "geometric mean"
-                if ranking_method == "a":
+                elif ranking_method == "a":
                     ranking_string = "arithmetic mean"
-                if ranking_method == "q":
+                elif ranking_method == "q":
                     ranking_string = "quadratic mean"
                 else:
                     ranking_string = "undefined method"
@@ -4463,7 +4463,12 @@ class Music_Scrobbling(commands.Cog):
                 if normalisation:
                     ranking_string += " (normalised)"
 
-                embed.set_footer(text=f"Compatibility is {compatibility}. Entries ranked by {ranking_string}")
+                footer_text = f"Compatibility is {compatibility}." 
+
+                if len(user_overlap_list) > 1:
+                    footer_text += f" Entries ranked by {ranking_string}"
+
+                embed.set_footer(text=footer_text)
 
             await ctx.send(embed=embed)
 
