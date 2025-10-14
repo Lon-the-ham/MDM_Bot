@@ -4242,9 +4242,13 @@ class Music_Scrobbling(commands.Cog):
             args_list.append(arg)
 
         async with ctx.typing():
-            mentioned_user_ids, rest = await util.fetch_id_from_args("user", "multiple", args_list)
-            user_ids_list = [str(ctx.message.author.id)] + mentioned_user_ids.split(";")
-            user_ids_list = list(dict.fromkeys(user_ids_list))
+            try:
+                mentioned_user_ids, rest = await util.fetch_id_from_args("user", "multiple", args_list)
+                user_ids_list = [str(ctx.message.author.id)] + mentioned_user_ids.split(";")
+                user_ids_list = list(dict.fromkeys(user_ids_list))
+            except:
+                user_ids_list = []
+                rest = ' '.join(args)
 
             conNP = sqlite3.connect('databases/npsettings.db')
             curNP = conNP.cursor()
