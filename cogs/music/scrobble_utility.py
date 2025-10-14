@@ -4179,7 +4179,7 @@ class Music_Scrobbling(commands.Cog):
         You can specify a number n between 1 and 100 to show the top n bands.
         You can also specify the ranking metric:
         `--h`: harmonic mean (default and recommended)
-        `--g`: geometric mean (how a lot of other bots work)
+        `--g`: geometric mean (how some other apps work)
         `--a`: arithmetic mean (not recommended)
         `--q`: quadratic mean (not recommended)
         """
