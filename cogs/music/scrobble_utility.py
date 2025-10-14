@@ -4175,7 +4175,7 @@ class Music_Scrobbling(commands.Cog):
         Give user id, mention or lastfm-name to compare your taste to that of the given user.
         Give 2 user ids, mentions or lastfm-names to compare taste of these 2 users.
 
-        The algorithm compares the top 1000 artists of both users and shows the overlap as well as the top 15 bands both are listening to (metric for shared top artists is calculated via `user1_scrobbles x user2_scrobbles`).
+        The algorithm compares the top 1000 artists of both users and shows the overlap as well as the top 15 bands both are listening to (by harmonic mean).
         You can specify a number n between 1 and 100 to show the top n bands.
         """
         if len(args) == 0:
@@ -4185,6 +4185,9 @@ class Music_Scrobbling(commands.Cog):
         display_max     = 15   # number of bands (liked by both users) displayed at the end in the embed
         name_threshold  = 17   # number of letters for a band maximally shown
         max_item_number = 1000 # number of top artists that are compared
+
+        normalisation   = False
+        ranking_method  = "h"
 
         args_list = []
         for arg in args:
@@ -4196,6 +4199,41 @@ class Music_Scrobbling(commands.Cog):
                         continue
                 except:
                     pass
+
+            if arg.startswith("--"):
+                if len(arg) > 2:
+                    aux_arg = util.alphanum(arg[2:], "lower")
+
+                    if aux_arg in ["h", "harmonic", "harm"]:
+                        normalisation   = False
+                        ranking_method  = "h"
+                    elif aux_arg in ["a", "arithmetic", "arith"]:
+                        normalisation   = False
+                        ranking_method  = "a"
+                    elif aux_arg in ["g", "geometric", "geom"]:
+                        normalisation   = False
+                        ranking_method  = "g"
+                    elif aux_arg in ["q", "quadratic", "quad"]:
+                        normalisation   = False
+                        ranking_method  = "q"
+
+                    elif aux_arg in ["nh", "nharmonic", "normalisedharmonic", "normalizedharmonic", "normharm"]:
+                        normalisation   = True
+                        ranking_method  = "h"
+                    elif aux_arg in ["na", "narithmetic", "normalisedarithmetic", "normalizedarithmetic", "normarith"]:
+                        normalisation   = True
+                        ranking_method  = "a"
+                    elif aux_arg in ["ng", "ngeometric", "normalisedgeometric", "normalizedgeometric", "normgeom"]:
+                        normalisation   = True
+                        ranking_method  = "g"
+                    elif aux_arg in ["nq", "nquadratic", "normalisedquadratic", "normalizedquadratic", "normquad"]:
+                        normalisation   = True
+                        ranking_method  = "q"
+
+                    elif aux_arg in ["n", "norm", "normalised", "normalized"]:
+                        normalisation   = True
+                
+
             args_list.append(arg)
 
         async with ctx.typing():
@@ -4249,19 +4287,63 @@ class Music_Scrobbling(commands.Cog):
                         return
 
             # This point onwards we have 2 valid lfm_names
-            # Find artist overlap
+            # Find artist overlap and rank entries
 
             user1_top1000 = self.get_top_x_artistscrobbles(lfm_name1, max_item_number)
             user2_top1000 = self.get_top_x_artistscrobbles(lfm_name2, max_item_number)
 
             user_overlap_list = []
+            score = 0
 
             for artist, count1 in user1_top1000.items():
                 if artist in user2_top1000:
                     count2 = user2_top1000[artist]
-                    score  = count1 * count2
+
+                    if not normalisation:
+                        if count1 + count2 == 0:
+                            score  = 0
+
+                        elif ranking_method == "h":
+                            score  = (count1 * count2) / (count1 + count2) # times 2, but that's not relevant for the rank comparison
+
+                        elif ranking_method == "g":
+                            score  = count1 * count2 # squareroot of, but that's not relevant for the rank comparison
+
+                        elif ranking_method == "a":
+                            score  = count1 + count2 # divided by 2, but that's not relevant for the rank comparison
+
+                        elif ranking_method == "q":
+                            score  = count1*count1 + count2*count2 # divided by 2 and squareroot, but that's not relevant for the rank comparison
 
                     user_overlap_list.append([artist, count1, count2, score])
+
+            if normalisation:
+                sum1 = 0
+                sum2 = 0
+                for item in user_overlap_list:
+                    sum1 += item[1]
+                    sum2 += item[2]
+
+                for item in user_overlap_list:
+                    count1 = item[1] / sum1
+                    count2 = item[2] / sum2
+
+                    if count1 + count2 == 0:
+                        score  = 0
+
+                    elif ranking_method == "h":
+                        score  = (count1 * count2) / (count1 + count2)
+
+                    elif ranking_method == "g":
+                        score  = count1 * count2 
+
+                    elif ranking_method == "a":
+                        score  = count1 + count2 
+
+                    elif ranking_method == "q":
+                        score  = count1*count1 + count2*count2
+
+                    item[3] = score
 
             user_overlap_list.sort(key=lambda x: x[3], reverse=True)
 
