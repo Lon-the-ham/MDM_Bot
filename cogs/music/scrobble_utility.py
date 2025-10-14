@@ -4177,6 +4177,11 @@ class Music_Scrobbling(commands.Cog):
 
         The algorithm compares the top 1000 artists of both users and shows the overlap as well as the top 15 bands both are listening to (by harmonic mean).
         You can specify a number n between 1 and 100 to show the top n bands.
+        You can also specify the ranking metric:
+        `--h`: harmonic mean (default and recommended)
+        `--g`: geometric mean (how a lot of other bots work)
+        `--a`: arithmetic mean (not recommended)
+        `--q`: quadratic mean (not recommended)
         """
         if len(args) == 0:
             await ctx.send("You need to provide a user ID, mention or their lastfm-name.")
