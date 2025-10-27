@@ -1732,7 +1732,7 @@ class Memo(commands.Cog):
 
 
 
-    @commands.command(name='del', aliases = ['delete', 'bldel'])
+    @commands.command(name='del', aliases = ['delete', 'bldel', 'bldelete', 'remove', 'rem', 'blrem', 'blremove'])
     @commands.check(MemoCheck.backlog_enabled)
     @commands.check(util.is_active)
     async def _del(self, ctx, *args):
@@ -1757,7 +1757,7 @@ class Memo(commands.Cog):
 
 
 
-    @_backlog.command(name='del', aliases = ['delete'], pass_context=True)
+    @_backlog.command(name='del', aliases = ['delete', 'rem', 'remove'], pass_context=True)
     @commands.check(MemoCheck.backlog_enabled)
     @commands.check(util.is_active)
     async def _backlog_delete(self, ctx, *args):
