@@ -161,22 +161,41 @@ Some features are optional, because we thought they are a bit more niche and req
 If you want to add your own commands copy the file `sandbox.py` in folder `other/templates` into the `cogs` folder and make your changes in there! This file will be git-ignored and not be synced when git pulling new versions of MDM bot.
 
 It's not recommended, but you can disable entire cogs if you need to for whatever reason. To do so copy this
+
 > instance_management 		= true
+
 > servermoderation 		= true
+
 > settings 			= true
+
 > eventresponse 		= true
+
 > timeloops 			= true
+
 > general_utility 		= true
+
 > general_help 			= true
+
 > shenanigans 			= true
+
 > music_exchanges 		= true
+
 > music_fm 			= true
+
 > music_info 			= true
+
 > scrobble_utility 		= true
+
 > scrobble_visualization 	= true
+
 > roles 			= true
+
 > reactionroles 		= true
+
 > memo 				= true
+
 > pingterest 			= true
+
 > youtube_download 		= true
+
 into your `.env`-file and set the ones you want to disable to `false`.
