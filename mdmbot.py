@@ -23,6 +23,27 @@ guild_id = int(os.getenv("guild_id"))
 bot_channel_id = int(os.getenv("bot_channel_id"))
 activity = "loading..."
 
+# COGS (in case of new cogs update documentation.md/customisation)
+extension_dict = {}
+extension_dict["cogs.admin.instance_management"]    = os.getenv("instance_management")
+extension_dict["cogs.admin.servermoderation"]       = os.getenv("servermoderation")
+extension_dict["cogs.admin.settings"]               = os.getenv("settings")
+extension_dict["cogs.events.eventresponse"]         = os.getenv("eventresponse")
+extension_dict["cogs.events.timeloops"]             = os.getenv("timeloops")
+extension_dict["cogs.general.general_utility"]      = os.getenv("general_utility")
+extension_dict["cogs.general.help"]                 = os.getenv("general_help")
+extension_dict["cogs.general.shenanigans"]          = os.getenv("shenanigans")
+extension_dict["cogs.music.exchanges"]              = os.getenv("music_exchanges")
+extension_dict["cogs.music.fm"]                     = os.getenv("music_fm")
+extension_dict["cogs.music.info"]                   = os.getenv("music_info")
+extension_dict["cogs.music.scrobble_utility"]       = os.getenv("scrobble_utility")
+extension_dict["cogs.music.scrobble_visualization"] = os.getenv("scrobble_visualization")
+extension_dict["cogs.roles.roles"]                  = os.getenv("roles")
+extension_dict["cogs.roles.reactionroles"]          = os.getenv("reactionroles")
+extension_dict["cogs.userown.memo"]                 = os.getenv("memo")
+extension_dict["cogs.userown.pingterest"]           = os.getenv("pingterest")
+# extended:
+extension_dict["cogs.xtended.youtube_download"]     = os.getenv("youtube_download")
 
 
 class YataBot(commands.Bot):
@@ -35,35 +56,19 @@ class YataBot(commands.Bot):
             intents          = discord.Intents.all()
             )
 
-        self.initial_extensions = [
-            "cogs.admin.instance_management",
-            "cogs.admin.servermoderation",
-            "cogs.admin.settings",
-            "cogs.events.eventresponse",
-            "cogs.events.timeloops",
-            "cogs.general.general_utility",
-            "cogs.general.help",
-            "cogs.general.shenanigans", 
-            #"cogs.general.textedit", ❌
-            "cogs.music.exchanges",
-            "cogs.music.fm",
-            "cogs.music.info",
-            "cogs.music.scrobble_utility",
-            "cogs.music.scrobble_visualization",
-            "cogs.roles.roles",
-            "cogs.roles.reactionroles",
-            "cogs.userown.memo",
-            "cogs.userown.pingterest",
-            # extended:
-            "cogs.xtended.youtube_download"
-            ]
+        self.initial_extensions  = extension_dict.keys()
         self.optional_extensions = ["cogs.sandbox"]
 
 
     async def setup_hook(self):
         # loading cogs
+        
+
         for ext in self.initial_extensions:
-            await self.load_extension(ext)
+            if (extension_dict.get(ext) is None) or (str(extension_dict.get(ext)).lower().strip() == "true"):
+                await self.load_extension(ext)
+            else:
+                print(f"> Cog {extension_dict.get(ext)} disabled")
 
         # loading optional cogs
         for ext in self.optional_extensions:
