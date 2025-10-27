@@ -198,4 +198,4 @@ It's not recommended, but you can disable entire cogs if you need to for whateve
 
 > youtube_download 		= true
 
-into your `.env`-file and set the ones you want to disable to `false`.
+into your `.env`-file and set the ones you want to disable to `false`. The one's set to `true` or not mentioned here at all will be loaded as usual.
