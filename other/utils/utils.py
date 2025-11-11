@@ -120,6 +120,7 @@ class Utils():
 
 
     def is_mod(ctx):
+        # depracate this in future
         for perms in ctx.message.author.guild_permissions:
             if perms[0] == "manage_guild":
                 if perms[1]:
@@ -919,6 +920,7 @@ class Utils():
             ord("Ğ"): "G",
             ord("Í"): "I",
             ord("İ"): "I",
+            ord("Ï"): "I",
             ord("Î"): "I",
             ord("Ī"): "I",
             ord("Ł"): "L",
