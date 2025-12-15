@@ -623,7 +623,7 @@ class TimeLoops(commands.Cog):
                 continue
 
             if (the_member is None):
-                print(f"user {user_id} seems to be not on this server")
+                #print(f"user {user_id} seems to be not on this server")
                 accesswall_is_enabled = False # TODO: read this out properly, also give new members the timeout role if accesswall is off and they are in this db
                 if (accesswall_is_enabled):
                     await self.remove_from_timeout_db(user_id)
