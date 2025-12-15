@@ -18,6 +18,7 @@ from emoji import UNICODE_EMOJI
 import traceback
 import functools
 import typing
+import urllib.request # fetching spotify listeners
 
 
 class Music_NowPlaying(commands.Cog):
@@ -1266,15 +1267,13 @@ class Music_NowPlaying(commands.Cog):
         if artist_id.strip() == "" and track_id.strip() != "":
             # fetch artist id from track id
             try:
-                session = requests.session()
-                burp0_url = f"https://open.spotify.com:443/track/{track_id}"
-                burp0_headers = {"Sec-Ch-Ua": "\"Chromium\";v=\"111\", \"Not(A:Brand\";v=\"8\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.5563.111 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Connection": "close"}
-                response = session.get(burp0_url, headers=burp0_headers)
+                request_url = urllib.request.urlopen(f"https://open.spotify.com:443/track/{track_id}")
+                html_text   = str(request_url.read())
 
-                if not "/artist/" in response.text:
+                if not "/artist/" in html_text:
                     return ""
 
-                artist_id = response.text.split("/artist/")[1].split('"')[0]
+                artist_id = html_text.split("/artist/")[1].split('"')[0]
             except Exception as e:
                 print("Error while trying to fetch artist link from track id: ", e)
                 return ""
@@ -1282,37 +1281,73 @@ class Music_NowPlaying(commands.Cog):
         # fetch listener stats from artist page
         monthly_listeners = "?"
         try:
-            session = requests.session()
-            burp0_url = f"https://open.spotify.com:443/artist/{artist_id}"
-            burp0_headers = {"Sec-Ch-Ua": "\"Chromium\";v=\"111\", \"Not(A:Brand\";v=\"8\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.5563.111 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Connection": "close"}
-            response = session.get(burp0_url, headers=burp0_headers)
+            request_url = urllib.request.urlopen(f"https://open.spotify.com:443/artist/{artist_id}")
+            html_text   = str(request_url.read())
 
-            soup = BeautifulSoup(response.text, "html.parser")
+            keyword_pre_list = ['"monthly-listeners-label">', 'ata-encore-id="text">']
+            keyword_post     = " monthly listeners"
 
-            try:
-                metalist = soup.find_all("meta")
-                for metadata in metalist:
-                    if "monthly listener" in str(metadata):
-                        content = str(metadata).split()
-                        if len(content) > 2:
-                            for i in range(len(content)-2):
-                                if content[i+1] == "monthly" and "listener" in content[i+2]:
-                                    #print(content[i])
-                                    monthly_listeners = content[i]
-                                    break
-                if monthly_listeners == "?":
-                    ml_string = ""
-                else:
-                    ml_string = f"{monthly_listeners} monthly listeners\n"
-
-            except Exception as e:
-                print(f"Error while parsing html: {e}")
-                return ""
+            for keyword_pre in keyword_pre_list:
+                if keyword_pre in html_text:
+                    html_rest = html_text.split(keyword_pre)[1]
+                    if keyword_post in html_rest:
+                        monthly_listeners = html_rest.split(keyword_post)[0]
+                        break
+            else:
+                html_rest         = html_text.split(keyword_post)[0]
+                monthly_listeners = html_rest.split()[-1]
         except Exception as e:
-            print(f"Error while fetching from spotify web: {e}")
+            print(f"Error while parsing html: {e}")
             return ""
 
+        #if artist_id.strip() == "" and track_id.strip() != "":
+        #    # fetch artist id from track id
+        #    try:
+        #        session = requests.session()
+        #        burp0_url = f"https://open.spotify.com:443/track/{track_id}"
+        #        burp0_headers = {"Sec-Ch-Ua": "\"Chromium\";v=\"111\", \"Not(A:Brand\";v=\"8\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.5563.111 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Connection": "close"}
+        #        response = session.get(burp0_url, headers=burp0_headers)
+        #        if not "/artist/" in response.text:
+        #            return ""
+        #        artist_id = response.text.split("/artist/")[1].split('"')[0]
+        #    except Exception as e:
+        #        print("Error while trying to fetch artist link from track id: ", e)
+        #        return ""
+        #monthly_listeners = "?"
+        #try:
+        #    session = requests.session()
+        #    burp0_url = f"https://open.spotify.com:443/artist/{artist_id}"
+        #    burp0_headers = {"Sec-Ch-Ua": "\"Chromium\";v=\"111\", \"Not(A:Brand\";v=\"8\"", "Sec-Ch-Ua-Mobile": "?0", "Sec-Ch-Ua-Platform": "\"Windows\"", "Upgrade-Insecure-Requests": "1", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.5563.111 Safari/537.36", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7", "Sec-Fetch-Site": "none", "Sec-Fetch-Mode": "navigate", "Sec-Fetch-User": "?1", "Sec-Fetch-Dest": "document", "Accept-Encoding": "gzip, deflate", "Accept-Language": "en-US;q=0.8,en;q=0.7", "Connection": "close"}
+        #    response = session.get(burp0_url, headers=burp0_headers)
+        #    soup = BeautifulSoup(response.text, "html.parser")
+        #    try:
+        #        metalist = soup.find_all("meta")
+        #        for metadata in metalist:
+        #            if "monthly listener" in str(metadata):
+        #                content = str(metadata).split()
+        #                if len(content) > 2:
+        #                    for i in range(len(content)-2):
+        #                        if content[i+1] == "monthly" and "listener" in content[i+2]:
+        #                            #print(content[i])
+        #                            monthly_listeners = content[i]
+        #                            break
+        #        if monthly_listeners == "?":
+        #            ml_string = ""
+        #        else:
+        #            ml_string = f"{monthly_listeners} monthly listeners\n"
+        #    except Exception as e:
+        #        print(f"Error while parsing html: {e}")
+        #        return ""
+        #except Exception as e:
+        #    print(f"Error while fetching from spotify web: {e}")
+        #    return ""
+
         print("monthly listeners:", monthly_listeners)
+        if monthly_listeners == "?":
+            ml_string = ""
+        else:
+            ml_string = f"{monthly_listeners} monthly listeners\n"
+
         return ml_string
 
 
