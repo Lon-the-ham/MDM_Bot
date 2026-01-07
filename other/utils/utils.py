@@ -4240,6 +4240,26 @@ class Utils():
 
 
 
+    async def reply_verifification(ctx, args, general_channel):
+        # todo: include optional arg "--fw" to forward every message of that user that was replied to
+        if ctx.message.reference is None:
+            return
+            
+        target_message = await ctx.channel.fetch_message(ctx.message.reference.message_id)
+
+        argument_string = ' '.join(args)
+        mention         = "<@" + str(target_message.author.id) + ">"
+
+        if mention in argument_string:
+            emoji = Utils.emoji("yay")
+            header = f"Introducing {target_message.author.display_name} {emoji}"
+            intro_text = str(target_message.content)
+            embed = discord.Embed(title=header, description=intro_text[:4000], color=0xFFFFFF)
+            embed.set_footer(text=f"- {target_message.author.name}")
+            await general_channel.send(embed=embed)
+
+
+
     async def scrape_exchangerates():
         """In case Exchangerate API key isn't provided this gives rudimentary support for currency conversion"""
         conER = sqlite3.connect('databases/exchangerate.db')
