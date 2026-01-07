@@ -885,7 +885,7 @@ class Administration_of_Server(commands.Cog):
         """
         if len(args) < 1:
             emoji = util.emoji("pout")
-            await ctx.send(f"Error: Missing arguments. {emoji}")
+            await ctx.send(f"Error: Missing arguments. {emoji}\n-# memo @dev: include the option to omit user argument if message is a reply to said user")
             return
 
         if len(args) > 1:
@@ -1014,6 +1014,11 @@ class Administration_of_Server(commands.Cog):
                         welcometext_preparse = welcometext_list[0]
                         welcometext = await util.customtextparse(welcometext_preparse, user_id)
                     await general_channel.send(welcometext)
+
+                    try:
+                        await util.reply_verifification(ctx, args, general_channel)
+                    except Exception as e:
+                        print("Error:", e)
                 else:
                     print("welcome message turned off")
             else:
