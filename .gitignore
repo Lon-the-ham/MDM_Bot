@@ -1,4 +1,6 @@
 .env
 .cache
 test.py
+databases/
+temp/
 __pycache__

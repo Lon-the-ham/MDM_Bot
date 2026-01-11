@@ -1,307 +1,117 @@
 # MAIN PYTHON FILE
 
-import os
-import sys
-from dotenv import load_dotenv
-import datetime
-import pytz
-import discord
-from discord.ext import commands
 import asyncio
-import sqlite3
-from other.utils.utils import Utils as util
+import discord
+import os
 import traceback
 
+from discord.ext import commands
+
+from cogs.utils.prc_bootload    import Environment          as env
+from cogs.utils.prc_bootload    import BootLoadFunctions    as blf
+from cogs.utils.prc_update      import BotUpdate            as upd
+from cogs.utils.utl_checks      import ComCheckUtils        as utl_c
+from cogs.utils.utl_discord     import DiscordUtils         as utl_d
+from cogs.utils.utl_general     import GeneralUtils         as utl_g
+from cogs.utils.utl_simple      import SimpleUtils          as utl_s
+from cogs.utils.utl_translation import TranslationUtils     as utl_t
+
+environment = env()
 
 
-load_dotenv()
-app_id = os.getenv("application_id")
-bot_instance = os.getenv("bot_instance")
-discord_token = os.getenv("discord_token")
-prefix = os.getenv("prefix")
-guild_id = int(os.getenv("guild_id"))
-bot_channel_id = int(os.getenv("bot_channel_id"))
-activity = "loading..."
 
-# COGS (in case of new cogs update documentation.md/customisation)
-extension_dict = {}
-extension_dict["cogs.admin.instance_management"]    = os.getenv("instance_management")
-extension_dict["cogs.admin.servermoderation"]       = os.getenv("servermoderation")
-extension_dict["cogs.admin.settings"]               = os.getenv("settings")
-extension_dict["cogs.events.eventresponse"]         = os.getenv("eventresponse")
-extension_dict["cogs.events.timeloops"]             = os.getenv("timeloops")
-extension_dict["cogs.general.general_utility"]      = os.getenv("general_utility")
-extension_dict["cogs.general.help"]                 = os.getenv("general_help")
-extension_dict["cogs.general.shenanigans"]          = os.getenv("shenanigans")
-extension_dict["cogs.music.exchanges"]              = os.getenv("music_exchanges")
-extension_dict["cogs.music.fm"]                     = os.getenv("music_fm")
-extension_dict["cogs.music.info"]                   = os.getenv("music_info")
-extension_dict["cogs.music.scrobble_utility"]       = os.getenv("scrobble_utility")
-extension_dict["cogs.music.scrobble_visualization"] = os.getenv("scrobble_visualization")
-extension_dict["cogs.roles.roles"]                  = os.getenv("roles")
-extension_dict["cogs.roles.reactionroles"]          = os.getenv("reactionroles")
-extension_dict["cogs.userown.memo"]                 = os.getenv("memo")
-extension_dict["cogs.userown.pingterest"]           = os.getenv("pingterest")
-# extended:
-extension_dict["cogs.xtended.youtube_download"]     = os.getenv("youtube_download")
+class MDMBot(commands.Bot):
 
-
-class YataBot(commands.Bot):
     def __init__(self):
         super().__init__(
-            application_id   = app_id,
+            application_id   = environment.application_id,
             case_insensitive = True,
-            command_prefix   = prefix,
+            command_prefix   = environment.prefix,
             help_command     = None,
             intents          = discord.Intents.all()
             )
 
-        self.initial_extensions  = extension_dict.keys()
-        self.optional_extensions = ["cogs.sandbox"]
+        self.activity_status            = -1
+        self.version                    = "??"
+        self.main_guild_id              = environment.main_guild_id
+        self.bot_channel_id             = environment.bot_channel_id
+        self.main_extension_dict        = environment.main_extension_dict
+        self.optional_extension_dict    = environment.optional_extension_dict
+        self.reboot_time_string         = environment.reboot_time_string
+        self.cooldown_settings          = {}
+        self.modtier_settings           = {}
+
+
+    def check_is_active(self):
+        print("test successful") #todo
+        return (self.activity_status > 0)
 
 
     async def setup_hook(self):
-        # loading cogs
-        
 
-        for ext in self.initial_extensions:
-            if (extension_dict.get(ext) is None) or (str(extension_dict.get(ext)).lower().strip() == "true"):
-                await self.load_extension(ext)
+        # loading cogs
+        for ext in self.main_extension_dict.keys():
+            if (self.main_extension_dict.get(ext) is None) or (str(self.main_extension_dict.get(ext)).lower().strip() != "false"):
+                try:
+                    await self.load_extension(ext)
+                except:
+                    print(f"todo: fix this error with {ext}")
             else:
-                print(f"> Cog {extension_dict.get(ext)} disabled")
+                print(f"> cog {ext} disabled")
 
         # loading optional cogs
-        for ext in self.optional_extensions:
-            try:
-                await self.load_extension(ext)
-                print("loaded", str(ext))
-            except Exception as e:
-                #print(f"did not load extension {str(ext)}")
+        for ext in self.optional_extension_dict.keys():
+            if (self.optional_extension_dict.get(ext) is None) or (str(self.optional_extension_dict.get(ext)).lower().strip() != "false"):
                 try:
-                    if f"Extension '{ext}' raised an error:" in str(traceback.format_exc()):
-                        reason = str(traceback.format_exc()).split(f"Extension '{ext}' raised an error:")[-1].strip()
-                    else:
-                        reason = str(traceback.format_exc()).strip().split("\n")[-1].strip()
-                    if reason.endswith(f"discord.ext.commands.errors.ExtensionNotFound: Extension '{ext}' could not be loaded."):
+                    await self.load_extension(ext)
+                    print(f"> optional cog {ext} enabled")
+                except Exception as e:
+                    try:
+                        if f"Extension '{ext}' raised an error:" in str(traceback.format_exc()):
+                            reason = str(traceback.format_exc()).split(f"Extension '{ext}' raised an error:")[-1].strip()
+                        else:
+                            reason = str(traceback.format_exc()).strip().split("\n")[-1].strip()
+                        if reason.endswith(f"discord.ext.commands.errors.ExtensionNotFound: Extension '{ext}' could not be loaded."):
+                            pass #default
+                        else:
+                            print(f"> {reason}")
+                    except:
                         pass
-                    else:
-                        print(f"> {reason}")
-                except:
-                    pass
 
         # putting together
-        await bot.tree.sync(guild = discord.Object(id = guild_id))
+        await bot.tree.sync(guild = discord.Object(id = self.main_guild_id))
+
 
 
     async def on_ready(self):
-        print('logged in as {0.user}'.format(bot))
+        print('> logged in as {0.user}'.format(bot))
 
         try:
-            channel = bot.get_channel(bot_channel_id)
-            try:
-                emoji = util.emoji("login")
-                await channel.send(f'`I haveth logged in` {emoji}')
-            except:
-                await channel.send(f'`I haveth logged in`')
+            # setup/load meta information
+            blf.create_necessary_databases(bot)
+            upd.update_bot()
+            self.activity_status, load_settings = blf.load_activeness()
+            self.version                        = blf.getsave_version_from_file()
 
-            # ACTIVITY
-            try:
-                conA = sqlite3.connect(f'databases/activity.db')
-                curA = conA.cursor()
-                curA.execute('''CREATE TABLE IF NOT EXISTS activity (name text, value text)''')
-                curA.execute('''CREATE TABLE IF NOT EXISTS version (name text, value text)''')
-                activity_list = [item[0] for item in curA.execute("SELECT value FROM activity WHERE name = ?", ("activity",)).fetchall()]
-                activity = activity_list[0]
-                load_settings = True
-            except Exception as e:
-                load_settings = False
-                activity = "inactive"
-                print("Error with activity check:", e)
+            await blf.set_discord_status(bot, load_settings)
+            blf.set_reboot_time(self.reboot_time_string)
+            blf.clear_db_residue()
+            await blf.instance_wide_activity_check(bot)
+            #self.activity_status, load_settings = blf.load_activeness() # might have changed in line above, but handled in line above
+            blf.setup_cooldown_settings(bot)
+            blf.setup_cooldown_in_memory_db()
 
-            # VERSION
-            version = util.get_version_from_file()
-            print(version)
-            try:
-                version_list = [item[0] for item in curA.execute("SELECT value FROM version WHERE name = ?", ("version",)).fetchall()]
-                if len(version_list) == 0:
-                    curA.execute("INSERT INTO version VALUES (?, ?)", ("version", version))
-                    conA.commit()
-                else:
-                    curA.execute("UPDATE version SET value = ? WHERE name = ?", (version, "version"))
-                    conA.commit()
-            except Exception as e:
-                print("Error while storing version number.")
-
-            try:
-                con = sqlite3.connect(f'databases/botsettings.db')
-                cur = con.cursor()
-                cur.execute('''CREATE TABLE IF NOT EXISTS botsettings (name text, value text, type text, details text)''')
-            except Exception as e:
-                print("Error:", e)
-
-            if load_settings:
-
-                # STATUS
-
-                try:
-                    status_list = [[item[0],item[1]] for item in cur.execute("SELECT type, value FROM botsettings WHERE name = ?", ("status",)).fetchall()]
-                    stat_type = status_list[0][0]
-                    stat_name = status_list[0][1]
-                    
-                    if stat_type in ['c', 'p', 's', 'l', 'w', 'n']:
-                        if stat_type == 'c':
-                            await self.change_presence(activity=discord.Activity(type=discord.ActivityType.competing, name=stat_name))
-                            print(f'set status COMPETING IN {stat_name}')
-                        elif stat_type == 'p':
-                            await self.change_presence(activity=discord.Game(name=stat_name))
-                            print(f'set status PLAYING {stat_name}')
-                        elif stat_type == 's':
-                            my_twitch_url = "https://www.twitch.tv/mdmbot/home"
-                            await self.change_presence(activity=discord.Streaming(name=stat_name, url=my_twitch_url))
-                            print(f'set status STREAMING {stat_name}')
-                        elif stat_type == 'l':
-                            await self.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=stat_name))
-                            print(f'set status LISTENING TO {stat_name}')
-                        elif stat_type == 'w':
-                            await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=stat_name))
-                            print(f'set status WATCHING {stat_name}')
-                        elif stat_type == 'n':
-                            await self.change_presence(activity=None)
-                            print('empty status')
-                    else:
-                        print('first argument was not a valid status type, setting status type WATCHING')
-                        await self.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=value))          
-                except Exception as e:
-                    print(f'Error in loading default status: {e}')
-
-                # REBOOT TIME
-
-                try:
-                    reboot_time_str = os.getenv("reboot")
-                    if reboot_time_str is None:
-                        reboot_time_str = os.getenv("reboot_time")
-                    if reboot_time_str is None:
-                        reboot_time_str = "none"
-
-                    reboot_value = reboot_time_str.split(" ")[0].strip()
-
-                    if len(reboot_time_str.split(" ")) > 1:
-                        reboot_etc = reboot_time_str.split(" ", 1)[1]
-                    else:
-                        reboot_etc = ""
-
-                    hostdata_reboot_list = [item[0] for item in curA.execute("SELECT value FROM hostdata WHERE name = ?", ("reboot time",)).fetchall()]
-                    if len(hostdata_reboot_list) == 0:
-                        curA.execute("INSERT INTO hostdata VALUES (?,?,?,?)", ("reboot time", reboot_value, "", reboot_etc))
-                        conA.commit()
-                        print("Updated hostdata table: reboot time")
-                    else:
-                        if len(hostdata_reboot_list) > 1:
-                            print("Warning: Multiple reboot time entries in activity.db")
-                        curA.execute("UPDATE hostdata SET value = ?, etc = ? WHERE name = ?", (reboot_value, reboot_etc, "reboot time"))
-                        conA.commit()
-
-                    try:
-                        target_hour = util.forceinteger(reboot_value.split(":")[0].strip())
-                        target_minute = util.forceinteger(reboot_value.split(":")[1].strip())
-
-                        if target_hour < 10:
-                            target_hour_str = "0" + str(target_hour)
-                        else:
-                            target_hour_str = str(target_hour)
-
-                        if target_minute < 10:
-                            target_minute_str = "0" + str(target_minute)
-                        else:
-                            target_minute_str = str(target_minute)
-
-                        try:
-                            if reboot_etc == "":
-                                raise ValueError("no timezone set")
-                            tz     = pytz.timezone(reboot_etc)
-                            dt_now = datetime.datetime.now(tz=tz)
-                            print(f"Set reboot time: {target_hour_str}:{target_minute_str} {reboot_etc}")
-                        except Exception as e:
-                            print(f"Set reboot time: {target_hour_str}:{target_minute_str} UTC")
-                    except:
-                        print("no reboot time set")
-
-
-                except Exception as e:
-                    print(f"Error while trying to set reboot time: {e}")
-
-                # CLEAR SOME DATABASES
-
-                try:
-                    conC = sqlite3.connect('databases/cooldowns.db')
-                    curC = conC.cursor()
-                    curC.execute("DELETE FROM userrequests")
-                    curC.execute("DELETE FROM scrobbleupdate")
-                    conC.commit()
-                except Exception as e:
-                    print(f"Error while trying to clear cooldown database - user requests table: {e}")
-
-                # CLEAR TEMP FOLDER
-
-                try:
-                    for filename in os.listdir(f"{sys.path[0]}/temp/"):  
-                        if filename != ".gitignore":              
-                            os.remove(f"{sys.path[0]}/temp/{filename}")
-                except Exception as e:
-                    print("Error while trying to clear temp folder:", e)
-
-            else:
-                stat_name = "standby mode"
-                await self.change_presence(activity=discord.Game(name=stat_name))
-                print(f'status: standby mode')
-
-            # INSTANCES WIDE ACTIVITY CHECK
-
-            try:
-                # Check whether bot display role id enabled
-                con = sqlite3.connect(f'databases/botsettings.db')
-                cur = con.cursor()
-
-                bot_display = [item[0] for item in cur.execute("SELECT value FROM serversettings WHERE name = ?", ("bot display",)).fetchall()][0]
-                if bot_display == "on":
-                    # Check whether role is assinged to bot
-
-                    server = bot.get_guild(guild_id)
-                    if server is None:
-                        server = await bot.fetch_guild(guild_id)
-                        if server is None:
-                            raise ValueError("bot.fetch_guild(<guild_id>) returned None")
-
-                    bot_member = server.get_member(self.application_id)
-                    botrole_id = int([item[0] for item in cur.execute("SELECT role_id FROM specialroles WHERE name = ?", ("bot display role",)).fetchall()][0])                   
-                    bot_display_role = server.get_role(botrole_id)
-
-                    if bot_display_role in bot_member.roles:
-                        # bot has role, no need to set inactive
-                        pass
-
-                    else:
-                        # bot does not have role -> set to inactive
-                        conA = sqlite3.connect(f'databases/activity.db')
-                        curA = conA.cursor()
-                        activity_list = [item[0] for item in curA.execute("SELECT value FROM activity WHERE name = ?", ("activity",)).fetchall()]
-                        this_instances_activity = activity_list[0].lower()
-
-                        if this_instances_activity != "inactive":
-                            curA.execute("UPDATE activity SET value = ? WHERE name = ?", ("inactive", "activity"))
-                            conA.commit()
-                            try:
-                                await channel.send(f'(set inactive)')
-                            except Exception as e:
-                                print(f"Failed to send inactivity setting message: {e}")
-            except Exception as e:
-                print(f"error in serverwide instance activity check: {e}")
+            # announce presence
+            channel = bot.get_channel(self.bot_channel_id)
+            emoji   = utl_g.emoji("login")
+            await channel.send(f'`I have logged in` {emoji}')
                         
         except Exception as e:
-            print(f"error in executing on_ready: {e}")
-            activity = "failed loading"
+            print(f"> error in executing on_ready: {e}")
+            if self.activity_status == -1:
+                print("Error: failed loading, please restart")
 
 
 
-bot = YataBot()
-bot.run(discord_token)
+bot = MDMBot()
+bot.run(environment.discord_token)

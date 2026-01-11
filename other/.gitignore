@@ -1,2 +1,5 @@
+backup
+old_v3_databases
+test.py
+.cache
 __pycache__
-setup.py
