@@ -4751,12 +4751,21 @@ class Utils():
                 print(f"loaded scrobble data of {lfm_name} : ({count} entries)")
 
         except Exception as e:
+            discord_name = ""
+            try:
+                conNP = sqlite3.connect('databases/npsettings.db')
+                curNP = conNP.cursor()
+                lfm_list = [item[0] for item in curNP.execute("SELECT id FROM lastfm WHERE lfm_name = ?", (lfm_name,)).fetchall()]
+                if len(lfm_list) > 0 and represents_integer(lfm_list[0]):
+                    discord_name = "<@" + str(lfm_list[0]) + ">"
+            except:
+                pass
             if str(e).startswith("Unable to fetch scrobble data from:"):
                 standard_scrobble_fetching_error = True
-                text = f"Could not fetch last.fm information from user `{lfm_name}`.\nCheck on https://www.last.fm/user/{lfm_name} whether the page still exists. If not and this error persists it is recommended to either scrobble-ban them or purge their data from the np-settings database via command `removefm`.\n\n"
+                text = f"Could not fetch last.fm information from user `{lfm_name}` ({discord_name}).\nCheck on https://www.last.fm/user/{lfm_name} whether the page still exists. If not and this error persists it is recommended to either scrobble-ban them or purge their data from the np-settings database via command `removefm`.\n\n"
             else:
                 standard_scrobble_fetching_error = False
-                text = f"There was a problem while handling data of user `{lfm_name}`.\n\n`Error message:` {e}"
+                text = f"There was a problem while handling data of user `{lfm_name}` ({discord_name}).\n\n`Error message:` {e}"
 
             title = "⚠️ Scrobble Auto-Update Error"
             if (standard_scrobble_fetching_error and recent_scrobble_auto_update_error_messaging(lfm_name)):
