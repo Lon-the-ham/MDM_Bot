@@ -43,7 +43,6 @@ class MDMBot(commands.Bot):
 
 
     def check_is_active(self):
-        print("test successful") #todo
         return (self.activity_status > 0)
 
 
@@ -52,10 +51,7 @@ class MDMBot(commands.Bot):
         # loading cogs
         for ext in self.main_extension_dict.keys():
             if (self.main_extension_dict.get(ext) is None) or (str(self.main_extension_dict.get(ext)).lower().strip() != "false"):
-                try:
-                    await self.load_extension(ext)
-                except:
-                    print(f"todo: fix this error with {ext}")
+                await self.load_extension(ext)
             else:
                 print(f"> cog {ext} disabled")
 

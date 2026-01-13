@@ -14,8 +14,8 @@ class ComCheckUtils():
     ##                                         boolean output                                              ##
     #########################################################################################################
 
-    def is_active(bot) -> bool:
-        return (bot.activity_status > 0)
+    #def is_active(bot) -> bool:
+    #    return (bot.activity_status > 0)
 
 
 
@@ -84,10 +84,10 @@ class ComCheckUtils():
     ##                             check with customised error message                                     ##
     #########################################################################################################
 
-    def check_is_active(bot):
-        if ComCheckUtils.is_active(bot):
-            return True
-        raise commands.CheckFailure("inactive")
+    #def check_is_active(bot):
+    #    if ComCheckUtils.is_active(bot):
+    #        return True
+    #    raise commands.CheckFailure("inactive")
 
 
 

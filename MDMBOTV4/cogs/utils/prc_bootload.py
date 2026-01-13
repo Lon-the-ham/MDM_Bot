@@ -31,27 +31,27 @@ class Environment():
             reboot_time_string = os.getenv("reboot_time")
 
         self.main_extension_dict = {}
-        self.main_extension_dict["cogs.admin.instance_management"]    = os.getenv("instance_management")
-        self.main_extension_dict["cogs.admin.servermoderation"]       = os.getenv("servermoderation")
-        self.main_extension_dict["cogs.admin.settings"]               = os.getenv("settings")
-        self.main_extension_dict["cogs.events.eventresponse"]         = os.getenv("eventresponse")
-        self.main_extension_dict["cogs.events.timeloops"]             = os.getenv("timeloops")
-        self.main_extension_dict["cogs.general.general_utility"]      = os.getenv("general_utility")
-        self.main_extension_dict["cogs.general.help"]                 = os.getenv("general_help")
-        self.main_extension_dict["cogs.general.shenanigans"]          = os.getenv("shenanigans")
-        self.main_extension_dict["cogs.music.exchanges"]              = os.getenv("music_exchanges")
-        self.main_extension_dict["cogs.music.fm"]                     = os.getenv("music_fm")
-        self.main_extension_dict["cogs.music.info"]                   = os.getenv("music_info")
-        self.main_extension_dict["cogs.music.scrobble_utility"]       = os.getenv("scrobble_utility")
-        self.main_extension_dict["cogs.music.scrobble_visualization"] = os.getenv("scrobble_visualization")
-        self.main_extension_dict["cogs.roles.roles"]                  = os.getenv("roles")
-        self.main_extension_dict["cogs.roles.reactionroles"]          = os.getenv("reactionroles")
-        self.main_extension_dict["cogs.userown.memo"]                 = os.getenv("memo")
-        self.main_extension_dict["cogs.userown.pingterest"]           = os.getenv("pingterest")
-        self.main_extension_dict["cogs.xtended.youtube_download"]     = os.getenv("youtube_download")
+        self.main_extension_dict["cogs.admin.cmd_instance_management"]    = os.getenv("instance_management")
+        self.main_extension_dict["cogs.admin.cmd_servermoderation"]       = os.getenv("servermoderation")
+        self.main_extension_dict["cogs.admin.cmd_settings"]               = os.getenv("settings")
+        self.main_extension_dict["cogs.events.prc_eventresponse"]         = os.getenv("eventresponse")
+        self.main_extension_dict["cogs.events.prc_timeloops"]             = os.getenv("timeloops")
+        self.main_extension_dict["cogs.general.cmd_general_utility"]      = os.getenv("general_utility")
+        self.main_extension_dict["cogs.general.cmd_help"]                 = os.getenv("general_help")
+        self.main_extension_dict["cogs.general.cmd_shenanigans"]          = os.getenv("shenanigans")
+        self.main_extension_dict["cogs.music.cmd_exchanges"]              = os.getenv("music_exchanges")
+        self.main_extension_dict["cogs.music.cmd_fm"]                     = os.getenv("music_fm")
+        self.main_extension_dict["cogs.music.cmd_info"]                   = os.getenv("music_info")
+        self.main_extension_dict["cogs.music.cmd_scrobble_utility"]       = os.getenv("scrobble_utility")
+        self.main_extension_dict["cogs.music.cmd_scrobble_visualization"] = os.getenv("scrobble_visualization")
+        self.main_extension_dict["cogs.roles.cmd_roles"]                  = os.getenv("roles")
+        self.main_extension_dict["cogs.roles.prc_reactionroles"]          = os.getenv("reactionroles")
+        self.main_extension_dict["cogs.userown.cmd_memo"]                 = os.getenv("memo")
+        self.main_extension_dict["cogs.userown.cmd_pingterest"]           = os.getenv("pingterest")
+        self.main_extension_dict["cogs.xtended.cmd_youtube_download"]     = os.getenv("youtube_download")
 
         self.optional_extension_dict = {}
-        self.optional_extension_dict["cogs.sandbox"]                  = os.getenv("sandbox")
+        self.optional_extension_dict["cogs.sandbox"]                      = os.getenv("sandbox")
 
 
 
@@ -158,16 +158,17 @@ class BootLoadFunctions():
             if len(activity_list) > 0:
                 load_settings = True
                 if activity_list[0].lower() == "no":
-                    activity = "inactive"
+                    activity = 0 #"inactive"
                 else:
-                    activity = "active"
+                    activity = 1 #"active"
             else:
                 load_settings = False
-                activity = "inactive"
-                print("> error: database doesn't have activity status") # TODO give user directive
+                activity = 0 #"inactive"
+                cur0.execute("INSERT INTO artistinfo VALUES (?, ?)", ("active", "no"))
+                con0.commit()
         except Exception as e:
             load_settings = False
-            activity = "inactive"
+            activity = 0 #"inactive"
             print("> error with activity check:", e) # TODO give user directive
 
         return activity, load_settings
