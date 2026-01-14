@@ -2,6 +2,7 @@ import asyncio
 import os
 import sqlite3
 
+from dotenv  import load_dotenv
 from pathlib import Path
 
 from cogs.utils.utl_simple  import SimpleUtils  as utl_s
@@ -162,6 +163,23 @@ class GeneralUtils():
         except Exception as e:
             print(f"Error: {e}\n[utlG emoji]")
             return ""
+
+
+
+    #def get_mainserver_from_db() -> int:
+    #    try:
+    #        conB = sqlite3.connect('databases/botsettings.db')
+    #        curB = conB.cursor()
+    #        mainserver_list = [utl_s.force_integer(item[0]) for item in curB.execute("SELECT value FROM bot_settings WHERE name = ? AND num = ?", ("server id", 0)).fetchall()]
+    #        if len(mainserver_list) > 0:
+    #            return mainserver_list[0]
+    #    except:
+    #        pass
+    #    subsitute = utl_s.force_integer(os.getenv("guild_id"))
+    #    if substitute is None:
+    #        return -1
+    #    return substitute
+
             
 
 

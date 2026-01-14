@@ -165,6 +165,9 @@ if transfer:
         elif item[0] == "daily update time":
             item[0] = "time update"
 
+    hostdata_list.append(["metallum scraping","off", ""])
+    hostdata_list.append(["scrobbling","off", ""])
+
     hostdata_list.sort(key=lambda x: x[0])
 
     print("Transfering host settings")

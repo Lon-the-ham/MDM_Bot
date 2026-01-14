@@ -12,3 +12,6 @@ class BotUpdate():
 
     def update_bot():
         pass # TODO: transfer from v3, get all important settings
+
+        # host0:
+        # dropbox token, encryption key, rym/ma/scrobbling import, time reboot, time update

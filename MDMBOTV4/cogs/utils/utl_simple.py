@@ -19,6 +19,26 @@ class SimpleUtils():
 
 
 
+    def on_off_from_bool(b: bool) -> str:
+        if b:
+            return "on"
+        return "off"
+
+
+
+    def on_off_to_bool(s: str) -> bool:
+        s2 = s.lower().strip()   
+        if   s2 == "off":
+            return False
+        elif s2 == "on":
+            return True
+        else:
+            if s2 in ["no", "false", "disabled"]:
+                return False
+            return True
+
+
+
     def represents_integer(s):
         """checks if string is integer or float ending with .0"""
         if s.startswith("-") or s.startswith("+"):

@@ -19,16 +19,32 @@ from cogs.utils.prc_update  import BotUpdate    as prc_update
 class Environment():
     def __init__(self):
         load_dotenv()
-        self.application_id = os.getenv("application_id")
-        self.bot_instance   = os.getenv("bot_instance")
         self.discord_token  = os.getenv("discord_token")
+
+        try:
+            self.main_guild_id  = int(os.getenv("guild_id"))
+            self.bot_channel_id = int(os.getenv("bot_channel_id"))
+        except:
+            raise ValueError("ERROR: .env file is not set up correctly.\nMake sure it includes guild_id and bot_channel_id")
+
         self.prefix         = os.getenv("prefix")
-        self.main_guild_id  = int(os.getenv("guild_id"))
-        self.bot_channel_id = int(os.getenv("bot_channel_id"))
+
+        if self.prefix is None:
+            prefix          = "-"
+            print("Note: Prefix was not set, it will default to a hyphen '-'")
+
+        self.bot_instance   = utl_s.force_integer(os.getenv("bot_instance"))
+        self.host_user_id   = utl_s.force_integer(os.getenv("host_user_id"))
 
         self.reboot_time_string = os.getenv("reboot")
         if self.reboot_time_string is None:
             reboot_time_string = os.getenv("reboot_time")
+
+        self.webinfo_import = {}
+        self.webinfo_import["rym"] = os.getenv("import_rym")
+        self.webinfo_import["ma"]  = os.getenv("import_metallum")
+        self.webinfo_import["lfm"] = os.getenv("import_scrobbles")
+
 
         self.main_extension_dict = {}
         self.main_extension_dict["cogs.admin.cmd_instance_management"]    = os.getenv("instance_management")
@@ -58,7 +74,7 @@ class Environment():
 class BootLoadFunctions():
 
     #########################################################################################################
-    ##                                       common def                                                    ##
+    ##                                     non-async def                                                   ##
     #########################################################################################################
 
     def create_necessary_databases(bot) -> None:
@@ -164,7 +180,7 @@ class BootLoadFunctions():
             else:
                 load_settings = False
                 activity = 0 #"inactive"
-                cur0.execute("INSERT INTO artistinfo VALUES (?, ?)", ("active", "no"))
+                cur0.execute("INSERT INTO meta VALUES (?, ?)", ("active", "no"))
                 con0.commit()
         except Exception as e:
             load_settings = False
@@ -229,6 +245,23 @@ class BootLoadFunctions():
 
 
 
+    def setup_bot_masters(bot) -> None:
+        bot.bot_master_ids.append(bot.host_id)
+        conB        = sqlite3.connect('databases/botsettings.db')
+        curB        = conB.cursor()
+        master_list = [utl_s.force_integer(item[0]) for item in curB.execute("SELECT value FROM bot_settings WHERE name = ?", ("master",)).fetchall()]
+
+        if bot.host_id not in master_list:
+            num = len(master_list) + 1
+            curB.execute("INSERT INTO bot_settings VALUES (?, ?, ?, ?)", ("master", num, str(bot.host_id), ""))
+            conB.commit()
+
+        for user_id in master_list:
+            if user_id not in bot.bot_master_ids:
+                bot.bot_master_ids.append(user_id)
+
+
+
     def setup_cooldown_settings(bot) -> None:
         """save cooldown + mod_tier settings as dictionary in bot objects member variable"""
         conB = sqlite3.connect('databases/botsettings.db')
@@ -288,6 +321,41 @@ class BootLoadFunctions():
         curRAM.execute('''CREATE TABLE IF NOT EXISTS cooldowns (service text, user_id integer, utc_timestamp_ds integer)''')
         curRAM.execute("DELETE FROM cooldowns")
         conRAM.commit()
+
+
+
+    def setup_webinfo_import(bot) -> None:
+        con0     = sqlite3.connect('databases/0host.db') 
+        cur0     = con0.cursor()
+        settings = [[item[0], item[1]] for item in cur0.execute("SELECT name, value FROM settings").fetchall()]
+
+        for item in settings:
+            if   item[0] == "rym scraping":
+                if bot.webinfo_import["rym"] is None:
+                    bot.webinfo_import["rym"] = (item[1] != "off")
+                else:
+                    env_value = utl_s.on_off_from_bool(bot.webinfo_import["rym"])
+                    if (env_value != item[1]):
+                        cur0.execute("UPDATE settings SET value = ? WHERE name = ?", (env_value, "rym scraping"))
+                        con0.commit()
+
+            elif item[0] == "metallum scraping":
+                if bot.webinfo_import["ma"] is None:
+                    bot.webinfo_import["ma"]  = (item[1] != "off")
+                else:
+                    env_value = utl_s.on_off_from_bool(bot.webinfo_import["ma"])
+                    if (env_value != item[1]):
+                        cur0.execute("UPDATE settings SET value = ? WHERE name = ?", (utl_s.on_off_from_bool(bot.webinfo_import["ma"]), "metallum scraping"))
+                        con0.commit()
+
+            elif item[0] == "scrobbling":
+                if bot.webinfo_import["lfm"] is None:
+                    bot.webinfo_import["lfm"] = (item[1] != "off")
+                else:
+                    env_value = utl_s.on_off_from_bool(bot.webinfo_import["lfm"])
+                    if (env_value != item[1]):
+                        cur0.execute("UPDATE settings SET value = ? WHERE name = ?", (utl_s.on_off_from_bool(bot.webinfo_import["lfm"]), "scrobbling"))
+                        con0.commit()
 
 
 

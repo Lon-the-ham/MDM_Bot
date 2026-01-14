@@ -3,7 +3,7 @@ import os
 import sqlite3
 import zipfile
 
-class TranslationUtils():
+class TransformationUtils():
 
     def diacritic_uppercase_translation(old_string: str) -> str:
         diacritics = {

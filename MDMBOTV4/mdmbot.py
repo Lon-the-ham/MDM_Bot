@@ -10,11 +10,10 @@ from discord.ext import commands
 from cogs.utils.prc_bootload    import Environment          as env
 from cogs.utils.prc_bootload    import BootLoadFunctions    as blf
 from cogs.utils.prc_update      import BotUpdate            as upd
-from cogs.utils.utl_checks      import ComCheckUtils        as utl_c
 from cogs.utils.utl_discord     import DiscordUtils         as utl_d
 from cogs.utils.utl_general     import GeneralUtils         as utl_g
 from cogs.utils.utl_simple      import SimpleUtils          as utl_s
-from cogs.utils.utl_translation import TranslationUtils     as utl_t
+from cogs.utils.utl_trans       import TransformationUtils  as utl_t
 
 environment = env()
 
@@ -24,7 +23,6 @@ class MDMBot(commands.Bot):
 
     def __init__(self):
         super().__init__(
-            application_id   = environment.application_id,
             case_insensitive = True,
             command_prefix   = environment.prefix,
             help_command     = None,
@@ -33,17 +31,47 @@ class MDMBot(commands.Bot):
 
         self.activity_status            = -1
         self.version                    = "??"
-        self.main_guild_id              = environment.main_guild_id
         self.bot_channel_id             = environment.bot_channel_id
+        self.host_id                    = environment.host_user_id
+        self.main_guild_id              = environment.main_guild_id
         self.main_extension_dict        = environment.main_extension_dict
         self.optional_extension_dict    = environment.optional_extension_dict
+        self.prfx                       = environment.prefix
         self.reboot_time_string         = environment.reboot_time_string
+        self.webinfo_import             = environment.webinfo_import
+        self.bot_master_ids             = []
         self.cooldown_settings          = {}
         self.modtier_settings           = {}
 
 
-    def check_is_active(self):
+
+    #########################################################################################################
+    ##                                         direct checks                                               ##
+    #########################################################################################################
+
+
+    def is_active(self):
         return (self.activity_status > 0)
+
+
+    def import_rym_enabled(self):
+        return self.webinfo_import["rym"]
+
+
+    def import_metallum_enabled(self):
+        return self.webinfo_import["ma"]
+
+
+    def import_scrobbles_enabled(self):
+        return self.webinfo_import["lfm"]
+
+
+
+
+    #########################################################################################################
+    ##                                           bot setup                                                 ##
+    #########################################################################################################
+
 
 
     async def setup_hook(self):
@@ -81,7 +109,6 @@ class MDMBot(commands.Bot):
 
     async def on_ready(self):
         print('> logged in as {0.user}'.format(bot))
-
         try:
             # setup/load meta information
             blf.create_necessary_databases(bot)
@@ -93,9 +120,10 @@ class MDMBot(commands.Bot):
             blf.set_reboot_time(self.reboot_time_string)
             blf.clear_db_residue()
             await blf.instance_wide_activity_check(bot)
-            #self.activity_status, load_settings = blf.load_activeness() # might have changed in line above, but handled in line above
             blf.setup_cooldown_settings(bot)
             blf.setup_cooldown_in_memory_db()
+            blf.setup_webinfo_import(bot)
+            blf.setup_bot_masters(bot)
 
             # announce presence
             channel = bot.get_channel(self.bot_channel_id)
@@ -104,10 +132,14 @@ class MDMBot(commands.Bot):
                         
         except Exception as e:
             print(f"> error in executing on_ready: {e}")
+            print(traceback.format_exc())
             if self.activity_status == -1:
                 print("Error: failed loading, please restart")
 
 
+###################################
 
 bot = MDMBot()
 bot.run(environment.discord_token)
+
+###################################
