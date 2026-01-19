@@ -18,7 +18,7 @@ class Administration_of_Bot_Instance(commands.Cog):
 
 
 
-    @commands.command(name='status', aliases = ["instancestatus", "botstatus"])
+    @commands.command(name='status', aliases = ["instancestatus"])
     async def _botstatus(self, ctx, *, args=None):
         """🔒 Shows bot instance's status
 

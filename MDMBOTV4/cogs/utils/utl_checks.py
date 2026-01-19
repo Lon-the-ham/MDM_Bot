@@ -61,6 +61,19 @@ class ComCheckUtils():
 
 
 
+    def has_shared_server(ctx: Context) -> bool:
+        if not is_dm:
+            return True
+
+        user_id = ctx.author.id
+        for guild in ctx.bot.guilds:
+            for member in guild.members:
+                if member.id == user_id:
+                    return True
+        return False
+
+
+
     def inactivity_filter_enabled(ctx: Context) -> bool:
         # TODO 
         conB = sqlite3.connect('databases/botsettings.db')
