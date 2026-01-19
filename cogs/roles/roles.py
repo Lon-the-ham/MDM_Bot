@@ -1439,7 +1439,7 @@ class Roles(commands.Cog):
                 if role[3].lower() in reaction_categories and role[3].lower() in provided_cats:
                     db_react_roles.append(role)
 
-            if len(unsused_cats) > 0:
+            if len(unused_cats) > 0:
                 message = f"Error: Some of the role categories are not enabled in the reaction role settings."
                 enabledcat_string = ', '.join(unsused_cats).lower()
                 message += f"\nCategories that are not enabled: ````{enabledcat_string}```"
