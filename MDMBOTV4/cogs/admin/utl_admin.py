@@ -4,6 +4,27 @@ import sqlite3
 
 class AdministrationUtils():
 
+
+    def find_application_by_index(instance_number: int) -> Tuple[bool, int]:
+        """return flag whether index was found and application number"""
+
+        con = sqlite3.connect(f'databases/botsettings.db')
+        cur = con.cursor()
+        app_list = [[item[0],item[1]] for item in cur.execute("SELECT num, value FROM bot_settings WHERE name = ?", ("app id",)).fetchall()]
+
+        app_id      = None
+        index_found = False
+        for item in app_list:
+            if item[0] == instance_number:
+                app_index = instance_number
+                app_id = item[1]
+                index_found = True
+                break
+
+        return index_found, app_id
+
+
+
     def get_instance_number(app_id) -> int:
         con = sqlite3.connect(f'databases/botsettings.db')
         cur = con.cursor()

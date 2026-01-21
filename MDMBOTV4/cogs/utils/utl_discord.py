@@ -77,6 +77,34 @@ class DiscordUtils():
         await channel.send(embed=embed)
 
 
+
+    #########################################################################################################
+    ##                                       RESPONSE CHECK                                                ##
+    #########################################################################################################
+
+
+    async def confirmation_check(ctx, question_text: str) -> bool:
+        """Asks for confirmation whether an action should continue."""
+        
+        def check(m): # checking if it's the same user and channel
+            return ((m.author == ctx.author) and (m.channel == ctx.channel))
+
+        await ctx.send(question_text[:2000])
+
+        try:
+            async with ctx.typing():
+                response = await ctx.bot.wait_for('message', check=check, timeout=30.0) # timeout - how long bot waits for message (in seconds)
+        except asyncio.TimeoutError:                           
+            await ctx.send("Action timed out.")
+            return False
+
+        if response.content.lower() not in ["yes", "y"]:
+            await ctx.send("Cancelled action.")
+            return False
+
+        return True
+
+
     #########################################################################################################
     ##                                          COOLDOWN                                                   ##
     #########################################################################################################
