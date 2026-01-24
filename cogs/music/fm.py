@@ -2954,7 +2954,7 @@ class Music_NowPlaying(commands.Cog):
 
         user_id = str(ctx.message.author.id)
         user_name = util.cleantext2(str(ctx.message.author.name))
-        new_lfm_name = util.cleantext2('_'.join(args)).replace("\\", "")
+        new_lfm_name = util.cleantext2('_'.join(args)).replace("\\", "").replace("<", "").replace(">", "")
         new_lfm_link = "https://www.last.fm/user/" + new_lfm_name
         details = ""
 
