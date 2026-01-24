@@ -4414,7 +4414,7 @@ class Music_Scrobbling(commands.Cog):
                     if normalisation:
                         ranking_string = "normalised " + ranking_string
 
-                    text_part4 += f"(entries ranked by {ranking_string})"
+                    text_part4 += f"-# (entries ranked by {ranking_string})"
 
                 counter    = 0
                 part_len   = len(text) + len(text_part2) + len(text_part4)
