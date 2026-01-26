@@ -2196,7 +2196,7 @@ class Administration_of_Settings(commands.Cog):
         if len(args) >= 3:
             all_args_mentions = True
             for arg in args[:-1]:
-                if len(arg) > 5 and arg[:3] == "<@&" and arg[-1] == ">":
+                if len(arg) > 15 and arg[:3] == "<@&" and arg[-1] == ">":
                     try:
                         txt = arg[3:-1]
                         num = int(txt)
@@ -2211,7 +2211,7 @@ class Administration_of_Settings(commands.Cog):
 
         con = sqlite3.connect(f'databases/roles.db')
         cur = con.cursor()
-        roles_list = [[item[0],item[1]] for item in cur.execute("SELECT role_id, name FROM roles WHERE id = ?", (role_id,)).fetchall()]
+        roles_list = [[item[0],item[1]] for item in cur.execute("SELECT role_id, name FROM roles").fetchall()]
 
 
         if all_args_mentions:
