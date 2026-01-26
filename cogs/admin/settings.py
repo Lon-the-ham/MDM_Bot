@@ -2211,7 +2211,7 @@ class Administration_of_Settings(commands.Cog):
 
         con = sqlite3.connect(f'databases/roles.db')
         cur = con.cursor()
-        roles_list = [[item[0],item[1]] for item in cur.execute("SELECT role_id, name FROM roles").fetchall()]
+        roles_list = [[item[0],item[1]] for item in cur.execute("SELECT id, name FROM roles").fetchall()]
 
 
         if all_args_mentions:
