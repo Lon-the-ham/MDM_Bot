@@ -22,6 +22,7 @@ class TransformationUtils():
             ord("Ẩ"): "A",
             ord("Ą"): "A",
             ord("Ç"): "C",
+            ord("Ć"): "C",
             ord("Č"): "C",
             ord("Ď"): "D",
             ord("Ė"): "E",
