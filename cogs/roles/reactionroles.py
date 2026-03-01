@@ -115,14 +115,27 @@ class RoleEvents(commands.Cog):
         elif react2 in emoji_role_dict:
             role_id = emoji_role_dict[react2]
         else:
-            try:
-                channel = self.bot.get_channel(payload.channel_id)
-                message = await channel.fetch_message(payload.message_id)
-                await message.remove_reaction(payload.emoji, user)
-                print("non accepted react detected")
-            except:
-                print("could not remove reaction")
-            return
+            # check for renamed custom emoji
+            found_emoji = False
+            if ":" in react2:
+                react2_id = ''.join([x for x in react2_id.split(":")[-1] if x in ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]])
+                for emoji in emoji_role_dict:
+                    if emoji.startswith("<") and emoji.endswith(">") and ":" in emoji:
+                        emoji_id = ''.join([x for x in emoji.split(":")[-1] if x in ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]])
+                        if emoji_id == react2_id:
+                            found_emoji = True
+                            role_id = emoji_role_dict[emoji]
+                            break
+
+            if not found_emoji:
+                try:
+                    channel = self.bot.get_channel(payload.channel_id)
+                    message = await channel.fetch_message(payload.message_id)
+                    await message.remove_reaction(payload.emoji, user)
+                    print("non accepted react detected")
+                except:
+                    print("could not remove reaction")
+                return
 
         try:
             guild = self.bot.get_guild(payload.guild_id) # check if guild is in cache
