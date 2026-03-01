@@ -302,7 +302,10 @@ class TimeLoops(commands.Cog):
 
             try:
                 og_message = await channel.fetch_message(og_message_id)
-                found_og_message = True
+                if og_message is None:
+                    found_og_message = False
+                else:
+                    found_og_message = True
             except:
                 found_og_message = False
 
