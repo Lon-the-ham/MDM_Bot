@@ -449,7 +449,7 @@ if transfer:
         curT.execute("INSERT INTO user_activity VALUES (?, ?, ?, ?, ?, ?, ?)", (guild_id, guild_name, user_id, username, lastactive, join_time, role_id_list))
 
     print("Transfering raw reaction embeds")
-    curT.execute('''CREATE TABLE IF NOT EXISTS reaction_embeds_multipage  (embed_type text, guild_id integer, channel_id integer, message_id integer, app_id integer, invoker_id integer, page integer, title text, url text, thumbnail text, color integer, content text, fields_titles text, fields_contents text, footer text, author_name text, author_url text, author_icon text, invoker_name text, guild_name text, channel_name text, utc_timestamp integer)''')
+    curT.execute('''CREATE TABLE IF NOT EXISTS reaction_embeds_multipage  (embed_type text, guild_id integer, channel_id integer, message_id integer, app_id integer, invoker_id integer, page integer, chapter integer, title text, url text, thumbnail text, color integer, content text, fields_titles text, fields_contents text, footer text, author_name text, author_url text, author_icon text, invoker_name text, guild_name text, channel_name text, utc_timestamp integer)''')
     curT.execute('''CREATE TABLE IF NOT EXISTS reaction_embeds_singlepage (embed_type text, guild_id integer, channel_id integer, message_id integer, app_id integer, invoker_id integer, invoker_name text, guild_name text, channel_name text, utc_timestamp integer)''') 
     for item in react_embed_list:
         embed_type     = item[0]
