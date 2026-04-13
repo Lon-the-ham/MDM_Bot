@@ -705,34 +705,37 @@ class Music_NowPlaying(commands.Cog):
                     if fetching:
                         
                         if tagservice == "spotify":
-                            if spotify_track_id is None or spotify_track_id == "":
-                                spotify_track_id = await self.fetch_spotify_track_id(artist, album, song)
+                            try:
+                                if spotify_track_id is None or spotify_track_id == "":
+                                    spotify_track_id = await self.fetch_spotify_track_id(artist, album, song)
 
-                            if spotify_track_id != "":
-                                g_tags = False
-                                listenertags = False
-                                if tag_settings_dict["spotify_genretags"] == "on":
-                                    g_tags = True
-                                if tag_settings_dict["spotify_monthlylisteners"] == "on":
-                                    listenertags = True
-                                
-                                genretag_list, ml_string = await self.fetch_spotify_tags(spotify_track_id, g_tags, listenertags)
+                                if spotify_track_id != "":
+                                    g_tags = False
+                                    listenertags = False
+                                    if tag_settings_dict["spotify_genretags"] == "on":
+                                        g_tags = True
+                                    if tag_settings_dict["spotify_monthlylisteners"] == "on":
+                                        listenertags = True
+                                    
+                                    genretag_list, ml_string = await self.fetch_spotify_tags(spotify_track_id, g_tags, listenertags)
 
-                                try:
-                                    if redundancy_filter == "on" and len(genretag_list) > 1:
-                                        genretag_list = util.filter_tagredundancies(genretag_list)
-                                except Exception as e:
-                                    print("Error while trying to remove redundancies from tag list:", e)
+                                    try:
+                                        if redundancy_filter == "on" and len(genretag_list) > 1:
+                                            genretag_list = util.filter_tagredundancies(genretag_list)
+                                    except Exception as e:
+                                        print("Error while trying to remove redundancies from tag list:", e)
 
-                                if len(genretag_list) > 0:
-                                    genre_tags["spotify"] = f"{self.tagseparator}".join(genretag_list)
+                                    if len(genretag_list) > 0:
+                                        genre_tags["spotify"] = f"{self.tagseparator}".join(genretag_list)
 
-                                if ml_string != "":
-                                    if tagservice != np_service:
-                                        new_ml_string = ml_string.split("monthly")[0] + "monthly spoofy listeners"
-                                        listener_stats.append(new_ml_string.strip())
-                                    else:
-                                        listener_stats.append(ml_string.strip())
+                                    if ml_string != "":
+                                        if tagservice != np_service:
+                                            new_ml_string = ml_string.split("monthly")[0] + "monthly spoofy listeners"
+                                            listener_stats.append(new_ml_string.strip())
+                                        else:
+                                            listener_stats.append(ml_string.strip())
+                            except Exception as e:
+                                print(f"Error while trying to fetch Spotify tags: {e}")
 
                         elif tagservice == "lastfm":
                             lfm_listeners = False
