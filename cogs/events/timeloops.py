@@ -290,8 +290,13 @@ class TimeLoops(commands.Cog):
 
             # FETCH CHANNEL
             
+            channel_info = ""
             try:
                 channel = self.bot.get_channel(channel_id) 
+                try:
+                    channel_info = f" to {channel.guild.name}/{channel.name}"[:256]
+                except:
+                    pass
             except Exception as e:
                 print(f"Error while trying to fetch channel for recurring reminder:", e)
                 await self.timeloop_notification("Reminder", f"Error with channel ID {channel_id}, i.e. channel <#{channel_id}>\nError message:```{e}```", False)
@@ -340,8 +345,8 @@ class TimeLoops(commands.Cog):
                 else:
                     await channel.send(message_text)
             except Exception as e:
-                print(f"Error while trying to send recurring reminder:", e)
-                await self.timeloop_notification("Reminder", f"Error while trying to send reminder.\nError message:```{e}```", False)
+                print(f"Error while trying to send reminder:", e)
+                await self.timeloop_notification("Reminder", f"Error while trying to send reminder{channel_info}.\nError message:```{e}```", False)
 
             # REMOVE ITEM FROM TABLE
             await self.delete_reminder(item[0],item[1],item[2],item[3],item[4],item[5])
