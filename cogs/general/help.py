@@ -316,6 +316,7 @@ class Help(commands.Cog):
 
         The bot will reply with a message if online and active.
         """    
+        
         await ctx.send(f'`I am online!`')
 
     @_test.error
