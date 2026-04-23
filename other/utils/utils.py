@@ -12,6 +12,7 @@ import re
 import math
 import random
 import requests
+import urllib
 from bs4 import BeautifulSoup
 import json
 from emoji import UNICODE_EMOJI
@@ -619,6 +620,48 @@ class Utils():
                 curSS.execute(f"DELETE FROM {guild_crown_table} WHERE alias = ?", (alias,))
                 curSS.execute(f"INSERT INTO {guild_crown_table} VALUES (?, ?, ?, ?, ?, ?)", (artist, alias, alias2, lfm_name, discord_name, playcount))
                 conSS.commit()
+
+
+
+    async def check_lastfm_availability(scope = "api"):
+        try:
+            if scope == "api":
+                try:
+                    API_KEY = os.getenv("lfm_api_key")
+                    if API_KEY is None:
+                        raise ValueError("No LastFM keys provided")
+                except:
+                    raise ValueError("No LastFM keys provided")
+
+                USER_AGENT = Utils.lastfm_useragent("function:AvailabilityCheck")
+
+                # define headers and URL
+                headers = {'user-agent': USER_AGENT}
+                url = 'https://ws.audioscrobbler.com/2.0/'
+
+                # make payload
+                random_mdm_artist = random.choice(["A Canorous Quintet", "Aether Realm", "Amon Amarth", "Amorphis", "Arch Enemy", "At the Gates", "Be'lakor", "Carcass", "Children of Bodom", "Dark Tranquillity", "Disarmonia Mundi", "Edge of Sanity", "Eucharist", "Gates of Ishtar", "Heaven Shall Burn", "Hypocrisy", "In Flames", "Insomnium", "Intestine Baalism", "Kalmah", "Mors Principium Est", "Omnium Gatherum", "Sacrilege", "Scar Symmetry", "Shylmagoghnar", "Soilwork", "The Black Dahlia Murder", "Wintersun"])
+
+                payload = {
+                        'method' : 'artist.getInfo',
+                        'artist' : random_mdm_artist,
+                        'api_key': API_KEY,
+                        'format' :'json'
+                    }
+
+                response = await Utils.asyncrequest_get(url, headers=headers, params=payload)
+                if response.getcode() == 200:
+                    return True
+
+            elif scope == "web":
+                response_code = urllib.request.urlopen("https://www.stackoverflow.com").getcode()
+                if response_code == 200:
+                    return True
+
+        except Exception as e:
+            print("Error:", e)
+
+        return False
 
 
 
@@ -4029,29 +4072,14 @@ class Utils():
                 return "rate limit"
 
         try:
-            APP_NAME = "_" + os.getenv("lfm_app_name")
-        except:
-            APP_NAME = ""
-
-        try:
-            REGISTERED_TO = "_by:" + os.getenv("lfm_registered_to")
-        except:
-            REGISTERED_TO = ""
-
-        try:
             API_KEY = os.getenv("lfm_api_key")
             SHARED_SECRET = os.getenv("lfm_shared_secret")
             if API_KEY is None:
                 raise ValueError("No LastFM keys provided")
         except:
             raise ValueError("No LastFM keys provided")
-        
-        try:
-            version = Utils.get_version().replace("version","v").replace(" ","").strip()
-        except:
-            version = "v_X"
 
-        USER_AGENT = f'MDM_Bot_{version}{APP_NAME}{REGISTERED_TO}_function:NowPlaying'
+        USER_AGENT = Utils.lastfm_useragent("function:NowPlaying")
 
         # define headers and URL
         headers = {'user-agent': USER_AGENT}
@@ -4064,7 +4092,27 @@ class Utils():
         #response = requests.get(url, headers=headers, params=payload)
         response = await Utils.asyncrequest_get(url, headers=headers, params=payload)
         return response
+
+
+
+    def lastfm_useragent(func = "default"):
+        try:
+            APP_NAME = "_" + os.getenv("lfm_app_name")
+        except:
+            APP_NAME = ""
+
+        try:
+            REGISTERED_TO = "_by:" + os.getenv("lfm_registered_to")
+        except:
+            REGISTERED_TO = ""
         
+        try:
+            version = Utils.get_version().replace("version","v").replace(" ","").strip()
+        except:
+            version = "v_X"
+
+        USER_AGENT = f'MDM_Bot_{version}{APP_NAME}{REGISTERED_TO}_{func}'
+
 
 
     async def multi_embed_message(ctx, header, text_list, color, footer, channel):
@@ -4762,7 +4810,12 @@ class Utils():
                 pass
             if str(e).startswith("Unable to fetch scrobble data from:"):
                 standard_scrobble_fetching_error = True
-                text = f"Could not fetch last.fm information from user `{lfm_name}` ({discord_name}).\nCheck on https://www.last.fm/user/{lfm_name} whether the page still exists. If not and this error persists it is recommended to either scrobble-ban them or purge their data from the np-settings database via command `removefm`.\n\n"
+
+                lastfm_availability = await Utils.check_lastfm_availability("web")
+                if lastfm_availability:
+                    text = f"Could not fetch last.fm information from user `{lfm_name}` ({discord_name}).\nCheck on https://www.last.fm/user/{lfm_name} whether the page still exists. If not and this error persists it is recommended to either scrobble-ban them or purge their data from the np-settings database via command `removefm`.\n\n"
+                else:
+                    text = f"Cannot reach last.fm. :(\n -# Could not update data of `{lfm_name}` ({discord_name})."
             else:
                 standard_scrobble_fetching_error = False
                 text = f"There was a problem while handling data of user `{lfm_name}` ({discord_name}).\n\n`Error message:` {e}"
