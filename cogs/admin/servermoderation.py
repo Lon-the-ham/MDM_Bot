@@ -221,7 +221,7 @@ class Administration_of_Server(commands.Cog):
         
 
 
-    @commands.command(name='kick', aliases = ['userkick'])
+    @commands.command(name='kick', aliases = ['userkick', 'yeet'])
     @commands.has_permissions(manage_guild=True)
     @commands.check(util.is_main_server)
     @commands.check(util.is_active)
