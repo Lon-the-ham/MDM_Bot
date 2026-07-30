@@ -14,18 +14,56 @@ from cogs.admin.utl_admin   import AdministrationUtils as utl_a
 class AdministrationFunctions():
 
     async def botrole_assignment(self, ctx, assign=True) -> bool:
-        pass
+        '''Instance sets its own botrole active status to <assign>'''
+        for server in bot.guilds:
+            member = utl_d.server_get_member(server, self.bot.user.id)
 
+            if member is None:
+                continue
+
+            bot_display_role = utl_g.server_get_role_from_key(server, "bot display role")
+
+            if bot_display_role is None:
+                continue
+
+            if assign:
+                if role in member.roles:
+                    if self.debug_mode:
+                        print(f"botrole_assignment: bot already has bot display role")
+                    continue
+
+                try:
+                    await member.add_roles(role)
+                except Exception as error:
+                    info = f"Error while trying to assign bot display role (ID: {bot_display_role.id}) to myself"
+                    if self.debug_mode:
+                        print(info)
+                    await utl_d.send_error(bot, server.id, error, info)
+
+            else:
+                if role not in member.roles:
+                    if self.debug_mode:
+                        print(f"botrole_assignment: bot already doesn't have bot display role")
+                    continue
+
+                try:
+                    await member.remove_roles(role)
+                except:
+                    info = f"Error while trying to remove bot display role (ID: {bot_display_role.id}) from myself"
+                    if self.debug_mode:
+                        print(info)
+                    await utl_d.send_error(bot, server.id, error, info)
 
 
 
     
     async def botstatus(self, ctx) -> None:
+        '''Send message of instance status'''
         version = utl_a.get_version()
         app_num = utl_a.get_instance_number(ctx.bot.application_id)
 
         if app_num is None:
-            await ctx.send("Error:")
+            await ctx.send("Error: App number is None")
         else:
             if ctx.bot.is_active():
                 emoji    = utl_g.emoji("awoken")

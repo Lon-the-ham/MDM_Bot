@@ -10,6 +10,7 @@ class DiscordUtils():
     ##                                        generic common def                                           ##
     #########################################################################################################
 
+
     def get_role_ids_from_member(member_obj):
         try:
             return [role.id for role in member.roles]
@@ -18,9 +19,11 @@ class DiscordUtils():
             return []
 
 
+
     #########################################################################################################
     ##                                         generic async def                                           ##
     #########################################################################################################
+
 
     async def get_server(bot, guild_id = None):
         if guild_id is None:
@@ -31,9 +34,28 @@ class DiscordUtils():
         return server
 
 
+    async def server_get_member(server, user_id: int):
+        for member in server.members:
+            if member.id == user_id:
+                return member
+        return None
+
+
+    async def server_get_role_from_key(server, role_key: str):
+        '''retrieves role object of given server by the server database key (e.g. bot display role, timeout role etc.)'''
+        role_id = utl_g.get_db_role_id(server.id, role_key)
+        if role_id is None or role_id == 0:
+            return None
+
+        role = get(server.roles, id=role_id)
+        return role
+
+
+
     #########################################################################################################
     ##                                          MESSAGE SENDING                                            ##
     #########################################################################################################
+
 
     async def notification_send(bot, server_id: int, title: str, text: str, topic=None) -> None:
         def get_notification_channel_id(guild_id: int, subject: str) -> int:
@@ -63,6 +85,16 @@ class DiscordUtils():
 
 
 
+    async def send_error(bot, server_id, error, info = None):
+        title = "⚠️ Error"
+        if info is None:
+            text = f"An error ocurred: `{error}`"
+        else:
+            text = f"{info}: `{error}`"
+        await notification_send(bot, server_id, title, text)
+
+
+
     async def send_embed_message(channel, header: str, text: str, footer: str, colour: hex) -> None:
         if len(header) > 256:
             header = header[:253] + "..."
@@ -75,6 +107,12 @@ class DiscordUtils():
         if footer.strip() != "":
             embed.set_footer(text=footer)
         await channel.send(embed=embed)
+
+
+
+    async def send_under_construction_msg(ctx) -> None:
+        '''Function for development TO-DOs'''
+        await ctx.send("⚠️ `This command is under construction.` ⚠️")
 
 
 

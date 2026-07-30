@@ -112,7 +112,7 @@ class Administration_of_Bot_Instance(commands.Cog):
     @commands.check(util.is_main_server)
     async def _load_cloud_backups(self, ctx):
         """🔜🔒 Retrieves newest files from cloud"""
-        await fnc_clo.load_databases_from_cloud(ctx)
+        await fnc_clo.load_databases_from_cloud(ctx)    #TODO
     @_load_cloud_backups.error
     async def load_cloud_backups_error(self, ctx, error):
         await util.error_handling(ctx, error)
@@ -124,7 +124,7 @@ class Administration_of_Bot_Instance(commands.Cog):
     @commands.check(util.is_main_server)
     async def _save_cloud_backups(self, ctx):
         """🔜🔒 Loads newest files to cloud"""
-        await fnc_clo.save_databases_to_cloud(ctx)
+        await fnc_clo.save_databases_to_cloud(ctx)    #TODO
     @_save_cloud_backups.error
     async def save_cloud_backups_error(self, ctx, error):
         await util.error_handling(ctx, error)

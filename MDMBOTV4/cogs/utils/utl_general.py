@@ -180,7 +180,31 @@ class GeneralUtils():
     #        return -1
     #    return substitute
 
-            
+
+    
+
+    def get_db_role_id(server_id: int, role_key: str):
+        try:
+            if not os.path.isfile(f"./databases/{server_id}/serversettings.db"):
+                #TODO: also check botsettings database
+                return None
+
+            conSS = sqlite3.connect(f'databases/{server_id}/serversettings.db')
+            curSS = conSS.cursor()
+
+            role_id_matches = [utl_s.force_integer(item[0]) for item in curSS.execute("SELECT role_id FROM special_roles WHERE role_key = ?", (role_key,)).fetchall()]
+
+            if len(role_id_matches) == 0:
+                if self.debug_mode:
+                    print(f"Info: get_db_role_id({server_id}, {role_key}) returned 0.\nSeemingly {role_key} is not set.")
+                return None
+
+            return role_id_matches[0]
+
+        except Exception as e:
+            print(f"Error in special_roles table of server {server_id}: {e}")
+        
+        return None
 
 
     def get_moderated_servers() -> list[int]:

@@ -31,6 +31,7 @@ class MDMBot(commands.Bot):
 
         self.activity_status            = -1
         self.version                    = "??"
+        self.debug_mode                 = True # if True prints out a lot of info
         self.bot_channel_id             = environment.bot_channel_id
         self.host_id                    = environment.host_user_id
         self.main_guild_id              = environment.main_guild_id

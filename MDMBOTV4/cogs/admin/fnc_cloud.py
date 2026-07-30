@@ -14,9 +14,9 @@ class CloudFunctions():
 
 
     async def load_databases_from_cloud(ctx):
-        await ctx.send("This command is in construction.")
+        await utl_d.send_under_construction_msg(ctx)
 
 
 
     async def save_databases_to_cloud(ctx):
-        await ctx.send("This command is in construction.")
+        await utl_d.send_under_construction_msg(ctx)
