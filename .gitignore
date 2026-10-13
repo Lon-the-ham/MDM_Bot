@@ -1,3 +1,10 @@
-.git/
-databases/
+__pycache__
 .env
+.git
+.cache
+.claude
+databases/
+temp/
+other/old_versions/
+test.py
+cogs/sandbox.py
