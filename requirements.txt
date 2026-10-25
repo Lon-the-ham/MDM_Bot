@@ -1,0 +1,38 @@
+# MDM Bot v4
+# install with:  pip install -r requirements.txt
+
+# ---- required ----
+discord.py>=2.3
+python-dotenv
+pytz
+requests
+
+# ---- optional ----
+# every package below is imported inside a try block: without it, only the respective feature is turned off
+
+# web scraping: now playing fallbacks (last.fm, Apple Music), metal archives, rateyourmusic, exchange rate fallback
+beautifulsoup4
+# emoji recognition (np reactions, role emojis, reminders)
+emoji
+# spotify genre tags, monthly listeners and artist images (needs Spotify_ClientID and Spotify_ClientSecret in .env)
+spotipy
+# image charts: chart, top, serverartistchart, userartistchart
+Pillow
+# right-to-left text (arabic, hebrew) in the image charts: display order and joined arabic letters
+python-bidi
+arabic-reshaper
+# race charts: racechart (needs pandas + bar_chart_race), racechartexport (only pandas)
+# bar_chart_race also needs ffmpeg installed on the system to create the video
+pandas
+bar_chart_race
+# youtube download: ytdl, ytmp3 (ytmp3 converts to mp3 only if ffmpeg is installed on the system)
+yt-dlp
+# cloud backup of the scrobble data on restart and via makebackup (needs dropbox keys in .env)
+dropbox
+# gpt command (needs an OpenAI API key in .env)
+openai
+# language detection for web search
+langdetect
+# translation commands (the bot supports the synchronous 3.x and the asynchronous 4.x versions)
+# 3.1.0a0 and 4.0.0rc1 pin an old httpx that conflicts with openai, 4.0.2 and later don't
+googletrans>=4.0.2
